@@ -81,7 +81,7 @@ namespace Odin.Services.Authorization.Permissions
                 //Note: circles can potentially useTransitWrite so feed items can be
                 //distributed when posting to a group channel;  intentionally leaving out UseTransitRead
                 PermissionKeys.SendOnBehalfOfOwner,
-                
+                // PermissionKeys.SendIntroductions,
                 PermissionKeys.AllowIntroductions
             });
         }

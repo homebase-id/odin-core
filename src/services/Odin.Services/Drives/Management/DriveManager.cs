@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -165,6 +164,39 @@ public class DriveManager
         }
     }
 
+    public async Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        StorageDrive storageDrive = await GetDriveAsync(driveId);
+
+        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinSecurityException("Cannot change system drive");
+        }
+
+        if (storageDrive.OwnerOnly && allowSubscriptions)
+        {
+            throw new OdinSecurityException("Cannot set Owner Only drive to allow anonymous");
+        }
+
+        //only change if needed
+        if (storageDrive.AllowSubscriptions != allowSubscriptions)
+        {
+            storageDrive.AllowSubscriptions = allowSubscriptions;
+
+            await DriveStorage.UpsertAsync(_tblKeyThreeValue, driveId, storageDrive.TargetDriveInfo.ToKey(), DriveDataType, storageDrive);
+
+            CacheDrive(storageDrive);
+
+            await _mediator.Publish(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext
+            });
+        }
+    }
+
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -216,7 +248,7 @@ public class DriveManager
         var driveId = await GetDriveIdByAliasAsync(targetDrive, failIfInvalid);
         return await GetDriveAsync(driveId.GetValueOrDefault(), failIfInvalid);
     }
-    
+
     public async Task<Guid?> GetDriveIdByAliasAsync(TargetDrive targetDrive, bool failIfInvalid = false)
     {
         var cachedDrive = _driveCache.SingleOrDefault(d => d.Value.TargetDriveInfo == targetDrive).Value;
@@ -283,7 +315,8 @@ public class DriveManager
 
     //
 
-    private async Task<PagedResult<StorageDrive>> GetDrivesInternalAsync(bool enforceSecurity, PageOptions pageOptions, IOdinContext odinContext)
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternalAsync(bool enforceSecurity, PageOptions pageOptions,
+        IOdinContext odinContext)
     {
         List<StorageDrive> allDrives;
 

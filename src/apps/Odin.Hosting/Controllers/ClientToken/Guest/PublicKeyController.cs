@@ -36,15 +36,15 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         }
 
         [HttpGet("online_ecc")]
-        public async Task<GetPublicKeyResponse> GetOnlineEccKey()
+        public async Task<GetEccPublicKeyResponse> GetOnlineEccKey()
         {
             
             var key = await publicKeyService.GetOnlineEccPublicKeyAsync();
 
-            return new GetPublicKeyResponse()
+            return new GetEccPublicKeyResponse()
             {
-                PublicKey = key?.publicKey,
-                Crc32 = key?.crc32c ?? 0,
+                PublicKeyJwkBase64Url = key?.PublicKeyJwkBase64Url(),
+                CRC32c = key?.crc32c ?? 0,
                 Expiration = key?.expiration.milliseconds ?? 0
             };
         }

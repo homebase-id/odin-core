@@ -105,7 +105,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(DriveReactionsRecord item)
+        protected virtual async Task<int> InsertAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -143,7 +143,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(DriveReactionsRecord item)
+        protected virtual async Task<int> TryInsertAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -181,7 +181,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(DriveReactionsRecord item)
+        protected virtual async Task<int> UpsertAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -218,7 +218,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        public virtual async Task<int> UpdateAsync(DriveReactionsRecord item)
+        protected virtual async Task<int> UpdateAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -257,7 +257,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -283,7 +283,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        public virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        protected virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
@@ -303,7 +303,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,driveId,identity,postId,singleReaction
-        public DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveReactionsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -312,54 +312,20 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveReactionsRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in driveId...");
-                item.driveId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.identity = new OdinId(rdr.GetString(2));
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in postId...");
-                item.postId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.singleReaction = rdr.GetString(4);
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.identity = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.postId = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.singleReaction = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -395,7 +361,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
+        protected virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
@@ -424,7 +390,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -444,7 +410,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        public virtual async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        protected virtual async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");

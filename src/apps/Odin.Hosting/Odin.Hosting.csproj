@@ -29,8 +29,8 @@
         <PackageReference Include="JsonModelBinder" Version="2.1.1"/>
         <PackageReference Include="MagicOnion.Abstractions" Version="5.1.8" />
         <PackageReference Include="MagicOnion.Client" Version="5.1.8" />
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.10" />
-        <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="8.0.10" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.11" />
+        <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="8.0.11" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
         <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
         <PackageReference Include="Serilog.Sinks.Async" Version="1.5.0" />

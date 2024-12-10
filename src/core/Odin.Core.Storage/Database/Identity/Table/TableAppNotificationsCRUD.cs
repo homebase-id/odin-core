@@ -142,7 +142,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> InsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -195,7 +195,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> TryInsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -248,7 +248,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> UpsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -310,7 +310,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(AppNotificationsRecord item)
+        protected virtual async Task<int> UpdateAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
@@ -363,7 +363,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -393,7 +393,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified
-        public AppNotificationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected AppNotificationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -402,78 +402,30 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AppNotificationsRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in notificationId...");
-                item.notificationId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.unread = rdr.GetInt32(2);
-            }
-
-            if (rdr.IsDBNull(3))
-                item.senderId = null;
-            else
-            {
-                item.senderId = rdr.GetString(3);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.timestamp = new UnixTimeUtc(rdr.GetInt64(4));
-            }
-
-            if (rdr.IsDBNull(5))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(5, 0, tmpbuf, 0, 65000+1);
-                if (bytesRead > 65000)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
-            }
-
-            if (rdr.IsDBNull(7))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.notificationId = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.unread = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.senderId = rdr.IsDBNull(3) ? 
+                null : (string)rdr[3];
+            item.timestamp = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.data = rdr.IsDBNull(5) ? 
+                null : (byte[])(rdr[5]);
+            if (item.data?.Length > 65000)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            item.created = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
+            item.modified = rdr.IsDBNull(7) ? 
+                null : new UnixTimeUtcUnique((long)rdr[7]);
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid notificationId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid notificationId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -496,7 +448,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
+        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -508,57 +460,31 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.notificationId = notificationId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.unread = rdr.GetInt32(0);
-            }
+            item.unread = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                item.senderId = null;
-            else
-            {
-                item.senderId = rdr.GetString(1);
-            }
+            item.senderId = rdr.IsDBNull(1) ? 
+                null : (string)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.timestamp = new UnixTimeUtc(rdr.GetInt64(2));
-            }
+            item.timestamp = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
 
-            if (rdr.IsDBNull(3))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 65000+1);
-                if (bytesRead > 65000)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(3) ? 
+                null : (byte[])(rdr[3]);
+            if (item.data?.Length > 65000)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(4));
-            }
+            item.created = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[4]);
 
-            if (rdr.IsDBNull(5))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(5));
-            }
+            item.modified = rdr.IsDBNull(5) ? 
+                null : new UnixTimeUtcUnique((long)rdr[5]);
             return item;
        }
 
-        public virtual async Task<AppNotificationsRecord> GetAsync(Guid identityId,Guid notificationId)
+        protected virtual async Task<AppNotificationsRecord> GetAsync(Guid identityId,Guid notificationId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString());
             if (hit)
@@ -593,7 +519,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public virtual async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");

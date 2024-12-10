@@ -365,7 +365,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -500,7 +500,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> TryInsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -635,7 +635,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> UpsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -779,7 +779,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(DriveMainIndexRecord item)
+        protected virtual async Task<int> UpdateAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -914,7 +914,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -962,7 +962,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        public virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        protected virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
@@ -982,7 +982,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
-        public DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -991,226 +991,64 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveMainIndexRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in driveId...");
-                item.driveId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(3))
-                item.globalTransitId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in globalTransitId...");
-                item.globalTransitId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileState = rdr.GetInt32(4);
-            }
-
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requiredSecurityGroup = rdr.GetInt32(5);
-            }
-
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileSystemType = rdr.GetInt32(6);
-            }
-
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.userDate = new UnixTimeUtc(rdr.GetInt64(7));
-            }
-
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileType = rdr.GetInt32(8);
-            }
-
-            if (rdr.IsDBNull(9))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.dataType = rdr.GetInt32(9);
-            }
-
-            if (rdr.IsDBNull(10))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.archivalStatus = rdr.GetInt32(10);
-            }
-
-            if (rdr.IsDBNull(11))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.historyStatus = rdr.GetInt32(11);
-            }
-
-            if (rdr.IsDBNull(12))
-                item.senderId = null;
-            else
-            {
-                item.senderId = rdr.GetString(12);
-            }
-
-            if (rdr.IsDBNull(13))
-                item.groupId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(13, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(14))
-                item.uniqueId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in uniqueId...");
-                item.uniqueId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(15))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.byteCount = rdr.GetInt64(15);
-            }
-
-            if (rdr.IsDBNull(16))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrEncryptedKeyHeader = rdr.GetString(16);
-            }
-
-            if (rdr.IsDBNull(17))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(17, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(18))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrAppData = rdr.GetString(18);
-            }
-
-            if (rdr.IsDBNull(19))
-                item.hdrReactionSummary = null;
-            else
-            {
-                item.hdrReactionSummary = rdr.GetString(19);
-            }
-
-            if (rdr.IsDBNull(20))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrServerData = rdr.GetString(20);
-            }
-
-            if (rdr.IsDBNull(21))
-                item.hdrTransferHistory = null;
-            else
-            {
-                item.hdrTransferHistory = rdr.GetString(21);
-            }
-
-            if (rdr.IsDBNull(22))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrFileMetaData = rdr.GetString(22);
-            }
-
-            if (rdr.IsDBNull(23))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(23, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(24))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(24, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(25))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(25));
-            }
-
-            if (rdr.IsDBNull(26))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(26));
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.fileId = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.globalTransitId = rdr.IsDBNull(3) ? 
+                null : new Guid((byte[])rdr[3]);
+            item.fileState = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.requiredSecurityGroup = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.fileSystemType = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.userDate = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.fileType = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.dataType = rdr.IsDBNull(9) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.archivalStatus = rdr.IsDBNull(10) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
+            item.historyStatus = rdr.IsDBNull(11) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[11];
+            item.senderId = rdr.IsDBNull(12) ? 
+                null : (string)rdr[12];
+            item.groupId = rdr.IsDBNull(13) ? 
+                null : new Guid((byte[])rdr[13]);
+            item.uniqueId = rdr.IsDBNull(14) ? 
+                null : new Guid((byte[])rdr[14]);
+            item.byteCount = rdr.IsDBNull(15) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[15];
+            item.hdrEncryptedKeyHeader = rdr.IsDBNull(16) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrVersionTag = rdr.IsDBNull(17) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[17]);
+            item.hdrAppData = rdr.IsDBNull(18) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
+            item.hdrReactionSummary = rdr.IsDBNull(19) ? 
+                null : (string)rdr[19];
+            item.hdrServerData = rdr.IsDBNull(20) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistory = rdr.IsDBNull(21) ? 
+                null : (string)rdr[21];
+            item.hdrFileMetaData = rdr.IsDBNull(22) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrTmpDriveAlias = rdr.IsDBNull(23) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.hdrTmpDriveType = rdr.IsDBNull(24) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+            item.created = rdr.IsDBNull(25) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
+            item.modified = rdr.IsDBNull(26) ? 
+                null : new UnixTimeUtcUnique((long)rdr[26]);
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -1235,7 +1073,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
+        protected DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -1248,195 +1086,81 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.uniqueId = uniqueId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(guid);
-            }
+            item.fileId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
 
-            if (rdr.IsDBNull(1))
-                item.globalTransitId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in globalTransitId...");
-                item.globalTransitId = new Guid(guid);
-            }
+            item.globalTransitId = rdr.IsDBNull(1) ? 
+                null : new Guid((byte[])rdr[1]);
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileState = rdr.GetInt32(2);
-            }
+            item.fileState = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
 
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requiredSecurityGroup = rdr.GetInt32(3);
-            }
+            item.requiredSecurityGroup = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileSystemType = rdr.GetInt32(4);
-            }
+            item.fileSystemType = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
 
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.userDate = new UnixTimeUtc(rdr.GetInt64(5));
-            }
+            item.userDate = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
 
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileType = rdr.GetInt32(6);
-            }
+            item.fileType = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
 
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.dataType = rdr.GetInt32(7);
-            }
+            item.dataType = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
 
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.archivalStatus = rdr.GetInt32(8);
-            }
+            item.archivalStatus = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
 
-            if (rdr.IsDBNull(9))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.historyStatus = rdr.GetInt32(9);
-            }
+            item.historyStatus = rdr.IsDBNull(9) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
 
-            if (rdr.IsDBNull(10))
-                item.senderId = null;
-            else
-            {
-                item.senderId = rdr.GetString(10);
-            }
+            item.senderId = rdr.IsDBNull(10) ? 
+                null : (string)rdr[10];
 
-            if (rdr.IsDBNull(11))
-                item.groupId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(11, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(guid);
-            }
+            item.groupId = rdr.IsDBNull(11) ? 
+                null : new Guid((byte[])rdr[11]);
 
-            if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.byteCount = rdr.GetInt64(12);
-            }
+            item.byteCount = rdr.IsDBNull(12) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
 
-            if (rdr.IsDBNull(13))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrEncryptedKeyHeader = rdr.GetString(13);
-            }
+            item.hdrEncryptedKeyHeader = rdr.IsDBNull(13) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
 
-            if (rdr.IsDBNull(14))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(guid);
-            }
+            item.hdrVersionTag = rdr.IsDBNull(14) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
 
-            if (rdr.IsDBNull(15))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrAppData = rdr.GetString(15);
-            }
+            item.hdrAppData = rdr.IsDBNull(15) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
 
-            if (rdr.IsDBNull(16))
-                item.hdrReactionSummary = null;
-            else
-            {
-                item.hdrReactionSummary = rdr.GetString(16);
-            }
+            item.hdrReactionSummary = rdr.IsDBNull(16) ? 
+                null : (string)rdr[16];
 
-            if (rdr.IsDBNull(17))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrServerData = rdr.GetString(17);
-            }
+            item.hdrServerData = rdr.IsDBNull(17) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
 
-            if (rdr.IsDBNull(18))
-                item.hdrTransferHistory = null;
-            else
-            {
-                item.hdrTransferHistory = rdr.GetString(18);
-            }
+            item.hdrTransferHistory = rdr.IsDBNull(18) ? 
+                null : (string)rdr[18];
 
-            if (rdr.IsDBNull(19))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrFileMetaData = rdr.GetString(19);
-            }
+            item.hdrFileMetaData = rdr.IsDBNull(19) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
 
-            if (rdr.IsDBNull(20))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(20, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(guid);
-            }
+            item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
 
-            if (rdr.IsDBNull(21))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(21, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(guid);
-            }
+            item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
 
-            if (rdr.IsDBNull(22))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(22));
-            }
+            item.created = rdr.IsDBNull(22) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
 
-            if (rdr.IsDBNull(23))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(23));
-            }
+            item.modified = rdr.IsDBNull(23) ? 
+                null : new UnixTimeUtcUnique((long)rdr[23]);
             return item;
        }
 
-        public virtual async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid identityId,Guid driveId,Guid? uniqueId)
+        protected virtual async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid identityId,Guid driveId,Guid? uniqueId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
@@ -1470,7 +1194,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
+        protected DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -1483,195 +1207,81 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.globalTransitId = globalTransitId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in fileId...");
-                item.fileId = new Guid(guid);
-            }
+            item.fileId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileState = rdr.GetInt32(1);
-            }
+            item.fileState = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requiredSecurityGroup = rdr.GetInt32(2);
-            }
+            item.requiredSecurityGroup = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
 
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileSystemType = rdr.GetInt32(3);
-            }
+            item.fileSystemType = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.userDate = new UnixTimeUtc(rdr.GetInt64(4));
-            }
+            item.userDate = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
 
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileType = rdr.GetInt32(5);
-            }
+            item.fileType = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
 
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.dataType = rdr.GetInt32(6);
-            }
+            item.dataType = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
 
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.archivalStatus = rdr.GetInt32(7);
-            }
+            item.archivalStatus = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
 
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.historyStatus = rdr.GetInt32(8);
-            }
+            item.historyStatus = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
 
-            if (rdr.IsDBNull(9))
-                item.senderId = null;
-            else
-            {
-                item.senderId = rdr.GetString(9);
-            }
+            item.senderId = rdr.IsDBNull(9) ? 
+                null : (string)rdr[9];
 
-            if (rdr.IsDBNull(10))
-                item.groupId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(10, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(guid);
-            }
+            item.groupId = rdr.IsDBNull(10) ? 
+                null : new Guid((byte[])rdr[10]);
 
-            if (rdr.IsDBNull(11))
-                item.uniqueId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(11, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in uniqueId...");
-                item.uniqueId = new Guid(guid);
-            }
+            item.uniqueId = rdr.IsDBNull(11) ? 
+                null : new Guid((byte[])rdr[11]);
 
-            if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.byteCount = rdr.GetInt64(12);
-            }
+            item.byteCount = rdr.IsDBNull(12) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
 
-            if (rdr.IsDBNull(13))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrEncryptedKeyHeader = rdr.GetString(13);
-            }
+            item.hdrEncryptedKeyHeader = rdr.IsDBNull(13) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
 
-            if (rdr.IsDBNull(14))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(guid);
-            }
+            item.hdrVersionTag = rdr.IsDBNull(14) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
 
-            if (rdr.IsDBNull(15))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrAppData = rdr.GetString(15);
-            }
+            item.hdrAppData = rdr.IsDBNull(15) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
 
-            if (rdr.IsDBNull(16))
-                item.hdrReactionSummary = null;
-            else
-            {
-                item.hdrReactionSummary = rdr.GetString(16);
-            }
+            item.hdrReactionSummary = rdr.IsDBNull(16) ? 
+                null : (string)rdr[16];
 
-            if (rdr.IsDBNull(17))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrServerData = rdr.GetString(17);
-            }
+            item.hdrServerData = rdr.IsDBNull(17) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
 
-            if (rdr.IsDBNull(18))
-                item.hdrTransferHistory = null;
-            else
-            {
-                item.hdrTransferHistory = rdr.GetString(18);
-            }
+            item.hdrTransferHistory = rdr.IsDBNull(18) ? 
+                null : (string)rdr[18];
 
-            if (rdr.IsDBNull(19))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrFileMetaData = rdr.GetString(19);
-            }
+            item.hdrFileMetaData = rdr.IsDBNull(19) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
 
-            if (rdr.IsDBNull(20))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(20, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(guid);
-            }
+            item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
 
-            if (rdr.IsDBNull(21))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(21, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(guid);
-            }
+            item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
 
-            if (rdr.IsDBNull(22))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(22));
-            }
+            item.created = rdr.IsDBNull(22) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
 
-            if (rdr.IsDBNull(23))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(23));
-            }
+            item.modified = rdr.IsDBNull(23) ? 
+                null : new UnixTimeUtcUnique((long)rdr[23]);
             return item;
        }
 
-        public virtual async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid identityId,Guid driveId,Guid? globalTransitId)
+        protected virtual async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
@@ -1705,7 +1315,126 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId)
+        {
+            var result = new List<DriveMainIndexRecord>();
+            byte[] tmpbuf = new byte[65536+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveMainIndexRecord();
+            item.identityId = identityId;
+            item.driveId = driveId;
+
+            item.fileId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+
+            item.globalTransitId = rdr.IsDBNull(1) ? 
+                null : new Guid((byte[])rdr[1]);
+
+            item.fileState = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+
+            item.requiredSecurityGroup = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+
+            item.fileSystemType = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+
+            item.userDate = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+
+            item.fileType = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+
+            item.dataType = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+
+            item.archivalStatus = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+
+            item.historyStatus = rdr.IsDBNull(9) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+
+            item.senderId = rdr.IsDBNull(10) ? 
+                null : (string)rdr[10];
+
+            item.groupId = rdr.IsDBNull(11) ? 
+                null : new Guid((byte[])rdr[11]);
+
+            item.uniqueId = rdr.IsDBNull(12) ? 
+                null : new Guid((byte[])rdr[12]);
+
+            item.byteCount = rdr.IsDBNull(13) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
+
+            item.hdrEncryptedKeyHeader = rdr.IsDBNull(14) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+
+            item.hdrVersionTag = rdr.IsDBNull(15) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
+
+            item.hdrAppData = rdr.IsDBNull(16) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+
+            item.hdrReactionSummary = rdr.IsDBNull(17) ? 
+                null : (string)rdr[17];
+
+            item.hdrServerData = rdr.IsDBNull(18) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
+
+            item.hdrTransferHistory = rdr.IsDBNull(19) ? 
+                null : (string)rdr[19];
+
+            item.hdrFileMetaData = rdr.IsDBNull(20) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+
+            item.hdrTmpDriveAlias = rdr.IsDBNull(21) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
+
+            item.hdrTmpDriveType = rdr.IsDBNull(22) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
+
+            item.created = rdr.IsDBNull(23) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[23]);
+
+            item.modified = rdr.IsDBNull(24) ? 
+                null : new UnixTimeUtcUnique((long)rdr[24]);
+            return item;
+       }
+
+        protected virtual async Task<DriveMainIndexRecord> GetFullRecordAsync(Guid identityId,Guid driveId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get2Command = cn.CreateCommand();
+            {
+                get2Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;";
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@driveId";
+                get2Command.Parameters.Add(get2Param2);
+
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = driveId.ToByteArray();
+                {
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader2(rdr, identityId,driveId);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
             byte[] tmpbuf = new byte[65536+1];
@@ -1718,222 +1447,108 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.fileId = fileId;
 
-            if (rdr.IsDBNull(0))
-                item.globalTransitId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in globalTransitId...");
-                item.globalTransitId = new Guid(guid);
-            }
+            item.globalTransitId = rdr.IsDBNull(0) ? 
+                null : new Guid((byte[])rdr[0]);
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileState = rdr.GetInt32(1);
-            }
+            item.fileState = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requiredSecurityGroup = rdr.GetInt32(2);
-            }
+            item.requiredSecurityGroup = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
 
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileSystemType = rdr.GetInt32(3);
-            }
+            item.fileSystemType = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.userDate = new UnixTimeUtc(rdr.GetInt64(4));
-            }
+            item.userDate = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
 
-            if (rdr.IsDBNull(5))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileType = rdr.GetInt32(5);
-            }
+            item.fileType = rdr.IsDBNull(5) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
 
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.dataType = rdr.GetInt32(6);
-            }
+            item.dataType = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
 
-            if (rdr.IsDBNull(7))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.archivalStatus = rdr.GetInt32(7);
-            }
+            item.archivalStatus = rdr.IsDBNull(7) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
 
-            if (rdr.IsDBNull(8))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.historyStatus = rdr.GetInt32(8);
-            }
+            item.historyStatus = rdr.IsDBNull(8) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
 
-            if (rdr.IsDBNull(9))
-                item.senderId = null;
-            else
-            {
-                item.senderId = rdr.GetString(9);
-            }
+            item.senderId = rdr.IsDBNull(9) ? 
+                null : (string)rdr[9];
 
-            if (rdr.IsDBNull(10))
-                item.groupId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(10, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in groupId...");
-                item.groupId = new Guid(guid);
-            }
+            item.groupId = rdr.IsDBNull(10) ? 
+                null : new Guid((byte[])rdr[10]);
 
-            if (rdr.IsDBNull(11))
-                item.uniqueId = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(11, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in uniqueId...");
-                item.uniqueId = new Guid(guid);
-            }
+            item.uniqueId = rdr.IsDBNull(11) ? 
+                null : new Guid((byte[])rdr[11]);
 
-            if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                        item.byteCount = rdr.GetInt64(12);
-            }
+            item.byteCount = rdr.IsDBNull(12) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
 
-            if (rdr.IsDBNull(13))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrEncryptedKeyHeader = rdr.GetString(13);
-            }
+            item.hdrEncryptedKeyHeader = rdr.IsDBNull(13) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
 
-            if (rdr.IsDBNull(14))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(14, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrVersionTag...");
-                item.hdrVersionTag = new Guid(guid);
-            }
+            item.hdrVersionTag = rdr.IsDBNull(14) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
 
-            if (rdr.IsDBNull(15))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrAppData = rdr.GetString(15);
-            }
+            item.hdrAppData = rdr.IsDBNull(15) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
 
-            if (rdr.IsDBNull(16))
-                item.hdrReactionSummary = null;
-            else
-            {
-                item.hdrReactionSummary = rdr.GetString(16);
-            }
+            item.hdrReactionSummary = rdr.IsDBNull(16) ? 
+                null : (string)rdr[16];
 
-            if (rdr.IsDBNull(17))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrServerData = rdr.GetString(17);
-            }
+            item.hdrServerData = rdr.IsDBNull(17) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
 
-            if (rdr.IsDBNull(18))
-                item.hdrTransferHistory = null;
-            else
-            {
-                item.hdrTransferHistory = rdr.GetString(18);
-            }
+            item.hdrTransferHistory = rdr.IsDBNull(18) ? 
+                null : (string)rdr[18];
 
-            if (rdr.IsDBNull(19))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.hdrFileMetaData = rdr.GetString(19);
-            }
+            item.hdrFileMetaData = rdr.IsDBNull(19) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
 
-            if (rdr.IsDBNull(20))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(20, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveAlias...");
-                item.hdrTmpDriveAlias = new Guid(guid);
-            }
+            item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
 
-            if (rdr.IsDBNull(21))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(21, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in hdrTmpDriveType...");
-                item.hdrTmpDriveType = new Guid(guid);
-            }
+            item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
 
-            if (rdr.IsDBNull(22))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(22));
-            }
+            item.created = rdr.IsDBNull(22) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
 
-            if (rdr.IsDBNull(23))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(23));
-            }
+            item.modified = rdr.IsDBNull(23) ? 
+                null : new UnixTimeUtcUnique((long)rdr[23]);
             return item;
        }
 
-        public virtual async Task<DriveMainIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<DriveMainIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get2Command = cn.CreateCommand();
+            await using var get3Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get3Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
-                var get2Param1 = get2Command.CreateParameter();
-                get2Param1.ParameterName = "@identityId";
-                get2Command.Parameters.Add(get2Param1);
-                var get2Param2 = get2Command.CreateParameter();
-                get2Param2.ParameterName = "@driveId";
-                get2Command.Parameters.Add(get2Param2);
-                var get2Param3 = get2Command.CreateParameter();
-                get2Param3.ParameterName = "@fileId";
-                get2Command.Parameters.Add(get2Param3);
+                var get3Param1 = get3Command.CreateParameter();
+                get3Param1.ParameterName = "@identityId";
+                get3Command.Parameters.Add(get3Param1);
+                var get3Param2 = get3Command.CreateParameter();
+                get3Param2.ParameterName = "@driveId";
+                get3Command.Parameters.Add(get3Param2);
+                var get3Param3 = get3Command.CreateParameter();
+                get3Param3.ParameterName = "@fileId";
+                get3Command.Parameters.Add(get3Param3);
 
-                get2Param1.Value = identityId.ToByteArray();
-                get2Param2.Value = driveId.ToByteArray();
-                get2Param3.Value = fileId.ToByteArray();
+                get3Param1.Value = identityId.ToByteArray();
+                get3Param2.Value = driveId.ToByteArray();
+                get3Param3.Value = fileId.ToByteArray();
                 {
-                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader2(rdr, identityId,driveId,fileId);
+                        var r = ReadRecordFromReader3(rdr, identityId,driveId,fileId);
                         return r;
                     } // using
                 } //

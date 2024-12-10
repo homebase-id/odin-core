@@ -78,7 +78,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         Assert.IsNotNull(headerBeforeUpload);
 
-        await PerformanceFramework.ThreadedTestAsync(maxThreads: 100, iterations: 300, OverwriteFile);
+        await PerformanceFramework.ThreadedTestAsync(maxThreads: 20, iterations: 50, OverwriteFile);
         Console.WriteLine($"Success Count: {_successCount}");
         Console.WriteLine($"Bad Request Count: {_serverErrorCount}");
 

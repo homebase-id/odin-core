@@ -227,27 +227,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AttestationRequestRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.attestationId = rdr.GetString(0);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requestEnvelope = rdr.GetString(1);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.timestamp = new UnixTimeUtc(rdr.GetInt64(2));
-            }
+            item.attestationId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
+            item.requestEnvelope = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.timestamp = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 
@@ -286,19 +271,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             var item = new AttestationRequestRecord();
             item.attestationId = attestationId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requestEnvelope = rdr.GetString(0);
-            }
+            item.requestEnvelope = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.timestamp = new UnixTimeUtc(rdr.GetInt64(1));
-            }
+            item.timestamp = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
             return item;
        }
 

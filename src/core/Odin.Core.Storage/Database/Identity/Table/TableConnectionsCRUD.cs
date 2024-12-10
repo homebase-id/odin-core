@@ -143,7 +143,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(ConnectionsRecord item)
+        protected virtual async Task<int> InsertAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -195,7 +195,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(ConnectionsRecord item)
+        protected virtual async Task<int> TryInsertAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -247,7 +247,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(ConnectionsRecord item)
+        protected virtual async Task<int> UpsertAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -308,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(ConnectionsRecord item)
+        protected virtual async Task<int> UpdateAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -360,7 +360,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified
-        public ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ConnectionsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -399,75 +399,30 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new ConnectionsRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.identity = new OdinId(rdr.GetString(1));
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.displayName = rdr.GetString(2);
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.status = rdr.GetInt32(3);
-            }
-
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.accessIsRevoked = rdr.GetInt32(4);
-            }
-
-            if (rdr.IsDBNull(5))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(5, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
-
-            if (rdr.IsDBNull(6))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
-            }
-
-            if (rdr.IsDBNull(7))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.identity = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
+            item.displayName = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.status = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.accessIsRevoked = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.data = rdr.IsDBNull(5) ? 
+                null : (byte[])(rdr[5]);
+            if (item.data?.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            item.created = rdr.IsDBNull(6) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
+            item.modified = rdr.IsDBNull(7) ? 
+                null : new UnixTimeUtcUnique((long)rdr[7]);
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,OdinId identity)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId identity)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -490,7 +445,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
+        protected ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ConnectionsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -502,57 +457,31 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.identity = identity;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.displayName = rdr.GetString(0);
-            }
+            item.displayName = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.status = rdr.GetInt32(1);
-            }
+            item.status = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
 
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.accessIsRevoked = rdr.GetInt32(2);
-            }
+            item.accessIsRevoked = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
 
-            if (rdr.IsDBNull(3))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(3) ? 
+                null : (byte[])(rdr[3]);
+            if (item.data?.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
 
-            if (rdr.IsDBNull(4))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(4));
-            }
+            item.created = rdr.IsDBNull(4) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[4]);
 
-            if (rdr.IsDBNull(5))
-                item.modified = null;
-            else
-            {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(5));
-            }
+            item.modified = rdr.IsDBNull(5) ? 
+                null : new UnixTimeUtcUnique((long)rdr[5]);
             return item;
        }
 
-        public virtual async Task<ConnectionsRecord> GetAsync(Guid identityId,OdinId identity)
+        protected virtual async Task<ConnectionsRecord> GetAsync(Guid identityId,OdinId identity)
         {
             var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identityId.ToString()+identity.DomainName);
             if (hit)
@@ -587,7 +516,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId, string inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -638,7 +567,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        public virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId,Int32 status, string inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Guid identityId,Int32 status, string inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -693,7 +622,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        public virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -748,7 +677,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        public virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");

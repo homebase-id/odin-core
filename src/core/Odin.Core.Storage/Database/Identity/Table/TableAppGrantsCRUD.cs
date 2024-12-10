@@ -106,7 +106,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> InsertAsync(AppGrantsRecord item)
+        protected virtual async Task<int> InsertAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
@@ -146,7 +146,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(AppGrantsRecord item)
+        protected virtual async Task<int> TryInsertAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
@@ -186,7 +186,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(AppGrantsRecord item)
+        protected virtual async Task<int> UpsertAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
@@ -226,7 +226,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-        public virtual async Task<int> UpdateAsync(AppGrantsRecord item)
+        protected virtual async Task<int> UpdateAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
@@ -267,7 +267,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountDirtyAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -294,7 +294,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT identityId,odinHashId,appId,circleId,data
-        public AppGrantsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected AppGrantsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppGrantsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -303,63 +303,24 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AppGrantsRecord();
-
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in identityId...");
-                item.identityId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in odinHashId...");
-                item.odinHashId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(2))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in appId...");
-                item.appId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(3))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(3, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(guid);
-            }
-
-            if (rdr.IsDBNull(4))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(4, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.identityId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.odinHashId = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.appId = rdr.IsDBNull(2) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.circleId = rdr.IsDBNull(3) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.data = rdr.IsDBNull(4) ? 
+                null : (byte[])(rdr[4]);
+            if (item.data?.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -390,7 +351,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
+        protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -402,42 +363,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.odinHashId = odinHashId;
 
-            if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in appId...");
-                item.appId = new Guid(guid);
-            }
+            item.appId = rdr.IsDBNull(0) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
 
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(guid);
-            }
+            item.circleId = rdr.IsDBNull(1) ? 
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
 
-            if (rdr.IsDBNull(2))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(2, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(2) ? 
+                null : (byte[])(rdr[2]);
+            if (item.data?.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid identityId,Guid odinHashId)
+        protected virtual async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid identityId,Guid odinHashId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
@@ -474,7 +415,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        public AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
             byte[] tmpbuf = new byte[65535+1];
@@ -488,22 +429,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.appId = appId;
             item.circleId = circleId;
 
-            if (rdr.IsDBNull(0))
-                item.data = null;
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 65535+1);
-                if (bytesRead > 65535)
-                    throw new Exception("Too much data in data...");
-                if (bytesRead < 0)
-                    throw new Exception("Too little data in data...");
-                item.data = new byte[bytesRead];
-                Buffer.BlockCopy(tmpbuf, 0, item.data, 0, (int) bytesRead);
-            }
+            item.data = rdr.IsDBNull(0) ? 
+                null : (byte[])(rdr[0]);
+            if (item.data?.Length > 65535)
+                throw new Exception("Too much data in data...");
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
             return item;
        }
 
-        public virtual async Task<AppGrantsRecord> GetAsync(Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        protected virtual async Task<AppGrantsRecord> GetAsync(Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var (hit, cacheObject) = _cache.Get("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString());
             if (hit)
