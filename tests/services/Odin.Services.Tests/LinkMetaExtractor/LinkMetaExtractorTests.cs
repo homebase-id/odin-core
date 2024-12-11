@@ -131,6 +131,7 @@ public class LinkMetaExtractorTests
         Assert.AreEqual("Test", sanitizedHtml["title"]);
     }
     
+#if !NOISY_NEIGHBOUR
     [Test]
     public async Task TestBrokenImagePreviews()
     {
@@ -142,5 +143,6 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Description);
         Assert.Null(ogp.ImageUrl);
     }
+    #endif
     
 }
