@@ -93,18 +93,16 @@ public class JobManager(
             var attempt = 0;
             while (inserted == 0 && attempt < 5)
             {
-                inserted = await tableJobs.TryInsertAsync(record);
-                if (inserted == 0)
+                // Check if job already exists, lets look it up using the jobHash
+                var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
+                if (existingRecord != null)
                 {
-                    // Job already exists, lets look it up using the jobHash
-                    var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
-                    if (existingRecord != null)
-                    {
-                        logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                            existingRecord.name, jobId, record.jobHash, existingRecord.id);
-                        return existingRecord.id;
-                    }
+                    logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
+                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
+                    return existingRecord.id;
                 }
+
+                inserted = await tableJobs.TryInsertAsync(record);
                 attempt++;
             }
             if (inserted == 0)
