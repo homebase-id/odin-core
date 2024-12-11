@@ -21,7 +21,7 @@ public class TableImFollowing(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public override async Task<int> InsertAsync(ImFollowingRecord item)
+    public new async Task<int> InsertAsync(ImFollowingRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);

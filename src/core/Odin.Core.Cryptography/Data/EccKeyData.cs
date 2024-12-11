@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Time;
 using Org.BouncyCastle.Asn1.Nist;
@@ -288,7 +289,7 @@ namespace Odin.Core.Cryptography.Data
             //var pkRestored = PublicKeyFactory.CreateKey(derEncodedFulKey);
             //var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
             //publicKey = pk.GetDerEncoded();
-            RsaKeyManagement.noKeysCreatedTest++;
+            Interlocked.Increment(ref SimplePerformanceCounter.noRsaKeysCreatedTest);
         }
 
 

@@ -33,7 +33,7 @@ public class TableDriveAclIndex(
         return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
     }
 
-    public override async Task<int> InsertAsync(DriveAclIndexRecord item)
+    public new async Task<int> InsertAsync(DriveAclIndexRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);

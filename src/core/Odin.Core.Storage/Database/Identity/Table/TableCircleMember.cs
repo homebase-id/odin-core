@@ -20,13 +20,13 @@ public class TableCircleMember(
         return await base.DeleteAsync(identityKey, circleId, memberId);
     }
 
-    public override async Task<int> InsertAsync(CircleMemberRecord item)
+    public new async Task<int> InsertAsync(CircleMemberRecord item)
     {
         item.identityId = identityKey;
         return await base.InsertAsync(item);
     }
 
-    public override async Task<int> UpsertAsync(CircleMemberRecord item)
+    public new async Task<int> UpsertAsync(CircleMemberRecord item)
     {
         item.identityId = identityKey;
         return await base.UpsertAsync(item);
