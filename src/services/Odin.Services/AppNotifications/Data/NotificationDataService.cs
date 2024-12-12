@@ -5,6 +5,7 @@ using MediatR;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -16,7 +17,7 @@ namespace Odin.Services.AppNotifications.Data;
 /// <summary>
 /// Storage for notifications
 /// </summary>
-public class NotificationListService(TableAppNotifications appNotifications, IMediator mediator)
+public class NotificationListService(IdentityDatabase db, IMediator mediator)
 {
     public async Task<AddNotificationResult> AddNotification(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
     {
@@ -36,7 +37,7 @@ public class NotificationListService(TableAppNotifications appNotifications, IMe
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        await appNotifications.InsertAsync(record);
+        await db.AppNotifications.InsertAsync(record);
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -57,7 +58,7 @@ public class NotificationListService(TableAppNotifications appNotifications, IMe
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var (results, cursor) = await appNotifications.PagingByCreatedAsync(request.Count, request.Cursor);
+        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, request.Cursor);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -92,7 +93,7 @@ public class NotificationListService(TableAppNotifications appNotifications, IMe
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var (results, _) = await appNotifications.PagingByCreatedAsync(int.MaxValue, null);
+        var (results, _) = await db.AppNotifications.PagingByCreatedAsync(int.MaxValue, null);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -113,25 +114,33 @@ public class NotificationListService(TableAppNotifications appNotifications, IMe
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
+        await using var trx = await db.BeginStackedTransactionAsync();
+
         foreach (var id in request.IdList)
         {
-            await appNotifications.DeleteAsync(id);
+            await db.AppNotifications.DeleteAsync(id);
         }
+
+        trx.Commit();
     }
 
     public async Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
+        await using var trx = await db.BeginStackedTransactionAsync();
+
         foreach (var update in request.Updates)
         {
-            var record = await appNotifications.GetAsync(update.Id);
+            var record = await db.AppNotifications.GetAsync(update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                await appNotifications.UpdateAsync(record);
+                await db.AppNotifications.UpdateAsync(record);
             }
         }
+
+        trx.Commit();
     }
 
     public async Task MarkReadByApp(Guid appId, IOdinContext odinContext)
