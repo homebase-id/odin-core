@@ -9,6 +9,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -40,8 +41,7 @@ namespace Odin.Services.DataSubscription.Follower
         private readonly StandardFileSystem _standardFileSystem;
         private readonly PeerDriveQueryService _peerDriveQueryService;
         private readonly CircleNetworkService _circleNetworkService;
-        private readonly TableImFollowing _tableImFollowing;
-        private readonly TableFollowsMe _tableFollowsMe;
+        private readonly IdentityDatabase _db;
 
         private const int MaxRecordsPerChannel = 100; //TODO:config
 
@@ -53,8 +53,7 @@ namespace Odin.Services.DataSubscription.Follower
             TenantContext tenantContext,
             StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
             CircleNetworkService circleNetworkService,
-            TableImFollowing tableImFollowing,
-            TableFollowsMe tableFollowsMe)
+            IdentityDatabase db)
         {
             _logger = logger;
             _driveManager = driveManager;
@@ -64,8 +63,7 @@ namespace Odin.Services.DataSubscription.Follower
             _standardFileSystem = standardFileSystem;
             _peerDriveQueryService = peerDriveQueryService;
             _circleNetworkService = circleNetworkService;
-            _tableImFollowing = tableImFollowing;
-            _tableFollowsMe = tableFollowsMe;
+            _db = db;
         }
 
         /// <summary>
@@ -123,13 +121,12 @@ namespace Odin.Services.DataSubscription.Follower
                 }
             }
 
-            // TODO CONNECTIONS
-            //cn.CreateCommitUnitOfWork(() => {
-                //delete all records and update according to the latest follow request.
-                await _tableImFollowing.DeleteByIdentityAsync(identityToFollow);
+            await using (var tx = await _db.BeginStackedTransactionAsync())
+            {
+                await _db.ImFollowing.DeleteByIdentityAsync(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    await _tableImFollowing.InsertAsync(new ImFollowingRecord()
+                    await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
                         { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
@@ -144,11 +141,12 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        await _tableImFollowing.InsertAsync(new ImFollowingRecord()
+                        await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
                             { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
-            // });
+                tx.Commit();
+            }
 
             if (request.SynchronizeFeedHistoryNow)
             {
@@ -172,7 +170,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinRemoteIdentityException("Failed to unfollow");
             }
 
-            await _tableImFollowing.DeleteByIdentityAsync(recipient);
+            await _db.ImFollowing.DeleteByIdentityAsync(recipient);
         }
 
         public async Task<FollowerDefinition> GetFollowerAsync(OdinId odinId, IOdinContext odinContext)
@@ -199,7 +197,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await _tableFollowsMe.GetAllFollowersAsync(DefaultMax(max), cursor);
+            var (dbResults, nextCursor) = await _db.FollowsMe.GetAllFollowersAsync(DefaultMax(max), cursor);
 
             var result = new CursoredResult<string>()
             {
@@ -222,7 +220,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await _tableFollowsMe.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
+            var (dbResults, nextCursor) = await _db.FollowsMe.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
             var result = new CursoredResult<OdinId>
             {
                 Cursor = nextCursor,
@@ -239,7 +237,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await _tableFollowsMe.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
+            var (dbResults, nextCursor) = await _db.FollowsMe.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -257,7 +255,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var (dbResults, nextCursor) = await _tableImFollowing.GetAllFollowersAsync(DefaultMax(max), cursor);
+            var (dbResults, nextCursor) = await _db.ImFollowing.GetAllFollowersAsync(DefaultMax(max), cursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -276,7 +274,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await _tableImFollowing.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
+            var (dbResults, nextCursor) = await _db.ImFollowing.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -550,7 +548,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetIdentityIFollowInternalAsync(OdinId odinId)
         {
-            var dbRecords = await _tableImFollowing.GetAsync(odinId);
+            var dbRecords = await _db.ImFollowing.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
@@ -589,7 +587,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternalAsync(OdinId odinId)
         {
-            var dbRecords = await _tableFollowsMe.GetAsync(odinId);
+            var dbRecords = await _db.FollowsMe.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
