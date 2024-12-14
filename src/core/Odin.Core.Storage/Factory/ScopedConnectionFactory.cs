@@ -130,6 +130,8 @@ public class ScopedConnectionFactory<T>(
     private bool _commit;
     private Guid _connectionId;
 
+    public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
+
     //
 
     public async Task<ConnectionWrapper> CreateScopedConnectionAsync(

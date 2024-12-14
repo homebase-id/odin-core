@@ -1,13 +1,6 @@
 using Autofac;
-using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database;
-
-public enum DatabaseType
-{
-    Sqlite,
-    Postgres
-}
 
 public static class DatabaseExtensions
 {
