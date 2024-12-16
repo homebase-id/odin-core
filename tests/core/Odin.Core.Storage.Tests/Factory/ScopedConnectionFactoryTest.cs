@@ -432,7 +432,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
         
         var transientSystemUser = Services.Resolve<TransientSystemUser>();
-        Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
+        Assert.That(await transientSystemUser.GetCountAsync(), Is.EqualTo(0));
     }
     
     //
