@@ -13,6 +13,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -31,6 +32,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task TryInsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

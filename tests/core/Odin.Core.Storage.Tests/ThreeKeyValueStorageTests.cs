@@ -18,6 +18,7 @@ public class ThreeKeyValueStorageTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

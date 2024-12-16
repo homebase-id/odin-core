@@ -184,6 +184,7 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task GetCountAsyncShouldReturnZero(DatabaseType databaseType)
     {
         // Arrange
@@ -203,6 +204,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldScheduleAJob(DatabaseType databaseType)
     {
         // Arrange
@@ -250,6 +252,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldDeleteAJob(DatabaseType databaseType)
     {
         // Arrange
@@ -287,6 +290,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldGetTheJob(DatabaseType databaseType)
     {
         // Arrange
@@ -312,6 +316,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRunTheJobDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -342,6 +347,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRunTheJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -374,6 +380,7 @@ public class JobManagerTests
 #if !NOISY_NEIGHBOUR
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRunManyParallelJobsInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -626,6 +633,7 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRunAndAbortDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -649,6 +657,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRunAndAbortInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -673,6 +682,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRescheduleDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -701,6 +711,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRescheduleInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -797,6 +808,7 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldScheduleUniqueJob(DatabaseType databaseType)
     {
         // Arrange
@@ -1086,6 +1098,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRunAChainedJobDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -1115,6 +1128,7 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldRunAChainedJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -1148,6 +1162,7 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task JobShouldHaveInternalChildDiScope(DatabaseType databaseType)
     {
         //
@@ -1197,6 +1212,7 @@ public class JobManagerTests
 #if !NOISY_NEIGHBOUR
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldGoToTownOnScheduledUniqueJobs(DatabaseType databaseType)
     {
         // Arrange

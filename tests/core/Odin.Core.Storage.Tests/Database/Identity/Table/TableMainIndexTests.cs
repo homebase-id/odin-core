@@ -14,6 +14,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task UpdateReactionSummary(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -44,6 +45,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task UpdateTransferStatus(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -74,6 +76,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetSizeTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -104,6 +107,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetSizeInvalidTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -121,6 +125,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task CannotInsertZeroSizeTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -152,6 +157,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertRowTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -236,6 +242,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertRowDuplicateTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -314,6 +321,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task UpdateRowTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

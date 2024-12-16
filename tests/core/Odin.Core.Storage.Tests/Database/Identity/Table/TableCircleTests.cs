@@ -12,6 +12,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -40,6 +41,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DeleteCircleTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -68,6 +70,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -94,6 +97,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetAllCirclesEmptyTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -108,6 +112,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetAllCirclesTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

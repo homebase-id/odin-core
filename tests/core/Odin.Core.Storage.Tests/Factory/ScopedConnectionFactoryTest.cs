@@ -50,6 +50,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldCreateScopedConnections(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -99,6 +100,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldCreateScopedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -152,6 +154,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldQueryDatabase(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -191,6 +194,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldUpdateAndCommitTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -218,6 +222,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task OnlyOuterMostCommitMatters(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -248,6 +253,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldUpdateAndImplicitlyRollbackTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -274,6 +280,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldUpdateAndCommitStackedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -307,6 +314,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldUpdateAndImplicitlyRollbackStackedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -339,6 +347,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldCreateCmdWithParamsBeforeTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -369,6 +378,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldUpdateOnIsolatedScopes(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -423,6 +433,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task ItShouldResolveScopeUsers(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

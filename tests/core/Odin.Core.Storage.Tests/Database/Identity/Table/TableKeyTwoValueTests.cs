@@ -12,6 +12,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -43,6 +44,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // Test that inserting a duplicate throws an exception
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertDuplicateTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -81,6 +83,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task UpdateTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -107,6 +110,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // Test updating non existing row just continues
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task Update2Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -143,6 +147,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DeleteTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -174,6 +179,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task UpsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -214,6 +220,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task TableKeyTwoValueTest1(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

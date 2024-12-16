@@ -55,6 +55,7 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task D02_Connect_Sqlite_Without_Di(DatabaseType databaseType)
     {
         // Demo only, don't do this
@@ -115,6 +116,7 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task D03_Connect_Sqlite_With_Di(DatabaseType databaseType)
     {
         var factory = Services.Resolve<ScopedIdentityConnectionFactory>();
@@ -130,6 +132,7 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Postgres)]
     public async Task D04_Connect_Sqlite_Parallel(DatabaseType databaseType)
     {
         var logger = TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, LogEventLevel.Verbose);
