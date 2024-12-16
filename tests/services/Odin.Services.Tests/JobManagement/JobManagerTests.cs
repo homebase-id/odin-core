@@ -377,7 +377,7 @@ public class JobManagerTests
     
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     [TestCase(DatabaseType.Postgres)]
@@ -887,7 +887,7 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR    
+#if !CI_GITHUB    
     [Test]
     [TestCase(DatabaseType.Sqlite, 0)]
     [TestCase(DatabaseType.Sqlite, 100)]
@@ -1022,7 +1022,7 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite, 0)]
     [TestCase(DatabaseType.Sqlite, 100)]
@@ -1209,7 +1209,7 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     [TestCase(DatabaseType.Postgres)]
