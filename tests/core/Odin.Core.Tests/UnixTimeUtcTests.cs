@@ -11,6 +11,30 @@ namespace Odin.Core.Tests
     {
 
         [Test]
+        public void TestCiGithub()
+        {
+            #if CI_GITHUB
+            Assert.Fail("HURRAH CI_GITHUB");
+            #endif
+        }
+
+        [Test]
+        public void TestCiWindows()
+        {
+#if CI_WINDOWS
+            Assert.Fail("HURRAH CI_WINDOWS");
+#endif
+        }
+
+        [Test]
+        public void TestCiLinux()
+        {
+#if CI_LINUX
+            Assert.Fail("HURRAH CI_LINUX");
+#endif
+        }
+
+        [Test]
         public void UnitTimeXCreateTest01()
         {
             var s = new UnixTimeUtc();
