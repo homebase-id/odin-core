@@ -371,7 +371,7 @@ public class JobManagerTests
     
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldRunManyParallelJobsInTheBackground(DatabaseType databaseType)
@@ -875,7 +875,7 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR    
+#if !CI_GITHUB    
     [Test]
     [TestCase(DatabaseType.Sqlite, 0)]
     [TestCase(DatabaseType.Sqlite, 100)]
@@ -1010,7 +1010,7 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite, 0)]
     [TestCase(DatabaseType.Sqlite, 100)]
@@ -1194,7 +1194,7 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldGoToTownOnScheduledUniqueJobs(DatabaseType databaseType)

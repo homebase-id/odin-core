@@ -195,7 +195,7 @@ public class BackgroundServiceManagerTest
          AssertLogEvents();
      }
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     public async Task ItShouldStartAndStopManyServicesWithLoopSleepAndWakeUpManyTimes()
     {
@@ -260,7 +260,7 @@ public class BackgroundServiceManagerTest
     }
 #endif
 
-#if !NOISY_NEIGHBOUR    
+#if !CI_GITHUB    
     [Test]
     public async Task WillFailIfBackgroundServiceManagerUsesAutoResetEventInsteadOfManualResetEvent()
     {
