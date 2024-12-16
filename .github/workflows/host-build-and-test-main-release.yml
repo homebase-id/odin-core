@@ -24,7 +24,7 @@ jobs:
         run: dotnet restore ./odin-core.sln
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB;CI_LINUX" ./odin-core.sln
+        run: dotnet build --no-restore --configuration Release --warnaserror --property DefineConstants="CI_GITHUB;CI_LINUX" ./odin-core.sln
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
