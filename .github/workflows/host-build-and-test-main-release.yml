@@ -28,6 +28,6 @@ jobs:
 
       - name: Test
         # run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
-        run: dotnet test --no-build --configuration Debug --verbosity normal ./tests/apps/Odin.Core.Tests/Odin.Core.Tests.csproj
+        run: dotnet test --no-build --configuration Debug --verbosity normal ./tests/core/Odin.Core.Tests/Odin.Core.Tests.csproj
         
 
