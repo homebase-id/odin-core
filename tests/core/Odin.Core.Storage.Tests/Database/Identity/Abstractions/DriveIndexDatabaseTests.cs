@@ -761,16 +761,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         /// <summary>
         /// READ THIS EXAMPLE TO UNDERSTAND HOW THE AUTO CURSOR WORKS IN A REAL LIFE SCENARIO
-        /// 
+        ///
         /// Scenario: First we get the entire chat history of five items.
-        /// Then three new items are added. 
+        /// Then three new items are added.
         /// We check to get a page of TWO those (one is left).
         /// Then two new items are added.
         /// We check to get TWO items. We'll get only 1 because that's the leftover from the three items where we only got 2
         /// Then we check to get TWO more items, and we get the last two.
-        /// 
+        ///
         /// In summary items are retrieved as [f5,f4,f3,f2,f1], [f8,f7], [f6], [f10,f9]
-        /// 
+        ///
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]

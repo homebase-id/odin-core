@@ -17,69 +17,18 @@ using Odin.Test.Helpers.Logging;
 
 namespace Odin.Core.Storage.Tests.Factory;
 
-public class ScopedConnectionFactoryTest
+public class ScopedConnectionFactoryTest : IocTestBase
 {
-    private string _tempFolder;
-    private ILifetimeScope _services = null!;
-    private LogEventMemoryStore _logEventMemoryStore = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        _tempFolder = TempDirectory.Create();
-    }
-
     [TearDown]
-    public void TearDown()
+    public override void TearDown()
     {
-        if (_services != null)
-        {
-            DropTestDatabaseAsync().Wait();
-            _services.Dispose();
-        }
-        Directory.Delete(_tempFolder, true);
-        LogEvents.AssertEvents(_logEventMemoryStore.GetLogEvents());
-        
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-    }
-    
-    //
-
-    private void RegisterServices(DatabaseType databaseType)
-    {
-        _logEventMemoryStore = new LogEventMemoryStore();
-        
-        var services = new ServiceCollection();
-        services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(_logEventMemoryStore));
-        services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(_logEventMemoryStore));
-        services.AddScoped<ScopedSystemUser>();
-        services.AddTransient<TransientSystemUser>();
-        
-        var builder = new ContainerBuilder();
-        builder.Populate(services);
-
-        builder.AddDatabaseCacheServices();
-        builder.AddDatabaseCounterServices();
-        switch (databaseType)
-        {
-            case DatabaseType.Sqlite:
-                builder.AddSqliteSystemDatabaseServices(Path.Combine(_tempFolder, "system-test.db"));
-                break;
-            case DatabaseType.Postgres:
-                builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
-                break;
-            default:
-                throw new Exception("Unsupported database type");
-        }
-       
-        _services = builder.Build();
+        DropTestDatabaseAsync().Wait();
+        base.TearDown();
     }
 
     private async Task CreateTestDatabaseAsync()
     {
-        var scopedConnectionFactory = _services.Resolve<ScopedSystemConnectionFactory>();
+        var scopedConnectionFactory = Services.Resolve<ScopedSystemConnectionFactory>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await using var cmd = cn.CreateCommand();
@@ -89,7 +38,7 @@ public class ScopedConnectionFactoryTest
     
     private async Task DropTestDatabaseAsync()
     {
-        var scopedConnectionFactory = _services.Resolve<ScopedSystemConnectionFactory>();
+        var scopedConnectionFactory = Services.Resolve<ScopedSystemConnectionFactory>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await using var cmd = cn.CreateCommand();
@@ -103,10 +52,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldCreateScopedConnections(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.BeginLifetimeScope();
+        using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         ScopedSystemConnectionFactory.ConnectionWrapper cn;
@@ -152,10 +101,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldCreateScopedTransactions(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.BeginLifetimeScope();
+        using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -205,11 +154,11 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldQueryDatabase(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
         {
-            using var scope = _services.BeginLifetimeScope();
+            using var scope = Services.BeginLifetimeScope();
             var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -224,7 +173,7 @@ public class ScopedConnectionFactoryTest
         }
         
         {
-            using var scope = _services.BeginLifetimeScope();
+            using var scope = Services.BeginLifetimeScope();
             var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -244,10 +193,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldUpdateAndCommitTransaction(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.BeginLifetimeScope();
+        using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -271,10 +220,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task OnlyOuterMostCommitMatters(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.BeginLifetimeScope();
+        using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -301,10 +250,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldUpdateAndImplicitlyRollbackTransaction(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.BeginLifetimeScope();
+        using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -327,10 +276,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldUpdateAndCommitStackedTransactions(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.BeginLifetimeScope();
+        using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -360,10 +309,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldUpdateAndImplicitlyRollbackStackedTransactions(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        using var scope = _services.BeginLifetimeScope();
+        using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -392,10 +341,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldCreateCmdWithParamsBeforeTransaction(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -422,10 +371,10 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldUpdateOnIsolatedScopes(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
         
-        using var outerScope = _services.BeginLifetimeScope();
+        using var outerScope = Services.BeginLifetimeScope();
         var outerScopedConnectionFactory = outerScope.Resolve<ScopedSystemConnectionFactory>();
         await using var outerCn = await outerScopedConnectionFactory.CreateScopedConnectionAsync();
 
@@ -476,38 +425,17 @@ public class ScopedConnectionFactoryTest
     [TestCase(DatabaseType.Sqlite)]
     public async Task ItShouldResolveScopeUsers(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
         
-        var scopedSystemUser = _services.Resolve<ScopedSystemUser>();
+        var scopedSystemUser = Services.Resolve<ScopedSystemUser>();
         Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
         
-        var transientSystemUser = _services.Resolve<TransientSystemUser>();
+        var transientSystemUser = Services.Resolve<TransientSystemUser>();
         Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
     }
     
     //
 
-    public class ScopedSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-    {
-        public async Task<long> GetCountAsync()
-        {
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM test;";
-            return (long) (await cmd.ExecuteScalarAsync() ?? 0);
-        }
-    }
-
-    public class TransientSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-    {
-        public async Task<long> GetCountAsync()
-        {
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM test;";
-            return (long) (await cmd.ExecuteScalarAsync() ?? 0);
-        }
-    }
 }
 
