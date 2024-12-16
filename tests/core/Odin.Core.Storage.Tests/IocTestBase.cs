@@ -24,7 +24,7 @@ public abstract class IocTestBase
     protected Guid IdentityId;
 
     [SetUp]
-    public void Setup()
+    public virtual void Setup()
     {
         IdentityId = Guid.NewGuid();
         LogEventMemoryStore = new LogEventMemoryStore();
@@ -32,7 +32,7 @@ public abstract class IocTestBase
     }
 
     [TearDown]
-    public void TearDown()
+    public virtual void TearDown()
     {
         Services?.Dispose();
         Directory.Delete(TempFolder, true);
@@ -44,7 +44,10 @@ public abstract class IocTestBase
         GC.Collect();
     }
 
-    protected async Task RegisterServicesAsync(DatabaseType databaseType, LogEventLevel logEventLevel = LogEventLevel.Debug)
+    protected virtual async Task RegisterServicesAsync(
+        DatabaseType databaseType,
+        bool createDatabases = true,
+        LogEventLevel logEventLevel = LogEventLevel.Debug)
     {
         var builder = new ContainerBuilder();
 
@@ -71,12 +74,41 @@ public abstract class IocTestBase
                 throw new Exception("Unsupported database type");
         }
 
+        builder.RegisterType<ScopedSystemUser>().InstancePerLifetimeScope();
+        builder.RegisterType<TransientSystemUser>().InstancePerDependency();
+
         Services = builder.Build();
 
-        var systemDatabase = Services.Resolve<SystemDatabase>();
-        await systemDatabase.CreateDatabaseAsync(true);
+        if (createDatabases)
+        {
+            var systemDatabase = Services.Resolve<SystemDatabase>();
+            await systemDatabase.CreateDatabaseAsync(true);
 
-        var identityDatabase = Services.Resolve<IdentityDatabase>();
-        await identityDatabase.CreateDatabaseAsync(true);
+            var identityDatabase = Services.Resolve<IdentityDatabase>();
+            await identityDatabase.CreateDatabaseAsync(true);
+        }
     }
+
+    public class ScopedSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
+    {
+        public async Task<long> GetCountAsync()
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = "SELECT 0";
+            return (long) (await cmd.ExecuteScalarAsync() ?? -1);
+        }
+    }
+
+    public class TransientSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
+    {
+        public async Task<long> GetCountAsync()
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = "SELECT 0";
+            return (long) (await cmd.ExecuteScalarAsync() ?? -1);
+        }
+    }
+
 }
