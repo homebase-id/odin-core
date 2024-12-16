@@ -24,6 +24,7 @@ jobs:
         run: dotnet restore ./odin-core.sln
 
       - name: Build
+        # below: %3B is ASCII for semicolon
         run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX" ./odin-core.sln
 
       - name: Test
