@@ -45,10 +45,17 @@ public class NotificationsListResult
 public class GetNotificationListRequest
 {
     public Guid? AppId { get; set; }
+    public Guid? TypeId { get; set; }
 
     public int Count { get; set; }
 
     public UnixTimeUtcUnique? Cursor { get; set; }
+}
+
+public class MarkNotificationsAsReadRequest
+{
+    public Guid AppId { get; set; }
+    public Guid TypeId { get; set; }
 }
 
 public class AddNotificationRequest
