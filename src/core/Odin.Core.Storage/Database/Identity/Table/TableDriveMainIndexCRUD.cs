@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -306,63 +307,103 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class DriveMainIndexRecord
 
-    public abstract class TableDriveMainIndexCRUD
+    public abstract class TableDriveMainIndexCRUD : AbstractTable
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableDriveMainIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableDriveMainIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveMainIndex("
-                 +"identityId BLOB NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"fileId BLOB NOT NULL, "
-                 +"globalTransitId BLOB , "
-                 +"fileState INT NOT NULL, "
-                 +"requiredSecurityGroup INT NOT NULL, "
-                 +"fileSystemType INT NOT NULL, "
-                 +"userDate INT NOT NULL, "
-                 +"fileType INT NOT NULL, "
-                 +"dataType INT NOT NULL, "
-                 +"archivalStatus INT NOT NULL, "
-                 +"historyStatus INT NOT NULL, "
-                 +"senderId STRING , "
-                 +"groupId BLOB , "
-                 +"uniqueId BLOB , "
-                 +"byteCount INT NOT NULL, "
-                 +"hdrEncryptedKeyHeader STRING NOT NULL, "
-                 +"hdrVersionTag BLOB NOT NULL UNIQUE, "
-                 +"hdrAppData STRING NOT NULL, "
-                 +"hdrReactionSummary STRING , "
-                 +"hdrServerData STRING NOT NULL, "
-                 +"hdrTransferHistory STRING , "
-                 +"hdrFileMetaData STRING NOT NULL, "
-                 +"hdrTmpDriveAlias BLOB NOT NULL, "
-                 +"hdrTmpDriveType BLOB NOT NULL, "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,driveId,fileId)"
-                 +", UNIQUE(identityId,driveId,uniqueId)"
-                 +", UNIQUE(identityId,driveId,globalTransitId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS driveMainIndex("
+                   +"identityId BLOB NOT NULL, "
+                   +"driveId BLOB NOT NULL, "
+                   +"fileId BLOB NOT NULL, "
+                   +"globalTransitId BLOB , "
+                   +"fileState INT NOT NULL, "
+                   +"requiredSecurityGroup INT NOT NULL, "
+                   +"fileSystemType INT NOT NULL, "
+                   +"userDate INT NOT NULL, "
+                   +"fileType INT NOT NULL, "
+                   +"dataType INT NOT NULL, "
+                   +"archivalStatus INT NOT NULL, "
+                   +"historyStatus INT NOT NULL, "
+                   +"senderId STRING , "
+                   +"groupId BLOB , "
+                   +"uniqueId BLOB , "
+                   +"byteCount INT NOT NULL, "
+                   +"hdrEncryptedKeyHeader STRING NOT NULL, "
+                   +"hdrVersionTag BLOB NOT NULL UNIQUE, "
+                   +"hdrAppData STRING NOT NULL, "
+                   +"hdrReactionSummary STRING , "
+                   +"hdrServerData STRING NOT NULL, "
+                   +"hdrTransferHistory STRING , "
+                   +"hdrFileMetaData STRING NOT NULL, "
+                   +"hdrTmpDriveAlias BLOB NOT NULL, "
+                   +"hdrTmpDriveType BLOB NOT NULL, "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,driveId,fileId)"
+                   +", UNIQUE(identityId,driveId,uniqueId)"
+                   +", UNIQUE(identityId,driveId,globalTransitId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS driveMainIndex("
+                   +"identityId UUID NOT NULL, "
+                   +"driveId UUID NOT NULL, "
+                   +"fileId UUID NOT NULL, "
+                   +"globalTransitId UUID , "
+                   +"fileState BIGINT NOT NULL, "
+                   +"requiredSecurityGroup BIGINT NOT NULL, "
+                   +"fileSystemType BIGINT NOT NULL, "
+                   +"userDate BIGINT NOT NULL, "
+                   +"fileType BIGINT NOT NULL, "
+                   +"dataType BIGINT NOT NULL, "
+                   +"archivalStatus BIGINT NOT NULL, "
+                   +"historyStatus BIGINT NOT NULL, "
+                   +"senderId TEXT , "
+                   +"groupId UUID , "
+                   +"uniqueId UUID , "
+                   +"byteCount BIGINT NOT NULL, "
+                   +"hdrEncryptedKeyHeader TEXT NOT NULL, "
+                   +"hdrVersionTag UUID NOT NULL UNIQUE, "
+                   +"hdrAppData TEXT NOT NULL, "
+                   +"hdrReactionSummary TEXT , "
+                   +"hdrServerData TEXT NOT NULL, "
+                   +"hdrTransferHistory TEXT , "
+                   +"hdrFileMetaData TEXT NOT NULL, "
+                   +"hdrTmpDriveAlias UUID NOT NULL, "
+                   +"hdrTmpDriveType UUID NOT NULL, "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,driveId,fileId)"
+                   +", UNIQUE(identityId,driveId,uniqueId)"
+                   +", UNIQUE(identityId,driveId,globalTransitId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
@@ -462,10 +503,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam27 = insertCommand.CreateParameter();
                 insertParam27.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam27);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
-                insertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam4.Value = item.globalTransitId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam5.Value = item.fileState;
                 insertParam6.Value = item.requiredSecurityGroup;
                 insertParam7.Value = item.fileSystemType;
@@ -475,18 +516,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam11.Value = item.archivalStatus;
                 insertParam12.Value = item.historyStatus;
                 insertParam13.Value = item.senderId ?? (object)DBNull.Value;
-                insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam14.Value = item.groupId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam15.Value = item.uniqueId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam16.Value = item.byteCount;
                 insertParam17.Value = item.hdrEncryptedKeyHeader;
-                insertParam18.Value = item.hdrVersionTag.ToByteArray();
+                insertParam18.Value = item.hdrVersionTag.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam19.Value = item.hdrAppData;
                 insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 insertParam21.Value = item.hdrServerData;
                 insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
                 insertParam23.Value = item.hdrFileMetaData;
-                insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                insertParam24.Value = item.hdrTmpDriveAlias.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam25.Value = item.hdrTmpDriveType.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam26.Value = now.uniqueTime;
                 item.modified = null;
@@ -500,7 +541,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<bool> TryInsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -514,8 +555,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -597,10 +639,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam27 = insertCommand.CreateParameter();
                 insertParam27.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam27);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
-                insertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam4.Value = item.globalTransitId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam5.Value = item.fileState;
                 insertParam6.Value = item.requiredSecurityGroup;
                 insertParam7.Value = item.fileSystemType;
@@ -610,18 +652,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam11.Value = item.archivalStatus;
                 insertParam12.Value = item.historyStatus;
                 insertParam13.Value = item.senderId ?? (object)DBNull.Value;
-                insertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam14.Value = item.groupId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam15.Value = item.uniqueId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam16.Value = item.byteCount;
                 insertParam17.Value = item.hdrEncryptedKeyHeader;
-                insertParam18.Value = item.hdrVersionTag.ToByteArray();
+                insertParam18.Value = item.hdrVersionTag.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam19.Value = item.hdrAppData;
                 insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 insertParam21.Value = item.hdrServerData;
                 insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
                 insertParam23.Value = item.hdrFileMetaData;
-                insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                insertParam24.Value = item.hdrTmpDriveAlias.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam25.Value = item.hdrTmpDriveType.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam26.Value = now.uniqueTime;
                 item.modified = null;
@@ -631,7 +673,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     item.created = now;
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -736,10 +778,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam27.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam27);
                 var now = UnixTimeUtcUnique.Now();
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.driveId.ToByteArray();
-                upsertParam3.Value = item.fileId.ToByteArray();
-                upsertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam4.Value = item.globalTransitId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam5.Value = item.fileState;
                 upsertParam6.Value = item.requiredSecurityGroup;
                 upsertParam7.Value = item.fileSystemType;
@@ -749,18 +791,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam11.Value = item.archivalStatus;
                 upsertParam12.Value = item.historyStatus;
                 upsertParam13.Value = item.senderId ?? (object)DBNull.Value;
-                upsertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam14.Value = item.groupId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam15.Value = item.uniqueId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam16.Value = item.byteCount;
                 upsertParam17.Value = item.hdrEncryptedKeyHeader;
-                upsertParam18.Value = item.hdrVersionTag.ToByteArray();
+                upsertParam18.Value = item.hdrVersionTag.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam19.Value = item.hdrAppData;
                 upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 upsertParam21.Value = item.hdrServerData;
                 upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
                 upsertParam23.Value = item.hdrFileMetaData;
-                upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                upsertParam24.Value = item.hdrTmpDriveAlias.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam25.Value = item.hdrTmpDriveType.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam26.Value = now.uniqueTime;
                 upsertParam27.Value = now.uniqueTime;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -878,10 +920,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam27.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam27);
                 var now = UnixTimeUtcUnique.Now();
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.driveId.ToByteArray();
-                updateParam3.Value = item.fileId.ToByteArray();
-                updateParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam4.Value = item.globalTransitId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam5.Value = item.fileState;
                 updateParam6.Value = item.requiredSecurityGroup;
                 updateParam7.Value = item.fileSystemType;
@@ -891,18 +933,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam11.Value = item.archivalStatus;
                 updateParam12.Value = item.historyStatus;
                 updateParam13.Value = item.senderId ?? (object)DBNull.Value;
-                updateParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                updateParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam14.Value = item.groupId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam15.Value = item.uniqueId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam16.Value = item.byteCount;
                 updateParam17.Value = item.hdrEncryptedKeyHeader;
-                updateParam18.Value = item.hdrVersionTag.ToByteArray();
+                updateParam18.Value = item.hdrVersionTag.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam19.Value = item.hdrAppData;
                 updateParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
                 updateParam21.Value = item.hdrServerData;
                 updateParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
                 updateParam23.Value = item.hdrFileMetaData;
-                updateParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                updateParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                updateParam24.Value = item.hdrTmpDriveAlias.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam25.Value = item.hdrTmpDriveType.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam26.Value = now.uniqueTime;
                 updateParam27.Value = now.uniqueTime;
                 var count = await updateCommand.ExecuteNonQueryAsync();
@@ -914,13 +956,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM driveMainIndex";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -962,17 +1003,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        protected virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        protected virtual async Task<int> GetDriveCountAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
+                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
-                getCountDriveParam1.Value = driveId.ToByteArray();
+                getCountDriveParam1.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 var count = await getCountDriveCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -1065,9 +1105,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param3.ParameterName = "@fileId";
                 delete0Command.Parameters.Add(delete0Param3);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = driveId.ToByteArray();
-                delete0Param3.Value = fileId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param3.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -1177,9 +1217,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param3.ParameterName = "@uniqueId";
                 get0Command.Parameters.Add(get0Param3);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = driveId.ToByteArray();
-                get0Param3.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get0Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                get0Param3.Value = uniqueId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -1298,9 +1338,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Param3.ParameterName = "@globalTransitId";
                 get1Command.Parameters.Add(get1Param3);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+                get1Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get1Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                get1Param3.Value = globalTransitId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -1418,8 +1458,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get2Param2.ParameterName = "@driveId";
                 get2Command.Parameters.Add(get2Param2);
 
-                get2Param1.Value = identityId.ToByteArray();
-                get2Param2.Value = driveId.ToByteArray();
+                get2Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get2Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -1538,9 +1578,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get3Param3.ParameterName = "@fileId";
                 get3Command.Parameters.Add(get3Param3);
 
-                get3Param1.Value = identityId.ToByteArray();
-                get3Param2.Value = driveId.ToByteArray();
-                get3Param3.Value = fileId.ToByteArray();
+                get3Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get3Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                get3Param3.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {

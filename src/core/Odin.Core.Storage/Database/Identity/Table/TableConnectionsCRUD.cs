@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -103,44 +104,63 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class ConnectionsRecord
 
-    public abstract class TableConnectionsCRUD
+    public abstract class TableConnectionsCRUD : AbstractTable
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableConnectionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableConnectionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS connections;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS connections("
-                 +"identityId BLOB NOT NULL, "
-                 +"identity STRING NOT NULL UNIQUE, "
-                 +"displayName STRING NOT NULL, "
-                 +"status INT NOT NULL, "
-                 +"accessIsRevoked INT NOT NULL, "
-                 +"data BLOB , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,identity)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS connections;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS connections("
+                   +"identityId BLOB NOT NULL, "
+                   +"identity STRING NOT NULL UNIQUE, "
+                   +"displayName STRING NOT NULL, "
+                   +"status INT NOT NULL, "
+                   +"accessIsRevoked INT NOT NULL, "
+                   +"data BLOB , "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,identity)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS connections("
+                   +"identityId UUID NOT NULL, "
+                   +"identity TEXT NOT NULL UNIQUE, "
+                   +"displayName TEXT NOT NULL, "
+                   +"status BIGINT NOT NULL, "
+                   +"accessIsRevoked BIGINT NOT NULL, "
+                   +"data BYTEA , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,identity)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(ConnectionsRecord item)
@@ -175,7 +195,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam8 = insertCommand.CreateParameter();
                 insertParam8.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam8);
-                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam2.Value = item.identity.DomainName;
                 insertParam3.Value = item.displayName;
                 insertParam4.Value = item.status;
@@ -195,14 +215,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(ConnectionsRecord item)
+        protected virtual async Task<bool> TryInsertAsync(ConnectionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
-                                             "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
+                                             "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -227,7 +248,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam8 = insertCommand.CreateParameter();
                 insertParam8.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam8);
-                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam2.Value = item.identity.DomainName;
                 insertParam3.Value = item.displayName;
                 insertParam4.Value = item.status;
@@ -243,7 +264,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     item.created = now;
                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -283,7 +304,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam8.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam8);
                 var now = UnixTimeUtcUnique.Now();
-                upsertParam1.Value = item.identityId.ToByteArray();
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam2.Value = item.identity.DomainName;
                 upsertParam3.Value = item.displayName;
                 upsertParam4.Value = item.status;
@@ -342,7 +363,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam8.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam8);
                 var now = UnixTimeUtcUnique.Now();
-                updateParam1.Value = item.identityId.ToByteArray();
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam2.Value = item.identity.DomainName;
                 updateParam3.Value = item.displayName;
                 updateParam4.Value = item.status;
@@ -360,13 +381,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM connections; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM connections";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -436,7 +456,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param2.ParameterName = "@identity";
                 delete0Command.Parameters.Add(delete0Param2);
 
-                delete0Param1.Value = identityId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 delete0Param2.Value = identity.DomainName;
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -498,7 +518,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param2.ParameterName = "@identity";
                 get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 get0Param2.Value = identity.DomainName;
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
@@ -527,12 +547,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging2Command = cn.CreateCommand();
             {
                 getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId) AND identity > @identity ORDER BY identity ASC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND identity > @identity ORDER BY identity ASC LIMIT @_count;";
                 var getPaging2Param1 = getPaging2Command.CreateParameter();
                 getPaging2Param1.ParameterName = "@identity";
                 getPaging2Command.Parameters.Add(getPaging2Param1);
                 var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.ParameterName = "$_count";
+                getPaging2Param2.ParameterName = "@_count";
                 getPaging2Command.Parameters.Add(getPaging2Param2);
                 var getPaging2Param3 = getPaging2Command.CreateParameter();
                 getPaging2Param3.ParameterName = "@identityId";
@@ -540,7 +560,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
                 getPaging2Param1.Value = inCursor;
                 getPaging2Param2.Value = count+1;
-                getPaging2Param3.Value = identityId.ToByteArray();
+                getPaging2Param3.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
 
                 {
                     await using (var rdr = await getPaging2Command.ExecuteReaderAsync(CommandBehavior.Default))
@@ -578,12 +598,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging2Command = cn.CreateCommand();
             {
                 getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId AND status = @status) AND identity > @identity ORDER BY identity ASC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId AND status = @status) AND identity > @identity ORDER BY identity ASC LIMIT @_count;";
                 var getPaging2Param1 = getPaging2Command.CreateParameter();
                 getPaging2Param1.ParameterName = "@identity";
                 getPaging2Command.Parameters.Add(getPaging2Param1);
                 var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.ParameterName = "$_count";
+                getPaging2Param2.ParameterName = "@_count";
                 getPaging2Command.Parameters.Add(getPaging2Param2);
                 var getPaging2Param3 = getPaging2Command.CreateParameter();
                 getPaging2Param3.ParameterName = "@identityId";
@@ -594,7 +614,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
                 getPaging2Param1.Value = inCursor;
                 getPaging2Param2.Value = count+1;
-                getPaging2Param3.Value = identityId.ToByteArray();
+                getPaging2Param3.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 getPaging2Param4.Value = status;
 
                 {
@@ -633,12 +653,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging7Command = cn.CreateCommand();
             {
                 getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId AND status = @status) AND created < @created ORDER BY created DESC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId AND status = @status) AND created < @created ORDER BY created DESC LIMIT @_count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "$_count";
+                getPaging7Param2.ParameterName = "@_count";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
                 getPaging7Param3.ParameterName = "@identityId";
@@ -649,7 +669,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
                 getPaging7Param1.Value = inCursor?.uniqueTime;
                 getPaging7Param2.Value = count+1;
-                getPaging7Param3.Value = identityId.ToByteArray();
+                getPaging7Param3.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 getPaging7Param4.Value = status;
 
                 {
@@ -688,12 +708,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging7Command = cn.CreateCommand();
             {
                 getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT @_count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "$_count";
+                getPaging7Param2.ParameterName = "@_count";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
                 getPaging7Param3.ParameterName = "@identityId";
@@ -701,7 +721,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
                 getPaging7Param1.Value = inCursor?.uniqueTime;
                 getPaging7Param2.Value = count+1;
-                getPaging7Param3.Value = identityId.ToByteArray();
+                getPaging7Param3.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
 
                 {
                     await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))

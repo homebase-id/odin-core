@@ -18,13 +18,13 @@ public enum JobState
 };
 
 public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
-    : TableJobsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableJobsCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedSystemConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
     //
 
-    public async Task<long> GetCountAsync()
+    public new async Task<long> GetCountAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -43,7 +43,7 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
 
         var idParam = cmd.CreateParameter();
         idParam.ParameterName = "@id";
-        idParam.Value = jobId.ToByteArray();
+        idParam.Value = jobId.Cast(_scopedConnectionFactory.DatabaseType);
         cmd.Parameters.Add(idParam);
 
         var count = (long)(await cmd.ExecuteScalarAsync() ?? 0L);

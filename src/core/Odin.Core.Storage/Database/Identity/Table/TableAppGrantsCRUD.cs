@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -70,40 +71,55 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class AppGrantsRecord
 
-    public abstract class TableAppGrantsCRUD
+    public abstract class TableAppGrantsCRUD : AbstractTable
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableAppGrantsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableAppGrantsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS appGrants("
-                 +"identityId BLOB NOT NULL, "
-                 +"odinHashId BLOB NOT NULL, "
-                 +"appId BLOB NOT NULL, "
-                 +"circleId BLOB NOT NULL, "
-                 +"data BLOB  "
-                 +", PRIMARY KEY (identityId,odinHashId,appId,circleId)"
-                 +");"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS appGrants("
+                   +"identityId BLOB NOT NULL, "
+                   +"odinHashId BLOB NOT NULL, "
+                   +"appId BLOB NOT NULL, "
+                   +"circleId BLOB NOT NULL, "
+                   +"data BLOB  "
+                   +", PRIMARY KEY (identityId,odinHashId,appId,circleId)"
+                   +");"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS appGrants("
+                   +"identityId UUID NOT NULL, "
+                   +"odinHashId UUID NOT NULL, "
+                   +"appId UUID NOT NULL, "
+                   +"circleId UUID NOT NULL, "
+                   +"data BYTEA  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,odinHashId,appId,circleId)"
+                   +");"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(AppGrantsRecord item)
@@ -132,10 +148,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam5);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.odinHashId.ToByteArray();
-                insertParam3.Value = item.appId.ToByteArray();
-                insertParam4.Value = item.circleId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.odinHashId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.appId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam4.Value = item.circleId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -146,7 +162,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(AppGrantsRecord item)
+        protected virtual async Task<bool> TryInsertAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
@@ -155,8 +171,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
-                                             "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)";
+                insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
+                                             "VALUES (@identityId,@odinHashId,@appId,@circleId,@data) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -172,17 +189,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam5);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.odinHashId.ToByteArray();
-                insertParam3.Value = item.appId.ToByteArray();
-                insertParam4.Value = item.circleId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.odinHashId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.appId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam4.Value = item.circleId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -215,10 +232,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam5 = upsertCommand.CreateParameter();
                 upsertParam5.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam5);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.odinHashId.ToByteArray();
-                upsertParam3.Value = item.appId.ToByteArray();
-                upsertParam4.Value = item.circleId.ToByteArray();
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam2.Value = item.odinHashId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam3.Value = item.appId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam4.Value = item.circleId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -253,10 +270,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam5 = updateCommand.CreateParameter();
                 updateParam5.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam5);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.odinHashId.ToByteArray();
-                updateParam3.Value = item.appId.ToByteArray();
-                updateParam4.Value = item.circleId.ToByteArray();
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam2.Value = item.odinHashId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam3.Value = item.appId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam4.Value = item.circleId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam5.Value = item.data ?? (object)DBNull.Value;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -267,13 +284,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM appGrants; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM appGrants";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -340,10 +356,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param4.ParameterName = "@circleId";
                 delete0Command.Parameters.Add(delete0Param4);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = odinHashId.ToByteArray();
-                delete0Param3.Value = appId.ToByteArray();
-                delete0Param4.Value = circleId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param2.Value = odinHashId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param3.Value = appId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param4.Value = circleId.Cast(_scopedConnectionFactory.DatabaseType);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString());
@@ -392,8 +408,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param2.ParameterName = "@odinHashId";
                 get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = odinHashId.ToByteArray();
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get0Param2.Value = odinHashId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
@@ -461,10 +477,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Param4.ParameterName = "@circleId";
                 get1Command.Parameters.Add(get1Param4);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = odinHashId.ToByteArray();
-                get1Param3.Value = appId.ToByteArray();
-                get1Param4.Value = circleId.ToByteArray();
+                get1Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get1Param2.Value = odinHashId.Cast(_scopedConnectionFactory.DatabaseType);
+                get1Param3.Value = appId.Cast(_scopedConnectionFactory.DatabaseType);
+                get1Param4.Value = circleId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {

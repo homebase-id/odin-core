@@ -13,7 +13,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_PG_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task ExampleTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

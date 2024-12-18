@@ -59,7 +59,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
-        ScopedSystemConnectionFactory.ConnectionWrapper cn;
+        IConnectionWrapper cn;
         await using (cn = await scopedConnectionFactory.CreateScopedConnectionAsync())
         {
             Assert.That(cn.RefCount, Is.EqualTo(1));
@@ -113,7 +113,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         Assert.That(cn.RefCount, Is.EqualTo(1));
         Assert.That(cn.DangerousInstance, Is.Not.Null);
 
-        ScopedSystemConnectionFactory.TransactionWrapper tx;
+        ITransactionWrapper tx;
         await using (tx = await cn.BeginStackedTransactionAsync())
         {
             Assert.That(tx.RefCount, Is.EqualTo(1));
@@ -427,23 +427,6 @@ public class ScopedConnectionFactoryTest : IocTestBase
             var result = await cmd.ExecuteScalarAsync();
             Assert.That(result, Is.EqualTo(5));
         }
-    }
-    
-    //
-
-    [Test]
-    [TestCase(DatabaseType.Sqlite)]
-    [TestCase(DatabaseType.Postgres)]
-    public async Task ItShouldResolveScopeUsers(DatabaseType databaseType)
-    {
-        await RegisterServicesAsync(databaseType);
-        await CreateTestDatabaseAsync();
-        
-        var scopedSystemUser = Services.Resolve<ScopedSystemUser>();
-        Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
-        
-        var transientSystemUser = Services.Resolve<TransientSystemUser>();
-        Assert.That(await transientSystemUser.GetCountAsync(), Is.EqualTo(0));
     }
     
     //

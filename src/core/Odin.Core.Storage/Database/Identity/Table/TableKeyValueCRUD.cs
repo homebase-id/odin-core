@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -56,38 +57,51 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class KeyValueRecord
 
-    public abstract class TableKeyValueCRUD
+    public abstract class TableKeyValueCRUD : AbstractTable
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableKeyValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableKeyValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS keyValue;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS keyValue("
-                 +"identityId BLOB NOT NULL, "
-                 +"key BLOB NOT NULL UNIQUE, "
-                 +"data BLOB  "
-                 +", PRIMARY KEY (identityId,key)"
-                 +");"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS keyValue;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS keyValue("
+                   +"identityId BLOB NOT NULL, "
+                   +"key BLOB NOT NULL UNIQUE, "
+                   +"data BLOB  "
+                   +", PRIMARY KEY (identityId,key)"
+                   +");"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS keyValue("
+                   +"identityId UUID NOT NULL, "
+                   +"key BYTEA NOT NULL UNIQUE, "
+                   +"data BYTEA  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,key)"
+                   +");"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(KeyValueRecord item)
@@ -107,7 +121,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam3 = insertCommand.CreateParameter();
                 insertParam3.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam3);
-                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam2.Value = item.key;
                 insertParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -119,14 +133,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(KeyValueRecord item)
+        protected virtual async Task<bool> TryInsertAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO keyValue (identityId,key,data) " +
-                                             "VALUES (@identityId,@key,@data)";
+                insertCommand.CommandText = "INSERT INTO keyValue (identityId,key,data) " +
+                                             "VALUES (@identityId,@key,@data) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -136,7 +151,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam3 = insertCommand.CreateParameter();
                 insertParam3.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam3);
-                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam2.Value = item.key;
                 insertParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -144,7 +159,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -168,7 +183,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam3 = upsertCommand.CreateParameter();
                 upsertParam3.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam3);
-                upsertParam1.Value = item.identityId.ToByteArray();
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam2.Value = item.key;
                 upsertParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
@@ -195,7 +210,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam3 = updateCommand.CreateParameter();
                 updateParam3.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam3);
-                updateParam1.Value = item.identityId.ToByteArray();
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam2.Value = item.key;
                 updateParam3.Value = item.data ?? (object)DBNull.Value;
                 var count = await updateCommand.ExecuteNonQueryAsync();
@@ -207,13 +222,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyValue; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM keyValue";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -275,7 +289,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param2.ParameterName = "@key";
                 delete0Command.Parameters.Add(delete0Param2);
 
-                delete0Param1.Value = identityId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 delete0Param2.Value = key;
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -328,7 +342,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param2.ParameterName = "@key";
                 get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 get0Param2.Value = key;
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))

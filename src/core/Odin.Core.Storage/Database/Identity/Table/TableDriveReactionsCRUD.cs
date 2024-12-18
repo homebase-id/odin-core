@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -71,38 +72,53 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class DriveReactionsRecord
 
-    public abstract class TableDriveReactionsCRUD
+    public abstract class TableDriveReactionsCRUD : AbstractTable
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableDriveReactionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableDriveReactionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS driveReactions;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveReactions("
-                 +"identityId BLOB NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"identity STRING NOT NULL, "
-                 +"postId BLOB NOT NULL, "
-                 +"singleReaction STRING NOT NULL "
-                 +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
-                 +");"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS driveReactions;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS driveReactions("
+                   +"identityId BLOB NOT NULL, "
+                   +"driveId BLOB NOT NULL, "
+                   +"identity STRING NOT NULL, "
+                   +"postId BLOB NOT NULL, "
+                   +"singleReaction STRING NOT NULL "
+                   +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
+                   +");"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS driveReactions("
+                   +"identityId UUID NOT NULL, "
+                   +"driveId UUID NOT NULL, "
+                   +"identity TEXT NOT NULL, "
+                   +"postId UUID NOT NULL, "
+                   +"singleReaction TEXT NOT NULL "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
+                   +");"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(DriveReactionsRecord item)
@@ -130,10 +146,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@singleReaction";
                 insertCommand.Parameters.Add(insertParam5);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam3.Value = item.identity.DomainName;
-                insertParam4.Value = item.postId.ToByteArray();
+                insertParam4.Value = item.postId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam5.Value = item.singleReaction;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -143,7 +159,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(DriveReactionsRecord item)
+        protected virtual async Task<bool> TryInsertAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -151,8 +167,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction)";
+                insertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,identity,postId,singleReaction) " +
+                                             "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -168,16 +185,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@singleReaction";
                 insertCommand.Parameters.Add(insertParam5);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam3.Value = item.identity.DomainName;
-                insertParam4.Value = item.postId.ToByteArray();
+                insertParam4.Value = item.postId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam5.Value = item.singleReaction;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -209,10 +226,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam5 = upsertCommand.CreateParameter();
                 upsertParam5.ParameterName = "@singleReaction";
                 upsertCommand.Parameters.Add(upsertParam5);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.driveId.ToByteArray();
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam3.Value = item.identity.DomainName;
-                upsertParam4.Value = item.postId.ToByteArray();
+                upsertParam4.Value = item.postId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam5.Value = item.singleReaction;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
                 return count;
@@ -244,10 +261,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam5 = updateCommand.CreateParameter();
                 updateParam5.ParameterName = "@singleReaction";
                 updateCommand.Parameters.Add(updateParam5);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.driveId.ToByteArray();
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam3.Value = item.identity.DomainName;
-                updateParam4.Value = item.postId.ToByteArray();
+                updateParam4.Value = item.postId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam5.Value = item.singleReaction;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -257,13 +274,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveReactions; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM driveReactions";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -283,17 +299,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        protected virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        protected virtual async Task<int> GetDriveCountAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveReactions WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
+                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM driveReactions WHERE driveId = $driveId;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
-                getCountDriveParam1.Value = driveId.ToByteArray();
+                getCountDriveParam1.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 var count = await getCountDriveCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -351,10 +366,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param5.ParameterName = "@singleReaction";
                 delete0Command.Parameters.Add(delete0Param5);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = driveId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 delete0Param3.Value = identity.DomainName;
-                delete0Param4.Value = postId.ToByteArray();
+                delete0Param4.Value = postId.Cast(_scopedConnectionFactory.DatabaseType);
                 delete0Param5.Value = singleReaction;
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
@@ -381,10 +396,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete1Param4.ParameterName = "@postId";
                 delete1Command.Parameters.Add(delete1Param4);
 
-                delete1Param1.Value = identityId.ToByteArray();
-                delete1Param2.Value = driveId.ToByteArray();
+                delete1Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete1Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 delete1Param3.Value = identity.DomainName;
-                delete1Param4.Value = postId.ToByteArray();
+                delete1Param4.Value = postId.Cast(_scopedConnectionFactory.DatabaseType);
                 var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -436,10 +451,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param5.ParameterName = "@singleReaction";
                 get0Command.Parameters.Add(get0Param5);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = driveId.ToByteArray();
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get0Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 get0Param3.Value = identity.DomainName;
-                get0Param4.Value = postId.ToByteArray();
+                get0Param4.Value = postId.Cast(_scopedConnectionFactory.DatabaseType);
                 get0Param5.Value = singleReaction;
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))

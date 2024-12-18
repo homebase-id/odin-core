@@ -6,6 +6,6 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableKeyUniqueThreeValue(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory)
-    : TableKeyUniqueThreeValueCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableKeyUniqueThreeValueCRUD(cache, scopedConnectionFactory)
 {
 }

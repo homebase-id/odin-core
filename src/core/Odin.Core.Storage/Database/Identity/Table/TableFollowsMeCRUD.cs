@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -73,41 +74,57 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class FollowsMeRecord
 
-    public abstract class TableFollowsMeCRUD
+    public abstract class TableFollowsMeCRUD : AbstractTable
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableFollowsMeCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableFollowsMeCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS followsMe("
-                 +"identityId BLOB NOT NULL, "
-                 +"identity STRING NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,identity,driveId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS followsMe("
+                   +"identityId BLOB NOT NULL, "
+                   +"identity STRING NOT NULL, "
+                   +"driveId BLOB NOT NULL, "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,identity,driveId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS followsMe("
+                   +"identityId UUID NOT NULL, "
+                   +"identity TEXT NOT NULL, "
+                   +"driveId UUID NOT NULL, "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,identity,driveId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(FollowsMeRecord item)
@@ -133,9 +150,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam5);
-                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam2.Value = item.identity;
-                insertParam3.Value = item.driveId.ToByteArray();
+                insertParam3.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam4.Value = now.uniqueTime;
                 item.modified = null;
@@ -150,14 +167,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(FollowsMeRecord item)
+        protected virtual async Task<bool> TryInsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO followsMe (identityId,identity,driveId,created,modified) " +
-                                             "VALUES (@identityId,@identity,@driveId,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO followsMe (identityId,identity,driveId,created,modified) " +
+                                             "VALUES (@identityId,@identity,@driveId,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -173,9 +191,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam5);
-                insertParam1.Value = item.identityId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam2.Value = item.identity;
-                insertParam3.Value = item.driveId.ToByteArray();
+                insertParam3.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam4.Value = now.uniqueTime;
                 item.modified = null;
@@ -186,7 +204,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     item.created = now;
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -217,9 +235,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam5.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam5);
                 var now = UnixTimeUtcUnique.Now();
-                upsertParam1.Value = item.identityId.ToByteArray();
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam2.Value = item.identity;
-                upsertParam3.Value = item.driveId.ToByteArray();
+                upsertParam3.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam4.Value = now.uniqueTime;
                 upsertParam5.Value = now.uniqueTime;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -264,9 +282,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam5.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam5);
                 var now = UnixTimeUtcUnique.Now();
-                updateParam1.Value = item.identityId.ToByteArray();
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam2.Value = item.identity;
-                updateParam3.Value = item.driveId.ToByteArray();
+                updateParam3.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam4.Value = now.uniqueTime;
                 updateParam5.Value = now.uniqueTime;
                 var count = await updateCommand.ExecuteNonQueryAsync();
@@ -279,13 +297,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM followsMe; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM followsMe";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -348,9 +365,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param3.ParameterName = "@driveId";
                 delete0Command.Parameters.Add(delete0Param3);
 
-                delete0Param1.Value = identityId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 delete0Param2.Value = identity;
-                delete0Param3.Value = driveId.ToByteArray();
+                delete0Param3.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
@@ -405,9 +422,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param3.ParameterName = "@driveId";
                 get0Command.Parameters.Add(get0Param3);
 
-                get0Param1.Value = identityId.ToByteArray();
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 get0Param2.Value = identity;
-                get0Param3.Value = driveId.ToByteArray();
+                get0Param3.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -467,7 +484,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Param2.ParameterName = "@identity";
                 get1Command.Parameters.Add(get1Param2);
 
-                get1Param1.Value = identityId.ToByteArray();
+                get1Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
                 get1Param2.Value = identity;
                 {
                     using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))

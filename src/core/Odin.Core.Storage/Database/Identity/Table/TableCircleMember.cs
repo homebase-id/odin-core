@@ -11,7 +11,7 @@ public class TableCircleMember(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableCircleMemberCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableCircleMemberCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

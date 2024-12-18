@@ -17,7 +17,7 @@ public class TableFollowsMe(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableFollowsMeCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableFollowsMeCRUD(cache, scopedConnectionFactory)
 {
     public const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
@@ -130,15 +130,15 @@ public class TableFollowsMe(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT DISTINCT identity FROM followsme WHERE identityId = $identityId AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+            "SELECT DISTINCT identity FROM followsme WHERE identityId = @identityId AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
 
-        param1.ParameterName = "$cursor";
-        param2.ParameterName = "$count";
-        param3.ParameterName = "$identityId";
+        param1.ParameterName = "@cursor";
+        param2.ParameterName = "@count";
+        param3.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -146,7 +146,7 @@ public class TableFollowsMe(
 
         param1.Value = inCursor;
         param2.Value = count + 1;
-        param3.Value = identityKey.ToByteArray();
+        param3.Value = identityKey.Cast(_scopedConnectionFactory.DatabaseType);
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -198,17 +198,17 @@ public class TableFollowsMe(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT DISTINCT identity FROM followsme WHERE identityId=$identityId AND (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+            $"SELECT DISTINCT identity FROM followsme WHERE identityId=@identityId AND (driveId=@driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
         var param4 = cmd.CreateParameter();
 
-        param1.ParameterName = "$driveId";
-        param2.ParameterName = "$cursor";
-        param3.ParameterName = "$count";
-        param4.ParameterName = "$identityId";
+        param1.ParameterName = "@driveId";
+        param2.ParameterName = "@cursor";
+        param3.ParameterName = "@count";
+        param4.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -218,7 +218,7 @@ public class TableFollowsMe(
         param1.Value = driveId.ToByteArray();
         param2.Value = inCursor;
         param3.Value = count + 1;
-        param4.Value = identityKey.ToByteArray();
+        param4.Value = identityKey.Cast(_scopedConnectionFactory.DatabaseType);
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {

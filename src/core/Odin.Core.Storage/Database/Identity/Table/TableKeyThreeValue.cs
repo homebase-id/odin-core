@@ -10,7 +10,7 @@ public class TableKeyThreeValue(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableKeyThreeValueCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableKeyThreeValueCRUD(cache, scopedConnectionFactory)
 {
     public async Task<KeyThreeValueRecord> GetAsync(byte[] key1)
     {

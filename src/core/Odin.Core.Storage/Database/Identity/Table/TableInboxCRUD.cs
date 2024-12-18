@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -110,45 +111,67 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class InboxRecord
 
-    public abstract class TableInboxCRUD
+    public abstract class TableInboxCRUD : AbstractTable
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableInboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableInboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS inbox("
-                 +"identityId BLOB NOT NULL, "
-                 +"fileId BLOB NOT NULL UNIQUE, "
-                 +"boxId BLOB NOT NULL, "
-                 +"priority INT NOT NULL, "
-                 +"timeStamp INT NOT NULL, "
-                 +"value BLOB , "
-                 +"popStamp BLOB , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,fileId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
-                 +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
-                 +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS inbox("
+                   +"identityId BLOB NOT NULL, "
+                   +"fileId BLOB NOT NULL UNIQUE, "
+                   +"boxId BLOB NOT NULL, "
+                   +"priority INT NOT NULL, "
+                   +"timeStamp INT NOT NULL, "
+                   +"value BLOB , "
+                   +"popStamp BLOB , "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,fileId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS inbox("
+                   +"identityId UUID NOT NULL, "
+                   +"fileId UUID NOT NULL UNIQUE, "
+                   +"boxId UUID NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"timeStamp BIGINT NOT NULL, "
+                   +"value BYTEA , "
+                   +"popStamp UUID , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,fileId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(InboxRecord item)
@@ -189,13 +212,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam9 = insertCommand.CreateParameter();
                 insertParam9.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam9);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.fileId.ToByteArray();
-                insertParam3.Value = item.boxId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.boxId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam4.Value = item.priority;
                 insertParam5.Value = item.timeStamp.milliseconds;
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
-                insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam7.Value = item.popStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam8.Value = now.uniqueTime;
                 item.modified = null;
@@ -209,7 +232,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(InboxRecord item)
+        protected virtual async Task<bool> TryInsertAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -218,8 +241,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -247,13 +271,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam9 = insertCommand.CreateParameter();
                 insertParam9.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam9);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.fileId.ToByteArray();
-                insertParam3.Value = item.boxId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.boxId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam4.Value = item.priority;
                 insertParam5.Value = item.timeStamp.milliseconds;
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
-                insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam7.Value = item.popStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam8.Value = now.uniqueTime;
                 item.modified = null;
@@ -263,7 +287,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     item.created = now;
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -309,13 +333,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam9.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam9);
                 var now = UnixTimeUtcUnique.Now();
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.fileId.ToByteArray();
-                upsertParam3.Value = item.boxId.ToByteArray();
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam2.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam3.Value = item.boxId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam4.Value = item.priority;
                 upsertParam5.Value = item.timeStamp.milliseconds;
                 upsertParam6.Value = item.value ?? (object)DBNull.Value;
-                upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam7.Value = item.popStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam8.Value = now.uniqueTime;
                 upsertParam9.Value = now.uniqueTime;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -374,13 +398,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam9.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam9);
                 var now = UnixTimeUtcUnique.Now();
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.fileId.ToByteArray();
-                updateParam3.Value = item.boxId.ToByteArray();
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam2.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam3.Value = item.boxId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam4.Value = item.priority;
                 updateParam5.Value = item.timeStamp.milliseconds;
                 updateParam6.Value = item.value ?? (object)DBNull.Value;
-                updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam7.Value = item.popStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam8.Value = now.uniqueTime;
                 updateParam9.Value = now.uniqueTime;
                 var count = await updateCommand.ExecuteNonQueryAsync();
@@ -392,13 +416,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM inbox; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM inbox";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -471,8 +494,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param2.ParameterName = "@fileId";
                 delete0Command.Parameters.Add(delete0Param2);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = fileId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param2.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -531,8 +554,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param2.ParameterName = "@fileId";
                 get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = fileId.ToByteArray();
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get0Param2.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {

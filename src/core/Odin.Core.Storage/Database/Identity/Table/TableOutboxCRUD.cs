@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -163,47 +164,71 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of class OutboxRecord
 
-    public abstract class TableOutboxCRUD
+    public abstract class TableOutboxCRUD : AbstractTable
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableOutboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableOutboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory) : base(scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS outbox("
-                 +"identityId BLOB NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"fileId BLOB NOT NULL, "
-                 +"recipient STRING NOT NULL, "
-                 +"type INT NOT NULL, "
-                 +"priority INT NOT NULL, "
-                 +"dependencyFileId BLOB , "
-                 +"checkOutCount INT NOT NULL, "
-                 +"nextRunTime INT NOT NULL, "
-                 +"value BLOB , "
-                 +"checkOutStamp BLOB , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS outbox("
+                   +"identityId BLOB NOT NULL, "
+                   +"driveId BLOB NOT NULL, "
+                   +"fileId BLOB NOT NULL, "
+                   +"recipient STRING NOT NULL, "
+                   +"type INT NOT NULL, "
+                   +"priority INT NOT NULL, "
+                   +"dependencyFileId BLOB , "
+                   +"checkOutCount INT NOT NULL, "
+                   +"nextRunTime INT NOT NULL, "
+                   +"value BLOB , "
+                   +"checkOutStamp BLOB , "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS outbox("
+                   +"identityId UUID NOT NULL, "
+                   +"driveId UUID NOT NULL, "
+                   +"fileId UUID NOT NULL, "
+                   +"recipient TEXT NOT NULL, "
+                   +"type BIGINT NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"dependencyFileId UUID , "
+                   +"checkOutCount BIGINT NOT NULL, "
+                   +"nextRunTime BIGINT NOT NULL, "
+                   +"value BYTEA , "
+                   +"checkOutStamp UUID , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(OutboxRecord item)
@@ -257,17 +282,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam13 = insertCommand.CreateParameter();
                 insertParam13.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam13);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam4.Value = item.recipient;
                 insertParam5.Value = item.type;
                 insertParam6.Value = item.priority;
-                insertParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam7.Value = item.dependencyFileId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam8.Value = item.checkOutCount;
                 insertParam9.Value = item.nextRunTime.milliseconds;
                 insertParam10.Value = item.value ?? (object)DBNull.Value;
-                insertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam11.Value = item.checkOutStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam12.Value = now.uniqueTime;
                 item.modified = null;
@@ -281,7 +306,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(OutboxRecord item)
+        protected virtual async Task<bool> TryInsertAsync(OutboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -291,8 +316,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -332,17 +358,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam13 = insertCommand.CreateParameter();
                 insertParam13.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam13);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
+                insertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                insertParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam4.Value = item.recipient;
                 insertParam5.Value = item.type;
                 insertParam6.Value = item.priority;
-                insertParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam7.Value = item.dependencyFileId.Cast(_scopedConnectionFactory.DatabaseType);
                 insertParam8.Value = item.checkOutCount;
                 insertParam9.Value = item.nextRunTime.milliseconds;
                 insertParam10.Value = item.value ?? (object)DBNull.Value;
-                insertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam11.Value = item.checkOutStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 var now = UnixTimeUtcUnique.Now();
                 insertParam12.Value = now.uniqueTime;
                 item.modified = null;
@@ -352,7 +378,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     item.created = now;
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -411,17 +437,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam13.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam13);
                 var now = UnixTimeUtcUnique.Now();
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.driveId.ToByteArray();
-                upsertParam3.Value = item.fileId.ToByteArray();
+                upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                upsertParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam4.Value = item.recipient;
                 upsertParam5.Value = item.type;
                 upsertParam6.Value = item.priority;
-                upsertParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam7.Value = item.dependencyFileId.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam8.Value = item.checkOutCount;
                 upsertParam9.Value = item.nextRunTime.milliseconds;
                 upsertParam10.Value = item.value ?? (object)DBNull.Value;
-                upsertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam11.Value = item.checkOutStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 upsertParam12.Value = now.uniqueTime;
                 upsertParam13.Value = now.uniqueTime;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -493,17 +519,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam13.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam13);
                 var now = UnixTimeUtcUnique.Now();
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.driveId.ToByteArray();
-                updateParam3.Value = item.fileId.ToByteArray();
+                updateParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                updateParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam4.Value = item.recipient;
                 updateParam5.Value = item.type;
                 updateParam6.Value = item.priority;
-                updateParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam7.Value = item.dependencyFileId.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam8.Value = item.checkOutCount;
                 updateParam9.Value = item.nextRunTime.milliseconds;
                 updateParam10.Value = item.value ?? (object)DBNull.Value;
-                updateParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam11.Value = item.checkOutStamp.Cast(_scopedConnectionFactory.DatabaseType);
                 updateParam12.Value = now.uniqueTime;
                 updateParam13.Value = now.uniqueTime;
                 var count = await updateCommand.ExecuteNonQueryAsync();
@@ -515,13 +541,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM outbox; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM outbox";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -618,9 +643,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param4.ParameterName = "@recipient";
                 delete0Command.Parameters.Add(delete0Param4);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = driveId.ToByteArray();
-                delete0Param3.Value = fileId.ToByteArray();
+                delete0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                delete0Param3.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 delete0Param4.Value = recipient;
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
@@ -693,9 +718,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param3.ParameterName = "@fileId";
                 get0Command.Parameters.Add(get0Param3);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = driveId.ToByteArray();
-                get0Param3.Value = fileId.ToByteArray();
+                get0Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get0Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                get0Param3.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
@@ -789,9 +814,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Param4.ParameterName = "@recipient";
                 get1Command.Parameters.Add(get1Param4);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
+                get1Param1.Value = identityId.Cast(_scopedConnectionFactory.DatabaseType);
+                get1Param2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+                get1Param3.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
                 get1Param4.Value = recipient;
                 {
                     using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))

@@ -10,7 +10,7 @@ public class TableKeyValue(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableKeyValueCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableKeyValueCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

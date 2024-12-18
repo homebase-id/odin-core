@@ -84,9 +84,9 @@ public class DemoTests : IocTestBase
             counters
         );
 
-        ScopedIdentityConnectionFactory.ConnectionWrapper? cn = null;
-        ScopedIdentityConnectionFactory.TransactionWrapper? tx1 = null;
-        ScopedIdentityConnectionFactory.TransactionWrapper? tx2 = null;
+        IConnectionWrapper? cn = null;
+        ITransactionWrapper? tx1 = null;
+        ITransactionWrapper? tx2 = null;
         try
         {
             cn = await factory.CreateScopedConnectionAsync();

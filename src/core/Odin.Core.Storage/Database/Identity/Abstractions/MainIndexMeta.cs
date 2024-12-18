@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
@@ -103,8 +104,17 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         {
             string leftJoin = "";
 
-            listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(identityKey.ToByteArray())}'");
-            listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
+            if (scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(identityKey.Id.ToByteArray())}'");
+                listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
+            }
+            else if (scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                listWhere.Add($"driveMainIndex.identityId = '{identityKey.Id}'");
+                listWhere.Add($"driveMainIndex.driveid = '{driveId}'");
+            }
+
             listWhere.Add($"(fileSystemType = {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
 

@@ -12,7 +12,7 @@ public class TableConnections(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableConnectionsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableConnectionsCRUD(cache, scopedConnectionFactory)
 {
     public async Task<ConnectionsRecord> GetAsync(OdinId identity)
     {

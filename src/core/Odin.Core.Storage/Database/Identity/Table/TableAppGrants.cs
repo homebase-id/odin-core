@@ -10,11 +10,11 @@ public class TableAppGrants(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableAppGrantsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableAppGrantsCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public new async Task<int> TryInsertAsync(AppGrantsRecord item)
+    public new async Task<bool> TryInsertAsync(AppGrantsRecord item)
     {
         item.identityId = identityKey;
         return await base.TryInsertAsync(item);

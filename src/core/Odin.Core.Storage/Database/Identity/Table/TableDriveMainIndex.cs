@@ -13,7 +13,7 @@ public class TableDriveMainIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -163,10 +163,10 @@ public class TableDriveMainIndex(
         upsertParam27.ParameterName = "@modified";
         upsertCommand.Parameters.Add(upsertParam27);
         var now = UnixTimeUtcUnique.Now();
-        upsertParam1.Value = item.identityId.ToByteArray();
-        upsertParam2.Value = item.driveId.ToByteArray();
-        upsertParam3.Value = item.fileId.ToByteArray();
-        upsertParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+        upsertParam1.Value = item.identityId.Cast(_scopedConnectionFactory.DatabaseType);
+        upsertParam2.Value = item.driveId.Cast(_scopedConnectionFactory.DatabaseType);
+        upsertParam3.Value = item.fileId.Cast(_scopedConnectionFactory.DatabaseType);
+        upsertParam4.Value = item.globalTransitId.Cast(_scopedConnectionFactory.DatabaseType);
         upsertParam5.Value = item.fileState;
         upsertParam6.Value = item.requiredSecurityGroup;
         upsertParam7.Value = item.fileSystemType;
@@ -176,18 +176,18 @@ public class TableDriveMainIndex(
         upsertParam11.Value = item.archivalStatus;
         upsertParam12.Value = item.historyStatus;
         upsertParam13.Value = item.senderId ?? (object)DBNull.Value;
-        upsertParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-        upsertParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+        upsertParam14.Value = item.groupId.Cast(_scopedConnectionFactory.DatabaseType);
+        upsertParam15.Value = item.uniqueId.Cast(_scopedConnectionFactory.DatabaseType);
         upsertParam16.Value = item.byteCount;
         upsertParam17.Value = item.hdrEncryptedKeyHeader;
-        upsertParam18.Value = item.hdrVersionTag.ToByteArray();
+        upsertParam18.Value = item.hdrVersionTag.Cast(_scopedConnectionFactory.DatabaseType);
         upsertParam19.Value = item.hdrAppData;
         upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
         upsertParam21.Value = item.hdrServerData;
         upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
         upsertParam23.Value = item.hdrFileMetaData;
-        upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-        upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+        upsertParam24.Value = item.hdrTmpDriveAlias.Cast(_scopedConnectionFactory.DatabaseType);
+        upsertParam25.Value = item.hdrTmpDriveType.Cast(_scopedConnectionFactory.DatabaseType);
         upsertParam26.Value = now.uniqueTime;
         upsertParam27.Value = now.uniqueTime;
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
@@ -234,9 +234,9 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam4);
         updateCommand.Parameters.Add(sparam5);
 
-        sparam1.Value = identityKey.ToByteArray();
-        sparam2.Value = driveId.ToByteArray();
-        sparam3.Value = fileId.ToByteArray();
+        sparam1.Value = identityKey.Cast(_scopedConnectionFactory.DatabaseType);
+        sparam2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+        sparam3.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
         sparam4.Value = reactionSummary;
         sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
 
@@ -269,9 +269,9 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam4);
         updateCommand.Parameters.Add(sparam5);
 
-        sparam1.Value = identityKey.ToByteArray();
-        sparam2.Value = driveId.ToByteArray();
-        sparam3.Value = fileId.ToByteArray();
+        sparam1.Value = identityKey.Cast(_scopedConnectionFactory.DatabaseType);
+        sparam2.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+        sparam3.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
         sparam4.Value = transferHistory;
         sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
 
@@ -279,24 +279,24 @@ public class TableDriveMainIndex(
     }
 
 
-    public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
+    public async Task<(Int64, Int64)> GetDriveSize(Guid driveId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var sizeCommand = cn.CreateCommand();
 
         sizeCommand.CommandText =
-            $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=$identityId AND driveid=$driveId; PRAGMA read_uncommitted = 0;";
+            "SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=@identityId AND driveid=@driveId;";
 
         var sparam1 = sizeCommand.CreateParameter();
-        sparam1.ParameterName = "$driveId";
+        sparam1.ParameterName = "@driveId";
         sizeCommand.Parameters.Add(sparam1);
 
         var sparam2 = sizeCommand.CreateParameter();
-        sparam2.ParameterName = "$identityId";
+        sparam2.ParameterName = "@identityId";
         sizeCommand.Parameters.Add(sparam2);
 
-        sparam1.Value = driveId.ToByteArray();
-        sparam2.Value = identityKey.ToByteArray();
+        sparam1.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+        sparam2.Value = identityKey.Cast(_scopedConnectionFactory.DatabaseType);
 
         using (var rdr = await sizeCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -322,7 +322,7 @@ public class TableDriveMainIndex(
         await using var touchCommand = cn.CreateCommand();
 
         touchCommand.CommandText =
-            $"UPDATE drivemainindex SET modified=$modified WHERE identityId = $identityId AND driveId = $driveId AND fileid = $fileid;";
+            $"UPDATE drivemainindex SET modified=$modified WHERE identityId = @identityId AND driveId = @driveId AND fileid = $fileid;";
 
         var tparam1 = touchCommand.CreateParameter();
         var tparam2 = touchCommand.CreateParameter();
@@ -331,18 +331,18 @@ public class TableDriveMainIndex(
 
         tparam1.ParameterName = "$fileid";
         tparam2.ParameterName = "$modified";
-        tparam3.ParameterName = "$driveId";
-        tparam4.ParameterName = "$identityId";
+        tparam3.ParameterName = "@driveId";
+        tparam4.ParameterName = "@identityId";
 
         touchCommand.Parameters.Add(tparam1);
         touchCommand.Parameters.Add(tparam2);
         touchCommand.Parameters.Add(tparam3);
         touchCommand.Parameters.Add(tparam4);
 
-        tparam1.Value = fileId.ToByteArray();
+        tparam1.Value = fileId.Cast(_scopedConnectionFactory.DatabaseType);
         tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
-        tparam3.Value = driveId.ToByteArray();
-        tparam4.Value = identityKey.ToByteArray();
+        tparam3.Value = driveId.Cast(_scopedConnectionFactory.DatabaseType);
+        tparam4.Value = identityKey.Cast(_scopedConnectionFactory.DatabaseType);
 
         return await touchCommand.ExecuteNonQueryAsync();
     }
