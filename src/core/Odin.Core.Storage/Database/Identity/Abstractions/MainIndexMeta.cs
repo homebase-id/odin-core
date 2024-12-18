@@ -104,17 +104,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         {
             string leftJoin = "";
 
-            if (scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-            {
-                listWhere.Add($"driveMainIndex.identityId = x'{Convert.ToHexString(identityKey.Id.ToByteArray())}'");
-                listWhere.Add($"driveMainIndex.driveid = x'{Convert.ToHexString(driveId.ToByteArray())}'");
-            }
-            else if (scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                listWhere.Add($"driveMainIndex.identityId = '{identityKey.Id}'");
-                listWhere.Add($"driveMainIndex.driveid = '{driveId}'");
-            }
-
+            listWhere.Add($"driveMainIndex.identityId = '{identityKey.Id}'");
+            listWhere.Add($"driveMainIndex.driveid = '{driveId}'");
             listWhere.Add($"(fileSystemType = {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
 
@@ -129,7 +120,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 leftJoin = $"LEFT JOIN driveAclIndex cir ON (driveMainIndex.identityId = cir.identityId AND driveMainIndex.driveId = cir.driveId AND driveMainIndex.fileId = cir.fileId)";
 
 
-                listWhere.Add($"(  (cir.fileId IS NULL) OR cir.aclMemberId IN ({HexList(aclAnyOf)})  )");
+                listWhere.Add($"(  (cir.fileId IS NULL) OR cir.aclMemberId IN ({string.Join(",", aclAnyOf.Select(g => $"'{g}'"))})  )");
 
                 // Alternative working solution. Drop the LEFT JOIN and instead do this.
                 // I think that the LEFT JOIN will be more efficient, but not fully sure.
@@ -150,17 +141,17 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(globalTransitIdAnyOf))
             {
-                listWhere.Add($"globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
+                listWhere.Add($"globaltransitid IN ({string.Join(",", globalTransitIdAnyOf.Select(g => $"'{g}'"))})");
             }
 
             if (IsSet(uniqueIdAnyOf))
             {
-                listWhere.Add($"uniqueid IN ({HexList(uniqueIdAnyOf)})");
+                listWhere.Add($"uniqueid IN ({string.Join(",", uniqueIdAnyOf.Select(g => $"'{g}'"))})");
             }
 
             if (IsSet(tagsAnyOf))
             {
-                listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE drivetagindex.identityId=driveMainIndex.identityId AND tagId IN ({HexList(tagsAnyOf)}))");
+                listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE drivetagindex.identityId=driveMainIndex.identityId AND tagId IN ({string.Join(",", tagsAnyOf.Select(g => $"'{g}'"))}))");
             }
 
             if (IsSet(archivalStatusAnyOf))
@@ -175,7 +166,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(groupIdAnyOf))
             {
-                listWhere.Add($"groupid IN ({HexList(groupIdAnyOf)})");
+                listWhere.Add($"groupid IN ({string.Join(",", groupIdAnyOf.Select(g => $"'{g}'"))})");
             }
 
             if (userdateSpan != null)
@@ -283,28 +274,28 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (cursor.pagingCursor != null)
             {
                 if (fileIdSort)
-                    listWhereAnd.Add($"driveMainIndex.fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}'");
+                    listWhereAnd.Add($"driveMainIndex.fileid {sign} '{cursor.pagingCursor}'");
                 else
                 {
                     if (cursor.userDatePagingCursor == null)
                         throw new Exception("userDatePagingCursor cannot be null, cursor initialized incorrectly");
 
                     listWhereAnd.Add(
-                        $"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND driveMainIndex.fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
+                        $"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND driveMainIndex.fileid {sign} '{cursor.pagingCursor}') OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
                 }
             }
 
             if (cursor.stopAtBoundary != null)
             {
                 if (fileIdSort)
-                    listWhereAnd.Add($"driveMainIndex.fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
+                    listWhereAnd.Add($"driveMainIndex.fileid {isign} '{cursor.stopAtBoundary}'");
                 else
                 {
                     if (cursor.userDateStopAtBoundary == null)
                         throw new Exception("userDateStopAtBoundary cannot be null, cursor initialized incorrectly");
 
                     listWhereAnd.Add(
-                        $"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND driveMainIndex.fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
+                        $"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND driveMainIndex.fileid {isign} '{cursor.stopAtBoundary}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
                 }
             }
 
@@ -343,14 +334,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
                 var result = new List<DriveMainIndexRecord>();
-                byte[] _fileId = null;
+                Guid? _fileId = null;
                 long _userDate = 0;
 
                 int i = 0;
                 while (await rdr.ReadAsync())
                 {
                     var r = driveMainIndex.ReadAllColumns(rdr, driveId);
-                    _fileId = r.fileId.ToByteArray();
+                    _fileId = r.fileId;
 
                     result.Add(r); // XXX
 
@@ -365,7 +356,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 if (i > 0)
                 { 
                     if (_fileId == null) throw new Exception("impossible");
-                    cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
+                    cursor.pagingCursor = _fileId.Value; // The last result, ought to be a lone copy
                     if (fileIdSort == false)
                         cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
                 }
@@ -445,7 +436,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
                 if (pagingCursorWasNull)
-                    refCursor.nextBoundaryCursor = result[0].fileId.ToByteArray(); // Set to the newest cursor
+                    refCursor.nextBoundaryCursor = result[0].fileId; // Set to the newest cursor
 
                 if (result.Count < noOfItems)
                 {
@@ -593,7 +584,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
                 var result = new List<DriveMainIndexRecord>();
-                byte[] _fileId = null;
 
                 int i = 0;
                 long ts = 0;
@@ -601,7 +591,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 while (await rdr.ReadAsync())
                 {
                     var r = driveMainIndex.ReadAllColumns(rdr, driveId);
-                    _fileId = r.fileId.ToByteArray();
                     result.Add(r);
                     ts = (long) r.modified?.uniqueTime; // XXX
                     i++;
@@ -641,22 +630,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             for (int i = 0; i < len; i++)
             {
                 s += $"x'{Convert.ToHexString(list[i])}'";
-
-                if (i < len - 1)
-                    s += ",";
-            }
-
-            return s;
-        }
-
-        private string HexList(List<Guid> list)
-        {
-            int len = list.Count;
-            string s = "";
-
-            for (int i = 0; i < len; i++)
-            {
-                s += $"x'{Convert.ToHexString(list[i].ToByteArray())}'";
 
                 if (i < len - 1)
                     s += ",";
@@ -713,11 +686,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE fileid IN(SELECT DISTINCT fileid FROM tagindex WHERE tagid = x'189820F6018C218FA0F0F18E86139565') AND tagid = x'189820F6018B51349CC07ED86B02C8F6') and tagid = x'189820F6018C7F083F50CFCD32AF2B7F';
             //
 
-            s = $"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[0].ToByteArray())}' ";
+            s = $"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= '{list[0]}' ";
 
             for (int i = 0 + 1; i < len; i++)
             {
-                s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= x'{Convert.ToHexString(list[i].ToByteArray())}' ";
+                s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid= '{list[i]}' ";
             }
 
             s += ") ";

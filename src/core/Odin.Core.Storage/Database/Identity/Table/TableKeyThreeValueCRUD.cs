@@ -103,7 +103,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS keyThreeValue("
-                   +"identityId BLOB NOT NULL, "
+                   +"identityId STRING NOT NULL, "
                    +"key1 BLOB NOT NULL UNIQUE, "
                    +"key2 BLOB , "
                    +"key3 BLOB , "
@@ -319,7 +319,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new KeyThreeValueRecord();
             item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
             item.key1 = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key1?.Length > 48)

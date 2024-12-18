@@ -46,7 +46,81 @@ public class ScopedConnectionFactoryTest : IocTestBase
         await cmd.ExecuteNonQueryAsync();
     }
   
-    //    
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Postgres)]
+    public async Task Xxxx(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        var scopedConnectionFactory = Services.Resolve<ScopedSystemConnectionFactory>();
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "CREATE TABLE example (id SERIAL, data BYTEA);";
+        await cmd.ExecuteNonQueryAsync();
+
+        cmd.CommandText =
+            """
+            INSERT INTO example (data) VALUES 
+                                           (E'\x010203'), 
+                                           (E'\x010204'), 
+                                           (E'\x0102'),
+                                           (E'\x010203FF');
+            """;
+        await cmd.ExecuteNonQueryAsync();
+
+        cmd.CommandText = "SELECT COUNT(*) FROM example WHERE data < E'\\x010204';";
+        var result = await cmd.ExecuteScalarAsync();
+        Assert.That(result, Is.EqualTo(3));
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Postgres)]
+    public async Task Yyyyy(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        var scopedConnectionFactory = Services.Resolve<ScopedSystemConnectionFactory>();
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+
+        {
+            await using var cmd = cn.CreateCommand();
+            cmd.CommandText = "CREATE TABLE example (id SERIAL, data BYTEA);";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var rows = new List<byte[]>
+        {
+            new byte[] { 1, 2, 3 },
+            new byte[] { 1, 2, 4 },
+            new byte[] { 1, 2 },
+            new byte[] { 1, 2, 3, 0xFF }
+        };
+
+        foreach (var row in rows)
+        {
+            await using var cmd = cn.CreateCommand();
+            var dataParam = cmd.CreateParameter();
+            dataParam.ParameterName = "@data";
+            dataParam.Value = row;
+            cmd.Parameters.Add(dataParam);
+            cmd.CommandText = "INSERT INTO example (data) VALUES (@data);";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        {
+            await using var cmd = cn.CreateCommand();
+            var dataParam = cmd.CreateParameter();
+            dataParam.ParameterName = "@data";
+            dataParam.Value = new byte[] { 1, 2, 4 };
+            cmd.Parameters.Add(dataParam);
+            cmd.CommandText = "SELECT COUNT(*) FROM example WHERE data < @data;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(3));
+        }
+    }
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]

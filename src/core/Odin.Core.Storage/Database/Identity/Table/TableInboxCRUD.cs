@@ -134,13 +134,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS inbox("
-                   +"identityId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL UNIQUE, "
-                   +"boxId BLOB NOT NULL, "
+                   +"identityId STRING NOT NULL, "
+                   +"fileId STRING NOT NULL UNIQUE, "
+                   +"boxId STRING NOT NULL, "
                    +"priority INT NOT NULL, "
                    +"timeStamp INT NOT NULL, "
                    +"value BLOB , "
-                   +"popStamp BLOB , "
+                   +"popStamp STRING , "
                    +"created INT NOT NULL, "
                    +"modified INT  "
                    +", PRIMARY KEY (identityId,fileId)"
@@ -456,11 +456,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new InboxRecord();
             item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
             item.fileId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[1].ToString());
             item.boxId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[2].ToString());
             item.priority = rdr.IsDBNull(3) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             item.timeStamp = rdr.IsDBNull(4) ? 
@@ -472,7 +472,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.popStamp = rdr.IsDBNull(6) ? 
-                null : new Guid((byte[])rdr[6]);
+                null : new Guid(rdr[6].ToString());
             item.created = rdr.IsDBNull(7) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[7]);
             item.modified = rdr.IsDBNull(8) ? 
@@ -514,7 +514,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
 
             item.boxId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
 
             item.priority = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
@@ -530,7 +530,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("Too little data in value...");
 
             item.popStamp = rdr.IsDBNull(4) ? 
-                null : new Guid((byte[])rdr[4]);
+                null : new Guid(rdr[4].ToString());
 
             item.created = rdr.IsDBNull(5) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[5]);

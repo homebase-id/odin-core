@@ -89,9 +89,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS circle("
-                   +"identityId BLOB NOT NULL, "
+                   +"identityId STRING NOT NULL, "
                    +"circleName STRING NOT NULL, "
-                   +"circleId BLOB NOT NULL UNIQUE, "
+                   +"circleId STRING NOT NULL UNIQUE, "
                    +"data BLOB  "
                    +", PRIMARY KEY (identityId,circleId)"
                    +");"
@@ -286,11 +286,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new CircleRecord();
             item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
             item.circleName = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.circleId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[2].ToString());
             item.data = rdr.IsDBNull(3) ? 
                 null : (byte[])(rdr[3]);
             if (item.data?.Length > 65000)

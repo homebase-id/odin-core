@@ -198,7 +198,7 @@ public class TableFollowsMe(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT DISTINCT identity FROM followsme WHERE identityId=@identityId AND (driveId=@driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
+            $"SELECT DISTINCT identity FROM followsme WHERE identityId=@identityId AND (driveId=@driveId OR driveId='{Guid.Empty}') AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
@@ -215,7 +215,7 @@ public class TableFollowsMe(
         cmd.Parameters.Add(param3);
         cmd.Parameters.Add(param4);
 
-        param1.Value = driveId.ToByteArray();
+        param1.Value = driveId;
         param2.Value = inCursor;
         param3.Value = count + 1;
         param4.Value = identityKey.Cast(_scopedConnectionFactory.DatabaseType);

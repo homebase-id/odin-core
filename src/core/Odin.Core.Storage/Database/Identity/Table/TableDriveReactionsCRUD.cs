@@ -95,10 +95,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveReactions("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
+                   +"identityId STRING NOT NULL, "
+                   +"driveId STRING NOT NULL, "
                    +"identity STRING NOT NULL, "
-                   +"postId BLOB NOT NULL, "
+                   +"postId STRING NOT NULL, "
                    +"singleReaction STRING NOT NULL "
                    +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
                    +");"
@@ -328,13 +328,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new DriveReactionsRecord();
             item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
             item.driveId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[1].ToString());
             item.identity = rdr.IsDBNull(2) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
             item.postId = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[3].ToString());
             item.singleReaction = rdr.IsDBNull(4) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             return item;

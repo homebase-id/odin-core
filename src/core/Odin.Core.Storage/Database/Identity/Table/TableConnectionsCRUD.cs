@@ -129,7 +129,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS connections("
-                   +"identityId BLOB NOT NULL, "
+                   +"identityId STRING NOT NULL, "
                    +"identity STRING NOT NULL UNIQUE, "
                    +"displayName STRING NOT NULL, "
                    +"status INT NOT NULL, "
@@ -420,7 +420,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new ConnectionsRecord();
             item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
             item.identity = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
             item.displayName = rdr.IsDBNull(2) ? 

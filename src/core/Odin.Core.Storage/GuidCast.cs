@@ -9,7 +9,7 @@ public static class GuidCast
     {
         return databaseType switch
         {
-            DatabaseType.Sqlite => guid.ToByteArray(),
+            DatabaseType.Sqlite => guid,
             DatabaseType.Postgres => guid,
             _ => throw new NotSupportedException($"Database type {databaseType} is not supported")
         };

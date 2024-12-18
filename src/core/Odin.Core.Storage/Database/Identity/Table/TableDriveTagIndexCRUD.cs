@@ -82,10 +82,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveTagIndex("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL, "
-                   +"tagId BLOB NOT NULL "
+                   +"identityId STRING NOT NULL, "
+                   +"driveId STRING NOT NULL, "
+                   +"fileId STRING NOT NULL, "
+                   +"tagId STRING NOT NULL "
                    +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
@@ -302,13 +302,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new DriveTagIndexRecord();
             item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
             item.driveId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[1].ToString());
             item.fileId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[2].ToString());
             item.tagId = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[3].ToString());
             return item;
        }
 

@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.Tests
         public void SetPCTest()
         {
             var cursor = new QueryBatchCursor();
-            cursor.pagingCursor = Guid.NewGuid().ToByteArray();
+            cursor.pagingCursor = Guid.NewGuid();
 
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);
@@ -43,7 +43,7 @@ namespace Odin.Core.Storage.Tests
         public void SetNBCTest()
         {
             var cursor = new QueryBatchCursor();
-            cursor.nextBoundaryCursor = Guid.NewGuid().ToByteArray();
+            cursor.nextBoundaryCursor = Guid.NewGuid();
 
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);
@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.Tests
         public void SetCBCTest()
         {
             var cursor = new QueryBatchCursor();
-            cursor.stopAtBoundary = Guid.NewGuid().ToByteArray();
+            cursor.stopAtBoundary = Guid.NewGuid();
 
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);
@@ -77,9 +77,9 @@ namespace Odin.Core.Storage.Tests
         public void BigState()
         {
             var cursor = new QueryBatchCursor();
-            cursor.pagingCursor = Guid.NewGuid().ToByteArray();
-            cursor.stopAtBoundary = Guid.NewGuid().ToByteArray();
-            cursor.nextBoundaryCursor = Guid.NewGuid().ToByteArray();
+            cursor.pagingCursor = Guid.NewGuid();
+            cursor.stopAtBoundary = Guid.NewGuid();
+            cursor.nextBoundaryCursor = Guid.NewGuid();
 
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);
@@ -97,9 +97,9 @@ namespace Odin.Core.Storage.Tests
         public void BigStateWithUserDate()
         {
             var cursor = new QueryBatchCursor();
-            cursor.pagingCursor = Guid.NewGuid().ToByteArray();
-            cursor.stopAtBoundary = Guid.NewGuid().ToByteArray();
-            cursor.nextBoundaryCursor = Guid.NewGuid().ToByteArray();
+            cursor.pagingCursor = Guid.NewGuid();
+            cursor.stopAtBoundary = Guid.NewGuid();
+            cursor.nextBoundaryCursor = Guid.NewGuid();
             cursor.userDateNextBoundaryCursor = UnixTimeUtc.Now();
             cursor.userDateStopAtBoundary = UnixTimeUtc.Now();
             cursor.userDatePagingCursor = UnixTimeUtc.Now();

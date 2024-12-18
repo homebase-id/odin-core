@@ -137,6 +137,12 @@ namespace Odin.Core
             return (part1, part2, part3);
         }
 
+        public static (Guid guid1, Guid guid2, Guid guid3) SplitTo3Guids(byte[] data)
+        {
+            var (part1, part2, part3) = ByteArrayUtil.Split(data, 16, 16, 16);
+            return (new Guid(part1), new Guid(part2), new Guid(part3));
+        }
+
         public static byte[] CalculateSHA256Hash(byte[] input)
         {
             using (SHA256 sha256Hash = SHA256.Create())

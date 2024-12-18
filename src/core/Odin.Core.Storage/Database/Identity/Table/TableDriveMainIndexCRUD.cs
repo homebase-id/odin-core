@@ -330,10 +330,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS driveMainIndex("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL, "
-                   +"globalTransitId BLOB , "
+                   +"identityId STRING NOT NULL, "
+                   +"driveId STRING NOT NULL, "
+                   +"fileId STRING NOT NULL, "
+                   +"globalTransitId STRING , "
                    +"fileState INT NOT NULL, "
                    +"requiredSecurityGroup INT NOT NULL, "
                    +"fileSystemType INT NOT NULL, "
@@ -343,18 +343,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"archivalStatus INT NOT NULL, "
                    +"historyStatus INT NOT NULL, "
                    +"senderId STRING , "
-                   +"groupId BLOB , "
-                   +"uniqueId BLOB , "
+                   +"groupId STRING , "
+                   +"uniqueId STRING , "
                    +"byteCount INT NOT NULL, "
                    +"hdrEncryptedKeyHeader STRING NOT NULL, "
-                   +"hdrVersionTag BLOB NOT NULL UNIQUE, "
+                   +"hdrVersionTag STRING NOT NULL UNIQUE, "
                    +"hdrAppData STRING NOT NULL, "
                    +"hdrReactionSummary STRING , "
                    +"hdrServerData STRING NOT NULL, "
                    +"hdrTransferHistory STRING , "
                    +"hdrFileMetaData STRING NOT NULL, "
-                   +"hdrTmpDriveAlias BLOB NOT NULL, "
-                   +"hdrTmpDriveType BLOB NOT NULL, "
+                   +"hdrTmpDriveAlias STRING NOT NULL, "
+                   +"hdrTmpDriveType STRING NOT NULL, "
                    +"created INT NOT NULL, "
                    +"modified INT  "
                    +", PRIMARY KEY (identityId,driveId,fileId)"
@@ -1032,13 +1032,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new DriveMainIndexRecord();
             item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
             item.driveId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[1].ToString());
             item.fileId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[2].ToString());
             item.globalTransitId = rdr.IsDBNull(3) ? 
-                null : new Guid((byte[])rdr[3]);
+                null : new Guid(rdr[3].ToString());
             item.fileState = rdr.IsDBNull(4) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.requiredSecurityGroup = rdr.IsDBNull(5) ? 
@@ -1058,15 +1058,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.senderId = rdr.IsDBNull(12) ? 
                 null : (string)rdr[12];
             item.groupId = rdr.IsDBNull(13) ? 
-                null : new Guid((byte[])rdr[13]);
+                null : new Guid(rdr[13].ToString());
             item.uniqueId = rdr.IsDBNull(14) ? 
-                null : new Guid((byte[])rdr[14]);
+                null : new Guid(rdr[14].ToString());
             item.byteCount = rdr.IsDBNull(15) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[15];
             item.hdrEncryptedKeyHeader = rdr.IsDBNull(16) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
             item.hdrVersionTag = rdr.IsDBNull(17) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[17]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[17].ToString());
             item.hdrAppData = rdr.IsDBNull(18) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
             item.hdrReactionSummary = rdr.IsDBNull(19) ? 
@@ -1078,9 +1078,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.hdrFileMetaData = rdr.IsDBNull(22) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
             item.hdrTmpDriveAlias = rdr.IsDBNull(23) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[23].ToString());
             item.hdrTmpDriveType = rdr.IsDBNull(24) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[24].ToString());
             item.created = rdr.IsDBNull(25) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
             item.modified = rdr.IsDBNull(26) ? 
@@ -1127,10 +1127,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.uniqueId = uniqueId;
 
             item.fileId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
 
             item.globalTransitId = rdr.IsDBNull(1) ? 
-                null : new Guid((byte[])rdr[1]);
+                null : new Guid(rdr[1].ToString());
 
             item.fileState = rdr.IsDBNull(2) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
@@ -1160,7 +1160,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 null : (string)rdr[10];
 
             item.groupId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
+                null : new Guid(rdr[11].ToString());
 
             item.byteCount = rdr.IsDBNull(12) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
@@ -1169,7 +1169,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
 
             item.hdrVersionTag = rdr.IsDBNull(14) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[14].ToString());
 
             item.hdrAppData = rdr.IsDBNull(15) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
@@ -1187,10 +1187,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
 
             item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[20].ToString());
 
             item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[21].ToString());
 
             item.created = rdr.IsDBNull(22) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
@@ -1248,7 +1248,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.globalTransitId = globalTransitId;
 
             item.fileId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
 
             item.fileState = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
@@ -1278,10 +1278,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 null : (string)rdr[9];
 
             item.groupId = rdr.IsDBNull(10) ? 
-                null : new Guid((byte[])rdr[10]);
+                null : new Guid(rdr[10].ToString());
 
             item.uniqueId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
+                null : new Guid(rdr[11].ToString());
 
             item.byteCount = rdr.IsDBNull(12) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
@@ -1290,7 +1290,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
 
             item.hdrVersionTag = rdr.IsDBNull(14) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[14].ToString());
 
             item.hdrAppData = rdr.IsDBNull(15) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
@@ -1308,10 +1308,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
 
             item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[20].ToString());
 
             item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[21].ToString());
 
             item.created = rdr.IsDBNull(22) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
@@ -1368,10 +1368,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
 
             item.fileId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[0].ToString());
 
             item.globalTransitId = rdr.IsDBNull(1) ? 
-                null : new Guid((byte[])rdr[1]);
+                null : new Guid(rdr[1].ToString());
 
             item.fileState = rdr.IsDBNull(2) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
@@ -1401,10 +1401,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 null : (string)rdr[10];
 
             item.groupId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
+                null : new Guid(rdr[11].ToString());
 
             item.uniqueId = rdr.IsDBNull(12) ? 
-                null : new Guid((byte[])rdr[12]);
+                null : new Guid(rdr[12].ToString());
 
             item.byteCount = rdr.IsDBNull(13) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
@@ -1413,7 +1413,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
 
             item.hdrVersionTag = rdr.IsDBNull(15) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[15].ToString());
 
             item.hdrAppData = rdr.IsDBNull(16) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
@@ -1431,10 +1431,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
 
             item.hdrTmpDriveAlias = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[21].ToString());
 
             item.hdrTmpDriveType = rdr.IsDBNull(22) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[22].ToString());
 
             item.created = rdr.IsDBNull(23) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[23]);
@@ -1488,7 +1488,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
 
             item.globalTransitId = rdr.IsDBNull(0) ? 
-                null : new Guid((byte[])rdr[0]);
+                null : new Guid(rdr[0].ToString());
 
             item.fileState = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
@@ -1518,10 +1518,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 null : (string)rdr[9];
 
             item.groupId = rdr.IsDBNull(10) ? 
-                null : new Guid((byte[])rdr[10]);
+                null : new Guid(rdr[10].ToString());
 
             item.uniqueId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
+                null : new Guid(rdr[11].ToString());
 
             item.byteCount = rdr.IsDBNull(12) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
@@ -1530,7 +1530,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
 
             item.hdrVersionTag = rdr.IsDBNull(14) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[14].ToString());
 
             item.hdrAppData = rdr.IsDBNull(15) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
@@ -1548,10 +1548,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
 
             item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[20].ToString());
 
             item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
+                throw new Exception("item is NULL, but set as NOT NULL") : new Guid(rdr[21].ToString());
 
             item.created = rdr.IsDBNull(22) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);

@@ -16,11 +16,11 @@ namespace Odin.Core.Storage
         /// nextBoundaryCursur: Used by the QueryBatchAuto() to manage getting continuous datasets.
         /// 
         /// </summary>
-        public byte[] pagingCursor;
+        public Guid? pagingCursor;
         public UnixTimeUtc? userDatePagingCursor;
-        public byte[] stopAtBoundary;
+        public Guid? stopAtBoundary;
         public UnixTimeUtc? userDateStopAtBoundary;
-        public byte[] nextBoundaryCursor;
+        public Guid? nextBoundaryCursor;
         public UnixTimeUtc? userDateNextBoundaryCursor;
 
         public bool IsUserDateSort()
@@ -39,11 +39,9 @@ namespace Odin.Core.Storage
         }
 
 
-        public void CursorStartPoint(byte[] startFromPoint)
+        public void CursorStartPoint(Guid startFromPoint)
         {
-            pagingCursor = new byte[16];
-            startFromPoint.CopyTo(pagingCursor, 0);
-
+            pagingCursor = startFromPoint;
             nextBoundaryCursor = null;
             stopAtBoundary = null;
             userDatePagingCursor = null;
@@ -54,7 +52,7 @@ namespace Odin.Core.Storage
         public void CursorStartPoint(UnixTimeUtc startFromPoint, bool IsUserDate)
         {
             var _g = SequentialGuid.CreateGuid(startFromPoint);
-            CursorStartPoint(_g.ToByteArray());
+            CursorStartPoint(_g);
             if (IsUserDate)
                 userDatePagingCursor = startFromPoint;
         }
@@ -66,12 +64,11 @@ namespace Odin.Core.Storage
         /// Any item equalling stopAtBoundaryItem fileId won't be included in any result.
         /// </summary>
         /// <param name="stopAtBoundaryItem">Go no further than this fileId</param>
-        public QueryBatchCursor(byte[] stopAtBoundaryItem)
+        public QueryBatchCursor(Guid stopAtBoundaryItem)
         {
             pagingCursor = null;
             nextBoundaryCursor = null;
-            stopAtBoundary = new byte[16];
-            stopAtBoundaryItem.CopyTo(stopAtBoundary, 0);
+            stopAtBoundary = stopAtBoundaryItem;
             userDatePagingCursor = null;
             userDateStopAtBoundary = null;
             userDateNextBoundaryCursor = null;
@@ -93,8 +90,7 @@ namespace Odin.Core.Storage
             userDateNextBoundaryCursor = null;
 
             var _g = SequentialGuid.CreateGuid(stopAtBoundaryUtc);
-            stopAtBoundary = new byte[16];
-            _g.ToByteArray().CopyTo(stopAtBoundary, 0);
+            stopAtBoundary = _g;
 
             if (IsUserDate)
                 userDateStopAtBoundary = stopAtBoundaryUtc;
@@ -106,31 +102,31 @@ namespace Odin.Core.Storage
             var bytes = Convert.FromBase64String(base64CursorState);
             if (bytes.Length == 3 * 16)
             {
-                (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(bytes, 16, 16, 16);
+                (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.SplitTo3Guids(bytes);
 
-                if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
+                if (pagingCursor == Guid.Empty)
                     pagingCursor = null;
 
-                if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
+                if (stopAtBoundary == Guid.Empty)
                     stopAtBoundary = null;
 
-                if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
-                    nextBoundaryCursor = null;
+                if (nextBoundaryCursor == Guid.Empty)
+                    stopAtBoundary = null;
             }
             else if (bytes.Length == 3 * 16 + 3 * 1 + 3 * 8)
             {
                 var (c1, nullBytes, c2) = ByteArrayUtil.Split(bytes, 3*16, 3*1, 3*8);
 
-                (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(c1, 16, 16, 16);
+                (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.SplitTo3Guids(c1);
 
-                if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
+                if (pagingCursor == Guid.Empty)
                     pagingCursor = null;
 
-                if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
+                if (stopAtBoundary == Guid.Empty)
                     stopAtBoundary = null;
 
-                if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
-                    nextBoundaryCursor = null;
+                if (nextBoundaryCursor == Guid.Empty)
+                    stopAtBoundary = null;
 
                 var (bd1,bd2,bd3) = ByteArrayUtil.Split(c2, 8, 8, 8);
 
@@ -154,9 +150,9 @@ namespace Odin.Core.Storage
         public string ToState()
         {
             var bytes = ByteArrayUtil.Combine(
-                this.pagingCursor ?? Guid.Empty.ToByteArray(),
-                this.stopAtBoundary ?? Guid.Empty.ToByteArray(),
-                this.nextBoundaryCursor ?? Guid.Empty.ToByteArray());
+                this.pagingCursor?.ToByteArray() ?? Guid.Empty.ToByteArray(),
+                this.stopAtBoundary?.ToByteArray() ?? Guid.Empty.ToByteArray(),
+                this.nextBoundaryCursor?.ToByteArray() ?? Guid.Empty.ToByteArray());
             
             if ((userDatePagingCursor == null) && (userDateStopAtBoundary == null) && (userDateNextBoundaryCursor == null))
                 return bytes.ToBase64();

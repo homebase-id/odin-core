@@ -157,7 +157,7 @@ public class TableImFollowing(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = @identityId AND (driveId=@driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
+            $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = @identityId AND (driveId=@driveId OR driveId='{Guid.Empty}') AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();

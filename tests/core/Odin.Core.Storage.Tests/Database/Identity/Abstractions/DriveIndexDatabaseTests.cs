@@ -116,12 +116,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(result[0].fileId, refCursor.stopAtBoundary);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(moreRows == false);
@@ -132,7 +133,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
         }
 
@@ -169,36 +170,36 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f4.ToByteArray(), refCursor.pagingCursor) == 0);
+            Assert.AreEqual(f5, refCursor.nextBoundaryCursor);
+            Assert.AreEqual(f4, refCursor.pagingCursor);
             Debug.Assert(moreRows == true);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2.ToByteArray(), refCursor.pagingCursor) == 0);
+            Assert.AreEqual(f5, refCursor.nextBoundaryCursor);
+            Assert.AreEqual(f2, refCursor.pagingCursor);
             Debug.Assert(moreRows == true);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
         }
 
@@ -235,7 +236,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 5);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
 
@@ -244,7 +245,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             // Add two more items
@@ -259,7 +260,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f7, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             // Now there should be no more items
@@ -267,7 +268,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f7, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             // Double check
@@ -275,7 +276,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f7, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
         }
 
@@ -389,7 +390,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
 
-            QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
+            QueryBatchCursor cursor = new QueryBatchCursor(f4);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
@@ -471,7 +472,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
 
-            QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
+            QueryBatchCursor cursor = new QueryBatchCursor(f4);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
@@ -744,7 +745,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 5);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             // Add two more items
@@ -758,7 +759,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f7, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             // Now there should be no more items (recursive call in QueryBatch())
@@ -766,7 +767,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f7, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
         }
@@ -821,7 +822,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(ByteArrayUtil.muidcmp(result[2].fileId, f3) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[3].fileId, f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(moreRows == false);
@@ -831,7 +832,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f5, refCursor.stopAtBoundary);
             Debug.Assert(moreRows == false);
 
             // Now add three more items
@@ -847,9 +848,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f8) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f7) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
+            Assert.AreEqual(f7, refCursor.pagingCursor);
+            Assert.AreEqual(f8, refCursor.nextBoundaryCursor);
             Debug.Assert(moreRows == true);
 
 
@@ -869,9 +869,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f6) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), refCursor.stopAtBoundary) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
+            Assert.AreEqual(f10, refCursor.pagingCursor);
+            Assert.AreEqual(f8, refCursor.stopAtBoundary);
+            Assert.AreEqual(f10, refCursor.nextBoundaryCursor);
+
             Debug.Assert(moreRows == true);
 
             // Now we get two more items, only one should be left (f9)
@@ -882,7 +883,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Assert.AreEqual(f10, refCursor.stopAtBoundary);
 
         }
 
@@ -1065,18 +1066,17 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
+            Assert.AreEqual(f2, refCursor.pagingCursor);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
+            Assert.AreEqual(f1, refCursor.pagingCursor);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
-
+            Assert.AreEqual(f1, refCursor.pagingCursor);
         }
 
         [Test]
@@ -1116,7 +1116,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
+
+            Assert.AreEqual(f2, refCursor.pagingCursor);
             Debug.Assert(refCursor.userDatePagingCursor.Value.milliseconds == 42);
 
         }
@@ -1148,17 +1149,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
+            Assert.AreEqual(f2, refCursor.pagingCursor);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
+
+            Assert.AreEqual(f3, refCursor.pagingCursor);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
+            Assert.AreEqual(f3, refCursor.pagingCursor);
 
         }
 
@@ -1191,18 +1193,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(hasRows == true);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
+            Assert.AreEqual(f1, refCursor.pagingCursor);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
+            Assert.AreEqual(f3, refCursor.pagingCursor);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
+            Assert.AreEqual(f3, refCursor.pagingCursor);
 
         }
 
@@ -1270,27 +1272,29 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
-            cursor.CursorStartPoint(f3.ToByteArray());
+            cursor.CursorStartPoint(f3);
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+
+            Assert.AreEqual(f1, refCursor.pagingCursor);
 
             //
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor.CursorStartPoint(f3.ToByteArray());
+            cursor.CursorStartPoint(f3);
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
+
+            Assert.AreEqual(f6, refCursor.pagingCursor);
 
         }
 
@@ -1334,7 +1338,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+            Assert.AreEqual(f1, refCursor.pagingCursor);
 
             //
             // ====== Now do the same, oldest first
@@ -1347,7 +1351,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
+            Assert.AreEqual(f6, refCursor.pagingCursor);
 
         }
 
@@ -1438,41 +1442,41 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
-            var cursor = new QueryBatchCursor(f3.ToByteArray());
+            var cursor = new QueryBatchCursor(f3);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+
+            Assert.AreEqual(f4, refCursor.pagingCursor);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+            Assert.AreEqual(f4, refCursor.pagingCursor);
 
             //
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor = new QueryBatchCursor(f3.ToByteArray());
+            cursor = new QueryBatchCursor(f3);
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+
+            Assert.AreEqual(f2, refCursor.pagingCursor);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Assert.AreEqual(f2, refCursor.pagingCursor);
 
         }
-
-
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
@@ -1510,13 +1514,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+            Assert.AreEqual(f4, refCursor.pagingCursor);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+            Assert.AreEqual(f4, refCursor.pagingCursor);
 
             //
             // ====== Now do the same, oldest first
@@ -1528,13 +1532,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Assert.AreEqual(f2, refCursor.pagingCursor);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Assert.AreEqual(f2, refCursor.pagingCursor);
 
         }
 
