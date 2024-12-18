@@ -4,6 +4,7 @@ using HtmlAgilityPack;
 using Ganss.Xss;
 using System.Linq;
 using System;
+using System.Web;
 
 namespace Odin.Services.LinkMetaExtractor;
 
@@ -18,6 +19,7 @@ public static class Parser
     /// </summary>
     /// <param name="content">The HTML string.</param>
     /// <returns>Dictionary with the parsed metadata.</returns>
+
     public static Dictionary<string, object> Parse(string content)
     {
         var doc = new HtmlDocument();
@@ -35,18 +37,18 @@ public static class Parser
                 var attributes = new[] { "name", "property" };
                 foreach (var attribute in attributes)
                 {
-                    // var metaKey = meta.GetAttributeValue(attribute, null);
-                    // if (metaKey == null || !interestedIn.Any(metaKey.StartsWith)) continue;
-
                     var metaKey = meta.GetAttributeValue(attribute, null);
                     if (metaKey == null) continue;
-                    metaKey = metaKey.Trim().ToLower();
+
+                    metaKey = metaKey.Trim().ToLower(); // Normalize spacing and casing
+
                     if (!interestedIn.Any(prefix => metaKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))) continue;
 
                     var contentValue = meta.GetAttributeValue("content", null);
                     if (string.IsNullOrWhiteSpace(contentValue)) continue;
 
-                    contentValue = Sanitizer.Sanitize(contentValue);
+                    // Decode HTML entities here
+                    contentValue = HttpUtility.HtmlDecode(Sanitizer.Sanitize(contentValue.Trim()));
                     AddOrAppend(metadata, metaKey, contentValue);
                 }
             }
@@ -56,24 +58,29 @@ public static class Parser
         var titleNode = doc.DocumentNode.SelectSingleNode("//title");
         if (titleNode != null)
         {
-            metadata["title"] = Sanitizer.Sanitize(titleNode.InnerText.Trim());
+            var titleText = HttpUtility.HtmlDecode(Sanitizer.Sanitize(titleNode.InnerText.Trim()));
+            if (!string.IsNullOrWhiteSpace(titleText))
+            {
+                metadata["title"] = titleText;
+            }
         }
 
         // Parse description
         var descriptionNode = metaNodes?.FirstOrDefault(
-            node => node.GetAttributeValue("name", "").Equals("description", System.StringComparison.OrdinalIgnoreCase)
+            node => node.GetAttributeValue("name", "").Trim().Equals("description", StringComparison.OrdinalIgnoreCase)
         );
         if (descriptionNode != null)
         {
             var descriptionContent = descriptionNode.GetAttributeValue("content", null);
             if (!string.IsNullOrWhiteSpace(descriptionContent))
             {
-                metadata["description"] = Sanitizer.Sanitize(descriptionContent).Trim();
+                metadata["description"] = HttpUtility.HtmlDecode(Sanitizer.Sanitize(descriptionContent)).Trim();
             }
         }
 
         return metadata;
     }
+
 
     /// <summary>
     /// Adds or appends a value to a dictionary key.
