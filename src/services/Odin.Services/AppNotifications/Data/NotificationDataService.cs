@@ -77,6 +77,11 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             list = list.Where(n => n.Options?.AppId == request.AppId);
         }
 
+        if (request.TypeId.HasValue)
+        {
+            list = list.Where(n => n.Options?.TypeId == request.TypeId);
+        }
+
         var nr = new NotificationsListResult()
         {
             Cursor = cursor,
@@ -156,6 +161,29 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         var request = new UpdateNotificationListRequest()
         {
             Updates = allByApp.Results.Select(n => new UpdateNotificationRequest()
+            {
+                Id = n.Id,
+                Unread = false
+            }).ToList()
+        };
+
+        await UpdateNotifications(request, odinContext);
+    }
+
+    public async Task MarkReadByAppAndTypeId(Guid appId, Guid typeId, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        var allByAppAndType = await this.GetList(new GetNotificationListRequest()
+        {
+            AppId = appId,
+            TypeId = typeId,
+            Count = int.MaxValue,
+        }, odinContext);
+
+        var request = new UpdateNotificationListRequest()
+        {
+            Updates = allByAppAndType.Results.Select(n => new UpdateNotificationRequest()
             {
                 Id = n.Id,
                 Unread = false

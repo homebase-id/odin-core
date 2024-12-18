@@ -9,7 +9,6 @@ namespace Odin.Core.Tests
 {
     public class UnixTimeUtcTests
     {
-
         [Test]
         public void UnitTimeXCreateTest01()
         {
