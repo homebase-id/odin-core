@@ -1,6 +1,10 @@
 using System.Threading.Tasks;
+using AngleSharp.Css.Values;
+using Autofac.Features.Metadata;
+using System.Xml.Linq;
 using HttpClientFactoryLite;
 using NUnit.Framework;
+using NUnit.Framework.Internal;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Services.LinkMetaExtractor;
@@ -130,7 +134,119 @@ public class LinkMetaExtractorTests
         var sanitizedHtml = Parser.Parse(html);
         Assert.AreEqual("Test", sanitizedHtml["title"]);
     }
-    
+
+
+
+    [Test]
+    public void BasicFunctionality()
+    {
+        // Arrange
+
+        var html = 
+            """
+            <html>
+                <head>
+                    <title>Test Pæge</title>
+                    <meta name="description" content="This is a test pøge." />
+                    <meta property="og:title" content="OG Tøtle" />
+                </head>
+                <body></body>
+            </html>
+            """;
+
+        // Act
+        var sanitizedMetadata = Parser.Parse(html);
+
+        // Assert
+        // Verify that script tags or JavaScript content have been removed
+        Assert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
+        Assert.AreEqual("This is a test pøge.", sanitizedMetadata["description"]);
+        Assert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
+    }
+
+
+
+    [Test]
+    public void TestHtmlSanitation_RemovesJavaScript()
+    {
+        // Arrange
+        var html =
+            """
+            <html>
+                <head>
+                    <title>Test</title>
+                    <meta name="description" content="<script>alert('test')</script> This is a description." />
+                    <meta property="og:title" content="Valid OG Title" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1" />
+                </head>
+                <body>
+                    <script>alert('danger');</script>
+                    <h1>This is the body content</h1>
+                </body>
+            </html>
+            """;
+
+        // Act
+        var sanitizedMetadata = Parser.Parse(html);
+
+        // Assert
+        // Verify that script tags or JavaScript content have been removed
+        Assert.AreEqual("Test", sanitizedMetadata["title"]);
+        Assert.AreEqual("This is a description.", sanitizedMetadata["description"]);
+        Assert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
+
+        // Ensure no script content remains anywhere in the sanitized metadata
+        foreach (var value in sanitizedMetadata.Values)
+        {
+            if (value is string stringValue)
+            {
+                Assert.IsFalse(stringValue.Contains("<script>") || stringValue.Contains("alert("),
+                    $"Sanitized output contains unsafe content: {stringValue}");
+            }
+        }
+    }
+
+
+    [Test]
+    public void TestHtmlSanitation_HandleSpacingAndCasing()
+    {
+        // Arrange
+        var html =
+            """
+        <html>
+            <head>
+                <title>Test</title>
+                <meta    name =   "description"   content =   "  <script>alert('test')</script> This is a description.  "   />
+                <meta    property = " Og:title "   content =   "   Valid OG Title   "   />
+                <meta    name =    "viewport"   content =    " width=device-width, initial-scale=1"   />
+            </head>
+            <body>
+                <script>alert('danger');</script>
+                <h1>This is the body content</h1>
+            </body>
+        </html>
+        """;
+
+        // Act
+        var sanitizedMetadata = Parser.Parse(html);
+
+        // Assert
+        // Verify that script tags or JavaScript content have been removed
+        Assert.AreEqual("Test", sanitizedMetadata["title"]);
+        Assert.AreEqual("This is a description.", sanitizedMetadata["description"]);
+        Assert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
+
+        // Ensure no script content remains anywhere in the sanitized metadata
+        foreach (var value in sanitizedMetadata.Values)
+        {
+            if (value is string stringValue)
+            {
+                Assert.IsFalse(stringValue.Contains("<script>") || stringValue.Contains("alert("),
+                    $"Sanitized output contains unsafe content: {stringValue}");
+            }
+        }
+    }
+
 #if !CI_GITHUB
     [Test]
     public async Task TestBrokenImagePreviews()
