@@ -176,13 +176,21 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             return null;
         }
     }
-    private static LinkMeta ProcessMetaData(string htmlContent, string url)
+    private LinkMeta ProcessMetaData(string htmlContent, string url)
     {
-        var meta = Parser.Parse(htmlContent);
-        if (meta.Count == 0)
+        try
+        {
+            var meta = Parser.Parse(htmlContent);
+            if (meta.Count == 0)
+                return null;
+            var linkMeta = LinkMeta.FromMetaData(meta, url);
+            return linkMeta;
+        }
+        catch (Exception e)
+        {
+            logger.LogDebug("Error processing metadata for {Url}. Error: {Error}", url, e.Message);
             return null;
-        var linkMeta = LinkMeta.FromMetaData(meta, url);
-        return linkMeta;
+        }
     }
     private async Task<string> ProcessImageAsync(string imageUrl, string originalUrl)
     {
