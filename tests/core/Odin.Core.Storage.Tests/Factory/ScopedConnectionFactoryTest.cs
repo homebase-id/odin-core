@@ -59,7 +59,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
-        ScopedSystemConnectionFactory.ConnectionWrapper cn;
+        IConnectionWrapper cn;
         await using (cn = await scopedConnectionFactory.CreateScopedConnectionAsync())
         {
             Assert.That(cn.RefCount, Is.EqualTo(1));
@@ -113,7 +113,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         Assert.That(cn.RefCount, Is.EqualTo(1));
         Assert.That(cn.DangerousInstance, Is.Not.Null);
 
-        ScopedSystemConnectionFactory.TransactionWrapper tx;
+        ITransactionWrapper tx;
         await using (tx = await cn.BeginStackedTransactionAsync())
         {
             Assert.That(tx.RefCount, Is.EqualTo(1));
