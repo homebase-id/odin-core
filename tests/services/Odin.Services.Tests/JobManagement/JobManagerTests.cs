@@ -25,6 +25,7 @@ using Odin.Services.JobManagement;
 using Odin.Services.Tests.JobManagement.Jobs;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
+using Testcontainers.PostgreSql;
 
 namespace Odin.Services.Tests.JobManagement;
 
@@ -37,6 +38,7 @@ public class JobManagerTests
     private IBackgroundServiceManager? _backgroundServiceManager;
     private JobCleanUpBackgroundService? _jobCleanUpBackgroundService;
     private JobRunnerBackgroundService? _jobRunnerBackgroundService;
+    private PostgreSqlContainer? _postgresContainer;
     
     [SetUp]
     public void Setup()
@@ -53,6 +55,10 @@ public class JobManagerTests
         _backgroundServiceManager?.ShutdownAsync().BlockingWait();
         _host?.Dispose();
         _host = null;
+
+        _postgresContainer?.DisposeAsync().AsTask().Wait();
+        _postgresContainer = null;
+
         if (!string.IsNullOrEmpty(_tempPath))
         {
             Directory.Delete(_tempPath, true);
@@ -80,6 +86,16 @@ public class JobManagerTests
                 JobCleanUpIntervalSeconds = 120
             }
         };
+
+        if (databaseType == DatabaseType.Postgres)
+        {
+            _postgresContainer = new PostgreSqlBuilder()
+                .WithDatabase("odin")
+                .WithUsername("odin")
+                .WithPassword("odin")
+                .Build();
+            await _postgresContainer.StartAsync();
+        }
 
         _host = Host.CreateDefaultBuilder()
             .UseServiceProviderFactory(new AutofacServiceProviderFactory()) // Use Autofac as DI container
@@ -138,7 +154,7 @@ public class JobManagerTests
                         builder.AddSqliteSystemDatabaseServices(Path.Combine(config.Host.SystemDataRootPath!, "sys.db"));
                         break;
                     case DatabaseType.Postgres:
-                        builder.AddPgsqlSystemDatabaseServices(config.Database.ConnectionString);
+                        builder.AddPgsqlSystemDatabaseServices(_postgresContainer!.GetConnectionString());
                         break;
                     default:
                         throw new OdinSystemException("Unsupported database type");

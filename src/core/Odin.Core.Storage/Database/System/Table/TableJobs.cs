@@ -40,7 +40,7 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
-        cmd.CommandText = "SELECT 1 FROM jobs WHERE id = @id;";
+        cmd.CommandText = "SELECT COUNT(id) FROM jobs WHERE id = @id;";
 
         var idParam = cmd.CreateParameter();
         idParam.ParameterName = "@id";
