@@ -24,7 +24,7 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
 
     //
 
-    public async Task<long> GetCountAsync()
+    public new async Task<long> GetCountAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();

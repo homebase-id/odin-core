@@ -344,12 +344,12 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        public virtual async Task<int> GetCountAsync(DatabaseConnection conn)
         {
             using (var getCountCommand = conn.db.CreateCommand())
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM notaryChain; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM notaryChain;";
                 var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
