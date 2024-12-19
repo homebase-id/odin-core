@@ -89,9 +89,9 @@ public class JobManager(
             // while another job is being scheduled with the same hash, will fail to look it up. In which case
             // we let it retry the insert.
 
-            var inserted = 0;
+            var didInsert = false;
             var attempt = 0;
-            while (inserted == 0 && attempt < 5)
+            while (!didInsert && attempt < 5)
             {
                 // Check if job already exists, lets look it up using the jobHash
                 var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
@@ -102,10 +102,10 @@ public class JobManager(
                     return existingRecord.id;
                 }
 
-                inserted = await tableJobs.TryInsertAsync(record);
+                didInsert = await tableJobs.TryInsertAsync(record);
                 attempt++;
             }
-            if (inserted == 0)
+            if (!didInsert)
             {
                 var error = $"Could neither insert nor lookup job '{job.Name}' with hash:{record.jobHash}. Check logs. Good luck.";
                 logger.LogError(error);

@@ -14,7 +14,7 @@ public class TableAppGrants(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public new async Task<int> TryInsertAsync(AppGrantsRecord item)
+    public new async Task<bool> TryInsertAsync(AppGrantsRecord item)
     {
         item.identityId = identityKey;
         return await base.TryInsertAsync(item);

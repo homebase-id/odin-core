@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -237,42 +238,46 @@ namespace Odin.Core.Storage.Database.System.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS jobs("
-                 +"id BLOB NOT NULL UNIQUE, "
-                 +"name STRING NOT NULL, "
-                 +"state INT NOT NULL, "
-                 +"priority INT NOT NULL, "
-                 +"nextRun INT NOT NULL, "
-                 +"lastRun INT , "
-                 +"runCount INT NOT NULL, "
-                 +"maxAttempts INT NOT NULL, "
-                 +"retryDelay INT NOT NULL, "
-                 +"onSuccessDeleteAfter INT NOT NULL, "
-                 +"onFailureDeleteAfter INT NOT NULL, "
-                 +"expiresAt INT , "
-                 +"correlationId STRING NOT NULL, "
-                 +"jobType STRING NOT NULL, "
-                 +"jobData STRING , "
-                 +"jobHash STRING  UNIQUE, "
-                 +"lastError STRING , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (id)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
-                 +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
-                 +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
-                 +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS jobs("
+                   +"id BYTEA NOT NULL UNIQUE, "
+                   +"name TEXT NOT NULL, "
+                   +"state BIGINT NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"nextRun BIGINT NOT NULL, "
+                   +"lastRun BIGINT , "
+                   +"runCount BIGINT NOT NULL, "
+                   +"maxAttempts BIGINT NOT NULL, "
+                   +"retryDelay BIGINT NOT NULL, "
+                   +"onSuccessDeleteAfter BIGINT NOT NULL, "
+                   +"onFailureDeleteAfter BIGINT NOT NULL, "
+                   +"expiresAt BIGINT , "
+                   +"correlationId TEXT NOT NULL, "
+                   +"jobType TEXT NOT NULL, "
+                   +"jobData TEXT , "
+                   +"jobHash TEXT  UNIQUE, "
+                   +"lastError TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   + rowid
+                   +", PRIMARY KEY (id)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public virtual async Task<int> InsertAsync(JobsRecord item)
@@ -370,14 +375,15 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(JobsRecord item)
+        public virtual async Task<bool> TryInsertAsync(JobsRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                             "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                                             "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@id";
                 insertCommand.Parameters.Add(insertParam1);
@@ -461,7 +467,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     item.created = now;
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -664,13 +670,13 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync()
+        public virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM jobs; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM jobs;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;

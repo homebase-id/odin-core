@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -320,49 +321,53 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveMainIndex("
-                 +"identityId BLOB NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"fileId BLOB NOT NULL, "
-                 +"globalTransitId BLOB , "
-                 +"fileState INT NOT NULL, "
-                 +"requiredSecurityGroup INT NOT NULL, "
-                 +"fileSystemType INT NOT NULL, "
-                 +"userDate INT NOT NULL, "
-                 +"fileType INT NOT NULL, "
-                 +"dataType INT NOT NULL, "
-                 +"archivalStatus INT NOT NULL, "
-                 +"historyStatus INT NOT NULL, "
-                 +"senderId STRING , "
-                 +"groupId BLOB , "
-                 +"uniqueId BLOB , "
-                 +"byteCount INT NOT NULL, "
-                 +"hdrEncryptedKeyHeader STRING NOT NULL, "
-                 +"hdrVersionTag BLOB NOT NULL UNIQUE, "
-                 +"hdrAppData STRING NOT NULL, "
-                 +"hdrReactionSummary STRING , "
-                 +"hdrServerData STRING NOT NULL, "
-                 +"hdrTransferHistory STRING , "
-                 +"hdrFileMetaData STRING NOT NULL, "
-                 +"hdrTmpDriveAlias BLOB NOT NULL, "
-                 +"hdrTmpDriveType BLOB NOT NULL, "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,driveId,fileId)"
-                 +", UNIQUE(identityId,driveId,uniqueId)"
-                 +", UNIQUE(identityId,driveId,globalTransitId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS driveMainIndex("
+                   +"identityId BYTEA NOT NULL, "
+                   +"driveId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL, "
+                   +"globalTransitId BYTEA , "
+                   +"fileState BIGINT NOT NULL, "
+                   +"requiredSecurityGroup BIGINT NOT NULL, "
+                   +"fileSystemType BIGINT NOT NULL, "
+                   +"userDate BIGINT NOT NULL, "
+                   +"fileType BIGINT NOT NULL, "
+                   +"dataType BIGINT NOT NULL, "
+                   +"archivalStatus BIGINT NOT NULL, "
+                   +"historyStatus BIGINT NOT NULL, "
+                   +"senderId TEXT , "
+                   +"groupId BYTEA , "
+                   +"uniqueId BYTEA , "
+                   +"byteCount BIGINT NOT NULL, "
+                   +"hdrEncryptedKeyHeader TEXT NOT NULL, "
+                   +"hdrVersionTag BYTEA NOT NULL UNIQUE, "
+                   +"hdrAppData TEXT NOT NULL, "
+                   +"hdrReactionSummary TEXT , "
+                   +"hdrServerData TEXT NOT NULL, "
+                   +"hdrTransferHistory TEXT , "
+                   +"hdrFileMetaData TEXT NOT NULL, "
+                   +"hdrTmpDriveAlias BYTEA NOT NULL, "
+                   +"hdrTmpDriveType BYTEA NOT NULL, "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   + rowid
+                   +", PRIMARY KEY (identityId,driveId,fileId)"
+                   +", UNIQUE(identityId,driveId,uniqueId)"
+                   +", UNIQUE(identityId,driveId,globalTransitId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
@@ -500,7 +505,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(DriveMainIndexRecord item)
+        protected virtual async Task<bool> TryInsertAsync(DriveMainIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -514,8 +519,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -631,7 +637,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     item.created = now;
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -914,13 +920,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM driveMainIndex;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -962,13 +968,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        protected virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        protected virtual async Task<int> GetDriveCountAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
+                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);

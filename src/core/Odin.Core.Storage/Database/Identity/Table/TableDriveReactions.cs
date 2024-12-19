@@ -38,15 +38,15 @@ public class TableDriveReactions(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
+            $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=@identityId AND driveId=@driveId AND postId=@postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
         var sparam1 = cmd.CreateParameter();
         var sparam2 = cmd.CreateParameter();
         var sparam3 = cmd.CreateParameter();
 
-        sparam1.ParameterName = "$postId";
-        sparam2.ParameterName = "$driveId";
-        sparam3.ParameterName = "$identityId";
+        sparam1.ParameterName = "@postId";
+        sparam2.ParameterName = "@driveId";
+        sparam3.ParameterName = "@identityId";
 
         cmd.Parameters.Add(sparam1);
         cmd.Parameters.Add(sparam2);
@@ -92,17 +92,17 @@ public class TableDriveReactions(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND identity=$identity AND postId=$postId AND driveId = $driveId;";
+            $"SELECT COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=@identityId AND identity=@identity AND postId=@postId AND driveId = @driveId;";
 
         var s2param1 = cmd.CreateParameter();
         var s2param2 = cmd.CreateParameter();
         var s2param3 = cmd.CreateParameter();
         var s2param4 = cmd.CreateParameter();
 
-        s2param1.ParameterName = "$postId";
-        s2param2.ParameterName = "$identity";
-        s2param3.ParameterName = "$driveId";
-        s2param4.ParameterName = "$identityId";
+        s2param1.ParameterName = "@postId";
+        s2param2.ParameterName = "@identity";
+        s2param3.ParameterName = "@driveId";
+        s2param4.ParameterName = "@identityId";
 
         cmd.Parameters.Add(s2param1);
         cmd.Parameters.Add(s2param2);
@@ -136,17 +136,17 @@ public class TableDriveReactions(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT singleReaction as reactioncount FROM driveReactions WHERE identityId=$identityId AND identity=$identity AND postId=$postId AND driveId = $driveId;";
+            $"SELECT singleReaction as reactioncount FROM driveReactions WHERE identityId=@identityId AND identity=@identity AND postId=@postId AND driveId = @driveId;";
 
         var s3param1 = cmd.CreateParameter();
         var s3param2 = cmd.CreateParameter();
         var s3param3 = cmd.CreateParameter();
         var s3param4 = cmd.CreateParameter();
 
-        s3param1.ParameterName = "$postId";
-        s3param2.ParameterName = "$identity";
-        s3param3.ParameterName = "$driveId";
-        s3param4.ParameterName = "$identityId";
+        s3param1.ParameterName = "@postId";
+        s3param2.ParameterName = "@identity";
+        s3param3.ParameterName = "@driveId";
+        s3param4.ParameterName = "@identityId";
 
         cmd.Parameters.Add(s3param1);
         cmd.Parameters.Add(s3param2);
@@ -179,15 +179,15 @@ public class TableDriveReactions(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=$identityId AND driveId=$driveId AND postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
+            $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM driveReactions WHERE identityId=@identityId AND driveId=@driveId AND postId=@postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
 
-        param1.ParameterName = "$postId";
-        param2.ParameterName = "$driveId";
-        param3.ParameterName = "$identityId";
+        param1.ParameterName = "@postId";
+        param2.ParameterName = "@driveId";
+        param3.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -231,7 +231,7 @@ public class TableDriveReactions(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText = "SELECT rowid,identity,postId,singleReaction FROM driveReactions " +
-                          "WHERE identityId=$identityId AND driveId = $driveId AND postId = $postId AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                          "WHERE identityId=@identityId AND driveId = @driveId AND postId = @postId AND rowid > @rowid ORDER BY rowid ASC LIMIT @count;";
 
         var getPaging0Param1 = cmd.CreateParameter();
         var getPaging0Param2 = cmd.CreateParameter();
@@ -239,11 +239,11 @@ public class TableDriveReactions(
         var getPaging0Param4 = cmd.CreateParameter();
         var getPaging0Param5 = cmd.CreateParameter();
 
-        getPaging0Param1.ParameterName = "$rowid";
-        getPaging0Param2.ParameterName = "$_count";
-        getPaging0Param3.ParameterName = "$postId";
-        getPaging0Param4.ParameterName = "$driveId";
-        getPaging0Param5.ParameterName = "$identityId";
+        getPaging0Param1.ParameterName = "@rowid";
+        getPaging0Param2.ParameterName = "@count";
+        getPaging0Param3.ParameterName = "@postId";
+        getPaging0Param4.ParameterName = "@driveId";
+        getPaging0Param5.ParameterName = "@identityId";
 
         cmd.Parameters.Add(getPaging0Param1);
         cmd.Parameters.Add(getPaging0Param2);

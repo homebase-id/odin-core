@@ -66,13 +66,13 @@ public class TableOutbox(
 
         cmd.CommandText = """
                                     UPDATE outbox
-                                    SET checkOutStamp = $checkOutStamp
-                                    WHERE identityId=$identityId AND (checkOutStamp is NULL) AND
+                                    SET checkOutStamp = @checkOutStamp
+                                    WHERE identityId=@identityId AND (checkOutStamp is NULL) AND
                                       rowId = (
                                           SELECT rowId
                                           FROM outbox
-                                          WHERE identityId=$identityId AND checkOutStamp IS NULL
-                                          AND nextRunTime <= $now
+                                          WHERE identityId=@identityId AND checkOutStamp IS NULL
+                                          AND nextRunTime <= @now
                                           AND (
                                             (dependencyFileId IS NULL)
                                             OR (NOT EXISTS (
@@ -88,15 +88,15 @@ public class TableOutbox(
                                     );
                                     SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified
                                     FROM outbox
-                                    WHERE identityId=$identityId AND checkOutStamp=$checkOutStamp;
+                                    WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp;
                                     """;
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
 
-        param1.ParameterName = "$checkOutStamp";
-        param2.ParameterName = "$identityId";
-        param3.ParameterName = "$now";
+        param1.ParameterName = "@checkOutStamp";
+        param2.ParameterName = "@identityId";
+        param3.ParameterName = "@now";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -133,10 +133,10 @@ public class TableOutbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "SELECT nextRunTime FROM outbox WHERE identityId=$identityId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
+        cmd.CommandText = "SELECT nextRunTime FROM outbox WHERE identityId=@identityId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
         var param1 = cmd.CreateParameter();
-        param1.ParameterName = "$identityId";
+        param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
 
         param1.Value = identityKey.ToByteArray();
@@ -164,15 +164,15 @@ public class TableOutbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=$nextRunTime WHERE identityId=$identityId AND checkOutStamp=$checkOutStamp";
+        cmd.CommandText = "UPDATE outbox SET checkOutStamp=NULL, checkOutCount=checkOutCount+1, nextRunTime=@nextRunTime WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
 
-        param1.ParameterName = "$checkOutStamp";
-        param2.ParameterName = "$nextRunTime";
-        param3.ParameterName = "$identityId";
+        param1.ParameterName = "@checkOutStamp";
+        param2.ParameterName = "@nextRunTime";
+        param3.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -196,13 +196,13 @@ public class TableOutbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "DELETE FROM outbox WHERE identityId=$identityId AND checkOutStamp=$checkOutStamp";
+        cmd.CommandText = "DELETE FROM outbox WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
 
-        param1.ParameterName = "$checkOutStamp";
-        param2.ParameterName = "$identityId";
+        param1.ParameterName = "@checkOutStamp";
+        param2.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -223,9 +223,9 @@ public class TableOutbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE outbox SET checkOutStamp=NULL,checkOutCount=checkOutCount+1 WHERE identityId=$identityId AND checkOutStamp < $checkOutStamp";
+        cmd.CommandText = "UPDATE outbox SET checkOutStamp=NULL,checkOutCount=checkOutCount+1 WHERE identityId=@identityId AND checkOutStamp < @checkOutStamp";
 
-        // Should we also reset nextRunTime =$nextRunTime to "now()" or 0?
+        // Should we also reset nextRunTime =@nextRunTime to "now()" or 0?
         //
         // Consider removing any items with checkOutCount == 0 older than X
         // since they are probably circular dependencies
@@ -233,8 +233,8 @@ public class TableOutbox(
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
 
-        param1.ParameterName = "$checkOutStamp";
-        param2.ParameterName = "$identityId";
+        param1.ParameterName = "@checkOutStamp";
+        param2.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -257,12 +257,12 @@ public class TableOutbox(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            "SELECT count(*) FROM outbox WHERE identityId=$identityId;" +
-            "SELECT count(*) FROM outbox WHERE identityId=$identityId AND checkOutStamp NOT NULL;" +
-            "SELECT nextRunTime FROM outbox WHERE identityId=$identityId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
+            "SELECT count(*) FROM outbox WHERE identityId=@identityId;" +
+            "SELECT count(*) FROM outbox WHERE identityId=@identityId AND checkOutStamp IS NOT NULL;" +
+            "SELECT nextRunTime FROM outbox WHERE identityId=@identityId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
         var param1 = cmd.CreateParameter();
-        param1.ParameterName = "$identityId";
+        param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
         param1.Value = identityKey.ToByteArray();
 
@@ -317,15 +317,15 @@ public class TableOutbox(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            "SELECT count(*) FROM outbox WHERE identityId=$identityId AND driveId=$driveId;" +
-            "SELECT count(*) FROM outbox WHERE identityId=$identityId AND driveId=$driveId AND checkOutStamp NOT NULL;" +
-            "SELECT nextRunTime FROM outbox WHERE identityId=$identityId AND driveId=$driveId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
+            "SELECT count(*) FROM outbox WHERE identityId=@identityId AND driveId=@driveId;" +
+            "SELECT count(*) FROM outbox WHERE identityId=@identityId AND driveId=@driveId AND checkOutStamp IS NOT NULL;" +
+            "SELECT nextRunTime FROM outbox WHERE identityId=@identityId AND driveId=@driveId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
 
-        param1.ParameterName = "$driveId";
-        param2.ParameterName = "$identityId";
+        param1.ParameterName = "@driveId";
+        param2.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);

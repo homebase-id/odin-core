@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -81,24 +82,28 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS keyTwoValue;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS keyTwoValue("
-                 +"identityId BLOB NOT NULL, "
-                 +"key1 BLOB NOT NULL UNIQUE, "
-                 +"key2 BLOB , "
-                 +"data BLOB  "
-                 +", PRIMARY KEY (identityId,key1)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableKeyTwoValueCRUD ON keyTwoValue(identityId,key2);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS keyTwoValue;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyTwoValue("
+                   +"identityId BYTEA NOT NULL, "
+                   +"key1 BYTEA NOT NULL UNIQUE, "
+                   +"key2 BYTEA , "
+                   +"data BYTEA  "
+                   + rowid
+                   +", PRIMARY KEY (identityId,key1)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyTwoValueCRUD ON keyTwoValue(identityId,key2);"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(KeyTwoValueRecord item)
@@ -134,14 +139,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(KeyTwoValueRecord item)
+        protected virtual async Task<bool> TryInsertAsync(KeyTwoValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO keyTwoValue (identityId,key1,key2,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@data)";
+                insertCommand.CommandText = "INSERT INTO keyTwoValue (identityId,key1,key2,data) " +
+                                             "VALUES (@identityId,@key1,@key2,@data) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -163,7 +169,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -234,13 +240,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyTwoValue; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM keyTwoValue;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;

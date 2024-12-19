@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.System.Table;
@@ -24,7 +25,7 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
 
     //
 
-    public async Task<long> GetCountAsync()
+    public new async Task<long> GetCountAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -39,7 +40,7 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
-        cmd.CommandText = "SELECT 1 FROM jobs WHERE id = @id;";
+        cmd.CommandText = "SELECT COUNT(id) FROM jobs WHERE id = @id;";
 
         var idParam = cmd.CreateParameter();
         idParam.ParameterName = "@id";
@@ -80,13 +81,14 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
-        cmd.CommandText =
+        cmd.CommandText = _scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite
+            ?
+            //
+            // Sqlite specific sql
+            //
             """
-            -- sqlite: According to chatgpt, "immediate" is needed to help the atomic update
-            -- below. The Microsoft driver doesn't support this on the API level,
-            -- so I have no idea if it's just being ignored...
             BEGIN IMMEDIATE TRANSACTION;
-            
+
             -- Select the next scheduled job... 
             WITH NextJob AS (
                 SELECT id
@@ -94,7 +96,6 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
                 WHERE nextRun <= @now AND state = @scheduled
                 ORDER BY priority ASC, nextRun ASC
                 LIMIT 1
-                -- SEB:NOTE PSQL: add FOR UPDATE to lock the row
             )
 
             -- ...and update it to preflight, while making sure nobody beat us to it.
@@ -102,7 +103,32 @@ public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedCo
             SET state = @preflight
             WHERE Id = (SELECT Id FROM NextJob) AND state = @scheduled
             RETURNING *;
-            
+
+            COMMIT;
+            """
+            :
+            //
+            // Postgres specific sql
+            //
+            """
+            BEGIN;
+
+            -- Select the next scheduled job... 
+            WITH NextJob AS (
+                SELECT id
+                FROM jobs
+                WHERE nextRun <= @now AND state = @scheduled
+                ORDER BY priority ASC, nextRun ASC
+                LIMIT 1
+                FOR UPDATE
+            )
+
+            -- ...and update it to preflight, while making sure nobody beat us to it.
+            UPDATE jobs
+            SET state = @preflight
+            WHERE Id = (SELECT Id FROM NextJob) AND state = @scheduled
+            RETURNING *;
+
             COMMIT;
             """;
 

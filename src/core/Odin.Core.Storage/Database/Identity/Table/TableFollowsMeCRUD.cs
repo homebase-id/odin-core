@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -89,25 +90,29 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS followsMe("
-                 +"identityId BLOB NOT NULL, "
-                 +"identity STRING NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,identity,driveId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS followsMe("
+                   +"identityId BYTEA NOT NULL, "
+                   +"identity TEXT NOT NULL, "
+                   +"driveId BYTEA NOT NULL, "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   + rowid
+                   +", PRIMARY KEY (identityId,identity,driveId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(FollowsMeRecord item)
@@ -150,14 +155,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(FollowsMeRecord item)
+        protected virtual async Task<bool> TryInsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO followsMe (identityId,identity,driveId,created,modified) " +
-                                             "VALUES (@identityId,@identity,@driveId,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO followsMe (identityId,identity,driveId,created,modified) " +
+                                             "VALUES (@identityId,@identity,@driveId,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -186,7 +192,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     item.created = now;
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -279,13 +285,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM followsMe; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM followsMe;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;

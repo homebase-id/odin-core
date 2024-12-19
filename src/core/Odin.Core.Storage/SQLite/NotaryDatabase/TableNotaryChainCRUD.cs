@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -131,28 +132,28 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
         public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cmd = conn.db.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
-                   await conn.ExecuteNonQueryAsync(cmd);
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS notaryChain("
-                 +"previousHash BLOB NOT NULL UNIQUE, "
-                 +"identity STRING NOT NULL, "
-                 +"timestamp INT NOT NULL, "
-                 +"signedPreviousHash BLOB NOT NULL UNIQUE, "
-                 +"algorithm STRING NOT NULL, "
-                 +"publicKeyJwkBase64Url STRING NOT NULL, "
-                 +"notarySignature BLOB NOT NULL UNIQUE, "
-                 +"recordHash BLOB NOT NULL UNIQUE "
-                 +", PRIMARY KEY (notarySignature)"
-                 +");"
-                 ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
+                await conn.ExecuteNonQueryAsync(cmd);
             }
+            var rowid = "";
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS notaryChain("
+                   +"previousHash BYTEA NOT NULL UNIQUE, "
+                   +"identity TEXT NOT NULL, "
+                   +"timestamp BIGINT NOT NULL, "
+                   +"signedPreviousHash BYTEA NOT NULL UNIQUE, "
+                   +"algorithm TEXT NOT NULL, "
+                   +"publicKeyJwkBase64Url TEXT NOT NULL, "
+                   +"notarySignature BYTEA NOT NULL UNIQUE, "
+                   +"recordHash BYTEA NOT NULL UNIQUE "
+                   + rowid
+                   +", PRIMARY KEY (notarySignature)"
+                   +");"
+                   ;
+            await conn.ExecuteNonQueryAsync(cmd);
         }
 
         public virtual async Task<int> InsertAsync(DatabaseConnection conn, NotaryChainRecord item)
@@ -202,12 +203,13 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, NotaryChainRecord item)
+        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, NotaryChainRecord item)
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
-                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)";
+                insertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
+                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -245,7 +247,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 {
                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -344,12 +346,12 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<int> GetCountDirtyAsync(DatabaseConnection conn)
+        public virtual async Task<int> GetCountAsync(DatabaseConnection conn)
         {
             using (var getCountCommand = conn.db.CreateCommand())
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM notaryChain; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM notaryChain;";
                 var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;

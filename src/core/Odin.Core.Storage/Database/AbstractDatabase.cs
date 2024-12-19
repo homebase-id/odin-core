@@ -7,8 +7,8 @@ namespace Odin.Core.Storage.Database;
 
 public abstract class AbstractDatabase<T>(ILifetimeScope lifetimeScope) where T : IDbConnectionFactory
 {
-    public abstract Task<ScopedConnectionFactory<T>.ConnectionWrapper> CreateScopedConnectionAsync();
-    public abstract Task<ScopedTransactionFactory<T>.ScopedTransaction> BeginStackedTransactionAsync();
+    public abstract Task<IConnectionWrapper> CreateScopedConnectionAsync();
+    public abstract Task<IScopedTransaction> BeginStackedTransactionAsync();
 
     // SEB:NOTE this is temporary until we have a proper migration system
     public abstract Task CreateDatabaseAsync(bool dropExistingTables = false);
