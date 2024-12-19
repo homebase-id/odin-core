@@ -37,6 +37,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsEmpty01Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -81,6 +84,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBatch02Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -140,6 +146,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBatch03Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -204,6 +213,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBatch04Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -278,6 +290,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBatch05Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -361,6 +376,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBoundaryTest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -402,6 +420,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsUDBoundaryTest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -441,6 +462,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBoundaryTest02(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -481,6 +505,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsUDBoundaryTest02(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -518,6 +545,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task TwoGetByTests(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -556,6 +586,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task FileStateTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -618,6 +651,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task ArchivalStatusTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -703,6 +739,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBatch06Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -774,6 +813,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsBatch07ExampleTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -875,6 +917,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchCursorNewestHasRows01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -912,6 +957,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchUserDateCursorNewestHasRows01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -949,6 +997,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchCursorOldestHasRows01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -986,6 +1037,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchUserDateCursorOldestHasRows01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1023,6 +1077,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchCursorNewest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1062,6 +1119,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchUserDateCursorNewest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1104,6 +1164,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchCursorOldest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1144,6 +1207,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchUserDateCursorOldest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1187,6 +1253,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task QueryBatchCursorOldestNewest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1220,6 +1289,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task TestQueryBatchStartPointGuid(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1273,6 +1345,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task TestQueryBatchStartPointTime(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1330,6 +1405,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task TestQueryBatchUserDateStartPointTime(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1386,6 +1464,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task TestQueryBatchStopBoundaryGuid(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1449,6 +1530,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task TestQueryBatchStopBoundaryTime(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1516,6 +1600,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsModified01Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1559,6 +1646,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task CursorsModified02Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1607,6 +1697,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         // The Init() seems slightly screwy. I think they'll end up in a race condition. Just guessing.
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task RequiredSecurityGroupBatch01Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1672,6 +1765,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task RequiredSecurityGroupModified02Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1741,6 +1837,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task SecurityGroupAndAclBatch01Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1820,6 +1919,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         // XXX
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task SecurityGroupAndAclBatch02Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -1967,6 +2069,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task SecurityGroupAndAclBatch02ModifiedTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -2127,6 +2232,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can add one and retrieve it
         public async Task GlobalTransitId01Test(DatabaseType databaseType)
         {
@@ -2157,6 +2265,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can add two and retrieve them
         public async Task GlobalTransitId02Test(DatabaseType databaseType)
         {
@@ -2194,6 +2305,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test that we cannot add a duplicate
         public async Task GlobalTransitId03Test(DatabaseType databaseType)
         {
@@ -2226,6 +2340,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can handle NULL
         public async Task GlobalTransitId04Test(DatabaseType databaseType)
         {
@@ -2256,6 +2373,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can add one and retrieve it searching for a specific GTID guid
         public async Task GlobalTransitId05Test(DatabaseType databaseType)
         {
@@ -2296,6 +2416,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can modify the global transit guid with both update versions
         public async Task GlobalTransitId06Test(DatabaseType databaseType)
         {
@@ -2331,6 +2454,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can add one and retrieve it
         public async Task UniqueId01Test(DatabaseType databaseType)
         {
@@ -2361,6 +2487,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can add two and retrieve them
         public async Task UniqueId02Test(DatabaseType databaseType)
         {
@@ -2398,6 +2527,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test that we cannot add a duplicate
         public async Task UniqueId03Test(DatabaseType databaseType)
         {
@@ -2430,6 +2562,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can handle NULL
         public async Task UniqueId04Test(DatabaseType databaseType)
         {
@@ -2460,6 +2595,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can add one and retrieve it searching for a specific GTID guid
         public async Task UniqueId05Test(DatabaseType databaseType)
         {
@@ -2500,6 +2638,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can modify the global transit guid with both update versions
         public async Task UniqueId06Test(DatabaseType databaseType)
         {
@@ -2537,6 +2678,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         // The Init() seems slightly screwy. I think they'll end up in a race condition. Just guessing.
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task UpdateTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -2571,6 +2715,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task AddEntryTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

@@ -13,6 +13,9 @@ public class IdentityDatabaseTests : IocTestBase
 {
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldConnectAndQuery(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -35,6 +38,9 @@ public class IdentityDatabaseTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCommitTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -63,6 +69,9 @@ public class IdentityDatabaseTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRollbackTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

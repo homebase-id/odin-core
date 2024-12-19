@@ -14,6 +14,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task InsertRowTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -57,6 +60,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PopTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -165,6 +171,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PopCancelTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -211,6 +220,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PopCommitTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -244,6 +256,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PopCommitListTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -296,6 +311,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PopCancelListTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -341,6 +359,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PopRecoverDeadTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -381,6 +402,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task DualBoxTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -447,6 +471,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task ExampleTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

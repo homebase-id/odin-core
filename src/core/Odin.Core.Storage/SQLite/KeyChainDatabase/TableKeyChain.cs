@@ -47,10 +47,10 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var get1Command = conn.db.CreateCommand())
             {
                 get1Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
-                                                "WHERE identity = $identity ORDER BY rowid ASC LIMIT 1;";
+                                                "WHERE identity = @identity ORDER BY rowid ASC LIMIT 1;";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Command.Parameters.Add(get1Param1);
-                get1Param1.ParameterName = "$identity";
+                get1Param1.ParameterName = "@identity";
 
                 get1Param1.Value = identity;
 
@@ -74,10 +74,10 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var get2Command = conn.db.CreateCommand())
             {
                 get2Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
-                                             "WHERE identity = $identity ORDER BY rowid;";
+                                             "WHERE identity = @identity ORDER BY rowid;";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Command.Parameters.Add(get2Param1);
-                get2Param1.ParameterName = "$identity";
+                get2Param1.ParameterName = "@identity";
 
                 get2Param1.Value = identity;
 

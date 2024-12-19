@@ -285,14 +285,14 @@ public class TableDriveMainIndex(
         await using var sizeCommand = cn.CreateCommand();
 
         sizeCommand.CommandText =
-            $"PRAGMA read_uncommitted = 1; SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=$identityId AND driveid=$driveId; PRAGMA read_uncommitted = 0;";
+            $"SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=@identityId AND driveid=@driveId;";
 
         var sparam1 = sizeCommand.CreateParameter();
-        sparam1.ParameterName = "$driveId";
+        sparam1.ParameterName = "@driveId";
         sizeCommand.Parameters.Add(sparam1);
 
         var sparam2 = sizeCommand.CreateParameter();
-        sparam2.ParameterName = "$identityId";
+        sparam2.ParameterName = "@identityId";
         sizeCommand.Parameters.Add(sparam2);
 
         sparam1.Value = driveId.ToByteArray();
@@ -322,17 +322,17 @@ public class TableDriveMainIndex(
         await using var touchCommand = cn.CreateCommand();
 
         touchCommand.CommandText =
-            $"UPDATE drivemainindex SET modified=$modified WHERE identityId = $identityId AND driveId = $driveId AND fileid = $fileid;";
+            $"UPDATE drivemainindex SET modified=@modified WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid;";
 
         var tparam1 = touchCommand.CreateParameter();
         var tparam2 = touchCommand.CreateParameter();
         var tparam3 = touchCommand.CreateParameter();
         var tparam4 = touchCommand.CreateParameter();
 
-        tparam1.ParameterName = "$fileid";
-        tparam2.ParameterName = "$modified";
-        tparam3.ParameterName = "$driveId";
-        tparam4.ParameterName = "$identityId";
+        tparam1.ParameterName = "@fileid";
+        tparam2.ParameterName = "@modified";
+        tparam3.ParameterName = "@driveId";
+        tparam4.ParameterName = "@identityId";
 
         touchCommand.Parameters.Add(tparam1);
         touchCommand.Parameters.Add(tparam2);

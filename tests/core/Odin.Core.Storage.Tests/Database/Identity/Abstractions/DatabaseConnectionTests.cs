@@ -16,6 +16,9 @@ public class DatabaseConnectionTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task RollbackTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -53,6 +56,9 @@ public class DatabaseConnectionTests : IocTestBase
     /// </summary>
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task MemoryDatabaseDualConnectionTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -88,6 +94,9 @@ public class DatabaseConnectionTests : IocTestBase
     /// </summary>
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task DualConnectionPreparedStatementTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -122,6 +131,9 @@ public class DatabaseConnectionTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task MassivePreparedConnectionTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
