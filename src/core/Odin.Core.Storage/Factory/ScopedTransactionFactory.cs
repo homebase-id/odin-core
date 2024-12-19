@@ -19,8 +19,16 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
         CancellationToken cancellationToken = default)
     {
         var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        var tx = await cn.BeginStackedTransactionAsync(isolationLevel, cancellationToken);
-        return new ScopedTransaction(cn, tx);
+        try
+        {
+            var tx = await cn.BeginStackedTransactionAsync(isolationLevel, cancellationToken);
+            return new ScopedTransaction(cn, tx);
+        }
+        catch (Exception)
+        {
+            await cn.DisposeAsync();
+            throw;
+        }
     }
 
     public sealed class ScopedTransaction(
