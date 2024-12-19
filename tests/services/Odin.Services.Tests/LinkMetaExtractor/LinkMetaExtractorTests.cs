@@ -540,9 +540,7 @@ public class LinkMetaExtractorTests
             new { Meta = new Dictionary<string, object> { { "description", "   " }, { "og:description", "OG Description" } }, Expected = "OG Description" },
             new { Meta = new Dictionary<string, object> { { "description", "" }, { "twitter:description", "Twitter Description" } }, Expected = "Twitter Description" },
             new { Meta = new Dictionary<string, object> { { "description", "" }, { "og:description", "OG Description" } }, Expected = "OG Description" },
-#pragma warning disable CS8619 // Example: Disables "Nullability of reference types in value doesn't match target type" warning
-            new { Meta = new Dictionary<string, object>(), Expected = (string?)null }
-#pragma warning restore CS8619 // Re-enables the warning after this point            // No description keys
+            new { Meta = new Dictionary<string, object>(), Expected = (string?)null! }
         };
 
         foreach (var test in permutations)
@@ -700,21 +698,18 @@ public class LinkMetaExtractorTests
                 new { Meta = new Dictionary<string, object> { { "og:image", validDataUri } }, Expected = validDataUri },
                 new { Meta = new Dictionary<string, object> { { "twitter:image", validDataUri } }, Expected = validDataUri },
 
-#pragma warning disable CS8619 // Example: Disables "Nullability of reference types in value doesn't match target type" warning
-
                 // Invalid embedded image (size exceeds limit)
-                new { Meta = new Dictionary<string, object> { { "og:image", invalidDataUri } }, Expected = (string?)null },
+                new { Meta = new Dictionary<string, object> { { "og:image", invalidDataUri } }, Expected = (string?)null! },
 
                 // Invalid MIME type in embedded image
-                new { Meta = new Dictionary<string, object> { { "og:image", invalidMimeTypeDataUri } }, Expected = (string?)null },
+                new { Meta = new Dictionary<string, object> { { "og:image", invalidMimeTypeDataUri } }, Expected = (string?)null! },
 
                 // Invalid URL
-                new { Meta = new Dictionary<string, object> { { "og:image", "javascript:alert('XSS')" } }, Expected = (string?)null },
-                new { Meta = new Dictionary<string, object> { { "og:image", "ftp://example.com/image.png" } }, Expected = (string?)null },
+                new { Meta = new Dictionary<string, object> { { "og:image", "javascript:alert('XSS')" } }, Expected = (string?)null! },
+                new { Meta = new Dictionary<string, object> { { "og:image", "ftp://example.com/image.png" } }, Expected = (string?)null! },
 
                 // No image key
-                new { Meta = new Dictionary<string, object>(), Expected = (string?)null }
-#pragma warning restore CS8619 // Re-enables the warning after this point            // No description keys
+                new { Meta = new Dictionary<string, object>(), Expected = (string?)null! }
             };
 
             foreach (var testCase in testCases)
