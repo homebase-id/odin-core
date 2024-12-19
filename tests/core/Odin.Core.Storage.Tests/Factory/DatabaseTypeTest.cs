@@ -11,7 +11,9 @@ public class DatabaseTypeTest : IocTestBase
 {
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldReturnCorrectDatabaseType(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType, false);

@@ -16,7 +16,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         // Using the connections table just because it happens to have FinallyAddCreatedModified();
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task InsertTimersTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -65,7 +67,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         // Using the connections table just because it happens to have FinallyAddCreatedModified();
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task UpdateTimersTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -117,7 +121,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         // Using the connections table just because it happens to have FinallyAddCreatedModified();
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task UpsertTimersTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

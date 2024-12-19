@@ -56,7 +56,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCreateScopedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -120,7 +122,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndCommitTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -153,7 +157,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndImplicitlyRollbackTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -185,7 +191,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndCommitStackedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -219,7 +227,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndImplicitlyRollbackStackedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -252,7 +262,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCreateCmdWithParams(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -282,7 +294,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateOnIsolatedScopes(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -335,7 +349,9 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task OnlyOuterMostCommitMatters(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

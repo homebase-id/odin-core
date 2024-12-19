@@ -184,7 +184,9 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task GetCountAsyncShouldReturnZero(DatabaseType databaseType)
     {
         // Arrange
@@ -204,7 +206,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldScheduleAJob(DatabaseType databaseType)
     {
         // Arrange
@@ -252,7 +256,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldDeleteAJob(DatabaseType databaseType)
     {
         // Arrange
@@ -290,7 +296,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldGetTheJob(DatabaseType databaseType)
     {
         // Arrange
@@ -316,7 +324,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunTheJobDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -347,7 +357,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunTheJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -380,7 +392,9 @@ public class JobManagerTests
 #if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunManyParallelJobsInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -633,7 +647,9 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAndAbortDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -657,7 +673,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAndAbortInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -682,7 +700,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRescheduleDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -711,7 +731,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRescheduleInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -808,7 +830,9 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldScheduleUniqueJob(DatabaseType databaseType)
     {
         // Arrange
@@ -1098,7 +1122,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAChainedJobDirectly(DatabaseType databaseType)
     {
         // Arrange
@@ -1128,7 +1154,9 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAChainedJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
@@ -1162,7 +1190,9 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task JobShouldHaveInternalChildDiScope(DatabaseType databaseType)
     {
         //
@@ -1212,7 +1242,9 @@ public class JobManagerTests
 #if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldGoToTownOnScheduledUniqueJobs(DatabaseType databaseType)
     {
         // Arrange

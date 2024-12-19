@@ -11,7 +11,9 @@ public class TableJobsTests : IocTestBase
 {
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCountJobs(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -32,7 +34,9 @@ public class TableJobsTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldGetTheNextJob(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -136,7 +140,9 @@ public class TableJobsTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldGetJobByHash(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

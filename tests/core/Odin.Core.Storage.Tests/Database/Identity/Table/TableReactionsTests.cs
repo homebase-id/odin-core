@@ -17,7 +17,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Usage example
         public async Task ExampleUsageTest(DatabaseType databaseType)
         {
@@ -65,7 +67,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert rows as expected
         public async Task TheMissingOnes(DatabaseType databaseType)
         {
@@ -90,7 +94,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert rows as expected
         public async Task InsertRowTest(DatabaseType databaseType)
         {
@@ -112,7 +118,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert rows as expected
         public async Task IdentityPostDetailsTest(DatabaseType databaseType)
         {
@@ -144,7 +152,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert and read two tagmembers
         public async Task InsertDuplicateFailTest(DatabaseType databaseType)
         {
@@ -205,7 +215,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert rows as expected
         public async Task DeleteTest(DatabaseType databaseType)
         {
@@ -237,7 +249,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert rows as expected
         public async Task GetPostReactionstest(DatabaseType databaseType)
         {
@@ -269,7 +283,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert rows as expected
         public async Task GetPostReactionsChopTest(DatabaseType databaseType)
         {
