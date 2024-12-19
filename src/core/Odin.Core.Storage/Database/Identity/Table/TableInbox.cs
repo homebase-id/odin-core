@@ -57,8 +57,9 @@ public class TableInbox(
         await using var tx = await cn.BeginStackedTransactionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE inbox SET popstamp=@popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT @count); " +
-                                 "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp";
+        cmd.CommandText =
+            "UPDATE inbox SET popstamp=@popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT @count); " +
+            "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp ORDER BY rowId ASC";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
@@ -109,7 +110,7 @@ public class TableInbox(
         cmd.CommandText =
             "SELECT count(*) FROM inbox WHERE identityId=@identityId;" +
             "SELECT count(*) FROM inbox WHERE identityId=@identityId AND popstamp IS NOT NULL;" +
-            "SELECT popstamp FROM inbox WHERE identityId=@identityId ORDER BY popstamp DESC LIMIT 1;";
+            "SELECT popstamp FROM inbox WHERE identityId=@identityId AND popstamp IS NOT NULL ORDER BY popstamp DESC LIMIT 1;";
 
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "@identityId";
