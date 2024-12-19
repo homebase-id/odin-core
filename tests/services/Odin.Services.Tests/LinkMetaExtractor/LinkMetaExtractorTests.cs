@@ -62,7 +62,7 @@ public class LinkMetaExtractorTests
         Assert.AreEqual("Test Title", linkMeta.Title);
         Assert.AreEqual("Test Description", linkMeta.Description);
         Assert.NotNull(linkMeta.ImageUrl);
-        Assert.IsTrue(linkMeta.ImageUrl.StartsWith("data:image/png;base64,"));
+        Assert.IsTrue(linkMeta.ImageUrl!.StartsWith("data:image/png;base64,"));
     }
 
 
@@ -540,9 +540,9 @@ public class LinkMetaExtractorTests
             new { Meta = new Dictionary<string, object> { { "description", "   " }, { "og:description", "OG Description" } }, Expected = "OG Description" },
             new { Meta = new Dictionary<string, object> { { "description", "" }, { "twitter:description", "Twitter Description" } }, Expected = "Twitter Description" },
             new { Meta = new Dictionary<string, object> { { "description", "" }, { "og:description", "OG Description" } }, Expected = "OG Description" },
-
-            // No description keys
+#pragma warning disable CS8619 // Example: Disables "Nullability of reference types in value doesn't match target type" warning
             new { Meta = new Dictionary<string, object>(), Expected = (string?)null }
+#pragma warning restore CS8619 // Re-enables the warning after this point            // No description keys
         };
 
         foreach (var test in permutations)
@@ -700,6 +700,8 @@ public class LinkMetaExtractorTests
                 new { Meta = new Dictionary<string, object> { { "og:image", validDataUri } }, Expected = validDataUri },
                 new { Meta = new Dictionary<string, object> { { "twitter:image", validDataUri } }, Expected = validDataUri },
 
+#pragma warning disable CS8619 // Example: Disables "Nullability of reference types in value doesn't match target type" warning
+
                 // Invalid embedded image (size exceeds limit)
                 new { Meta = new Dictionary<string, object> { { "og:image", invalidDataUri } }, Expected = (string?)null },
 
@@ -712,6 +714,7 @@ public class LinkMetaExtractorTests
 
                 // No image key
                 new { Meta = new Dictionary<string, object>(), Expected = (string?)null }
+#pragma warning restore CS8619 // Re-enables the warning after this point            // No description keys
             };
 
             foreach (var testCase in testCases)
