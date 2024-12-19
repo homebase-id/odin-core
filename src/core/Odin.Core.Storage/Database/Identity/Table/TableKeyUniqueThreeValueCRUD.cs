@@ -101,39 +101,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS keyUniqueThreeValue;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
-                   +"identityId BLOB NOT NULL, "
-                   +"key1 BLOB NOT NULL UNIQUE, "
-                   +"key2 BLOB NOT NULL, "
-                   +"key3 BLOB NOT NULL, "
-                   +"data BLOB  "
-                   +", PRIMARY KEY (identityId,key1)"
-                   +", UNIQUE(identityId,key2,key3)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL UNIQUE, "
                    +"key2 BYTEA NOT NULL, "
                    +"key3 BYTEA NOT NULL, "
                    +"data BYTEA  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,key1)"
                    +", UNIQUE(identityId,key2,key3)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(identityId,key2);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

@@ -73,11 +73,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS attestationRequest("
-                   +"attestationId STRING NOT NULL UNIQUE, "
-                   +"requestEnvelope STRING NOT NULL UNIQUE, "
-                   +"timestamp INT NOT NULL "
+            var rowid = "";
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS attestationRequest("
+                   +"attestationId TEXT NOT NULL UNIQUE, "
+                   +"requestEnvelope TEXT NOT NULL UNIQUE, "
+                   +"timestamp BIGINT NOT NULL "
+                   + rowid
                    +", PRIMARY KEY (attestationId)"
                    +");"
                    ;
@@ -322,12 +324,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var getPaging1Command = conn.db.CreateCommand())
             {
                 getPaging1Command.CommandText = "SELECT attestationId,requestEnvelope,timestamp FROM attestationRequest " +
-                                            "WHERE attestationId > @attestationId ORDER BY attestationId ASC LIMIT $_count;";
+                                            "WHERE attestationId > @attestationId ORDER BY attestationId ASC LIMIT @count;";
                 var getPaging1Param1 = getPaging1Command.CreateParameter();
                 getPaging1Param1.ParameterName = "@attestationId";
                 getPaging1Command.Parameters.Add(getPaging1Param1);
                 var getPaging1Param2 = getPaging1Command.CreateParameter();
-                getPaging1Param2.ParameterName = "$_count";
+                getPaging1Param2.ParameterName = "@count";
                 getPaging1Command.Parameters.Add(getPaging1Param2);
 
                 getPaging1Param1.Value = inCursor;

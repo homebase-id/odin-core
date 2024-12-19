@@ -78,33 +78,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS driveAclIndex;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveAclIndex("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL, "
-                   +"aclMemberId BLOB NOT NULL "
-                   +", PRIMARY KEY (identityId,driveId,fileId,aclMemberId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(identityId,driveId,aclMemberId);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveAclIndex("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS driveAclIndex("
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
                    +"aclMemberId BYTEA NOT NULL "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId,aclMemberId)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(identityId,driveId,aclMemberId);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

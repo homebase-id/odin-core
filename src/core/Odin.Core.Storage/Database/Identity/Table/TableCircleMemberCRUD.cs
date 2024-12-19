@@ -82,31 +82,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS circleMember("
-                   +"identityId BLOB NOT NULL, "
-                   +"circleId BLOB NOT NULL, "
-                   +"memberId BLOB NOT NULL, "
-                   +"data BLOB  "
-                   +", PRIMARY KEY (identityId,circleId,memberId)"
-                   +");"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS circleMember("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS circleMember("
                    +"identityId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL, "
                    +"memberId BYTEA NOT NULL, "
                    +"data BYTEA  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,circleId,memberId)"
                    +");"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

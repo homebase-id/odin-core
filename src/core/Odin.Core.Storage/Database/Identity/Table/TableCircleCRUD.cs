@@ -85,31 +85,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS circle;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS circle("
-                   +"identityId BLOB NOT NULL, "
-                   +"circleName STRING NOT NULL, "
-                   +"circleId BLOB NOT NULL UNIQUE, "
-                   +"data BLOB  "
-                   +", PRIMARY KEY (identityId,circleId)"
-                   +");"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS circle("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS circle("
                    +"identityId BYTEA NOT NULL, "
                    +"circleName TEXT NOT NULL, "
                    +"circleId BYTEA NOT NULL UNIQUE, "
                    +"data BYTEA  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,circleId)"
                    +");"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -394,12 +384,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging3Command = cn.CreateCommand();
             {
                 getPaging3Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
-                                            "WHERE (identityId = @identityId) AND circleId > @circleId ORDER BY circleId ASC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND circleId > @circleId ORDER BY circleId ASC LIMIT @count;";
                 var getPaging3Param1 = getPaging3Command.CreateParameter();
                 getPaging3Param1.ParameterName = "@circleId";
                 getPaging3Command.Parameters.Add(getPaging3Param1);
                 var getPaging3Param2 = getPaging3Command.CreateParameter();
-                getPaging3Param2.ParameterName = "$_count";
+                getPaging3Param2.ParameterName = "@count";
                 getPaging3Command.Parameters.Add(getPaging3Param2);
                 var getPaging3Param3 = getPaging3Command.CreateParameter();
                 getPaging3Param3.ParameterName = "@identityId";

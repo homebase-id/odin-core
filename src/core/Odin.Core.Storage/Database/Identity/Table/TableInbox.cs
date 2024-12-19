@@ -57,18 +57,18 @@ public class TableInbox(
         await using var tx = await cn.BeginStackedTransactionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=$identityId AND boxId=$boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT $count); " +
-                                 "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = $identityId AND popstamp=$popstamp";
+        cmd.CommandText = "UPDATE inbox SET popstamp=@popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT @count); " +
+                                 "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
         var param4 = cmd.CreateParameter();
 
-        param1.ParameterName = "$popstamp";
-        param2.ParameterName = "$count";
-        param3.ParameterName = "$boxId";
-        param4.ParameterName = "$identityId";
+        param1.ParameterName = "@popstamp";
+        param2.ParameterName = "@count";
+        param3.ParameterName = "@boxId";
+        param4.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -107,12 +107,12 @@ public class TableInbox(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            "SELECT count(*) FROM inbox WHERE identityId=$identityId;" +
-            "SELECT count(*) FROM inbox WHERE identityId=$identityId AND popstamp NOT NULL;" +
-            "SELECT popstamp FROM inbox WHERE identityId=$identityId ORDER BY popstamp DESC LIMIT 1;";
+            "SELECT count(*) FROM inbox WHERE identityId=@identityId;" +
+            "SELECT count(*) FROM inbox WHERE identityId=@identityId AND popstamp IS NOT NULL;" +
+            "SELECT popstamp FROM inbox WHERE identityId=@identityId ORDER BY popstamp DESC LIMIT 1;";
 
         var param1 = cmd.CreateParameter();
-        param1.ParameterName = "$identityId";
+        param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
         param1.Value = identityKey.ToByteArray();
 
@@ -169,14 +169,14 @@ public class TableInbox(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            "SELECT count(*) FROM inbox WHERE identityId=$identityId AND boxId=$boxId;" +
-            "SELECT count(*) FROM inbox WHERE identityId=$identityId AND boxId=$boxId AND popstamp NOT NULL;" +
-            "SELECT popstamp FROM inbox WHERE identityId=$identityId AND boxId=$boxId ORDER BY popstamp DESC LIMIT 1;";
+            "SELECT count(*) FROM inbox WHERE identityId=@identityId AND boxId=@boxId;" +
+            "SELECT count(*) FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NOT NULL;" +
+            "SELECT popstamp FROM inbox WHERE identityId=@identityId AND boxId=@boxId ORDER BY popstamp DESC LIMIT 1;";
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
 
-        param1.ParameterName = "$boxId";
-        param2.ParameterName = "$identityId";
+        param1.ParameterName = "@boxId";
+        param2.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -238,13 +238,13 @@ public class TableInbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND popstamp=$popstamp";
+        cmd.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=@identityId AND popstamp=@popstamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
 
-        param1.ParameterName = "$popstamp";
-        param2.ParameterName = "$identityId";
+        param1.ParameterName = "@popstamp";
+        param2.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -261,15 +261,15 @@ public class TableInbox(
         await using var tx = await cn.BeginStackedTransactionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND fileid=$fileid AND popstamp=$popstamp";
+        cmd.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=@identityId AND fileid=@fileid AND popstamp=@popstamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
 
-        param1.ParameterName = "$popstamp";
-        param2.ParameterName = "$fileid";
-        param3.ParameterName = "$identityId";
+        param1.ParameterName = "@popstamp";
+        param2.ParameterName = "@fileid";
+        param3.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -297,13 +297,13 @@ public class TableInbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "DELETE FROM inbox WHERE identityId=$identityId AND popstamp=$popstamp";
+        cmd.CommandText = "DELETE FROM inbox WHERE identityId=@identityId AND popstamp=@popstamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
 
-        param1.ParameterName = "$popstamp";
-        param2.ParameterName = "$identityId";
+        param1.ParameterName = "@popstamp";
+        param2.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -325,15 +325,15 @@ public class TableInbox(
         await using var tx = await cn.BeginStackedTransactionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "DELETE FROM inbox WHERE identityId=$identityId AND fileid=$fileid AND popstamp=$popstamp";
+        cmd.CommandText = "DELETE FROM inbox WHERE identityId=@identityId AND fileid=@fileid AND popstamp=@popstamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
 
-        param1.ParameterName = "$popstamp";
-        param2.ParameterName = "$fileid";
-        param3.ParameterName = "$identityId";
+        param1.ParameterName = "@popstamp";
+        param2.ParameterName = "@fileid";
+        param3.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
@@ -363,13 +363,13 @@ public class TableInbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=$identityId AND popstamp < $popstamp";
+        cmd.CommandText = "UPDATE inbox SET popstamp=NULL WHERE identityId=@identityId AND popstamp < @popstamp";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
 
-        param1.ParameterName = "$popstamp";
-        param2.ParameterName = "$identityId";
+        param1.ParameterName = "@popstamp";
+        param2.ParameterName = "@identityId";
 
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);

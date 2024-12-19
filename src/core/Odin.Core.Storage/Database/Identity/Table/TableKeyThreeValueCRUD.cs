@@ -99,37 +99,24 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS keyThreeValue;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyThreeValue("
-                   +"identityId BLOB NOT NULL, "
-                   +"key1 BLOB NOT NULL UNIQUE, "
-                   +"key2 BLOB , "
-                   +"key3 BLOB , "
-                   +"data BLOB  "
-                   +", PRIMARY KEY (identityId,key1)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyThreeValueCRUD ON keyThreeValue(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1TableKeyThreeValueCRUD ON keyThreeValue(key3);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyThreeValue("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyThreeValue("
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL UNIQUE, "
                    +"key2 BYTEA , "
                    +"key3 BYTEA , "
                    +"data BYTEA  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,key1)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableKeyThreeValueCRUD ON keyThreeValue(identityId,key2);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableKeyThreeValueCRUD ON keyThreeValue(key3);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

@@ -138,16 +138,18 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS notaryChain("
-                   +"previousHash BLOB NOT NULL UNIQUE, "
-                   +"identity STRING NOT NULL, "
-                   +"timestamp INT NOT NULL, "
-                   +"signedPreviousHash BLOB NOT NULL UNIQUE, "
-                   +"algorithm STRING NOT NULL, "
-                   +"publicKeyJwkBase64Url STRING NOT NULL, "
-                   +"notarySignature BLOB NOT NULL UNIQUE, "
-                   +"recordHash BLOB NOT NULL UNIQUE "
+            var rowid = "";
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS notaryChain("
+                   +"previousHash BYTEA NOT NULL UNIQUE, "
+                   +"identity TEXT NOT NULL, "
+                   +"timestamp BIGINT NOT NULL, "
+                   +"signedPreviousHash BYTEA NOT NULL UNIQUE, "
+                   +"algorithm TEXT NOT NULL, "
+                   +"publicKeyJwkBase64Url TEXT NOT NULL, "
+                   +"notarySignature BYTEA NOT NULL UNIQUE, "
+                   +"recordHash BYTEA NOT NULL UNIQUE "
+                   + rowid
                    +", PRIMARY KEY (notarySignature)"
                    +");"
                    ;

@@ -90,35 +90,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS imFollowing;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS imFollowing("
-                   +"identityId BLOB NOT NULL, "
-                   +"identity STRING NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"created INT NOT NULL, "
-                   +"modified INT  "
-                   +", PRIMARY KEY (identityId,identity,driveId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableImFollowingCRUD ON imFollowing(identityId,identity);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS imFollowing("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS imFollowing("
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,identity,driveId)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableImFollowingCRUD ON imFollowing(identityId,identity);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

@@ -87,33 +87,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS keyTwoValue;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyTwoValue("
-                   +"identityId BLOB NOT NULL, "
-                   +"key1 BLOB NOT NULL UNIQUE, "
-                   +"key2 BLOB , "
-                   +"data BLOB  "
-                   +", PRIMARY KEY (identityId,key1)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyTwoValueCRUD ON keyTwoValue(identityId,key2);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS keyTwoValue("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyTwoValue("
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL UNIQUE, "
                    +"key2 BYTEA , "
                    +"data BYTEA  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,key1)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableKeyTwoValueCRUD ON keyTwoValue(identityId,key2);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

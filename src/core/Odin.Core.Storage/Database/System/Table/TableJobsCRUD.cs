@@ -243,41 +243,13 @@ namespace Odin.Core.Storage.Database.System.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS jobs("
-                   +"id BLOB NOT NULL UNIQUE, "
-                   +"name STRING NOT NULL, "
-                   +"state INT NOT NULL, "
-                   +"priority INT NOT NULL, "
-                   +"nextRun INT NOT NULL, "
-                   +"lastRun INT , "
-                   +"runCount INT NOT NULL, "
-                   +"maxAttempts INT NOT NULL, "
-                   +"retryDelay INT NOT NULL, "
-                   +"onSuccessDeleteAfter INT NOT NULL, "
-                   +"onFailureDeleteAfter INT NOT NULL, "
-                   +"expiresAt INT , "
-                   +"correlationId STRING NOT NULL, "
-                   +"jobType STRING NOT NULL, "
-                   +"jobData STRING , "
-                   +"jobHash STRING  UNIQUE, "
-                   +"lastError STRING , "
-                   +"created INT NOT NULL, "
-                   +"modified INT  "
-                   +", PRIMARY KEY (id)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
-                   +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS jobs("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS jobs("
                    +"id BYTEA NOT NULL UNIQUE, "
                    +"name TEXT NOT NULL, "
                    +"state BIGINT NOT NULL, "
@@ -297,7 +269,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"lastError TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (id)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
@@ -305,7 +277,6 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
                    +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

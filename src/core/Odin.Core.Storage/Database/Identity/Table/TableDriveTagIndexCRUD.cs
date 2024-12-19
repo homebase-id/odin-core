@@ -78,33 +78,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS driveTagIndex;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveTagIndex("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL, "
-                   +"tagId BLOB NOT NULL "
-                   +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveTagIndex("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS driveTagIndex("
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
                    +"tagId BYTEA NOT NULL "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

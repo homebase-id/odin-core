@@ -125,27 +125,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS connections;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS connections("
-                   +"identityId BLOB NOT NULL, "
-                   +"identity STRING NOT NULL UNIQUE, "
-                   +"displayName STRING NOT NULL, "
-                   +"status INT NOT NULL, "
-                   +"accessIsRevoked INT NOT NULL, "
-                   +"data BLOB , "
-                   +"created INT NOT NULL, "
-                   +"modified INT  "
-                   +", PRIMARY KEY (identityId,identity)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS connections("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS connections("
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL UNIQUE, "
                    +"displayName TEXT NOT NULL, "
@@ -154,12 +140,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,identity)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -548,12 +533,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging2Command = cn.CreateCommand();
             {
                 getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId) AND identity > @identity ORDER BY identity ASC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND identity > @identity ORDER BY identity ASC LIMIT @count;";
                 var getPaging2Param1 = getPaging2Command.CreateParameter();
                 getPaging2Param1.ParameterName = "@identity";
                 getPaging2Command.Parameters.Add(getPaging2Param1);
                 var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.ParameterName = "$_count";
+                getPaging2Param2.ParameterName = "@count";
                 getPaging2Command.Parameters.Add(getPaging2Param2);
                 var getPaging2Param3 = getPaging2Command.CreateParameter();
                 getPaging2Param3.ParameterName = "@identityId";
@@ -599,12 +584,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging2Command = cn.CreateCommand();
             {
                 getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId AND status = @status) AND identity > @identity ORDER BY identity ASC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId AND status = @status) AND identity > @identity ORDER BY identity ASC LIMIT @count;";
                 var getPaging2Param1 = getPaging2Command.CreateParameter();
                 getPaging2Param1.ParameterName = "@identity";
                 getPaging2Command.Parameters.Add(getPaging2Param1);
                 var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.ParameterName = "$_count";
+                getPaging2Param2.ParameterName = "@count";
                 getPaging2Command.Parameters.Add(getPaging2Param2);
                 var getPaging2Param3 = getPaging2Command.CreateParameter();
                 getPaging2Param3.ParameterName = "@identityId";
@@ -654,12 +639,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging7Command = cn.CreateCommand();
             {
                 getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId AND status = @status) AND created < @created ORDER BY created DESC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId AND status = @status) AND created < @created ORDER BY created DESC LIMIT @count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "$_count";
+                getPaging7Param2.ParameterName = "@count";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
                 getPaging7Param3.ParameterName = "@identityId";
@@ -709,12 +694,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging7Command = cn.CreateCommand();
             {
                 getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT @count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "$_count";
+                getPaging7Param2.ParameterName = "@count";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
                 getPaging7Param3.ParameterName = "@identityId";

@@ -124,27 +124,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS AppNotifications("
-                   +"identityId BLOB NOT NULL, "
-                   +"notificationId BLOB NOT NULL UNIQUE, "
-                   +"unread INT NOT NULL, "
-                   +"senderId STRING , "
-                   +"timestamp INT NOT NULL, "
-                   +"data BLOB , "
-                   +"created INT NOT NULL, "
-                   +"modified INT  "
-                   +", PRIMARY KEY (identityId,notificationId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS AppNotifications("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS AppNotifications("
                    +"identityId BYTEA NOT NULL, "
                    +"notificationId BYTEA NOT NULL UNIQUE, "
                    +"unread BIGINT NOT NULL, "
@@ -153,12 +139,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,notificationId)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -551,12 +536,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging7Command = cn.CreateCommand();
             {
                 getPaging7Command.CommandText = "SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
-                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT @count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "$_count";
+                getPaging7Param2.ParameterName = "@count";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
                 getPaging7Param3.ParameterName = "@identityId";

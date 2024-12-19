@@ -326,48 +326,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveMainIndex("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL, "
-                   +"globalTransitId BLOB , "
-                   +"fileState INT NOT NULL, "
-                   +"requiredSecurityGroup INT NOT NULL, "
-                   +"fileSystemType INT NOT NULL, "
-                   +"userDate INT NOT NULL, "
-                   +"fileType INT NOT NULL, "
-                   +"dataType INT NOT NULL, "
-                   +"archivalStatus INT NOT NULL, "
-                   +"historyStatus INT NOT NULL, "
-                   +"senderId STRING , "
-                   +"groupId BLOB , "
-                   +"uniqueId BLOB , "
-                   +"byteCount INT NOT NULL, "
-                   +"hdrEncryptedKeyHeader STRING NOT NULL, "
-                   +"hdrVersionTag BLOB NOT NULL UNIQUE, "
-                   +"hdrAppData STRING NOT NULL, "
-                   +"hdrReactionSummary STRING , "
-                   +"hdrServerData STRING NOT NULL, "
-                   +"hdrTransferHistory STRING , "
-                   +"hdrFileMetaData STRING NOT NULL, "
-                   +"hdrTmpDriveAlias BLOB NOT NULL, "
-                   +"hdrTmpDriveType BLOB NOT NULL, "
-                   +"created INT NOT NULL, "
-                   +"modified INT  "
-                   +", PRIMARY KEY (identityId,driveId,fileId)"
-                   +", UNIQUE(identityId,driveId,uniqueId)"
-                   +", UNIQUE(identityId,driveId,globalTransitId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveMainIndex("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS driveMainIndex("
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
@@ -395,14 +360,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"hdrTmpDriveType BYTEA NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId)"
                    +", UNIQUE(identityId,driveId,uniqueId)"
                    +", UNIQUE(identityId,driveId,globalTransitId)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

@@ -130,30 +130,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS inbox("
-                   +"identityId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL UNIQUE, "
-                   +"boxId BLOB NOT NULL, "
-                   +"priority INT NOT NULL, "
-                   +"timeStamp INT NOT NULL, "
-                   +"value BLOB , "
-                   +"popStamp BLOB , "
-                   +"created INT NOT NULL, "
-                   +"modified INT  "
-                   +", PRIMARY KEY (identityId,fileId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS inbox("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS inbox("
                    +"identityId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL UNIQUE, "
                    +"boxId BYTEA NOT NULL, "
@@ -163,14 +146,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"popStamp BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,fileId)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
                    +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

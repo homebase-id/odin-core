@@ -46,10 +46,10 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             using (var get2Command = conn.db.CreateCommand())
             {
                 get2Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain " +
-                                             "WHERE identity = $identity ORDER BY rowid;";
+                                             "WHERE identity = @identity ORDER BY rowid;";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Command.Parameters.Add(get2Param1);
-                get2Param1.ParameterName = "$identity";
+                get2Param1.ParameterName = "@identity";
 
                 get2Param1.Value = identity;
                 using (var rdr = await conn.ExecuteReaderAsync(get2Command, System.Data.CommandBehavior.Default))

@@ -91,33 +91,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS driveReactions;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveReactions("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"identity STRING NOT NULL, "
-                   +"postId BLOB NOT NULL, "
-                   +"singleReaction STRING NOT NULL "
-                   +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
-                   +");"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS driveReactions("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS driveReactions("
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
                    +"postId BYTEA NOT NULL, "
                    +"singleReaction TEXT NOT NULL "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
                    +");"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 

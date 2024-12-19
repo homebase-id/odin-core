@@ -17,8 +17,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class OutboxRecord
     {
-        private Int32 _rowid;
-        public Int32 rowid
+        private Int64 _rowid;
+        public Int64 rowid
         {
            get {
                    return _rowid;
@@ -183,32 +183,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS outbox("
-                   +"identityId BLOB NOT NULL, "
-                   +"driveId BLOB NOT NULL, "
-                   +"fileId BLOB NOT NULL, "
-                   +"recipient STRING NOT NULL, "
-                   +"type INT NOT NULL, "
-                   +"priority INT NOT NULL, "
-                   +"dependencyFileId BLOB , "
-                   +"checkOutCount INT NOT NULL, "
-                   +"nextRunTime INT NOT NULL, "
-                   +"value BLOB , "
-                   +"checkOutStamp BLOB , "
-                   +"created INT NOT NULL, "
-                   +"modified INT  "
-                   +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
-                   ;
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
-            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS outbox("
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS outbox("
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
@@ -222,12 +203,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"checkOutStamp BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", rowid SERIAL NOT NULL UNIQUE"
+                   + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
                    ;
-            }
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -587,7 +567,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new OutboxRecord();
             item.rowid = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
+                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = rdr.IsDBNull(1) ? 
                 throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.driveId = rdr.IsDBNull(2) ? 
