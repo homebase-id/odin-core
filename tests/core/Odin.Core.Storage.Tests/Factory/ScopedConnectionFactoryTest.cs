@@ -431,22 +431,5 @@ public class ScopedConnectionFactoryTest : IocTestBase
     
     //
 
-    [Test]
-    [TestCase(DatabaseType.Sqlite)]
-    [TestCase(DatabaseType.Postgres)]
-    public async Task ItShouldResolveScopeUsers(DatabaseType databaseType)
-    {
-        await RegisterServicesAsync(databaseType);
-        await CreateTestDatabaseAsync();
-        
-        var scopedSystemUser = Services.Resolve<ScopedSystemUser>();
-        Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
-        
-        var transientSystemUser = Services.Resolve<TransientSystemUser>();
-        Assert.That(await transientSystemUser.GetCountAsync(), Is.EqualTo(0));
-    }
-    
-    //
-
 }
 

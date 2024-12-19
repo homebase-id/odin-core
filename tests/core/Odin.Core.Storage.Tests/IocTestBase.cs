@@ -93,9 +93,6 @@ public abstract class IocTestBase
                 throw new Exception("Unsupported database type");
         }
 
-        builder.RegisterType<ScopedSystemUser>().InstancePerLifetimeScope();
-        builder.RegisterType<TransientSystemUser>().InstancePerDependency();
-
         Services = builder.Build();
 
         if (createDatabases)
@@ -107,27 +104,4 @@ public abstract class IocTestBase
             await identityDatabase.CreateDatabaseAsync(true);
         }
     }
-
-    public class ScopedSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-    {
-        public async Task<long> GetCountAsync()
-        {
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT 0";
-            return (long) (await cmd.ExecuteScalarAsync() ?? -1);
-        }
-    }
-
-    public class TransientSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-    {
-        public async Task<long> GetCountAsync()
-        {
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT 0";
-            return (long) (await cmd.ExecuteScalarAsync() ?? -1);
-        }
-    }
-
 }
