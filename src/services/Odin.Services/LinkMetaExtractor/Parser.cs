@@ -13,12 +13,9 @@ namespace Odin.Services.LinkMetaExtractor;
 public static class Parser
 {
     private static readonly HtmlSanitizer Sanitizer = new HtmlSanitizer();
-
-    /// <summary>
-    /// Parse content into a dictionary of metadata.
-    /// </summary>
-    /// <param name="content">The HTML string.</param>
-    /// <returns>Dictionary with the parsed metadata.</returns>
+    private const int MaxContentLength = 8192;
+    private static readonly HashSet<string> InterestedInPrefixes = new HashSet<string> { "og", "twitter" };
+    private static readonly HashSet<string> MetaAttributes = new HashSet<string> { "name", "property" };
 
     public static Dictionary<string, object> Parse(string content)
     {
@@ -26,7 +23,6 @@ public static class Parser
         doc.LoadHtml(content);
 
         var metadata = new Dictionary<string, object>();
-        var interestedIn = new List<string> { "og", "twitter" };
 
         // Parse all meta tags once
         var metaNodes = doc.DocumentNode.SelectNodes("//meta");
@@ -34,60 +30,61 @@ public static class Parser
         {
             foreach (var meta in metaNodes)
             {
-                var attributes = new[] { "name", "property" };
-                foreach (var attribute in attributes)
+                foreach (var attribute in MetaAttributes)
                 {
                     var metaKey = meta.GetAttributeValue(attribute, null);
-                    if (metaKey == null) continue;
+                    if (metaKey == null) 
+                        continue;
 
-                    metaKey = metaKey.Trim().ToLower(); // Normalize spacing and casing
+                    metaKey = metaKey.Trim().ToLower();
 
-                    if (!interestedIn.Any(prefix => metaKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))) continue;
+                    if (!InterestedInPrefixes.Any(prefix => metaKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                        continue;
 
                     var contentValue = meta.GetAttributeValue("content", null);
-                    if (string.IsNullOrWhiteSpace(contentValue)) continue;
+                    if (string.IsNullOrWhiteSpace(contentValue)) 
+                        continue;
 
-                    // Decode HTML entities here
-                    contentValue = HttpUtility.HtmlDecode(Sanitizer.Sanitize(contentValue.Trim()));
                     AddOrAppend(metadata, metaKey, contentValue);
                 }
             }
         }
 
         // Parse title
-        var titleNode = doc.DocumentNode.SelectSingleNode("//title");
-        if (titleNode != null)
-        {
-            var titleText = HttpUtility.HtmlDecode(Sanitizer.Sanitize(titleNode.InnerText.Trim()));
-            if (!string.IsNullOrWhiteSpace(titleText))
-            {
-                metadata["title"] = titleText;
-            }
-        }
+        ParseNode(doc.DocumentNode.SelectSingleNode("//title"), "title", metadata);
 
         // Parse description
         var descriptionNode = metaNodes?.FirstOrDefault(
             node => node.GetAttributeValue("name", "").Trim().Equals("description", StringComparison.OrdinalIgnoreCase)
         );
-        if (descriptionNode != null)
-        {
-            var descriptionContent = descriptionNode.GetAttributeValue("content", null);
-            if (!string.IsNullOrWhiteSpace(descriptionContent))
-            {
-                metadata["description"] = HttpUtility.HtmlDecode(Sanitizer.Sanitize(descriptionContent)).Trim();
-            }
-        }
-
+        ParseNode(descriptionNode, "description", metadata);
         return metadata;
     }
 
 
-    /// <summary>
-    /// Adds or appends a value to a dictionary key.
-    /// </summary>
+    private static void ParseNode(HtmlNode node, string key, Dictionary<string, object> dict)
+    {
+        if (node == null) return;
+
+        var content = node.GetAttributeValue("content", null) ?? node.InnerText;
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            AddOrAppend(dict, key, content);
+        }
+    }
+
     private static void AddOrAppend(Dictionary<string, object> dict, string key, string value)
     {
-        value = value.Trim();
+        // Pick a max value large enough for a huge GET URL (which might be a meta parameter)
+        // Some providers like for example Instagram embed the image as data:.... which can be huge
+        // If we want to support that someday then we'll need to change this to whatever max we want
+        // to have and return the larger data.
+        //
+        if (value.Length > MaxContentLength)
+            value = value.Substring(0, MaxContentLength - 3) + "...";
+
+        value = HttpUtility.HtmlEncode(HttpUtility.HtmlDecode(Sanitizer.Sanitize(value)).Trim());
+
         if (!dict.ContainsKey(key))
         {
             dict[key] = value;
@@ -102,6 +99,7 @@ public static class Parser
         }
     }
 }
+
 /*
 
 public static class Parser

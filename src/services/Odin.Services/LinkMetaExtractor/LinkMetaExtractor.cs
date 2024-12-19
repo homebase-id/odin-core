@@ -19,7 +19,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
     /// </summary>
     private static readonly List<string> SiteThatNeedsBotHeaders = ["twitter.com", "x.com"];
 
-    private static bool IsUrlSafe(string url)
+    public static bool IsUrlSafe(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
             return false;
@@ -183,7 +183,15 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var meta = Parser.Parse(htmlContent);
             if (meta.Count == 0)
                 return null;
+
             var linkMeta = LinkMeta.FromMetaData(meta, url);
+
+            if (linkMeta.Title == string.Empty)
+            {
+                logger.LogDebug("The Title must be set (I'm not sure why) [{Url}]", url);
+                return null;
+            }
+
             return linkMeta;
         }
         catch (Exception e)

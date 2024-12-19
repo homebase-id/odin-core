@@ -140,6 +140,35 @@ public class LinkMetaExtractorTests
 
 
     [Test]
+    public void BasicFunctionalityUtf8()
+    {
+        // Arrange
+
+        var html =
+            """
+            <html>
+                <head>
+                    <title>Test Pæge</title>
+                    <meta name="description" content="你好世界 (Chinese) | こんにちは世界 (Japanese) | ᚠᚢᚦᚨᚱᚴ (Nordic Runes) | Tænk på det (Danish) | Привет мир (Russian)" />
+                    <meta property="og:title" content="OG Tøtle" />
+                </head>
+                <body></body>
+            </html>
+            """;
+
+        // Act
+        var sanitizedMetadata = Parser.Parse(html);
+
+        // Assert
+        // Verify that script tags or JavaScript content have been removed
+        Assert.AreEqual("你好世界 (Chinese) | こんにちは世界 (Japanese) | ᚠᚢᚦᚨᚱᚴ (Nordic Runes) | T&#230;nk p&#229; det (Danish) | Привет мир (Russian)", sanitizedMetadata["description"]);
+        Assert.AreEqual("Test P&#230;ge", sanitizedMetadata["title"]);
+        Assert.AreEqual("OG T&#248;tle", sanitizedMetadata["og:title"]);
+    }
+
+
+
+    [Test]
     public void BasicFunctionality()
     {
         // Arrange
@@ -161,9 +190,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Verify that script tags or JavaScript content have been removed
-        Assert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
-        Assert.AreEqual("This is a test pøge.", sanitizedMetadata["description"]);
-        Assert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
+        Assert.AreEqual("Test P&#230;ge", sanitizedMetadata["title"]);
+        Assert.AreEqual("OG T&#248;tle", sanitizedMetadata["og:title"]);
+        Assert.AreEqual("This is a test p&#248;ge.", sanitizedMetadata["description"]);
     }
 
 
@@ -253,8 +282,8 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("Title & Subtitle", sanitizedMetadata["og:title"]);
-        Assert.AreEqual("This is a test <description>", sanitizedMetadata["description"]);
+        Assert.AreEqual("Title &amp; Subtitle", sanitizedMetadata["og:title"]);
+        Assert.AreEqual("This is a test &lt;description&gt;", sanitizedMetadata["description"]);
     }
     [Test]
 
@@ -396,6 +425,84 @@ public class LinkMetaExtractorTests
 
 
     [Test]
+    public void GetTitle_PrioritizesMetaKeysAndSkipsEmptyValues()
+    {
+        // Arrange
+        var metaPermutations = new[]
+        {
+            new Dictionary<string, object> { { "title", "Title Value" } },
+            new Dictionary<string, object> { { "og:title", "OG Title Value" } },
+            new Dictionary<string, object> { { "twitter:title", "Twitter Title Value" } },
+            new Dictionary<string, object> { { "title", "" }, { "og:title", "OG Title Value" } },
+            new Dictionary<string, object> { { "title", "" }, { "og:title", "" }, { "twitter:title", "Twitter Title Value" } },
+            new Dictionary<string, object> { { "og:title", "" }, { "twitter:title", "Twitter Title Value" } },
+            new Dictionary<string, object> { { "title", "Title Value" }, { "og:title", "OG Title Value" }, { "twitter:title", "Twitter Title Value" } }
+        };
+
+        var expectedResults = new[]
+        {
+            "Title Value",
+            "OG Title Value",
+            "Twitter Title Value",
+            "OG Title Value",
+            "Twitter Title Value",
+            "Twitter Title Value",
+            "Title Value"
+        };
+
+        // Act and Assert
+        for (int i = 0; i < metaPermutations.Length; i++)
+        {
+            var meta = metaPermutations[i];
+            var expected = expectedResults[i];
+
+            string? result = typeof(LinkMeta)
+                .GetMethod("GetTitle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                ?.Invoke(null, new object[] { meta }) as string;
+
+            Assert.AreEqual(expected, result, $"Failed for permutation {i + 1}");
+        }
+    }
+
+
+    [Test]
+    public void GetDescription_AllPermutations()
+    {
+        // Arrange
+        var permutations = new[]
+        {
+            // Only one key set
+            new { Meta = new Dictionary<string, object> { { "description", "Description 1" } }, Expected = "Description 1" },
+            new { Meta = new Dictionary<string, object> { { "og:description", "OG Description" } }, Expected = "OG Description" },
+            new { Meta = new Dictionary<string, object> { { "twitter:description", "Twitter Description" } }, Expected = "Twitter Description" },
+        
+            // Multiple keys with priority
+            new { Meta = new Dictionary<string, object> { { "description", "Description 1" }, { "og:description", "OG Description" } }, Expected = "Description 1" },
+            new { Meta = new Dictionary<string, object> { { "og:description", "OG Description" }, { "twitter:description", "Twitter Description" } }, Expected = "OG Description" },
+            new { Meta = new Dictionary<string, object> { { "description", "Description 1" }, { "twitter:description", "Twitter Description" } }, Expected = "Description 1" },
+            new { Meta = new Dictionary<string, object> { { "description", "Description 1" }, { "og:description", "OG Description" }, { "twitter:description", "Twitter Description" } }, Expected = "Description 1" },
+
+            // Keys with empty or whitespace values
+            new { Meta = new Dictionary<string, object> { { "description", "   " }, { "og:description", "OG Description" } }, Expected = "OG Description" },
+            new { Meta = new Dictionary<string, object> { { "description", "" }, { "twitter:description", "Twitter Description" } }, Expected = "Twitter Description" },
+            new { Meta = new Dictionary<string, object> { { "description", null }, { "og:description", "OG Description" } }, Expected = "OG Description" },
+
+            // No description keys
+            new { Meta = new Dictionary<string, object>(), Expected = (string?)null }
+        };
+
+        foreach (var test in permutations)
+        {
+            // Act
+            var result = LinkMeta.GetDescription(test.Meta);
+
+            // Assert
+            Assert.AreEqual(test.Expected, result);
+        }
+    }
+
+
+    [Test]
     public void DanishCodepageCharacterWindows1252()
     {
         // Register the encoding provider for codepage support
@@ -428,14 +535,14 @@ public class LinkMetaExtractorTests
         var sanitizedMetadataIncorrect = Parser.Parse(misinterpretedHtml);
 
         // Assert for correct interpretation
-        Assert.AreEqual("Test Tæxt", sanitizedMetadataCorrect["title"]);
-        Assert.AreEqual("This is a dæscription.", sanitizedMetadataCorrect["description"]);
-        Assert.AreEqual("Og Tætle", sanitizedMetadataCorrect["og:title"]);
+        Assert.AreEqual("Test T&#230;xt", sanitizedMetadataCorrect["title"]);
+        Assert.AreEqual("This is a d&#230;scription.", sanitizedMetadataCorrect["description"]);
+        Assert.AreEqual("Og T&#230;tle", sanitizedMetadataCorrect["og:title"]);
 
         // Assert for incorrect interpretation (ensure it fails or outputs incorrect results)
-        Assert.AreNotEqual("Test Tæxt", sanitizedMetadataIncorrect["title"]);
-        Assert.AreNotEqual("This is a dæscription.", sanitizedMetadataIncorrect["description"]);
-        Assert.AreNotEqual("Og Tætle", sanitizedMetadataIncorrect["og:title"]);
+        Assert.AreNotEqual("Test T&#230;xt", sanitizedMetadataIncorrect["title"]);
+        Assert.AreNotEqual("This is a d&#230;scription.", sanitizedMetadataIncorrect["description"]);
+        Assert.AreNotEqual("Og T&#230;tle", sanitizedMetadataIncorrect["og:title"]);
     }
 
 
