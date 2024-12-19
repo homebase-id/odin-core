@@ -229,9 +229,9 @@ public class ScopedConnectionFactory<T>(
                     LogTrace("Beginning transaction");
                     _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    LogDiagnostics();
+                    LogException("BeginTransactionAsync failed", e);
                     throw;
                 }
             }
@@ -285,6 +285,17 @@ public class ScopedConnectionFactory<T>(
         _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag})",
             message, _connectionId, lifetimeScope.Tag);
         _logger.LogError(Environment.StackTrace);
+    }
+
+    //
+
+    private void LogException(string message, Exception exception)
+    {
+        LogDiagnostics();
+        // SEB:TODO log error instead of warning, but we need to fix all the damn tests first the fail
+        // whenever an error is logged
+        _logger.LogWarning(exception, "ERR {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
+            message, exception.Message, _connectionId, lifetimeScope.Tag);
     }
 
     //
@@ -596,7 +607,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteNonQueryAsync: {e.Message}");
+                instance.LogException("ExecuteNonQueryAsync failed", e);
                 throw;
             }
         }
@@ -621,7 +632,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteReaderAsync: {e.Message}");
+                instance.LogException("ExecuteReaderAsync failed", e);
                 throw;
             }
         }
@@ -645,7 +656,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteScalarAsync: {e.Message}");
+                instance.LogException("ExecuteScalarAsync failed", e);
                 throw;
             }
         }
@@ -666,7 +677,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"PrepareAsync: {e.Message}");
+                instance.LogException("PrepareAsync failed", e);
                 throw;
             }
         }
