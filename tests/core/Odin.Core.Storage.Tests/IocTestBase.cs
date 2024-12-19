@@ -13,15 +13,18 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
+using Testcontainers.PostgreSql;
 
 namespace Odin.Core.Storage.Tests;
 
 public abstract class IocTestBase
 {
+    protected DatabaseType DatabaseType;
     protected string TempFolder;
     protected ILifetimeScope Services = null!;
     protected LogEventMemoryStore LogEventMemoryStore = null!;
     protected Guid IdentityId;
+    protected PostgreSqlContainer PostgresContainer;
 
     [SetUp]
     public virtual void Setup()
@@ -35,6 +38,10 @@ public abstract class IocTestBase
     public virtual void TearDown()
     {
         Services?.Dispose();
+
+        PostgresContainer?.DisposeAsync().AsTask().Wait();
+        PostgresContainer = null;
+
         Directory.Delete(TempFolder, true);
         LogEvents.DumpErrorEvents(LogEventMemoryStore.GetLogEvents());
         LogEvents.AssertEvents(LogEventMemoryStore.GetLogEvents());
@@ -49,6 +56,18 @@ public abstract class IocTestBase
         bool createDatabases = true,
         LogEventLevel logEventLevel = LogEventLevel.Debug)
     {
+        DatabaseType = databaseType;
+
+        if (databaseType == DatabaseType.Postgres)
+        {
+            PostgresContainer = new PostgreSqlBuilder()
+                .WithDatabase("odin")
+                .WithUsername("odin")
+                .WithPassword("odin")
+                .Build();
+            await PostgresContainer.StartAsync();
+        }
+
         var builder = new ContainerBuilder();
 
         builder
@@ -67,15 +86,12 @@ public abstract class IocTestBase
                 builder.AddSqliteIdentityDatabaseServices(IdentityId, Path.Combine(TempFolder, "identity-test.db"));
                 break;
             case DatabaseType.Postgres:
-                builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
-                builder.AddPgsqlIdentityDatabaseServices(IdentityId, "Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
+                builder.AddPgsqlSystemDatabaseServices(PostgresContainer.GetConnectionString());
+                builder.AddPgsqlIdentityDatabaseServices(IdentityId, PostgresContainer.GetConnectionString());
                 break;
             default:
                 throw new Exception("Unsupported database type");
         }
-
-        builder.RegisterType<ScopedSystemUser>().InstancePerLifetimeScope();
-        builder.RegisterType<TransientSystemUser>().InstancePerDependency();
 
         Services = builder.Build();
 
@@ -88,27 +104,4 @@ public abstract class IocTestBase
             await identityDatabase.CreateDatabaseAsync(true);
         }
     }
-
-    public class ScopedSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-    {
-        public async Task<long> GetCountAsync()
-        {
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT 0";
-            return (long) (await cmd.ExecuteScalarAsync() ?? -1);
-        }
-    }
-
-    public class TransientSystemUser(ScopedSystemConnectionFactory scopedConnectionFactory)
-    {
-        public async Task<long> GetCountAsync()
-        {
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT 0";
-            return (long) (await cmd.ExecuteScalarAsync() ?? -1);
-        }
-    }
-
 }

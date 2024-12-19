@@ -13,6 +13,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         // Test we can insert and read a row
         public async Task InsertRowTest(DatabaseType databaseType)
         {
@@ -47,6 +48,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         // Test we can insert and read two aclmembers
         public async Task InsertDoubleRowTest(DatabaseType databaseType)
         {
@@ -88,6 +90,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         // Test we cannot insert the same aclmember key twice on the same key
         public async Task InsertDuplicateAclMemberTest(DatabaseType databaseType)
         {
@@ -121,6 +124,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         // Test we can insert the same aclmember on two different keys
         public async Task InsertDoubleAclMemberTest(DatabaseType databaseType)
         {
@@ -150,6 +154,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         // Test we cannot insert the same key twice
         public async Task InsertDoubleKeyTest(DatabaseType databaseType)
         {
@@ -183,6 +188,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DeleteRowTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

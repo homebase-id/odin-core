@@ -13,6 +13,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task ExampleTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -70,6 +71,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertValidFollowerTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -98,6 +100,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertInvalidFollowerTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -176,6 +179,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DeleteTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -207,6 +211,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DeleteDriveTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -249,6 +254,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetFollowersInvalidTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -273,6 +279,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetFollowersTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -311,6 +318,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetFollowersPagedTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

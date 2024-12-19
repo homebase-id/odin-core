@@ -14,6 +14,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertRowTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -57,6 +58,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertCannotInsertDuplicateIdForSameRecipient(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -84,6 +86,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertCanInsertDuplicateIdForTwoRecipients(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -112,6 +115,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetByTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -137,6 +141,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task PopTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -228,6 +233,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // Make sure priority takes precedence
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task PriorityTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -268,6 +274,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // With the same priority, make sure nextRunTime matters
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task NextRunTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -313,6 +320,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // Make sure dependency works
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DependencyTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -380,6 +388,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task PopCancelTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -429,6 +438,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task PopCommitTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -459,6 +469,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task NextRunTest2(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -496,6 +507,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task PopRecoverDeadTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -542,6 +554,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task ExampleTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

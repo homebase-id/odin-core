@@ -14,6 +14,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -42,6 +43,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test, Explicit]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task WriteLockingTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

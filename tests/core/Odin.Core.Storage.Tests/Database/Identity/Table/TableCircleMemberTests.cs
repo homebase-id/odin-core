@@ -13,6 +13,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -35,6 +36,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertDuplicateTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -64,6 +66,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertEmptyTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -90,6 +93,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertMultipleMembersTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -118,6 +122,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task InsertMultipleCirclesTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -159,6 +164,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task RemoveMembersTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -206,6 +212,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DeleteMembersEmptyTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -227,6 +234,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task DeleteMembersTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -270,6 +278,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        [TestCase(DatabaseType.Postgres)]
         public async Task GetMembersCirclesAndDataTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
