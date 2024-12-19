@@ -201,12 +201,13 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, NotaryChainRecord item)
+        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, NotaryChainRecord item)
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
-                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)";
+                insertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
+                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -244,7 +245,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 {
                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 

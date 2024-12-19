@@ -183,12 +183,13 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, KeyChainRecord item)
+        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, KeyChainRecord item)
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
-                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)";
+                insertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
+                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -222,7 +223,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 {
                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                 }
-                return count;
+                return count > 0;
             }
         }
 

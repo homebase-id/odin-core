@@ -111,12 +111,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public virtual async Task<int> TryInsertAsync(DatabaseConnection conn, AttestationRequestRecord item)
+        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, AttestationRequestRecord item)
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
-                                             "VALUES (@attestationId,@requestEnvelope,@timestamp)";
+                insertCommand.CommandText = "INSERT INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
+                                             "VALUES (@attestationId,@requestEnvelope,@timestamp) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -134,7 +135,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 {
                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                 }
-                return count;
+                return count > 0;
             }
         }
 

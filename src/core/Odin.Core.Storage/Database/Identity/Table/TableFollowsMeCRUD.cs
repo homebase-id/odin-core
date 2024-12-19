@@ -167,14 +167,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(FollowsMeRecord item)
+        protected virtual async Task<bool> TryInsertAsync(FollowsMeRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO followsMe (identityId,identity,driveId,created,modified) " +
-                                             "VALUES (@identityId,@identity,@driveId,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO followsMe (identityId,identity,driveId,created,modified) " +
+                                             "VALUES (@identityId,@identity,@driveId,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -203,7 +204,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     item.created = now;
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 

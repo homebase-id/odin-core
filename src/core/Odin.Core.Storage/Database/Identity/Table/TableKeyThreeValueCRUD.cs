@@ -170,14 +170,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(KeyThreeValueRecord item)
+        protected virtual async Task<bool> TryInsertAsync(KeyThreeValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO keyThreeValue (identityId,key1,key2,key3,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@key3,@data)";
+                insertCommand.CommandText = "INSERT INTO keyThreeValue (identityId,key1,key2,key3,data) " +
+                                             "VALUES (@identityId,@key1,@key2,@key3,@data) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -203,7 +204,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 

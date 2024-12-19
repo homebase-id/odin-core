@@ -145,7 +145,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(CircleMemberRecord item)
+        protected virtual async Task<bool> TryInsertAsync(CircleMemberRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
@@ -153,8 +153,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO circleMember (identityId,circleId,memberId,data) " +
-                                             "VALUES (@identityId,@circleId,@memberId,@data)";
+                insertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
+                                             "VALUES (@identityId,@circleId,@memberId,@data) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -176,7 +177,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 

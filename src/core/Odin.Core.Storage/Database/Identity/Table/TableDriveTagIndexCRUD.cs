@@ -143,7 +143,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(DriveTagIndexRecord item)
+        protected virtual async Task<bool> TryInsertAsync(DriveTagIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -152,8 +152,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@tagId)";
+                insertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@tagId) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -174,7 +175,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (count > 0)
                 {
                 }
-                return count;
+                return count > 0;
             }
         }
 
