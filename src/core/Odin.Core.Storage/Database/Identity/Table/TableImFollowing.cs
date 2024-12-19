@@ -147,6 +147,8 @@ public class TableImFollowing(
     /// <exception cref="Exception"></exception>
     public async Task<(List<string> followers, string nextCursor)>  GetFollowersAsync(int count, Guid driveId, string inCursor)
     {
+        var databaseType = _scopedConnectionFactory.DatabaseType;
+
         if (count < 1)
             throw new Exception("Count must be at least 1.");
 
@@ -157,7 +159,7 @@ public class TableImFollowing(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = @identityId AND (driveId=@driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
+            $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = @identityId AND (driveId=@driveId OR driveId = {Guid.Empty.BytesToSql(databaseType)}) AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();

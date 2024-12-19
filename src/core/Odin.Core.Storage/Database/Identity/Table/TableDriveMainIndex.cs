@@ -322,7 +322,7 @@ public class TableDriveMainIndex(
         await using var touchCommand = cn.CreateCommand();
 
         touchCommand.CommandText =
-            $"UPDATE drivemainindex SET modified=$modified WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid;";
+            $"UPDATE drivemainindex SET modified=@modified WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid;";
 
         var tparam1 = touchCommand.CreateParameter();
         var tparam2 = touchCommand.CreateParameter();
@@ -330,7 +330,7 @@ public class TableDriveMainIndex(
         var tparam4 = touchCommand.CreateParameter();
 
         tparam1.ParameterName = "@fileid";
-        tparam2.ParameterName = "$modified";
+        tparam2.ParameterName = "@modified";
         tparam3.ParameterName = "@driveId";
         tparam4.ParameterName = "@identityId";
 
