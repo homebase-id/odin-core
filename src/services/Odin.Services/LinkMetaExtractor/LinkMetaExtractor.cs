@@ -146,7 +146,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                logger.LogDebug("Forbidden to fetch information from {Url}. Status code: {StatusCode}", url,
+                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url,
                     response.StatusCode);
                 return null;
             }
@@ -155,7 +155,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxContentLength)
             {
-                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
+                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
                     contentLength.Value, maxContentLength, url);
                 return null;
             }
@@ -164,7 +164,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var content = await response.Content.ReadAsStringAsync();
             if (content.Length > maxContentLength)
             {
-                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
+                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
                     content.Length, maxContentLength, url);
                 return null;
             }
@@ -176,18 +176,18 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
         catch (OperationCanceledException)
         {
             // Operation was cancelled
-            logger.LogDebug("Request to {Url} timed out", url);
+            logger.LogDebug("LinkExtractor: Request to {Url} timed out", url);
             return null;
         }
         catch (HttpRequestException e)
         {
-            logger.LogInformation("Error fetching information from {Url}. Error: {Error} StatusCode: {Status}", url,
+            logger.LogInformation("LinkExtractor: Error fetching information from {Url}. Error: {Error} StatusCode: {Status}", url,
                 e.Message, e.StatusCode);
-            throw new OdinClientException("Failed to fetch information from the URL");
+            throw new OdinClientException("LinkExtractor: Failed to fetch information from the URL");
         }
         catch (Exception e)
         {
-            logger.LogInformation("Something went seriously wrong that you are here {Url}. Error: {Error}", url, e.Message);
+            logger.LogInformation("LinkExtractor: Something went seriously wrong that you are here {Url}. Error: {Error}", url, e.Message);
             return null;
         }
     }
@@ -203,7 +203,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
 
             if (linkMeta.Title == string.Empty)
             {
-                logger.LogDebug("The Title must be set (I'm not sure why) [{Url}]", url);
+                logger.LogDebug("LinkExtractor: The Title must be set (I'm not sure why) [{Url}]", url);
                 return null;
             }
 
@@ -211,7 +211,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
         }
         catch (Exception e)
         {
-            logger.LogDebug("Error processing metadata for {Url}. Error: {Error}", url, e.Message);
+            logger.LogDebug("LinkExtractor: Error processing metadata for {Url}. Error: {Error}", url, e.Message);
             return null;
         }
     }
@@ -219,7 +219,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
     {
         if (!IsUrlSafe(imageUrl))
         {
-            logger.LogDebug("Unsafe image URL {ImageUrl} for original URL {OriginalUrl}", imageUrl, originalUrl);
+            logger.LogDebug("LinkExtractor: Unsafe image URL {ImageUrl} for original URL {OriginalUrl}", imageUrl, originalUrl);
             return null;
         }
         var client = clientFactory.CreateClient<LinkMetaExtractor>();
@@ -232,20 +232,20 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var response = await client.GetAsync(cleanedUrl, HttpCompletionOption.ResponseHeadersRead);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogDebug("Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
+                logger.LogDebug("LinkExtractor: Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
                 return null;
             }
             // Check content length
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxImageSize)
             {
-                logger.LogDebug("Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", contentLength.Value, maxImageSize,imageUrl);
+                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", contentLength.Value, maxImageSize,imageUrl);
                 return null;
             }
             var image = await response.Content.ReadAsByteArrayAsync();
             if (image.Length > maxImageSize)
             {
-                logger.LogDebug("Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize,imageUrl);
+                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize,imageUrl);
                 return null;
             }
             var mimeType = response.Content.Headers.ContentType?.ToString();
@@ -254,7 +254,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var imageBase64 = Convert.ToBase64String(image);
             if (string.IsNullOrWhiteSpace(imageBase64))
             {
-                logger.LogDebug("No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", imageUrl, originalUrl);
+                logger.LogDebug("LinkExtractor: No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", imageUrl, originalUrl);
                 return null;
             }
             var imageUri = $"data:{mimeType};base64,{imageBase64}";
@@ -262,12 +262,12 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
         }
         catch (OperationCanceledException)
         {
-            logger.LogDebug("Image download from {ImageUrl} timed out", imageUrl);
+            logger.LogDebug("LinkExtractor: Image download from {ImageUrl} timed out", imageUrl);
             return null;
         }
         catch (HttpRequestException e)
         {
-            logger.LogDebug("Error downloading image from {ImageUrl}. Error: {Error} StatusCode: {Status}", imageUrl, e.Message, e.StatusCode);
+            logger.LogDebug("LinkExtractor: Error downloading image from {ImageUrl}. Error: {Error} StatusCode: {Status}", imageUrl, e.Message, e.StatusCode);
             return null;
         }
     }
