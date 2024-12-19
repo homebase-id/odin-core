@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -66,23 +67,21 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cmd = conn.db.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
-                   await conn.ExecuteNonQueryAsync(cmd);
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS attestationRequest("
-                 +"attestationId STRING NOT NULL UNIQUE, "
-                 +"requestEnvelope STRING NOT NULL UNIQUE, "
-                 +"timestamp INT NOT NULL "
-                 +", PRIMARY KEY (attestationId)"
-                 +");"
-                 ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
+                await conn.ExecuteNonQueryAsync(cmd);
             }
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS attestationRequest("
+                   +"attestationId STRING NOT NULL UNIQUE, "
+                   +"requestEnvelope STRING NOT NULL UNIQUE, "
+                   +"timestamp INT NOT NULL "
+                   +", PRIMARY KEY (attestationId)"
+                   +");"
+                   ;
+            await conn.ExecuteNonQueryAsync(cmd);
         }
 
         public virtual async Task<int> InsertAsync(DatabaseConnection conn, AttestationRequestRecord item)

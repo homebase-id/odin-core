@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -177,33 +178,57 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS outbox("
-                 +"identityId BLOB NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"fileId BLOB NOT NULL, "
-                 +"recipient STRING NOT NULL, "
-                 +"type INT NOT NULL, "
-                 +"priority INT NOT NULL, "
-                 +"dependencyFileId BLOB , "
-                 +"checkOutCount INT NOT NULL, "
-                 +"nextRunTime INT NOT NULL, "
-                 +"value BLOB , "
-                 +"checkOutStamp BLOB , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS outbox("
+                   +"identityId BLOB NOT NULL, "
+                   +"driveId BLOB NOT NULL, "
+                   +"fileId BLOB NOT NULL, "
+                   +"recipient STRING NOT NULL, "
+                   +"type INT NOT NULL, "
+                   +"priority INT NOT NULL, "
+                   +"dependencyFileId BLOB , "
+                   +"checkOutCount INT NOT NULL, "
+                   +"nextRunTime INT NOT NULL, "
+                   +"value BLOB , "
+                   +"checkOutStamp BLOB , "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS outbox("
+                   +"identityId BYTEA NOT NULL, "
+                   +"driveId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL, "
+                   +"recipient TEXT NOT NULL, "
+                   +"type BIGINT NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"dependencyFileId BYTEA , "
+                   +"checkOutCount BIGINT NOT NULL, "
+                   +"nextRunTime BIGINT NOT NULL, "
+                   +"value BYTEA , "
+                   +"checkOutStamp BYTEA , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(OutboxRecord item)

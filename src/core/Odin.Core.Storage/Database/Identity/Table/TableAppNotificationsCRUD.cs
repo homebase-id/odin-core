@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -118,28 +119,47 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS AppNotifications("
-                 +"identityId BLOB NOT NULL, "
-                 +"notificationId BLOB NOT NULL UNIQUE, "
-                 +"unread INT NOT NULL, "
-                 +"senderId STRING , "
-                 +"timestamp INT NOT NULL, "
-                 +"data BLOB , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,notificationId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS AppNotifications("
+                   +"identityId BLOB NOT NULL, "
+                   +"notificationId BLOB NOT NULL UNIQUE, "
+                   +"unread INT NOT NULL, "
+                   +"senderId STRING , "
+                   +"timestamp INT NOT NULL, "
+                   +"data BLOB , "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,notificationId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS AppNotifications("
+                   +"identityId BYTEA NOT NULL, "
+                   +"notificationId BYTEA NOT NULL UNIQUE, "
+                   +"unread BIGINT NOT NULL, "
+                   +"senderId TEXT , "
+                   +"timestamp BIGINT NOT NULL, "
+                   +"data BYTEA , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,notificationId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(AppNotificationsRecord item)

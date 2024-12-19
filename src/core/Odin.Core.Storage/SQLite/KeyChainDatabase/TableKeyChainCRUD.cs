@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -118,27 +119,25 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
         public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
-            using (var cmd = conn.db.CreateCommand())
+            await using var cmd = conn.db.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
-                   await conn.ExecuteNonQueryAsync(cmd);
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS keyChain("
-                 +"previousHash BLOB NOT NULL UNIQUE, "
-                 +"identity STRING NOT NULL, "
-                 +"timestamp INT NOT NULL, "
-                 +"signedPreviousHash BLOB NOT NULL UNIQUE, "
-                 +"algorithm STRING NOT NULL, "
-                 +"publicKeyJwkBase64Url STRING NOT NULL UNIQUE, "
-                 +"recordHash BLOB NOT NULL UNIQUE "
-                 +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
-                 +");"
-                 ;
-                 await conn.ExecuteNonQueryAsync(cmd);
+                cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
+                await conn.ExecuteNonQueryAsync(cmd);
             }
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS keyChain("
+                   +"previousHash BLOB NOT NULL UNIQUE, "
+                   +"identity STRING NOT NULL, "
+                   +"timestamp INT NOT NULL, "
+                   +"signedPreviousHash BLOB NOT NULL UNIQUE, "
+                   +"algorithm STRING NOT NULL, "
+                   +"publicKeyJwkBase64Url STRING NOT NULL UNIQUE, "
+                   +"recordHash BLOB NOT NULL UNIQUE "
+                   +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
+                   +");"
+                   ;
+            await conn.ExecuteNonQueryAsync(cmd);
         }
 
         public virtual async Task<int> InsertAsync(DatabaseConnection conn, KeyChainRecord item)

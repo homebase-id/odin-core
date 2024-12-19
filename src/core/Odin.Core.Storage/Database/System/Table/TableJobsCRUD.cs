@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -237,42 +238,75 @@ namespace Odin.Core.Storage.Database.System.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS jobs("
-                 +"id BLOB NOT NULL UNIQUE, "
-                 +"name STRING NOT NULL, "
-                 +"state INT NOT NULL, "
-                 +"priority INT NOT NULL, "
-                 +"nextRun INT NOT NULL, "
-                 +"lastRun INT , "
-                 +"runCount INT NOT NULL, "
-                 +"maxAttempts INT NOT NULL, "
-                 +"retryDelay INT NOT NULL, "
-                 +"onSuccessDeleteAfter INT NOT NULL, "
-                 +"onFailureDeleteAfter INT NOT NULL, "
-                 +"expiresAt INT , "
-                 +"correlationId STRING NOT NULL, "
-                 +"jobType STRING NOT NULL, "
-                 +"jobData STRING , "
-                 +"jobHash STRING  UNIQUE, "
-                 +"lastError STRING , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (id)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
-                 +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
-                 +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
-                 +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS jobs("
+                   +"id BLOB NOT NULL UNIQUE, "
+                   +"name STRING NOT NULL, "
+                   +"state INT NOT NULL, "
+                   +"priority INT NOT NULL, "
+                   +"nextRun INT NOT NULL, "
+                   +"lastRun INT , "
+                   +"runCount INT NOT NULL, "
+                   +"maxAttempts INT NOT NULL, "
+                   +"retryDelay INT NOT NULL, "
+                   +"onSuccessDeleteAfter INT NOT NULL, "
+                   +"onFailureDeleteAfter INT NOT NULL, "
+                   +"expiresAt INT , "
+                   +"correlationId STRING NOT NULL, "
+                   +"jobType STRING NOT NULL, "
+                   +"jobData STRING , "
+                   +"jobHash STRING  UNIQUE, "
+                   +"lastError STRING , "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (id)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS jobs("
+                   +"id BYTEA NOT NULL UNIQUE, "
+                   +"name TEXT NOT NULL, "
+                   +"state BIGINT NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"nextRun BIGINT NOT NULL, "
+                   +"lastRun BIGINT , "
+                   +"runCount BIGINT NOT NULL, "
+                   +"maxAttempts BIGINT NOT NULL, "
+                   +"retryDelay BIGINT NOT NULL, "
+                   +"onSuccessDeleteAfter BIGINT NOT NULL, "
+                   +"onFailureDeleteAfter BIGINT NOT NULL, "
+                   +"expiresAt BIGINT , "
+                   +"correlationId TEXT NOT NULL, "
+                   +"jobType TEXT NOT NULL, "
+                   +"jobData TEXT , "
+                   +"jobHash TEXT  UNIQUE, "
+                   +"lastError TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (id)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public virtual async Task<int> InsertAsync(JobsRecord item)

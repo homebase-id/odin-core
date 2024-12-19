@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -320,49 +321,89 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveMainIndex("
-                 +"identityId BLOB NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"fileId BLOB NOT NULL, "
-                 +"globalTransitId BLOB , "
-                 +"fileState INT NOT NULL, "
-                 +"requiredSecurityGroup INT NOT NULL, "
-                 +"fileSystemType INT NOT NULL, "
-                 +"userDate INT NOT NULL, "
-                 +"fileType INT NOT NULL, "
-                 +"dataType INT NOT NULL, "
-                 +"archivalStatus INT NOT NULL, "
-                 +"historyStatus INT NOT NULL, "
-                 +"senderId STRING , "
-                 +"groupId BLOB , "
-                 +"uniqueId BLOB , "
-                 +"byteCount INT NOT NULL, "
-                 +"hdrEncryptedKeyHeader STRING NOT NULL, "
-                 +"hdrVersionTag BLOB NOT NULL UNIQUE, "
-                 +"hdrAppData STRING NOT NULL, "
-                 +"hdrReactionSummary STRING , "
-                 +"hdrServerData STRING NOT NULL, "
-                 +"hdrTransferHistory STRING , "
-                 +"hdrFileMetaData STRING NOT NULL, "
-                 +"hdrTmpDriveAlias BLOB NOT NULL, "
-                 +"hdrTmpDriveType BLOB NOT NULL, "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,driveId,fileId)"
-                 +", UNIQUE(identityId,driveId,uniqueId)"
-                 +", UNIQUE(identityId,driveId,globalTransitId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS driveMainIndex("
+                   +"identityId BLOB NOT NULL, "
+                   +"driveId BLOB NOT NULL, "
+                   +"fileId BLOB NOT NULL, "
+                   +"globalTransitId BLOB , "
+                   +"fileState INT NOT NULL, "
+                   +"requiredSecurityGroup INT NOT NULL, "
+                   +"fileSystemType INT NOT NULL, "
+                   +"userDate INT NOT NULL, "
+                   +"fileType INT NOT NULL, "
+                   +"dataType INT NOT NULL, "
+                   +"archivalStatus INT NOT NULL, "
+                   +"historyStatus INT NOT NULL, "
+                   +"senderId STRING , "
+                   +"groupId BLOB , "
+                   +"uniqueId BLOB , "
+                   +"byteCount INT NOT NULL, "
+                   +"hdrEncryptedKeyHeader STRING NOT NULL, "
+                   +"hdrVersionTag BLOB NOT NULL UNIQUE, "
+                   +"hdrAppData STRING NOT NULL, "
+                   +"hdrReactionSummary STRING , "
+                   +"hdrServerData STRING NOT NULL, "
+                   +"hdrTransferHistory STRING , "
+                   +"hdrFileMetaData STRING NOT NULL, "
+                   +"hdrTmpDriveAlias BLOB NOT NULL, "
+                   +"hdrTmpDriveType BLOB NOT NULL, "
+                   +"created INT NOT NULL, "
+                   +"modified INT  "
+                   +", PRIMARY KEY (identityId,driveId,fileId)"
+                   +", UNIQUE(identityId,driveId,uniqueId)"
+                   +", UNIQUE(identityId,driveId,globalTransitId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
+                   ;
+            }
+            else if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS driveMainIndex("
+                   +"identityId BYTEA NOT NULL, "
+                   +"driveId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL, "
+                   +"globalTransitId BYTEA , "
+                   +"fileState BIGINT NOT NULL, "
+                   +"requiredSecurityGroup BIGINT NOT NULL, "
+                   +"fileSystemType BIGINT NOT NULL, "
+                   +"userDate BIGINT NOT NULL, "
+                   +"fileType BIGINT NOT NULL, "
+                   +"dataType BIGINT NOT NULL, "
+                   +"archivalStatus BIGINT NOT NULL, "
+                   +"historyStatus BIGINT NOT NULL, "
+                   +"senderId TEXT , "
+                   +"groupId BYTEA , "
+                   +"uniqueId BYTEA , "
+                   +"byteCount BIGINT NOT NULL, "
+                   +"hdrEncryptedKeyHeader TEXT NOT NULL, "
+                   +"hdrVersionTag BYTEA NOT NULL UNIQUE, "
+                   +"hdrAppData TEXT NOT NULL, "
+                   +"hdrReactionSummary TEXT , "
+                   +"hdrServerData TEXT NOT NULL, "
+                   +"hdrTransferHistory TEXT , "
+                   +"hdrFileMetaData TEXT NOT NULL, "
+                   +"hdrTmpDriveAlias BYTEA NOT NULL, "
+                   +"hdrTmpDriveType BYTEA NOT NULL, "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   +", rowid SERIAL NOT NULL UNIQUE"
+                   +", PRIMARY KEY (identityId,driveId,fileId)"
+                   +", UNIQUE(identityId,driveId,uniqueId)"
+                   +", UNIQUE(identityId,driveId,globalTransitId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
+                   ;
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
