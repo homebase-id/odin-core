@@ -11,6 +11,9 @@ using Odin.Services.LinkMetaExtractor;
 using Odin.Test.Helpers.Logging;
 using System.Collections.Generic;
 using System.Text;
+using System;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
 
@@ -36,6 +39,57 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Url);
     }
 #endif
+
+    [Test]
+    public async Task TestEmbeddedImageUrl()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+
+        const string htmlContent = @"
+        <html>
+            <head>
+                <meta property='og:title' content='Test Title' />
+                <meta property='og:description' content='Test Description' />
+                <meta property='og:image' content='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA' />
+            </head>
+        </html>";
+
+        var linkMeta = await linkMetaExtractor.ProcessHtmlAsync(htmlContent, "http://example.com");
+
+        Assert.NotNull(linkMeta);
+        Assert.AreEqual("Test Title", linkMeta.Title);
+        Assert.AreEqual("Test Description", linkMeta.Description);
+        Assert.NotNull(linkMeta.ImageUrl);
+        Assert.IsTrue(linkMeta.ImageUrl.StartsWith("data:image/png;base64,"));
+    }
+
+
+    [Test]
+    public async Task TestInvalidEmbeddedImage()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+
+        const string htmlContent = @"
+        <html>
+            <head>
+                <meta property='og:title' content='Test Title' />
+                <meta property='og:description' content='Test Description' />
+                <meta property='og:image' content='data:image/invalid;base64,12345' />
+            </head>
+        </html>";
+
+        var linkMeta = await linkMetaExtractor.ProcessHtmlAsync(htmlContent, "http://example.com");
+
+        Assert.NotNull(linkMeta);
+        Assert.AreEqual("Test Title", linkMeta.Title);
+        Assert.AreEqual("Test Description", linkMeta.Description);
+        Assert.IsNull(linkMeta.ImageUrl);
+    }
+
 
     [Test]
     public async Task TestTwitterUrl()
@@ -333,19 +387,19 @@ public class LinkMetaExtractorTests
     {
         // Arrange
         var html = """
-    <html>
-        <head>
-            <meta name="description" content="<script>alert('test')</script>Safe Description" />
-        </head>
-    </html>
-    """;
+                <html>
+                    <head>
+                        <meta name="description" content="<script>alert('test')</script>Safe Description" />
+                    </head>
+                </html>
+                """;
 
         // Act
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
         Assert.AreEqual("Safe Description", sanitizedMetadata["description"]);
-        Assert.IsFalse(sanitizedMetadata["description"].ToString().Contains("<script>"));
+        Assert.IsFalse(sanitizedMetadata["description"].ToString()?.Contains("<script>"));
     }
     [Test]
     public void LargeHtmlContent()
@@ -485,7 +539,7 @@ public class LinkMetaExtractorTests
             // Keys with empty or whitespace values
             new { Meta = new Dictionary<string, object> { { "description", "   " }, { "og:description", "OG Description" } }, Expected = "OG Description" },
             new { Meta = new Dictionary<string, object> { { "description", "" }, { "twitter:description", "Twitter Description" } }, Expected = "Twitter Description" },
-            new { Meta = new Dictionary<string, object> { { "description", null }, { "og:description", "OG Description" } }, Expected = "OG Description" },
+            new { Meta = new Dictionary<string, object> { { "description", "" }, { "og:description", "OG Description" } }, Expected = "OG Description" },
 
             // No description keys
             new { Meta = new Dictionary<string, object>(), Expected = (string?)null }
@@ -626,6 +680,49 @@ public class LinkMetaExtractorTests
             }
         }
     }
+
+        [Test]
+        public void GetImageUrl_ShouldHandleUrlsAndEmbeddedImages()
+        {
+            // Arrange
+            var maxDataUriSize = 2 * 1024 * 1024; // 2 MB for embedded images
+            var validDataUri = "data:image/png;base64," + Convert.ToBase64String(new byte[maxDataUriSize / 2]);
+            var invalidDataUri = "data:image/png;base64," + Convert.ToBase64String(new byte[maxDataUriSize * 2]);
+            var invalidMimeTypeDataUri = "data:image/xyz;base64,abc123";
+
+            var testCases = new[]
+            {
+                // Valid URL
+                new { Meta = new Dictionary<string, object> { { "og:image", "https://example.com/image.png" } }, Expected = "https://example.com/image.png" },
+                new { Meta = new Dictionary<string, object> { { "twitter:image", "https://example.com/image.jpg" } }, Expected = "https://example.com/image.jpg" },
+
+                // Valid embedded image
+                new { Meta = new Dictionary<string, object> { { "og:image", validDataUri } }, Expected = validDataUri },
+                new { Meta = new Dictionary<string, object> { { "twitter:image", validDataUri } }, Expected = validDataUri },
+
+                // Invalid embedded image (size exceeds limit)
+                new { Meta = new Dictionary<string, object> { { "og:image", invalidDataUri } }, Expected = (string?)null },
+
+                // Invalid MIME type in embedded image
+                new { Meta = new Dictionary<string, object> { { "og:image", invalidMimeTypeDataUri } }, Expected = (string?)null },
+
+                // Invalid URL
+                new { Meta = new Dictionary<string, object> { { "og:image", "javascript:alert('XSS')" } }, Expected = (string?)null },
+                new { Meta = new Dictionary<string, object> { { "og:image", "ftp://example.com/image.png" } }, Expected = (string?)null },
+
+                // No image key
+                new { Meta = new Dictionary<string, object>(), Expected = (string?)null }
+            };
+
+            foreach (var testCase in testCases)
+            {
+                // Act
+                var result = LinkMeta.GetImageUrl(testCase.Meta);
+
+                // Assert
+                Assert.AreEqual(testCase.Expected, result, $"Failed for meta: {testCase.Meta}");
+            }
+        }
 
 #if !CI_GITHUB
     [Test]

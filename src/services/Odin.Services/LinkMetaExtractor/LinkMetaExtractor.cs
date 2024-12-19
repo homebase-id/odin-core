@@ -83,34 +83,49 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
 
         return false;
     }
+
+
+    public async Task<LinkMeta> ProcessHtmlAsync(string htmlContent, string url)
+    {
+        if (htmlContent == null)
+            return null;
+
+        var linkMeta = ProcessMetaData(htmlContent, url);
+        if (linkMeta == null)
+            return null;
+        if (!string.IsNullOrEmpty(linkMeta.ImageUrl))
+        {
+            if (!LinkMeta.IsValidEmbeddedImage(linkMeta.ImageUrl))
+            {
+                var imageUrl = await ProcessImageAsync(linkMeta.ImageUrl, url);
+                if (imageUrl != null)
+                {
+                    linkMeta.ImageUrl = imageUrl;
+                }
+                else
+                {
+                    linkMeta.ImageUrl = null;
+                }
+            }
+        }
+        return linkMeta;
+    }
+
+
     public async Task<LinkMeta> ExtractAsync(string url)
     {
         if (!IsUrlSafe(url))
         {
             throw new OdinClientException($"Invalid or unsafe URL: {url}");
         }
-        var htmlContent = await FetchHtmlContentAsync(url);
-        if (htmlContent == null)
-            return null;
-        var linkMeta = ProcessMetaData(htmlContent, url);
-        if (linkMeta == null)
-            return null;
-        if (!string.IsNullOrEmpty(linkMeta.ImageUrl))
-        {
-            var imageUrl = await ProcessImageAsync(linkMeta.ImageUrl, url);
-            if (imageUrl != null)
-            {
-                linkMeta.ImageUrl = imageUrl;
-            }
-            else
-            {
-                linkMeta.ImageUrl = null;
-            }
-        }
-        return linkMeta;
 
+        var htmlContent = await FetchHtmlContentAsync(url);
+
+        return await ProcessHtmlAsync(htmlContent, url);
     }
-     private async Task<string> FetchHtmlContentAsync(string url)
+
+
+    private async Task<string> FetchHtmlContentAsync(string url)
     {
         var client = clientFactory.CreateClient<LinkMetaExtractor>();
         // Set headers
