@@ -271,9 +271,12 @@ public class ScopedConnectionFactory<T>(
 
     private void LogDiagnostics()
     {
-        foreach (var (guid, info) in Diagnostics)
+        if (_logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogInformation("Connection {id} was created at {info}", guid, info);
+            foreach (var (guid, info) in Diagnostics)
+            {
+                _logger.LogDebug("Connection {id} was created at {info}", guid, info);
+            }
         }
     }
 
@@ -292,9 +295,11 @@ public class ScopedConnectionFactory<T>(
     private void LogException(string message, Exception exception)
     {
         LogDiagnostics();
-        // SEB:TODO log error instead of warning, but we need to fix all the damn tests first the fail
-        // whenever an error is logged
-        _logger.LogWarning(exception, "ERR {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
+
+        // SEB:NOTE we log the exception as a non-error, because it should be possible for the caller
+        // to catch and handle the exception silently (e.g. in case of an expected sql constraint error),
+        // but we prefix it with an "ERR" to make it easier to spot in the logs.
+        _logger.LogDebug(exception, "ERR {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
             message, exception.Message, _connectionId, lifetimeScope.Tag);
     }
 
