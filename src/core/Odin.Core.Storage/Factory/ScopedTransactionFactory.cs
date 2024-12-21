@@ -12,9 +12,26 @@ namespace Odin.Core.Storage.Factory;
 /// Only use this wrapper when you have short-lived transactions. As soon as you call <see cref="BeginStackedTransactionAsync"/>
 /// the database WILL lock the one or more table.
 /// </remarks>
-public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnectionFactory) where T : IDbConnectionFactory
+
+public interface IScopedTransactionFactory
 {
-    public async Task<ScopedTransaction> BeginStackedTransactionAsync(
+    Task<IScopedTransaction> BeginStackedTransactionAsync(
+        IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IScopedTransaction : IDisposable, IAsyncDisposable
+{
+    IConnectionWrapper Connection { get; }
+    ITransactionWrapper Transaction { get; }
+    ICommandWrapper CreateCommand();
+    void Commit();
+}
+
+public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnectionFactory)
+    : IScopedTransactionFactory where T : IDbConnectionFactory
+{
+    public async Task<IScopedTransaction> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default)
     {
@@ -31,14 +48,12 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
         }
     }
 
-    public sealed class ScopedTransaction(
-        ScopedConnectionFactory<T>.ConnectionWrapper cn,
-        ScopedConnectionFactory<T>.TransactionWrapper tx) : IDisposable, IAsyncDisposable
+    public sealed class ScopedTransaction(IConnectionWrapper cn, ITransactionWrapper tx) : IScopedTransaction
     {
-        public ScopedConnectionFactory<T>.ConnectionWrapper Connection => cn;
-        public ScopedConnectionFactory<T>.TransactionWrapper Transaction => tx;
+        public IConnectionWrapper Connection => cn;
+        public ITransactionWrapper Transaction => tx;
 
-        public ScopedConnectionFactory<T>.CommandWrapper CreateCommand()
+        public ICommandWrapper CreateCommand()
         {
             return cn.CreateCommand();
         }

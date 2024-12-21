@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -118,28 +119,32 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS AppNotifications("
-                 +"identityId BLOB NOT NULL, "
-                 +"notificationId BLOB NOT NULL UNIQUE, "
-                 +"unread INT NOT NULL, "
-                 +"senderId STRING , "
-                 +"timestamp INT NOT NULL, "
-                 +"data BLOB , "
-                 +"created INT NOT NULL, "
-                 +"modified INT  "
-                 +", PRIMARY KEY (identityId,notificationId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS AppNotifications;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS AppNotifications("
+                   +"identityId BYTEA NOT NULL, "
+                   +"notificationId BYTEA NOT NULL UNIQUE, "
+                   +"unread BIGINT NOT NULL, "
+                   +"senderId TEXT , "
+                   +"timestamp BIGINT NOT NULL, "
+                   +"data BYTEA , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT  "
+                   + rowid
+                   +", PRIMARY KEY (identityId,notificationId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(AppNotificationsRecord item)
@@ -195,15 +200,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(AppNotificationsRecord item)
+        protected virtual async Task<bool> TryInsertAsync(AppNotificationsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                             "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
+                                             "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -244,7 +250,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     item.created = now;
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -363,13 +369,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM AppNotifications; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM AppNotifications;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -530,12 +536,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging7Command = cn.CreateCommand();
             {
                 getPaging7Command.CommandText = "SELECT identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
-                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT @count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "$_count";
+                getPaging7Param2.ParameterName = "@count";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
                 getPaging7Param3.ParameterName = "@identityId";

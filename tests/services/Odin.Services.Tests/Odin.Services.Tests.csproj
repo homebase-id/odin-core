@@ -5,8 +5,11 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
-
         <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(USER)' == 'seb'">
+        <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup>
