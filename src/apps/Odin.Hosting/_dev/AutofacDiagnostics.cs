@@ -22,9 +22,9 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
     {
         {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
         {typeof(Odin.Core.Storage.Database.DatabaseCounters), "e6f1c919"},
-        {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "74c23c98"},
+        {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "f7aa4bbc"},
         {typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory), "todo"},
-        {typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory), "74c23c98"},
+        {typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory), "f7aa4bbc"},
         {typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory), "todo"},
         {typeof(Odin.Core.Storage.CacheHelper), "b6b4e9b2"},
         {typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute), "e7045f27"},
