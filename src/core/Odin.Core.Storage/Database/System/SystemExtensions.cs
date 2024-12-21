@@ -15,10 +15,10 @@ public static class SystemExtensions
             DataSource = databasePath,
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Private, // Shared is discouraged: https://www.sqlite.org/sharedcache.html
-            Pooling = true
+            Pooling = false // we use our own pooling
         }.ToString();
 
-        cb.Register(_ => new SqliteSystemDbConnectionFactory(connectionString))
+        cb.Register(_ => new SqliteSystemDbConnectionFactory(connectionString, 100))
             .As<ISystemDbConnectionFactory>()
             .SingleInstance();
 
