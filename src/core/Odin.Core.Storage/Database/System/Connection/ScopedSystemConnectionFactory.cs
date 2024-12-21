@@ -4,6 +4,8 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.System.Connection;
 
+#nullable enable
+
 public class ScopedSystemConnectionFactory(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedSystemConnectionFactory> logger,

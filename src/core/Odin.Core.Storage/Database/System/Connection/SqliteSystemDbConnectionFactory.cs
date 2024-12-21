@@ -9,13 +9,7 @@ namespace Odin.Core.Storage.Database.System.Connection;
 
 #nullable enable
 
-public sealed class SqliteSystemDbConnectionFactory(string connectionString) : ISystemDbConnectionFactory, IDisposable
+public sealed class SqliteSystemDbConnectionFactory(string connectionString)
+    : AbstractSqliteDbConnectionFactory(connectionString), ISystemDbConnectionFactory
 {
-    public DatabaseType DatabaseType => DatabaseType.Sqlite;
-    public async Task<DbConnection> CreateAsync() => await SqliteConcreteConnectionFactory.Create(connectionString);
-    public void Dispose()
-    {
-        using var cn = new SqliteConnection(connectionString);
-        SqliteConnection.ClearPool(cn);
-    }
 }
