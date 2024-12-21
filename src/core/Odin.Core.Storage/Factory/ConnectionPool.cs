@@ -46,7 +46,7 @@ public class ConnectionPool(int poolSize) : IDisposable
 
         if (connection != null)
         {
-            await connection.CloseAsync();
+            await connection.DisposeAsync();
         }
     }
 
