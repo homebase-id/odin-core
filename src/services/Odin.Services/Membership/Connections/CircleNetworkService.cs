@@ -368,7 +368,7 @@ namespace Odin.Services.Membership.Connections
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
-                EncryptedClientAccessToken = keys.EncryptedCat,
+                EncryptedClientAccessToken = keys.EncryptedCat, //may come in as NULL; meaning this cannot be used until we have the ICR key
                 TemporaryWeakClientAccessToken = keys.Temp.Token,
                 TempWeakKeyStoreKey = keys.Temp.KeyStoreKey,
                 ConnectionRequestOrigin = connectionRequestOrigin,

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Base;
@@ -6,6 +7,7 @@ using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.EncryptionKeyService;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Membership
 {
@@ -15,12 +17,17 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     public class IntroductionsController(
         CircleNetworkIntroductionService introductionService) : OdinControllerBase
     {
-
         [HttpPost("make-introduction")]
         public async Task<IActionResult> ReceiveIntroduction([FromBody] SharedSecretEncryptedPayload payload)
         {
             await introductionService.ReceiveIntroductions(payload, WebOdinContext);
             return Ok();
+        }
+
+        [HttpPost("auto-connect-introducee")]
+        public async Task<AutoConnectResult> AutoConnectIntroducee([FromBody] EccEncryptedPayload payload)
+        {
+            return await introductionService.AcceptIntroduceeAutoConnectRequest(payload, HttpContext.RequestAborted, WebOdinContext);
         }
     }
 }

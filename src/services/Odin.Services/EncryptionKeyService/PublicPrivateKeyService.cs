@@ -152,7 +152,8 @@ namespace Odin.Services.EncryptionKeyService
                 Iv = iv,
                 EncryptedData = AesGcm.Encrypt(payload, transferSharedSecret, iv),
                 Salt = randomSalt,
-                EncryptionPublicKeyCrc32 = recipientPublicKey.crc32c
+                EncryptionPublicKeyCrc32 = recipientPublicKey.crc32c,
+                KeyType = keyType
             };
         }
 
@@ -174,7 +175,8 @@ namespace Odin.Services.EncryptionKeyService
                 Iv = iv,
                 EncryptedData = AesGcm.Encrypt(payload, ss, iv),
                 Salt = randomSalt,
-                EncryptionPublicKeyCrc32 = recipientPublicEccKey.crc32c
+                EncryptionPublicKeyCrc32 = recipientPublicEccKey.crc32c,
+                KeyType = keyType
             };
         }
 

@@ -21,13 +21,6 @@ public class ConnectIntroduceeOutboxWorker(
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-        await SendConnectionRequest(newContext, cancellationToken);
-        return (true, UnixTimeUtc.ZeroTime);
-    }
-
-    private async Task SendConnectionRequest(IOdinContext odinContext, CancellationToken cancellationToken)
-    {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
         var iid = OdinSystemSerializer.Deserialize<IdentityIntroduction>(data);
@@ -36,7 +29,26 @@ public class ConnectIntroduceeOutboxWorker(
 
         try
         {
-            await introductionService.TrySendConnectionRequestAsync(iid, cancellationToken, odinContext);
+            var result = await introductionService.SendAutoConnectIntroduceeRequest(iid, cancellationToken, odinContext);
+            //
+            // switch (result.IssueType)
+            // {
+            //     case PeerRequestIssueType.SocketError:
+            //     case PeerRequestIssueType.ServiceUnavailable:
+            //     case PeerRequestIssueType.InternalServerError:
+            //     case PeerRequestIssueType.OperationCancelled:
+            //     case PeerRequestIssueType.HttpRequestFailed:
+            //         break;
+            //
+            //     case PeerRequestIssueType.None:
+            //     case PeerRequestIssueType.BadRequest:
+            //     case PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr:
+            //     case PeerRequestIssueType.Forbidden:
+            //     case PeerRequestIssueType.Unhandled:
+            //         break;
+            //     default:
+            //         throw new ArgumentOutOfRangeException();
+            // }
         }
         catch (Exception ex)
         {
@@ -53,6 +65,8 @@ public class ConnectIntroduceeOutboxWorker(
                 File = file
             };
         }
+
+        return (true, UnixTimeUtc.ZeroTime);
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)
