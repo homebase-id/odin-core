@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,18 +25,13 @@ public class SendIntroductionOutboxWorker(
 {
     public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
-        var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-        await MakeIntroductionAsync(newContext, cancellationToken);
-        return (true, UnixTimeUtc.ZeroTime);
-    }
-
-    private async Task MakeIntroductionAsync(IOdinContext odinContext, CancellationToken cancellationToken)
-    {
         var data = FileItem.State.Data.ToStringFromUtf8Bytes();
 
         var introduction = OdinSystemSerializer.Deserialize<Introduction>(data);
         var file = FileItem.File;
         var recipient = FileItem.Recipient;
+
+        AssertHasRemainingAttempts();
 
         bool success = false;
         try
@@ -60,7 +56,13 @@ public class SendIntroductionOutboxWorker(
 
             if (response.IsSuccessStatusCode)
             {
-                return;
+                return (true, UnixTimeUtc.ZeroTime);
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                string x = "";
+                return (false, UnixTimeUtc.Now().AddMinutes(10));
             }
 
             throw new OdinOutboxProcessingException("Failed while enqueuing notification")
@@ -88,6 +90,8 @@ public class SendIntroductionOutboxWorker(
                 File = file
             };
         }
+
+        return (true, UnixTimeUtc.ZeroTime);
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)

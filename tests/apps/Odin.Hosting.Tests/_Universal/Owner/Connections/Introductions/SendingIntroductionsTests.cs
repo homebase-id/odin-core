@@ -4,7 +4,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Services.Drives;
-using Odin.Core.Time;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -74,7 +73,7 @@ public class SendingIntroductionsTests
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
-        
+
         await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         //
@@ -264,8 +263,6 @@ public class SendingIntroductionsTests
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        // await Cleanup();
-
         var introsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
         Assert.IsFalse(introsResponse.Content.Any(),
             "Cannot start test - merry has pending introductions. this probably happened because they were cleaned up from other tests");
@@ -449,12 +446,21 @@ public class SendingIntroductionsTests
         });
 
         var introResult = response.Content;
-        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
-            "sam should reject since frodo does not have allow introductions permission");
+        // Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
+        // "sam should reject since frodo does not have allow-introductions permission");
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
 
-        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        // Note; I have to use a delay because the outbox will never be
+        // empty and, currently, there is no way to do an exclusion test on the outbox 
+        // await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await Task.Delay(1000 * 3);
 
+        var samOutboxItem =
+            await frodoOwnerClient.DriveRedux.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
+                TestIdentities.Samwise.OdinId.ToHashId(), TestIdentities.Samwise.OdinId);
+        Assert.IsNotNull(samOutboxItem, "there should be an outbox item for sam since it failed he blocked incoming introductions");
+
+        
         // ensure introductions are processed
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);

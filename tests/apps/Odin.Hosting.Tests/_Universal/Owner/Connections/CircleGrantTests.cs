@@ -46,20 +46,24 @@ public class CircleGrantTests
     public async Task CannotGrantCircleWhenIdentityInAutoAcceptCircle()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
-
+        
+        await frodoOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
 
         await Prepare();
 
         var targetCircle = Guid.NewGuid();
-        var merryCreatesCircleResponse = await merryOwnerClient.Network.CreateCircle(targetCircle, "some circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new(PermissionKeys.AllowIntroductions)
-        });
+        var merryCreatesCircleResponse = await merryOwnerClient.Network.CreateCircle(targetCircle, "some circle",
+            new PermissionSetGrantRequest()
+            {
+                PermissionSet = new(PermissionKeys.AllowIntroductions)
+            });
         Assert.IsTrue(merryCreatesCircleResponse.IsSuccessStatusCode);
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
@@ -70,7 +74,7 @@ public class CircleGrantTests
 
         await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
-        
+
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
@@ -84,12 +88,14 @@ public class CircleGrantTests
 
         await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
         await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
-        
+
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
         Assert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
-        Assert.IsTrue(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
+        Assert.IsTrue(
+            samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
+                cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
@@ -108,16 +114,21 @@ public class CircleGrantTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
+        await frodoOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+        
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
 
         await Prepare();
 
         var targetCircle = Guid.NewGuid();
-        var merryCreatesCircleResponse = await merryOwnerClient.Network.CreateCircle(targetCircle, "some circle", new PermissionSetGrantRequest()
-        {
-            PermissionSet = new(PermissionKeys.AllowIntroductions)
-        });
+        var merryCreatesCircleResponse = await merryOwnerClient.Network.CreateCircle(targetCircle, "some circle",
+            new PermissionSetGrantRequest()
+            {
+                PermissionSet = new(PermissionKeys.AllowIntroductions)
+            });
         Assert.IsTrue(merryCreatesCircleResponse.IsSuccessStatusCode);
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
@@ -140,12 +151,14 @@ public class CircleGrantTests
 
         await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
         await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
-        
+
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
         Assert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
-        Assert.IsTrue(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
+        Assert.IsTrue(
+            samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
+                cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
@@ -158,7 +171,9 @@ public class CircleGrantTests
         Assert.IsTrue(merryConfirmationResponse.IsSuccessStatusCode);
         var samConnectionInfoResponse2 = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
         Assert.IsTrue(samConnectionInfoResponse2.IsSuccessStatusCode);
-        Assert.IsFalse(samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
+        Assert.IsFalse(
+            samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(cg =>
+                cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsTrue(samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 

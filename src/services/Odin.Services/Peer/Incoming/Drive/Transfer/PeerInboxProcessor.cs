@@ -343,8 +343,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogDebug("Processing Feed Inbox Item -> Handling TransferFileType.EncryptedFileForFeed");
 
-                byte[] decryptedBytes = await keyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey,
-                    inboxItem.EncryptedFeedPayload, odinContext);
+                byte[] decryptedBytes = await keyService.EccDecryptPayload(inboxItem.EncryptedFeedPayload, odinContext);
 
                 var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
                 var decryptedKeyHeader = KeyHeader.FromCombinedBytes(feedPayload.KeyHeaderBytes);

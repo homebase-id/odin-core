@@ -1218,9 +1218,7 @@ namespace Odin.Services.Membership.Connections
             {
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 
-                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
-                    PublicPrivateKeyType.OnlineIcrEncryptedKey,
-                    identity.TemporaryWeakClientAccessToken, odinContext);
+                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
@@ -1237,9 +1235,7 @@ namespace Odin.Services.Membership.Connections
             {
                 logger.LogDebug("Upgrading KSK Encryption for {id}", identity.OdinId);
 
-                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
-                    PublicPrivateKeyType.OnlineIcrEncryptedKey,
-                    identity.TempWeakKeyStoreKey, odinContext);
+                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TempWeakKeyStoreKey, odinContext);
 
                 var masterKey = odinContext.Caller.GetMasterKey();
                 var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));

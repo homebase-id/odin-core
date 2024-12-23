@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Services.Base;
@@ -27,28 +28,19 @@ public class ConnectIntroduceeOutboxWorker(
         var file = FileItem.File;
         var recipient = FileItem.Recipient;
 
+        AssertHasRemainingAttempts();
+        
         try
         {
-            var result = await introductionService.SendAutoConnectIntroduceeRequest(iid, cancellationToken, odinContext);
-            //
-            // switch (result.IssueType)
-            // {
-            //     case PeerRequestIssueType.SocketError:
-            //     case PeerRequestIssueType.ServiceUnavailable:
-            //     case PeerRequestIssueType.InternalServerError:
-            //     case PeerRequestIssueType.OperationCancelled:
-            //     case PeerRequestIssueType.HttpRequestFailed:
-            //         break;
-            //
-            //     case PeerRequestIssueType.None:
-            //     case PeerRequestIssueType.BadRequest:
-            //     case PeerRequestIssueType.ForbiddenWithInvalidRemoteIcr:
-            //     case PeerRequestIssueType.Forbidden:
-            //     case PeerRequestIssueType.Unhandled:
-            //         break;
-            //     default:
-            //         throw new ArgumentOutOfRangeException();
-            // }
+            await introductionService.SendAutoConnectIntroduceeRequest(iid, cancellationToken, odinContext);
+        }
+        catch (OdinClientException)
+        {
+            return (false, UnixTimeUtc.Now().AddMinutes(10));
+        }
+        catch (OdinSecurityException)
+        {
+            return (false, UnixTimeUtc.Now().AddMinutes(10));
         }
         catch (Exception ex)
         {

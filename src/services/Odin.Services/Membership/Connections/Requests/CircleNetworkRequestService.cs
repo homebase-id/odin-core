@@ -129,8 +129,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     return null;
                 }
 
-                payloadBytes = await _publicPrivateKeyService.EccDecryptPayload(
-                    header.EccEncryptedPayload.KeyType, header.EccEncryptedPayload, odinContext);
+                payloadBytes = await _publicPrivateKeyService.EccDecryptPayload(header.EccEncryptedPayload, odinContext);
             }
             else
             {
@@ -248,24 +247,10 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial
-            if (existingConnection.IsConnected())
-            {
-                try
-                {
-                    if ((await _verificationService.VerifyConnectionAsync(sender, cancellationToken, odinContext)).IsValid)
-                    {
-                        _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
-
-                        //TODO decide if we should throw an error here?
-                        return;
-                    }
-                }
-                catch (OdinIdentityVerificationException)
-                {
-                    // This can occur if the sender does not have access to the ICR
-                    //No-op, ignore this issue
-                }
-            }
+            // if (existingConnection.IsConnected())
+            // {
+            //     
+            // }
 
             var request = new PendingConnectionRequestHeader()
             {
@@ -273,11 +258,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 ReceivedTimestampMilliseconds = UnixTimeUtc.Now(),
                 EccEncryptedPayload = payload
             };
-
-            if (await TryAutoAccept(request, odinContext))
-            {
-                return;
-            }
 
             await UpsertPendingConnectionRequestAsync(request);
 
@@ -356,7 +336,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 //If I had previously sent a connection request; use the ACLs I already created
                 var existingSentRequest = await GetSentRequestInternalAsync(senderOdinId);
-                if (null != existingSentRequest)
+                if (null != existingSentRequest && existingSentRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                 {
                     accessGrant = existingSentRequest.PendingAccessExchangeGrant;
                 }
@@ -390,7 +370,6 @@ namespace Odin.Services.Membership.Connections.Requests
                     incomingRequest.ConnectionRequestOrigin, masterKey, odinContext),
                 AccessRegistration = accessRegistration
             };
-
 
             var verificationHash = _cns.CreateVerificationHash(
                 incomingRequest.VerificationRandomCode,
@@ -523,8 +502,8 @@ namespace Odin.Services.Membership.Connections.Requests
 
             var recipient = (OdinId)originalRequest.Recipient;
 
-            var (keyStoreKey, sharedSecret) =
-                originalRequest.PendingAccessExchangeGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
+            var (keyStoreKey, sharedSecret) = originalRequest.PendingAccessExchangeGrant
+                .AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
             var payloadBytes = payload.Decrypt(sharedSecret);
 
             ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
@@ -932,12 +911,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     return (false, null);
                 }
 
-                var token = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
-                var client = token == null
-                    ? _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient)
-                    : _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
-                        token.ToAuthenticationToken());
-
+                var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient);
                 var response = await client.DeliverConnectionRequest(eccEncryptedPayload);
                 return (response.StatusCode != HttpStatusCode.BadRequest, response);
             }
@@ -982,54 +956,6 @@ namespace Odin.Services.Membership.Connections.Requests
             return origin == ConnectionRequestOrigin.Introduction
                 ? PublicPrivateKeyType.OfflineKey
                 : PublicPrivateKeyType.OnlineIcrEncryptedKey;
-        }
-
-        private async Task<bool> TryAutoAccept(PendingConnectionRequestHeader header, IOdinContext odinContext)
-        {
-            if (_tenantContext.Settings.DisableAutoAcceptIntroductions)
-            {
-                return false;
-            }
-
-            var sender = odinContext.GetCallerOdinIdOrFail();
-            var payload = header.EccEncryptedPayload;
-            if (payload.KeyType != PublicPrivateKeyType.OfflineKey)
-            {
-                return false;
-            }
-
-            //decrypt and examine
-            var payloadBytes = await _publicPrivateKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, odinContext);
-            ConnectionRequest request = OdinSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
-            request.ReceivedTimestampMilliseconds = header.ReceivedTimestampMilliseconds;
-            request.SenderOdinId = header.SenderOdinId;
-
-            if (request.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
-            {
-                var acceptHeader = new AcceptRequestHeader()
-                {
-                    Sender = sender,
-                    CircleIds = [],
-                    ContactData = new ContactRequestData(),
-                };
-
-                await AcceptConnectionRequestAsync(acceptHeader, tryOverrideAcl: false, odinContext);
-                return true;
-            }
-
-            //Check if a request was sent to the sender
-            var sentRequest = await GetSentRequestInternalAsync(sender);
-            if (null != sentRequest)
-            {
-                //we can auto-accept
-                _logger.LogInformation("Auto-accepting connection request from {sender}", sender);
-                //Note: nothing to do here for now because of the MasterKeyAvailableBackgroundService
-                // will check this same logic and auto-approve
-                // However, if we drop the MasterKeyAvailableBackgroundService - we will need to
-                // put in an inbox item to perform the auto-accept
-            }
-
-            return false;
         }
     }
 }

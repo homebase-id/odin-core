@@ -70,8 +70,7 @@ public class CircleNetworkIntroductionService(
 
         OdinValidationUtils.AssertNotNull(group, nameof(group));
         OdinValidationUtils.AssertValidRecipientList(group.Recipients, allowEmpty: false);
-
-
+        
         var driveId = (await driveManager.GetDriveAsync(SystemDriveConstants.TransientTempDrive)).Id;
 
         async Task<bool> EnqueueOutboxItem(OdinId recipient, Introduction introduction)
@@ -224,12 +223,22 @@ public class CircleNetworkIntroductionService(
                 break;
             }
 
-            await AutoAcceptEligibleConnectionRequestAsync(request.SenderOdinId, odinContext);
+            await AutoAcceptEligibleConnectionRequestAsync(request.SenderOdinId, force: true, odinContext);
         }
     }
 
-    private async Task AutoAcceptEligibleConnectionRequestAsync(OdinId sender, IOdinContext odinContext)
+    private async Task AutoAcceptEligibleConnectionRequestAsync(OdinId sender, bool force, IOdinContext odinContext)
     {
+        if (force && !odinContext.Caller.HasMasterKey)
+        {
+            return;
+        }
+
+        if (_tenantContext.Settings.DisableAutoAcceptIntroductions && !force)
+        {
+            return;
+        }
+
         try
         {
             var newContext = OdinContextUpgrades.UsePermissions(odinContext,
@@ -324,7 +333,7 @@ public class CircleNetworkIntroductionService(
                 break;
             }
 
-            await this.SendIntroductoryConnectionRequestAsync(intro, cancellationToken, newOdinContext);
+            await this.SendIntroductoryConnectionRequestInternalAsync(intro, cancellationToken, newOdinContext);
         }
     }
 
@@ -365,13 +374,13 @@ public class CircleNetworkIntroductionService(
 
     public async Task Handle(ConnectionRequestReceivedNotification notification, CancellationToken cancellationToken)
     {
-        await AutoAcceptEligibleConnectionRequestAsync(notification.Sender, notification.OdinContext);
+        await AutoAcceptEligibleConnectionRequestAsync(notification.Sender, false, notification.OdinContext);
     }
 
     /// <summary>
     /// Sends connection requests for pending introductions if one has not already been sent or received
     /// </summary>
-    private async Task SendIntroductoryConnectionRequestAsync(IdentityIntroduction intro, CancellationToken cancellationToken,
+    private async Task SendIntroductoryConnectionRequestInternalAsync(IdentityIntroduction intro, CancellationToken cancellationToken,
         IOdinContext odinContext)
     {
         var recipient = intro.Identity;
@@ -392,11 +401,10 @@ public class CircleNetworkIntroductionService(
         await circleNetworkRequestService.SendConnectionRequestAsync(requestHeader, cancellationToken, odinContext);
     }
 
-    public async Task<PeerTryRetryResult<AutoConnectResult>> SendAutoConnectIntroduceeRequest(IdentityIntroduction iid,
+    public async Task SendAutoConnectIntroduceeRequest(IdentityIntroduction iid,
         CancellationToken cancellationToken, IOdinContext odinContext)
     {
-        await this.SendIntroductoryConnectionRequestAsync(iid, cancellationToken, odinContext);
-        return null;
+        await this.SendIntroductoryConnectionRequestInternalAsync(iid, cancellationToken, odinContext);
     }
 
     /// <summary>
@@ -406,7 +414,7 @@ public class CircleNetworkIntroductionService(
         CancellationToken cancellationToken,
         IOdinContext odinContext)
     {
-        var payloadBytes = await publicPrivateKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, payload, odinContext);
+        var payloadBytes = await publicPrivateKeyService.EccDecryptPayload(payload, odinContext);
         var request = OdinSystemSerializer.Deserialize<IntroductionAutoConnectRequest>(payloadBytes.ToStringFromUtf8Bytes());
 
         if (_tenantContext.Settings.DisableAutoAcceptIntroductions)
@@ -463,7 +471,8 @@ public class CircleNetworkIntroductionService(
         try
         {
             logger.LogDebug("Attempting to auto-accept connection request from {sender}", sender);
-            var newContext = OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadCircleMembership);
+            var newContext =
+                OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadCircleMembership, PermissionKeys.ManageFeed);
             await circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, newContext);
         }
         catch (Exception ex)
