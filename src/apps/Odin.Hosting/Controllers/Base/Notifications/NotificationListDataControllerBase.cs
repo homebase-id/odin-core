@@ -56,6 +56,13 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             await notificationService.MarkReadByApp(appId, WebOdinContext);
             return Ok();
         }
+        
+        [HttpPost("list/mark-read-by-appid-and-typeid")]
+        public async Task<IActionResult> UpdateNotificationByTypeId([FromBody] MarkNotificationsAsReadRequest request)
+        {
+            await notificationService.MarkReadByAppAndTypeId(request.AppId, request.TypeId, WebOdinContext);
+            return Ok();
+        }
 
         [HttpDelete("list")]
         public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationsRequest request)

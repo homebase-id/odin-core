@@ -11,7 +11,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Threading;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -32,7 +32,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveAclAuthorizationService driveAclAuthorizationService,
         DriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
-        TempStorageManager tempStorageManager) : RequirePermissionsBase
+        TempStorageManager tempStorageManager,
+        IdentityDatabase db) : RequirePermissionsBase
     {
         private static readonly KeyedAsyncLock KeyedAsyncLock = new();
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -1009,7 +1010,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // to delete a payload, remove from disk and remove from the existingHeader.FileMetadata.Payloads
             // to add or append a payload, save on disk then upsert the value in existingHeader.FileMetadata.Payloads
 
-            // TODO CONNECTIONS
+            // TODO CONNECTIONS (TODD:TODO)
             // await db.CreateCommitUnitOfWorkAsync(async () =>
             {
                 // 
@@ -1156,11 +1157,14 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
 
-            // TODO CONNECTIONS - need a transaction here
-            await longTermStorageManager.DeleteAttachments(drive, file.FileId);
-            await this.WriteFileHeaderInternal(deletedServerFileHeader);
-            await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
-            await longTermStorageManager.DeleteTransferHistory(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+            await using (var tx = await db.BeginStackedTransactionAsync())
+            {
+                await longTermStorageManager.DeleteAttachments(drive, file.FileId);
+                await WriteFileHeaderInternal(deletedServerFileHeader);
+                await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+                await longTermStorageManager.DeleteTransferHistory(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+                tx.Commit();
+            }
 
             if (await ShouldRaiseDriveEventAsync(file))
             {

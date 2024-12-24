@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
-using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.Certificate;
 using Odin.Services.Email;

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Data.Sqlite;
@@ -11,7 +10,7 @@ using Moq;
 using NUnit.Framework;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Factory.Sqlite;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
@@ -56,6 +55,9 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task D02_Connect_Sqlite_Without_Di(DatabaseType databaseType)
     {
         // Demo only, don't do this
@@ -84,9 +86,9 @@ public class DemoTests : IocTestBase
             counters
         );
 
-        ScopedIdentityConnectionFactory.ConnectionWrapper? cn = null;
-        ScopedIdentityConnectionFactory.TransactionWrapper? tx1 = null;
-        ScopedIdentityConnectionFactory.TransactionWrapper? tx2 = null;
+        IConnectionWrapper? cn = null;
+        ITransactionWrapper? tx1 = null;
+        ITransactionWrapper? tx2 = null;
         try
         {
             cn = await factory.CreateScopedConnectionAsync();
@@ -116,6 +118,9 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task D03_Connect_Sqlite_With_Di(DatabaseType databaseType)
     {
         var factory = Services.Resolve<ScopedIdentityConnectionFactory>();
@@ -131,6 +136,9 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task D04_Connect_Sqlite_Parallel(DatabaseType databaseType)
     {
         var logger = TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, LogEventLevel.Verbose);

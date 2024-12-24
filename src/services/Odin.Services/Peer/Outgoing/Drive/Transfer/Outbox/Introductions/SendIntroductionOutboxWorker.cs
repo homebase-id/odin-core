@@ -61,7 +61,6 @@ public class SendIntroductionOutboxWorker(
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                string x = "";
                 return (false, UnixTimeUtc.Now().AddMinutes(10));
             }
 
@@ -91,7 +90,6 @@ public class SendIntroductionOutboxWorker(
             };
         }
 
-        return (true, UnixTimeUtc.ZeroTime);
     }
 
     protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, OdinOutboxProcessingException e)

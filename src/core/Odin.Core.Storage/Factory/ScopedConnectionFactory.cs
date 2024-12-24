@@ -108,12 +108,55 @@ namespace Odin.Core.Storage.Factory;
 /// </example>
 /// </remarks>
 
+public interface IScopedConnectionFactory
+{
+    Task<IConnectionWrapper> CreateScopedConnectionAsync(
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0);
+
+    DatabaseType DatabaseType { get; }
+}
+
+public interface IConnectionWrapper : IDisposable, IAsyncDisposable
+{
+    DbConnection DangerousInstance { get; }
+    int RefCount { get; }
+    Task<ITransactionWrapper> BeginStackedTransactionAsync(
+        IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+        CancellationToken cancellationToken = default);
+    ICommandWrapper CreateCommand();
+}
+
+public interface ITransactionWrapper : IDisposable, IAsyncDisposable
+{
+    DbTransaction DangerousInstance { get; }
+    int RefCount { get; }
+    void Commit();
+}
+
+public interface ICommandWrapper : IDisposable, IAsyncDisposable
+{
+    DbCommand DangerousInstance { get; }
+    string CommandText { get; set; }
+    int CommandTimeout { get; set; }
+    CommandType CommandType { get; set; }
+    DbParameterCollection Parameters { get; }
+    void Cancel();
+    DbParameter CreateParameter();
+    Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default);
+    Task<DbDataReader> ExecuteReaderAsync(
+        CommandBehavior behavior = CommandBehavior.Default,
+        CancellationToken cancellationToken = default);
+    Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default);
+    Task PrepareAsync(CancellationToken cancellationToken = default);
+}
+
 public class ScopedConnectionFactory<T>(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedConnectionFactory<T>> logger,
     T connectionFactory,
     CacheHelper cache,
-    DatabaseCounters counters) where T : IDbConnectionFactory
+    DatabaseCounters counters) : IScopedConnectionFactory where T : IDbConnectionFactory
 {
     // ReSharper disable once StaticMemberInGenericType
     private static readonly ConcurrentDictionary<Guid, string> Diagnostics = new();
@@ -130,9 +173,11 @@ public class ScopedConnectionFactory<T>(
     private bool _commit;
     private Guid _connectionId;
 
+    public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
+
     //
 
-    public async Task<ConnectionWrapper> CreateScopedConnectionAsync(
+    public async Task<IConnectionWrapper> CreateScopedConnectionAsync(
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
@@ -165,7 +210,7 @@ public class ScopedConnectionFactory<T>(
 
     //
 
-    private async Task<TransactionWrapper> BeginStackedTransactionAsync(
+    private async Task<ITransactionWrapper> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default)
     {
@@ -184,9 +229,9 @@ public class ScopedConnectionFactory<T>(
                     LogTrace("Beginning transaction");
                     _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    LogDiagnostics();
+                    LogException("BeginTransactionAsync failed", e);
                     throw;
                 }
             }
@@ -208,7 +253,7 @@ public class ScopedConnectionFactory<T>(
 
     //
 
-    private CommandWrapper CreateCommand()
+    private ICommandWrapper CreateCommand()
     {
         using (_mutex.Lock())
         {
@@ -226,9 +271,12 @@ public class ScopedConnectionFactory<T>(
 
     private void LogDiagnostics()
     {
-        foreach (var (guid, info) in Diagnostics)
+        if (_logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogInformation("Connection {id} was created at {info}", guid, info);
+            foreach (var (guid, info) in Diagnostics)
+            {
+                _logger.LogDebug("Connection {id} was created at {info}", guid, info);
+            }
         }
     }
 
@@ -240,6 +288,19 @@ public class ScopedConnectionFactory<T>(
         _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag})",
             message, _connectionId, lifetimeScope.Tag);
         _logger.LogError(Environment.StackTrace);
+    }
+
+    //
+
+    private void LogException(string message, Exception exception)
+    {
+        LogDiagnostics();
+
+        // SEB:NOTE we log the exception as a non-error, because it should be possible for the caller
+        // to catch and handle the exception silently (e.g. in case of an expected sql constraint error),
+        // but we prefix it with an "ERR" to make it easier to spot in the logs.
+        _logger.LogDebug(exception, "ERR {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
+            message, exception.Message, _connectionId, lifetimeScope.Tag);
     }
 
     //
@@ -259,7 +320,7 @@ public class ScopedConnectionFactory<T>(
     // ConnectionWrapper
     // A wrapper around a DbConnection that ensures that the transaction is disposed correctly.
     //
-    public sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
+    public sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IConnectionWrapper
     {
         private bool _disposed;
         public DbConnection DangerousInstance => instance._connection!;
@@ -267,7 +328,7 @@ public class ScopedConnectionFactory<T>(
 
         //
 
-        public async Task<TransactionWrapper> BeginStackedTransactionAsync(
+        public async Task<ITransactionWrapper> BeginStackedTransactionAsync(
             IsolationLevel isolationLevel = IsolationLevel.Unspecified,
             CancellationToken cancellationToken = default)
         {
@@ -276,7 +337,7 @@ public class ScopedConnectionFactory<T>(
 
         //
 
-        public CommandWrapper CreateCommand()
+        public ICommandWrapper CreateCommand()
         {
             return instance.CreateCommand();
         }
@@ -349,7 +410,7 @@ public class ScopedConnectionFactory<T>(
     // A wrapper around a DbTransaction that supports stacked transactions
     // and ensures that the transaction is disposed correctly.
     //
-    public sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
+    public sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : ITransactionWrapper
     {
         private bool _disposed;
         public DbTransaction DangerousInstance => instance._transaction!;
@@ -479,8 +540,7 @@ public class ScopedConnectionFactory<T>(
     // and having "forgotten" to create a new scope foreach parallel task (or thread). Since DbCommand directly
     // accesses the DbConnection, we make sure it is synchronized.
     //
-    public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command)
-        : IDisposable, IAsyncDisposable
+    public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
 
     {
         private bool _disposed;
@@ -552,7 +612,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteNonQueryAsync: {e.Message}");
+                instance.LogException("ExecuteNonQueryAsync failed", e);
                 throw;
             }
         }
@@ -577,7 +637,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteReaderAsync: {e.Message}");
+                instance.LogException("ExecuteReaderAsync failed", e);
                 throw;
             }
         }
@@ -601,7 +661,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteScalarAsync: {e.Message}");
+                instance.LogException("ExecuteScalarAsync failed", e);
                 throw;
             }
         }
@@ -622,7 +682,7 @@ public class ScopedConnectionFactory<T>(
             }
             catch (Exception e)
             {
-                instance.LogTrace($"PrepareAsync: {e.Message}");
+                instance.LogException("PrepareAsync failed", e);
                 throw;
             }
         }

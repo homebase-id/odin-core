@@ -11,72 +11,26 @@ using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
 
 namespace Odin.Core.Storage.Tests.Factory;
 
-public class ScopedTransactionFactoryTest
+public class ScopedTransactionFactoryTest : IocTestBase
 {
-    private string _tempFolder;
-    private ILifetimeScope _services = null!;
-    private LogEventMemoryStore _logEventMemoryStore = null!;
-
-    [SetUp]
-    public void Setup()
-    {
-        _tempFolder = TempDirectory.Create();
-    }
-
     [TearDown]
-    public void TearDown()
+    public override void TearDown()
     {
-        if (_services != null)
-        {
-            DropTestDatabaseAsync().Wait();
-            _services.Dispose();
-        }
-        Directory.Delete(_tempFolder, true);
-        LogEvents.AssertEvents(_logEventMemoryStore.GetLogEvents());
-        
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        DropTestDatabaseAsync().Wait();
+        base.TearDown();
     }
     
     //
 
-    private void RegisterServices(DatabaseType databaseType)
-    {
-        _logEventMemoryStore = new LogEventMemoryStore();
-        
-        var services = new ServiceCollection();
-        services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(_logEventMemoryStore));
-        services.AddSingleton(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(_logEventMemoryStore));
-
-        var builder = new ContainerBuilder();
-        builder.Populate(services);
-
-        builder.AddDatabaseCacheServices();
-        builder.AddDatabaseCounterServices();
-        switch (databaseType)
-        {
-            case DatabaseType.Sqlite:
-                builder.AddSqliteSystemDatabaseServices(Path.Combine(_tempFolder, "system-test.db"));
-                break;
-            case DatabaseType.Postgres:
-                builder.AddPgsqlSystemDatabaseServices("Host=localhost;Port=5432;Database=odin;Username=odin;Password=odin");
-                break;
-            default:
-                throw new Exception("Unsupported database type");
-        }
-       
-        _services = builder.Build();
-    }
-
     private async Task CreateTestDatabaseAsync()
     {
-        var scopedTransactionFactory = _services.Resolve<ScopedSystemTransactionFactory>();
+        var scopedTransactionFactory = Services.Resolve<ScopedSystemTransactionFactory>();
         await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
 
         await using var cmd = tx.CreateCommand();
@@ -88,7 +42,7 @@ public class ScopedTransactionFactoryTest
     
     private async Task DropTestDatabaseAsync()
     {
-        var scopedTransactionFactory = _services.Resolve<ScopedSystemTransactionFactory>();
+        var scopedTransactionFactory = Services.Resolve<ScopedSystemTransactionFactory>();
         await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
 
         await using var cmd = tx.CreateCommand();
@@ -102,12 +56,15 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCreateScopedTransactions(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
 
         await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
@@ -165,12 +122,15 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndCommitTransaction(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -197,12 +157,15 @@ public class ScopedTransactionFactoryTest
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndImplicitlyRollbackTransaction(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -228,12 +191,15 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndCommitStackedTransactions(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -261,12 +227,15 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndImplicitlyRollbackStackedTransactions(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -293,12 +262,15 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCreateCmdWithParams(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
 
         await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
@@ -322,12 +294,15 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateOnIsolatedScopes(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
         
-        await using var outerScope = _services.BeginLifetimeScope();
+        await using var outerScope = Services.BeginLifetimeScope();
         var outerScopedTransactionFactory = outerScope.Resolve<ScopedSystemTransactionFactory>();
 
         async Task Test(bool commit)
@@ -374,12 +349,15 @@ public class ScopedTransactionFactoryTest
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task OnlyOuterMostCommitMatters(DatabaseType databaseType)
     {
-        RegisterServices(databaseType);
+        await RegisterServicesAsync(databaseType);
         await CreateTestDatabaseAsync();
 
-        await using var scope = _services.BeginLifetimeScope();
+        await using var scope = Services.BeginLifetimeScope();
         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
 
         await using (var tx1 = await scopedTransactionFactory.BeginStackedTransactionAsync())

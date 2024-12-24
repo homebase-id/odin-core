@@ -3,8 +3,8 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 
@@ -12,6 +12,9 @@ public class TableKeyValueTests : IocTestBase
 {
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task InsertTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -38,6 +41,9 @@ public class TableKeyValueTests : IocTestBase
     // Test that inserting a duplicate throws an exception
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task InsertDuplicateTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -74,6 +80,9 @@ public class TableKeyValueTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task UpdateTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -100,6 +109,9 @@ public class TableKeyValueTests : IocTestBase
     // Test updating non existing row just continues
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task Update2Test(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -136,6 +148,9 @@ public class TableKeyValueTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task DeleteTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -165,6 +180,9 @@ public class TableKeyValueTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task UpsertTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -201,6 +219,9 @@ public class TableKeyValueTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task CreateTableTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -251,6 +272,9 @@ public class TableKeyValueTests : IocTestBase
     // Test inserting two row´s in a transaction and reading their values
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task CommitTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

@@ -9,7 +9,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
@@ -41,8 +41,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private readonly CircleNetworkRequestService _circleNetworkRequestService;
     private readonly ILogger<CircleNetworkIntroductionService> _logger;
     private readonly IMediator _mediator;
-    private readonly TableKeyThreeValue _tblKeyThreeValue;
     private readonly PeerOutbox _peerOutbox;
+    private readonly IdentityDatabase _db;
     private readonly PushNotificationService _pushNotificationService;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
     private readonly DriveManager _driveManager;
@@ -57,19 +57,19 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         IOdinHttpClientFactory odinHttpClientFactory,
         FileSystemResolver fileSystemResolver,
         IMediator mediator,
-        TableKeyThreeValue tblKeyThreeValue,
         PeerOutbox peerOutbox,
         PushNotificationService pushNotificationService,
         PublicPrivateKeyService publicPrivateKeyService,
         DriveManager driveManager,
-        TenantContext tenantContext) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver,
-        odinConfiguration)
+        TenantContext tenantContext,
+        IdentityDatabase db)
+        : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _circleNetworkRequestService = circleNetworkRequestService;
         _logger = logger;
         _mediator = mediator;
-        _tblKeyThreeValue = tblKeyThreeValue;
         _peerOutbox = peerOutbox;
+        _db = db;
         _pushNotificationService = pushNotificationService;
         _publicPrivateKeyService = publicPrivateKeyService;
         _driveManager = driveManager;
@@ -363,8 +363,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     public async Task<List<IdentityIntroduction>> GetReceivedIntroductionsAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_tblKeyThreeValue,
-            ReceivedIntroductionDataType);
+        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_db.KeyThreeValue, ReceivedIntroductionDataType);
         return results.ToList();
     }
 
@@ -375,24 +374,18 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
     {
-        //TODO CONNECTIONS
-        // await db.CreateCommitUnitOfWorkAsync(async () =>
-        {
-            await DeleteIntroductionsToAsync(notification.OdinId);
-            await DeleteIntroductionsFromAsync(notification.OdinId);
-        }
-        //);
+        await using var tx = await _db.BeginStackedTransactionAsync();
+        await DeleteIntroductionsToAsync(notification.OdinId);
+        await DeleteIntroductionsFromAsync(notification.OdinId);
+        tx.Commit();
     }
 
     public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
     {
-        //TODO CONNECTIONS
-        // await db.CreateCommitUnitOfWorkAsync(async () =>
-        {
-            await DeleteIntroductionsToAsync(notification.OdinId);
-            await DeleteIntroductionsFromAsync(notification.OdinId);
-        }
-        //);
+        await using var tx = await _db.BeginStackedTransactionAsync();
+        await DeleteIntroductionsToAsync(notification.OdinId);
+        await DeleteIntroductionsFromAsync(notification.OdinId);
+        tx.Commit();
     }
 
     public async Task Handle(ConnectionRequestReceivedNotification notification, CancellationToken cancellationToken)
@@ -478,7 +471,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     private async Task<IdentityIntroduction> GetIntroductionInternalAsync(OdinId identity)
     {
-        var result = await ReceivedIntroductionValueStorage.GetAsync<IdentityIntroduction>(_tblKeyThreeValue, identity);
+        var result = await ReceivedIntroductionValueStorage.GetAsync<IdentityIntroduction>(_db.KeyThreeValue, identity);
         return result;
     }
 
@@ -510,7 +503,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         try
         {
-            await ReceivedIntroductionValueStorage.UpsertAsync(_tblKeyThreeValue,
+            await ReceivedIntroductionValueStorage.UpsertAsync(_db.KeyThreeValue,
                 recipient,
                 dataTypeKey: iid.IntroducerOdinId.ToHashId().ToByteArray(),
                 ReceivedIntroductionDataType, iid);
@@ -542,40 +535,35 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         {
             _logger.LogError(e, "Failed to enqueue ConnectIntroducee for recipient: [{recipient}]", recipient);
         }
-    }
 
+    }
+    
     private async Task DeleteIntroductionsToAsync(OdinId identity)
     {
         _logger.LogDebug("Deleting introduction sent to {identity}", identity);
-        await ReceivedIntroductionValueStorage.DeleteAsync(_tblKeyThreeValue, identity);
+        await ReceivedIntroductionValueStorage.DeleteAsync(_db.KeyThreeValue, identity);
     }
 
     private async Task DeleteIntroductionsFromAsync(OdinId introducer)
     {
         _logger.LogDebug("Deleting introduction sent from {identity}", introducer);
-
-
-        var introductionsFromIdentity = await
-            ReceivedIntroductionValueStorage.GetByDataTypeAsync<IdentityIntroduction>(_tblKeyThreeValue,
-                introducer.ToHashId().ToByteArray());
+        
+        var introductionsFromIdentity = await ReceivedIntroductionValueStorage.GetByDataTypeAsync<IdentityIntroduction>(_db.KeyThreeValue, introducer.ToHashId().ToByteArray());
 
         foreach (var introduction in introductionsFromIdentity)
         {
-            await ReceivedIntroductionValueStorage.DeleteAsync(_tblKeyThreeValue, introduction.Identity);
+            await ReceivedIntroductionValueStorage.DeleteAsync(_db.KeyThreeValue, introduction.Identity);
         }
     }
 
     public async Task DeleteIntroductionsAsync(IOdinContext odinContext)
     {
         _logger.LogDebug("Deleting all introductions");
-
-
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
-        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_tblKeyThreeValue,
-            ReceivedIntroductionDataType);
+        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_db.KeyThreeValue, ReceivedIntroductionDataType);
         foreach (var intro in results)
         {
-            await ReceivedIntroductionValueStorage.DeleteAsync(_tblKeyThreeValue, intro.Identity);
+            await ReceivedIntroductionValueStorage.DeleteAsync(_db.KeyThreeValue, intro.Identity);
         }
     }
 }

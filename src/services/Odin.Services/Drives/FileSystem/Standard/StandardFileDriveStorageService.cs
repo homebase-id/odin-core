@@ -4,11 +4,9 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Util;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -24,8 +22,8 @@ namespace Odin.Services.Drives.FileSystem.Standard
             DriveManager driveManager,
             LongTermStorageManager longTermStorageManager,
             TempStorageManager tempStorageManager,
-            DriveFileReaderWriter driveFileReaderWriter) :
-            base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager, tempStorageManager)
+            IdentityDatabase db) :
+            base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager, tempStorageManager, db)
         {
         }
 

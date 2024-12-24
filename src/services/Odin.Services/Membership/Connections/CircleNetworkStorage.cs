@@ -9,6 +9,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
@@ -24,25 +25,16 @@ public class CircleNetworkStorage
 {
     private readonly Guid _icrKeyStorageId = Guid.Parse("42739542-22eb-49cb-b43a-110acf2b18a1");
     private readonly CircleMembershipService _circleMembershipService;
-    private readonly TableConnections _tblConnections;
-    private readonly TableAppGrants _tblAppGrants;
-    private readonly TableKeyValue _tblKeyValue;
+    private readonly IdentityDatabase _db;
 
     private readonly SingleKeyValueStorage _icrKeyStorage;
     
     private readonly SingleKeyValueStorage _peerIcrClientStorage;
 
-    public CircleNetworkStorage(
-        
-        CircleMembershipService circleMembershipService,
-        TableConnections tblConnections,
-        TableAppGrants tblAppGrants,
-        TableKeyValue tblKeyValue)
+    public CircleNetworkStorage(CircleMembershipService circleMembershipService, IdentityDatabase db)
     {
         _circleMembershipService = circleMembershipService;
-        _tblConnections = tblConnections;
-        _tblAppGrants = tblAppGrants;
-        _tblKeyValue = tblKeyValue;
+        _db = db;
 
         const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
         _icrKeyStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
@@ -53,7 +45,7 @@ public class CircleNetworkStorage
 
     public async Task<IdentityConnectionRegistration> GetAsync(OdinId odinId)
     {
-        var record = await _tblConnections.GetAsync(odinId);
+        var record = await _db.Connections.GetAsync(odinId);
 
         if (null == record)
         {
@@ -67,47 +59,45 @@ public class CircleNetworkStorage
     public async Task UpsertAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
         var icrAccessRecord = MapToStorageIcrAccessRecord(icr);
+        var odinHashId = icr.OdinId.ToHashId();
 
-        //TODO CONNECTIONS
-        // db.CreateCommitUnitOfWork(() =>
+        await using var tx = await _db.BeginStackedTransactionAsync();
+
+        //Reconcile circle grants in the table
+        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity);
+        foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
         {
-            var odinHashId = icr.OdinId.ToHashId();
+            var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
+            var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
 
-            //Reconcile circle grants in the table
-            await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity);
-            foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
+            if (!isMember)
             {
-                var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
-                var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
-
-                if (!isMember)
-                {
-                    await _circleMembershipService.AddCircleMemberAsync(circleId, icr.OdinId, circleGrant, DomainType.Identity);
-                }
+                await _circleMembershipService.AddCircleMemberAsync(circleId, icr.OdinId, circleGrant, DomainType.Identity);
             }
-
-            // remove all app grants, 
-            await _tblAppGrants.DeleteByIdentityAsync(odinHashId);
-
-            // Now write the latest
-            foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
-            {
-                foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
-                {
-                    await _tblAppGrants.UpsertAsync(new AppGrantsRecord()
-                    {
-                        odinHashId = odinHashId,
-                        appId = appId,
-                        circleId = circleId,
-                        data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
-                    });
-                }
-            }
-
-            var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
-            await _tblConnections.UpsertAsync(record);
         }
-        //);
+
+        // remove all app grants,
+        await _db.AppGrants.DeleteByIdentityAsync(odinHashId);
+
+        // Now write the latest
+        foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
+        {
+            foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
+            {
+                await _db.AppGrants.UpsertAsync(new AppGrantsRecord()
+                {
+                    odinHashId = odinHashId,
+                    appId = appId,
+                    circleId = circleId,
+                    data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
+                });
+            }
+        }
+
+        var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
+        await _db.Connections.UpsertAsync(record);
+
+        tx.Commit();
     }
 
     public async Task UpdateKeyStoreKeyAsync(OdinId identity, ConnectionStatus status, SymmetricKeyEncryptedAes masterKeyEncryptedKsk)
@@ -119,7 +109,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakKeyStoreKey = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _tblConnections.UpdateAsync(record);
+        await _db.Connections.UpdateAsync(record);
     }
 
     public async Task UpdateClientAccessTokenAsync(OdinId identity, ConnectionStatus status, EncryptedClientAccessToken encryptedCat)
@@ -131,7 +121,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakClientAccessToken = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _tblConnections.UpdateAsync(record);
+        await _db.Connections.UpdateAsync(record);
     }
 
     public async Task UpdateVerificationHashAsync(OdinId identity, ConnectionStatus status, byte[] hash)
@@ -141,26 +131,25 @@ public class CircleNetworkStorage
 
         icrAccessRecord.VerificationHash64 = hash.ToBase64();
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _tblConnections.UpdateAsync(record);
+        await _db.Connections.UpdateAsync(record);
     }
 
     public async Task DeleteAsync(OdinId odinId)
     {
-        //TODO CONNECTIONS
-        // db.CreateCommitUnitOfWork(() =>
-        {
-            await _tblConnections.DeleteAsync(odinId);
-            await _tblAppGrants.DeleteByIdentityAsync(odinId.ToHashId());
-            await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
-        }
-        //);
+        await using var tx = await _db.BeginStackedTransactionAsync();
+
+        await _db.Connections.DeleteAsync(odinId);
+        await _db.AppGrants.DeleteByIdentityAsync(odinId.ToHashId());
+        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
+
+        tx.Commit();
     }
 
     public async Task<(IEnumerable<IdentityConnectionRegistration>, UnixTimeUtcUnique? nextCursor)> GetListAsync(int count, UnixTimeUtcUnique? cursor,
         ConnectionStatus connectionStatus)
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
-        var (records, nextCursor) = await _tblConnections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
+        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
         var mappedRecords = await Task.WhenAll(records.Select(MapFromStorageAsync));
         return (mappedRecords, nextCursor);
     }
@@ -173,7 +162,7 @@ public class CircleNetworkStorage
     public async Task CreateIcrKeyAsync(SensitiveByteArray masterKey)
     {
         
-        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_tblKeyValue, _icrKeyStorageId);
+        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
         if (null != existingKey)
         {
             throw new OdinClientException("IcrKey already exists");
@@ -187,13 +176,13 @@ public class CircleNetworkStorage
             Created = UnixTimeUtc.Now()
         };
 
-        await _icrKeyStorage.UpsertAsync(_tblKeyValue, _icrKeyStorageId, record);
+        await _icrKeyStorage.UpsertAsync(_db.KeyValue, _icrKeyStorageId, record);
     }
 
     public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()
     {
         
-        var key = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_tblKeyValue, _icrKeyStorageId);
+        var key = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }
 
@@ -201,13 +190,13 @@ public class CircleNetworkStorage
     public async Task SavePeerIcrClientAsync(PeerIcrClient client)
     {
         
-        await _peerIcrClientStorage.UpsertAsync(_tblKeyValue, client.AccessRegistration.Id, client);
+        await _peerIcrClientStorage.UpsertAsync(_db.KeyValue, client.AccessRegistration.Id, client);
     }
 
     public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
         
-        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_tblKeyValue, accessRegId);
+        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_db.KeyValue, accessRegId);
     }
 
     
@@ -224,7 +213,7 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = await _tblAppGrants.GetByOdinHashIdAsync(odinHashId) ?? new List<AppGrantsRecord>();
+        var allAppGrants = await _db.AppGrants.GetByOdinHashIdAsync(odinHashId) ?? new List<AppGrantsRecord>();
 
         foreach (var appGrantRecord in allAppGrants)
         {

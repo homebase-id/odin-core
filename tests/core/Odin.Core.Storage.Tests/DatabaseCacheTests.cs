@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests
 {
@@ -23,6 +23,9 @@ namespace Odin.Core.Storage.Tests
         // Test the Get() cache handling of non-existing items
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task GetNonExistingRowCacheTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -65,6 +68,9 @@ namespace Odin.Core.Storage.Tests
         // Test the Get() cache handling of Inserting
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task GetExistingRowInsertCacheTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -112,6 +118,9 @@ namespace Odin.Core.Storage.Tests
         // Test the Get() cache handling of Upserting
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task GetExistingRowUpsertCacheTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -181,6 +190,9 @@ namespace Odin.Core.Storage.Tests
         // Test the Get() cache handling of Update
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task GetExistingRowUpdateCacheTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -236,6 +248,9 @@ namespace Odin.Core.Storage.Tests
         // Test the Get() cache handling of Update
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task Delete1CacheTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -270,6 +285,9 @@ namespace Odin.Core.Storage.Tests
         // Test the Get() cache handling of Update
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task Delete2CacheTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -320,6 +338,9 @@ namespace Odin.Core.Storage.Tests
         // Simulates data was in the DB before by clearing the cache
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task GetExistingRowTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

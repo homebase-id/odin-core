@@ -7,8 +7,8 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -29,33 +29,33 @@ public class CircleMembershipService(
     CircleDefinitionService circleDefinitionService,
     ExchangeGrantService exchangeGrantService,
     ILogger<CircleMembershipService> logger,
-    TableCircleMember tableCircleMember)
+    IdentityDatabase db)
 {
     public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
         var memberId = OdinId.ToHashId(domainName);
-        var circleMemberRecords = await tableCircleMember.GetMemberCirclesAndDataAsync(memberId);
 
-        // TODO CONNECTIONS
-        //db.CreateCommitUnitOfWork(() => {
+        await using var tx = await db.BeginStackedTransactionAsync();
+        var circleMemberRecords = await db.CircleMember.GetMemberCirclesAndDataAsync(memberId);
+
         foreach (var circleMemberRecord in circleMemberRecords)
         {
             var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data
                 .ToStringFromUtf8Bytes());
             if (sd.DomainType == domainType)
             {
-                await tableCircleMember.DeleteAsync(sd.CircleGrant.CircleId, memberId);
+                await db.CircleMember.DeleteAsync(sd.CircleGrant.CircleId, memberId);
             }
         }
-        // }); TODO CONNECTIONS
 
+        tx.Commit();
     }
 
     public async Task<IEnumerable<CircleGrant>> GetCirclesGrantsByDomainAsync(AsciiDomainName domainName, DomainType domainType)
     {
         var records =
-            await tableCircleMember.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName));
+            await db.CircleMember.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName));
         var circleMemberRecords = records.Select(d =>
             OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
         );
@@ -76,7 +76,7 @@ public class CircleMembershipService(
             }
         }
 
-        var memberBytesList = await tableCircleMember.GetCircleMembersAsync(circleId);
+        var memberBytesList = await db.CircleMember.GetCircleMembersAsync(circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
@@ -105,9 +105,9 @@ public class CircleMembershipService(
             }).ToUtf8ByteArray()
         };
 
-        // tableCircleMember.Insert(circleMemberRecord);
-        await tableCircleMember.UpsertAsync(circleMemberRecord);
-        // tableCircleMember.UpsertCircleMembers([circleMemberRecord]);
+        // db.CircleMember.Insert(circleMemberRecord);
+        await db.CircleMember.UpsertAsync(circleMemberRecord);
+        // db.CircleMember.UpsertCircleMembers([circleMemberRecord]);
     }
 
     // Grants

@@ -12,7 +12,7 @@ public class LinkMetaExtractorTests
 {
     private readonly HttpClientFactory _httpClientFactory = new ();
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     public async Task TestGithubUrl()
     {
@@ -45,7 +45,7 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Url);
     }
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     public async Task TestYoutubeUrl()
     {
@@ -59,7 +59,7 @@ public class LinkMetaExtractorTests
     }
 #endif
     
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     public async Task TestLinkedInUrl()
     {
@@ -73,8 +73,8 @@ public class LinkMetaExtractorTests
     }
 #endif
 
-#if !NOISY_NEIGHBOUR
-    // !NOISY_NEIGHBOUR because it sometimes instagram blocks the request and does not send a static website
+#if !CI_GITHUB
+    // !CI_GITHUB because it sometimes instagram blocks the request and does not send a static website
     // The main cause are user-agent headers, but sometimes it does not send an SSR page
     [Test]
     public async Task TestInstagramUrl()
@@ -131,6 +131,7 @@ public class LinkMetaExtractorTests
         Assert.AreEqual("Test", sanitizedHtml["title"]);
     }
     
+#if !CI_GITHUB
     [Test]
     public async Task TestBrokenImagePreviews()
     {
@@ -142,5 +143,6 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Description);
         Assert.Null(ogp.ImageUrl);
     }
+    #endif
     
 }

@@ -2,9 +2,9 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database.System;
 
@@ -12,6 +12,9 @@ public class SystemDatabaseTests : IocTestBase
 {
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldConnectAndQuery(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -35,6 +38,9 @@ public class SystemDatabaseTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCommitTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -66,6 +72,9 @@ public class SystemDatabaseTests : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRollbackTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
