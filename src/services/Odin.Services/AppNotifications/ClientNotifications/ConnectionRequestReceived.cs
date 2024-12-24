@@ -7,7 +7,7 @@ using Odin.Services.Mediator;
 
 namespace Odin.Services.AppNotifications.ClientNotifications
 {
-    public class ConnectionRequestReceived : MediatorNotificationBase, IClientNotification
+    public class ConnectionRequestReceivedNotification : MediatorNotificationBase, IClientNotification
     {
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.ConnectionRequestReceived;
 

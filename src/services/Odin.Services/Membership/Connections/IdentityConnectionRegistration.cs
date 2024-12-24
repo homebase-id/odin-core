@@ -102,6 +102,8 @@ namespace Odin.Services.Membership.Connections
             {
                 throw new OdinSecurityException("missing icr key");
             }
+            
+            //TODO: CAT - if this is null, we cannot create client access token.
 
             var cat = EncryptedClientAccessToken.Decrypt(icrDecryptionKey);
             return cat;

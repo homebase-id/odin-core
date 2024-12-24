@@ -235,7 +235,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     var item = new OutboxFileItem
                     {
                         Recipient = recipient,
-                        Priority = 0, //super high priority to ensure these are sent quickly,
+                        Priority = 100, //super high priority to ensure these are sent quickly,
                         Type = OutboxItemType.PeerPushNotification,
                         AttemptCount = 0,
                         File = new InternalDriveFileId()

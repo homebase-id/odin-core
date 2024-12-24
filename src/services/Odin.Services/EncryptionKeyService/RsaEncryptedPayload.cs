@@ -26,7 +26,7 @@ namespace Odin.Services.EncryptionKeyService
             return !isBad;
         }
     }
-    
+
     public class EccEncryptedPayload
     {
         // PROBABLY MERGE IV & SALT
@@ -55,5 +55,7 @@ namespace Odin.Services.EncryptionKeyService
         /// The crc of the host's public key used to encrypt this payload
         /// </summary>
         public uint EncryptionPublicKeyCrc32 { get; set; }
+
+        public PublicPrivateKeyType KeyType { get; set; }
     }
 }

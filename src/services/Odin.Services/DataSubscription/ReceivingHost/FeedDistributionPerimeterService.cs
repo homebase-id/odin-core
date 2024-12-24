@@ -292,7 +292,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     FileSystemType = FileSystemType.Standard, //comments are never distributed
 
-                    Priority = 0,
+                    Priority = 200,
                     Marker = default,
                     TransferFileType = TransferFileType.EncryptedFileForFeed,
 

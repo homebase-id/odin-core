@@ -200,7 +200,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtc.Now(),
                 Sender = odinContext.GetCallerOdinIdOrFail(),
-                Priority = 0,
+                Priority = 500,
 
                 InstructionType = TransferInstructionType.UpdateFile,
                 DriveId = _tempFile.DriveId,

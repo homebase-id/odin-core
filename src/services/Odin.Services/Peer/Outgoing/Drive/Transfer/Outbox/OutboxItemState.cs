@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Odin.Core;
 using Odin.Core.Serialization;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 
@@ -17,7 +18,7 @@ public class OutboxItemState
     /// Indicates the file should be read from the temp folder of the drive and deleted after it is sent to all recipients
     /// </summary>
     public bool IsTransientFile { get; set; }
-    
+
     public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
 
     /// <summary>
@@ -29,11 +30,18 @@ public class OutboxItemState
     /// Client Auth Token from the <see cref="IdentityConnectionRegistration"/> used to send the file to the recipient
     /// </summary>
     public byte[] EncryptedClientAuthToken { get; set; }
-    
+
     public byte[] Data { get; set; }
-    
+
     public T DeserializeData<T>()
     {
         return OdinSystemSerializer.Deserialize<T>(Data.ToStringFromUtf8Bytes());
+    }
+
+    public ClientAccessToken GetClientAccessToken()
+    {
+        //TODO: add encryption
+        var decryptedClientAuthTokenBytes = this.EncryptedClientAuthToken;
+        return ClientAccessToken.FromPortableBytes(decryptedClientAuthTokenBytes);
     }
 }

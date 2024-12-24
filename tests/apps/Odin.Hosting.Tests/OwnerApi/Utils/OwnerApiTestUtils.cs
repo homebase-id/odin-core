@@ -197,12 +197,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(OdinId identity, string recoveryKey, string password)
         {
+            var keyType = PublicPrivateKeyType.OfflineKey;
             using var authClient = CreateAnonymousClient(identity);
             var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
             var saltyReply = await CalculatePasswordReply(authClient, password, clientEccFullKey);
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-            var publicKeyResponse = await svc.GetPublicKeyEcc(PublicPrivateKeyType.OfflineKey);
+            var publicKeyResponse = await svc.GetPublicKeyEcc(keyType);
             Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
 
@@ -222,7 +223,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 Salt = saltyReply.Nonce64.FromBase64(),
                 Iv = saltyReply.Nonce64.FromBase64(),
                 EncryptionPublicKeyCrc32 = hostPublicKey.crc32c,
-                EncryptedData = AesGcm.Encrypt(recoveryKey.ToUtf8ByteArray(), transferSharedSecret, saltyReply.Nonce64.FromBase64())
+                EncryptedData = AesGcm.Encrypt(recoveryKey.ToUtf8ByteArray(), transferSharedSecret, saltyReply.Nonce64.FromBase64()),
+                KeyType = keyType
             };
 
             var resetRequest = new ResetPasswordUsingRecoveryKeyRequest()

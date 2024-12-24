@@ -3,7 +3,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Time;
+using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -74,6 +74,8 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+
         //
         // neither should have connection requests
         //
@@ -131,6 +133,8 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+
         //
         // neither should have connection requests
         //
@@ -180,6 +184,7 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         // There are background processes running which will send introductions automatically
         // we can also call an endpoint to force this.
@@ -258,8 +263,6 @@ public class SendingIntroductionsTests
         var merryOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
-        // await Cleanup();
-
         var introsResponse = await merryOwnerClient.Connections.GetReceivedIntroductions();
         Assert.IsFalse(introsResponse.Content.Any(),
             "Cannot start test - merry has pending introductions. this probably happened because they were cleaned up from other tests");
@@ -287,6 +290,8 @@ public class SendingIntroductionsTests
         var introResult = firstIntroductionResponse.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
+
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
@@ -361,6 +366,8 @@ public class SendingIntroductionsTests
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+
         // Assert: Sam should have a connection request from Merry and visa/versa
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
@@ -392,6 +399,8 @@ public class SendingIntroductionsTests
             Recipients = [sam, merry]
         });
         Assert.IsTrue(secondInvitationResponse.IsSuccessStatusCode);
+
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         // Assert: Sam should have a connection request from Merry and visa/versa
         var samProcessResponse2 = await samOwnerClient.Connections.ProcessIncomingIntroductions();
@@ -437,10 +446,21 @@ public class SendingIntroductionsTests
         });
 
         var introResult = response.Content;
-        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
-            "sam should reject since frodo does not have allow introductions permission");
+        // Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
+        // "sam should reject since frodo does not have allow-introductions permission");
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
 
+        // Note; I have to use a delay because the outbox will never be
+        // empty and, currently, there is no way to do an exclusion test on the outbox 
+        // await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await Task.Delay(1000 * 3);
+
+        var samOutboxItem =
+            await frodoOwnerClient.DriveRedux.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
+                TestIdentities.Samwise.OdinId.ToHashId(), TestIdentities.Samwise.OdinId);
+        Assert.IsNotNull(samOutboxItem, "there should be an outbox item for sam since it failed he blocked incoming introductions");
+
+        
         // ensure introductions are processed
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
@@ -497,6 +517,8 @@ public class SendingIntroductionsTests
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
+
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         //
         // validate introductions exist

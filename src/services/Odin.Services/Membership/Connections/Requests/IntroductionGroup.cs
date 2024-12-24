@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Identity;
 using Odin.Core.Time;
+using Odin.Services.EncryptionKeyService;
 
 namespace Odin.Services.Membership.Connections.Requests;
 
@@ -38,9 +40,21 @@ public class IdentityIntroduction
     public OdinId Identity { get; init; }
     public string Message { get; init; }
     public OdinId IntroducerOdinId { get; init; }
-    
-    public UnixTimeUtc LastProcessed { get; set; }
-    
-    public int SendAttemptCount { get; set; }
+
+    // public UnixTimeUtc LastProcessed { get; set; }
+
     public UnixTimeUtc Received { get; init; }
+}
+
+public class IntroductionAutoConnectRequest
+{
+    public Guid Id { get; init; }
+    
+    public OdinId Identity { get; init; }
+    
+    public OdinId IntroducerOdinId { get; init; }
+    
+    public string Message { get; init; }
+    
+    public EccEncryptedPayload EncryptedFallbackConnectionRequestHeader { get; set; }
 }
