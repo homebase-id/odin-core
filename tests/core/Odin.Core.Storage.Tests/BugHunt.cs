@@ -37,7 +37,7 @@ public class DemoTests : IocTestBase
         DbConnection? cn = null;
         try
         {
-            cn = await SqliteConcreteConnectionFactory.Create(connectionString);
+            cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
             var tx1 = await cn.BeginTransactionAsync();
 
             // tx1.Dispose();
@@ -76,7 +76,9 @@ public class DemoTests : IocTestBase
         var logger = TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, LogEventLevel.Verbose);
         var cacheHelper = new CacheHelper("whatever");
         var counters = new DatabaseCounters();
-        var sqliteIdentityDbConnectionFactory = new SqliteIdentityDbConnectionFactory(connectionString);
+        var poolLogger = TestLogFactory.CreateConsoleLogger<DbConnectionPool>(LogEventMemoryStore, LogEventLevel.Verbose);
+        var connectionPool = new DbConnectionPool(poolLogger, 32);
+        var sqliteIdentityDbConnectionFactory = new SqliteIdentityDbConnectionFactory(connectionString, connectionPool);
 
         var factory = new ScopedIdentityConnectionFactory(
             lifetimeScopeMock.Object,
