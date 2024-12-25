@@ -21,12 +21,13 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
     private readonly Dictionary<Type, string> _manualCheckSingletonWhitelist = new()
     {
         {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
-        {typeof(Odin.Core.Storage.Database.DatabaseCounters), "e6f1c919"},
-        {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "74c23c98"},
-        {typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory), "74c23c98"},
-        {typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory), "74c23c98"},
-        {typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory), "74c23c98"},
         {typeof(Odin.Core.Storage.CacheHelper), "b6b4e9b2"},
+        {typeof(Odin.Core.Storage.Database.DatabaseCounters), "e6f1c919"},
+        {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "08513a77"},
+        {typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory), "74c23c98"},
+        {typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory), "08513a77"},
+        {typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory), "74c23c98"},
+        {typeof(Odin.Core.Storage.Factory.DbConnectionPool), "2365bbed"},
         {typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute), "e7045f27"},
         {typeof(Odin.Hosting.Controllers.Admin.AdminApiRestrictedAttribute), "509d6046"},
         {typeof(Odin.Services.Email.IEmailSender), "eacd5b8f"},
@@ -45,6 +46,11 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Base.SharedOdinContextCache<FollowerAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<IdentitiesIFollowAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<TransitAuthenticationService>), "822f02f2"},
+
+
+
+
+
     };
 
     public void AssertSingletonDependencies()

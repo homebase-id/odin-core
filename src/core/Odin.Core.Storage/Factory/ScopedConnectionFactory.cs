@@ -196,7 +196,7 @@ public class ScopedConnectionFactory<T>(
             if (_connectionRefCount == 0)
             {
                 _counters.IncrementNoDbOpened();
-                _connection = await _connectionFactory.CreateAsync();
+                _connection = await _connectionFactory.OpenAsync();
                 _connectionId = Guid.NewGuid();
                 Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
 
@@ -398,7 +398,7 @@ public class ScopedConnectionFactory<T>(
                     instance.LogTrace("Disposing connection");
                     instance._counters.IncrementNoDbClosed();
 
-                    await instance._connection!.DisposeAsync();
+                    await instance._connectionFactory.CloseAsync(instance._connection!);
                     instance._connection = null;
                     _disposed = true;
 
