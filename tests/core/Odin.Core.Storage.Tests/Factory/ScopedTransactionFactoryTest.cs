@@ -135,15 +135,19 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
         {
-            await using var cmd = tx.CreateCommand();
-            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
-            await cmd.ExecuteNonQueryAsync();
-            tx.Commit();
+            {
+                await using var cmd = tx.CreateCommand();
+                cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+                await cmd.ExecuteNonQueryAsync();
+                tx.Commit();
+            }
 
-            await using var cmd2 = tx.CreateCommand();
-            cmd2.CommandText = "SELECT COUNT(*) FROM test;";
-            var result = await cmd2.ExecuteScalarAsync();
-            Assert.That(result, Is.EqualTo(1));
+            {
+                await using var cmd2 = tx.CreateCommand();
+                cmd2.CommandText = "SELECT COUNT(*) FROM test;";
+                var result = await cmd2.ExecuteScalarAsync();
+                Assert.That(result, Is.EqualTo(1));
+            }
         }
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -154,7 +158,7 @@ public class ScopedTransactionFactoryTest : IocTestBase
             Assert.That(result, Is.EqualTo(1));
         }
     }
-    
+
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     #if RUN_POSTGRES_TESTS
@@ -170,14 +174,18 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
         {
-            await using var cmd = tx.CreateCommand();
-            cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
-            await cmd.ExecuteNonQueryAsync();
+            {
+                await using var cmd = tx.CreateCommand();
+                cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
+                await cmd.ExecuteNonQueryAsync();
+            }
 
-            await using var cmd2 = tx.CreateCommand();
-            cmd2.CommandText = "SELECT COUNT(*) FROM test;";
-            var result = await cmd2.ExecuteScalarAsync();
-            Assert.That(result, Is.EqualTo(1));
+            {
+                await using var cmd2 = tx.CreateCommand();
+                cmd2.CommandText = "SELECT COUNT(*) FROM test;";
+                var result = await cmd2.ExecuteScalarAsync();
+                Assert.That(result, Is.EqualTo(1));
+            }
         }
 
         await using (var tx = await scopedTransactionFactory.BeginStackedTransactionAsync())
@@ -275,21 +283,25 @@ public class ScopedTransactionFactoryTest : IocTestBase
 
         await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
 
-        await using var cmd1 = tx.CreateCommand();
-        var nameParam = cmd1.CreateParameter();
-        nameParam.ParameterName = "@name";
-        nameParam.Value = "test";
-        cmd1.Parameters.Add(nameParam);
-        cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
+        {
+            await using var cmd1 = tx.CreateCommand();
+            var nameParam = cmd1.CreateParameter();
+            nameParam.ParameterName = "@name";
+            nameParam.Value = "test";
+            cmd1.Parameters.Add(nameParam);
+            cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
+            await cmd1.ExecuteNonQueryAsync();
+        }
 
-        await cmd1.ExecuteNonQueryAsync();
         tx.Commit();
 
-        await using var tx2 = await scopedTransactionFactory.BeginStackedTransactionAsync();
-        await using var cmd2 = tx2.CreateCommand();
-        cmd2.CommandText = "SELECT COUNT(*) FROM test;";
-        var result2 = await cmd2.ExecuteScalarAsync();
-        Assert.That(result2, Is.EqualTo(1));
+        {
+            await using var tx2 = await scopedTransactionFactory.BeginStackedTransactionAsync();
+            await using var cmd2 = tx2.CreateCommand();
+            cmd2.CommandText = "SELECT COUNT(*) FROM test;";
+            var result2 = await cmd2.ExecuteScalarAsync();
+            Assert.That(result2, Is.EqualTo(1));
+        }
     }
 
     [Test]

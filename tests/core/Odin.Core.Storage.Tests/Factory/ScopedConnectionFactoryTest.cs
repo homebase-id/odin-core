@@ -376,16 +376,18 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
-        await using var cmd1 = cn.CreateCommand();
-        var nameParam = cmd1.CreateParameter();
-        nameParam.ParameterName = "@name";
-        nameParam.Value = "test";
-        cmd1.Parameters.Add(nameParam);
-        cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
+        {
+            await using var cmd1 = cn.CreateCommand();
+            var nameParam = cmd1.CreateParameter();
+            nameParam.ParameterName = "@name";
+            nameParam.Value = "test";
+            cmd1.Parameters.Add(nameParam);
+            cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
 
-        await using var tx = await cn.BeginStackedTransactionAsync();
-        await cmd1.ExecuteNonQueryAsync();
-        tx.Commit();
+            await using var tx = await cn.BeginStackedTransactionAsync();
+            await cmd1.ExecuteNonQueryAsync();
+            tx.Commit();
+        }
 
         await using var cmd2 = cn.CreateCommand();
         cmd2.CommandText = "SELECT COUNT(*) FROM test;";
