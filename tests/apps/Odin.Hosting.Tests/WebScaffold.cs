@@ -132,7 +132,7 @@ namespace Odin.Hosting.Tests
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
 #if RUN_POSTGRES_TESTS
-            PostgresContainer = new PostgreSqlBuilderXXX()
+            PostgresContainer = new PostgreSqlBuilder()
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")
