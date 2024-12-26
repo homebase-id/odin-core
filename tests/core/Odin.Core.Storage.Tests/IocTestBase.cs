@@ -71,6 +71,9 @@ public abstract class IocTestBase
         var builder = new ContainerBuilder();
 
         builder
+            .RegisterInstance(TestLogFactory.CreateConsoleLogger<DbConnectionPool>(LogEventMemoryStore, logEventLevel))
+            .SingleInstance();
+        builder
             .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(LogEventMemoryStore, logEventLevel))
             .SingleInstance();
         builder

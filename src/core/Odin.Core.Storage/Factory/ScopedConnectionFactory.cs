@@ -108,6 +108,10 @@ namespace Odin.Core.Storage.Factory;
 /// </example>
 /// </remarks>
 
+//
+// Interfaces
+//
+
 public interface IScopedConnectionFactory
 {
     Task<IConnectionWrapper> CreateScopedConnectionAsync(
@@ -124,7 +128,7 @@ public interface IConnectionWrapper : IDisposable, IAsyncDisposable
     Task<ITransactionWrapper> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default);
-    ICommandWrapper CreateCommand();
+    ICommandWrapper CreateCommand([CallerFilePath] string? filePath = null, [CallerLineNumber] int lineNumber = 0);
 }
 
 public interface ITransactionWrapper : IDisposable, IAsyncDisposable
@@ -151,6 +155,10 @@ public interface ICommandWrapper : IDisposable, IAsyncDisposable
     Task PrepareAsync(CancellationToken cancellationToken = default);
 }
 
+//
+// Implementation
+//
+
 public class ScopedConnectionFactory<T>(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedConnectionFactory<T>> logger,
@@ -172,6 +180,8 @@ public class ScopedConnectionFactory<T>(
     private int _transactionRefCount;
     private bool _commit;
     private Guid _connectionId;
+    private DbCommand? _command;
+    private string _commandDiagnostics = "";
 
     public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
 
@@ -186,7 +196,7 @@ public class ScopedConnectionFactory<T>(
             if (_connectionRefCount == 0)
             {
                 _counters.IncrementNoDbOpened();
-                _connection = await _connectionFactory.CreateAsync();
+                _connection = await _connectionFactory.OpenAsync();
                 _connectionId = Guid.NewGuid();
                 Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
 
@@ -194,6 +204,11 @@ public class ScopedConnectionFactory<T>(
             }
 
             _connectionRefCount++;
+
+            // if (_logger.IsEnabled(LogLevel.Trace))
+            // {
+            //     LogTrace($"Access connection ref: {_connectionRefCount} on {Environment.CurrentManagedThreadId} at {filePath}:{lineNumber}");
+            // }
 
             // Sanity
             if (_connectionRefCount != 0 && _connection == null)
@@ -205,65 +220,6 @@ public class ScopedConnectionFactory<T>(
             }
 
             return new ConnectionWrapper(this);
-        }
-    }
-
-    //
-
-    private async Task<ITransactionWrapper> BeginStackedTransactionAsync(
-        IsolationLevel isolationLevel = IsolationLevel.Unspecified,
-        CancellationToken cancellationToken = default)
-    {
-        using (await _mutex.LockAsync(cancellationToken))
-        {
-            if (_connection == null)
-            {
-                LogError("No connection available to begin transaction");
-                throw new ScopedDbConnectionException("No connection available to begin transaction");
-            }
-
-            if (_transactionRefCount == 0)
-            {
-                try
-                {
-                    LogTrace("Beginning transaction");
-                    _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
-                }
-                catch (Exception e)
-                {
-                    LogException("BeginTransactionAsync failed", e);
-                    throw;
-                }
-            }
-
-            _transactionRefCount++;
-
-            // Sanity
-            if (_transactionRefCount != 0 && _transaction == null)
-            {
-                var message =
-                    $"Transaction ref count is {_transactionRefCount} but transaction is null. This should never happen";
-                LogError(message);
-                throw new ScopedDbConnectionException(message);
-            }
-
-            return new TransactionWrapper(this);
-        }
-    }
-
-    //
-
-    private ICommandWrapper CreateCommand()
-    {
-        using (_mutex.Lock())
-        {
-            if (_connection == null)
-            {
-                LogError("No connection available to create command");
-                throw new ScopedDbConnectionException("No connection available to create command");
-            }
-            LogTrace(" Creating command");
-            return new CommandWrapper(this, _connection.CreateCommand());
         }
     }
 
@@ -332,14 +288,74 @@ public class ScopedConnectionFactory<T>(
             IsolationLevel isolationLevel = IsolationLevel.Unspecified,
             CancellationToken cancellationToken = default)
         {
-            return await instance.BeginStackedTransactionAsync(isolationLevel, cancellationToken);
+            using (await instance._mutex.LockAsync(cancellationToken))
+            {
+                if (instance._connection == null)
+                {
+                    instance.LogError("No connection available to begin transaction");
+                    throw new ScopedDbConnectionException("No connection available to begin transaction");
+                }
+
+                if (instance._transactionRefCount == 0)
+                {
+                    try
+                    {
+                        instance.LogTrace("Beginning transaction");
+                        instance._transaction = await instance._connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+                    }
+                    catch (Exception e)
+                    {
+                        instance.LogException("BeginTransactionAsync failed", e);
+                        throw;
+                    }
+                }
+
+                instance._transactionRefCount++;
+
+                // Sanity
+                if (instance._transactionRefCount != 0 && instance._transaction == null)
+                {
+                    var message =
+                        $"Transaction ref count is {instance._transactionRefCount} but transaction is null. This should never happen";
+                    instance.LogError(message);
+                    throw new ScopedDbConnectionException(message);
+                }
+
+                return new TransactionWrapper(instance);
+            }
         }
 
         //
 
-        public ICommandWrapper CreateCommand()
+        public ICommandWrapper CreateCommand(
+            [CallerFilePath] string? filePath = null,
+            [CallerLineNumber] int lineNumber = 0)
         {
-            return instance.CreateCommand();
+            using (instance._mutex.Lock())
+            {
+                if (instance._connection == null)
+                {
+                    instance.LogError("No connection available to create command");
+                    throw new ScopedDbConnectionException("No connection available to create command");
+                }
+
+                // We only allow one command to be created at a time per connection. This is to prevent multiple
+                // commands from being executed concurrently on the same connection, which is not supported by
+                // most drivers. While this makes it more cumbersome to run multiple commands, it makes
+                // troubleshooting easier and prevents potential issues.
+                if (instance._command != null)
+                {
+                    var error = $"Only one command can be created at a time per connection. Current command: {instance._commandDiagnostics}";
+                    instance.LogError(error);
+                    throw new ScopedDbConnectionException(error);
+                }
+
+                instance._commandDiagnostics = $"tid:{Environment.CurrentManagedThreadId} at {filePath}:{lineNumber}";
+                instance.LogTrace($" Creating command on {instance._commandDiagnostics}");
+
+                instance._command = instance._connection.CreateCommand();
+                return new CommandWrapper(instance, instance._command);
+            }
         }
 
         //
@@ -372,10 +388,17 @@ public class ScopedConnectionFactory<T>(
                         throw new ScopedDbConnectionException(message);
                     }
 
+                    if (instance._command != null)
+                    {
+                        const string message = "Cannot dispose connection while a command is active";
+                        instance.LogError(message);
+                        throw new ScopedDbConnectionException(message);
+                    }
+
                     instance.LogTrace("Disposing connection");
                     instance._counters.IncrementNoDbClosed();
 
-                    await instance._connection!.DisposeAsync();
+                    await instance._connectionFactory.CloseAsync(instance._connection!);
                     instance._connection = null;
                     _disposed = true;
 
@@ -692,7 +715,7 @@ public class ScopedConnectionFactory<T>(
         public void Dispose()
         {
             GC.SuppressFinalize(this);
-            command.Dispose();
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
         //
@@ -701,16 +724,21 @@ public class ScopedConnectionFactory<T>(
         {
             GC.SuppressFinalize(this);
 
-            if (_disposed)
+            using (await instance._mutex.LockAsync())
             {
-                instance.LogError("Command already disposed");
-                return;
-            }
+                if (_disposed)
+                {
+                    instance.LogError("Command already disposed");
+                    return;
+                }
 
-            instance.LogTrace(" Disposing command");
-            await command.DisposeAsync();
-            _disposed = true;
-            instance.LogTrace(" Disposed command");
+                _disposed = true;
+                instance._command = null;
+
+                instance.LogTrace(" Disposing command");
+                await command.DisposeAsync();
+                instance.LogTrace(" Disposed command");
+            }
         }
 
         //
@@ -725,5 +753,3 @@ public class ScopedConnectionFactory<T>(
 }
 
 public class ScopedDbConnectionException(string message) : OdinSystemException(message);
-
-

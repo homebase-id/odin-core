@@ -1,8 +1,10 @@
 using System;
 using Autofac;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;
 
@@ -12,18 +14,26 @@ public static class IdentityExtensions
     {
         cb.RegisterIdentityDatabase(identityId);
 
+        cb.Register(builder => new DbConnectionPool(
+                builder.Resolve<ILogger<DbConnectionPool>>(),
+                Environment.ProcessorCount * 2))
+            .As<IDbConnectionPool>()
+            .SingleInstance();
+
         var connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Private, // Shared is discouraged: https://www.sqlite.org/sharedcache.html
-            Pooling = true
+            Pooling = false // We use our own (DbConnectionPool)
         }.ToString();
       
-        cb.Register(_ => new SqliteIdentityDbConnectionFactory(connectionString))
+        cb.Register(builder => new SqliteIdentityDbConnectionFactory(
+                connectionString,
+                builder.Resolve<IDbConnectionPool>()))
             .As<IIdentityDbConnectionFactory>()
             .SingleInstance();
-        
+
         return cb;
     }
 
