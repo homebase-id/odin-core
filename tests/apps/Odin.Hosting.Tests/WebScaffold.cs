@@ -140,8 +140,8 @@ namespace Odin.Hosting.Tests
             PostgresContainer.StartAsync().GetAwaiter().GetResult();
             Environment.SetEnvironmentVariable("Database__Type", "postgres");
             Environment.SetEnvironmentVariable("Database__ConnectionString", PostgresContainer.GetConnectionString());
-            Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.System.Connection.ScopedSystemConnectionFactory", "Verbose");
-            Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.Identity.Connection.ScopedIdentityConnectionFactory", "Verbose");
+            // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.System.Connection.ScopedSystemConnectionFactory", "Verbose");
+            // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.Identity.Connection.ScopedIdentityConnectionFactory", "Verbose");
 #endif
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
