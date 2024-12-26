@@ -95,7 +95,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyTwoValue("
                    +"identityId BYTEA NOT NULL, "
-                   +"key1 BYTEA NOT NULL UNIQUE, "
+                   +"key1 BYTEA NOT NULL, "
                    +"key2 BYTEA , "
                    +"data BYTEA  "
                    + rowid
@@ -384,7 +384,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         while (true)
                         {
                             result.Add(ReadRecordFromReader0(rdr, identityId,key2));
-                            if (!rdr.Read())
+                            if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;

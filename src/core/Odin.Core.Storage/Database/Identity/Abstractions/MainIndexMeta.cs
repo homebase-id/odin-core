@@ -239,6 +239,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 throw new OdinSystemException("Must QueryBatch() no less than one item.");
             }
 
+            if (noOfItems == int.MaxValue)
+            {
+                noOfItems--;
+            }
+
             if (cursor == null)
             {
                 cursor = new QueryBatchCursor();

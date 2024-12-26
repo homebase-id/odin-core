@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
@@ -150,7 +151,15 @@ public class CircleNetworkStorage
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
         var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
-        var mappedRecords = await Task.WhenAll(records.Select(MapFromStorageAsync));
+
+        // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
+        // single db connection that is not thread safe.
+        var mappedRecords = new List<IdentityConnectionRegistration>();
+        foreach (var record in records)
+        {
+            mappedRecords.Add(await MapFromStorageAsync(record));
+        }
+
         return (mappedRecords, nextCursor);
     }
 
