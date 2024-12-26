@@ -1,4 +1,4 @@
-name: "Host: CI /main/ubuntu/postgres/release"
+name: "Host: CI main/ubuntu/postgres/release"
 
 on:
   push:
