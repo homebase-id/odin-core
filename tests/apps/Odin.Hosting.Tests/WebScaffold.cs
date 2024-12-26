@@ -30,6 +30,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
+using Testcontainers.PostgreSql;
 
 namespace Odin.Hosting.Tests
 {
@@ -66,6 +67,8 @@ namespace Odin.Hosting.Tests
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
         public IServiceProvider Services => _webserver.Services;
+
+        protected PostgreSqlContainer PostgresContainer;
 
         static WebScaffold()
         {
@@ -125,6 +128,17 @@ namespace Odin.Hosting.Tests
 
             _assertLogEvents = null;
             _testInstancePrefix = Guid.NewGuid().ToString("N");
+
+            PostgresContainer = new PostgreSqlBuilder()
+                .WithDatabase("odin")
+                .WithUsername("odin")
+                .WithPassword("odin")
+                .Build();
+            PostgresContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("Database__Type", "postgres");
+            Environment.SetEnvironmentVariable("Database__ConnectionString", PostgresContainer.GetConnectionString());
+            Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.System.Connection.ScopedSystemConnectionFactory", "Verbose");
+            Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.Identity.Connection.ScopedIdentityConnectionFactory", "Verbose");
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
@@ -219,6 +233,9 @@ namespace Odin.Hosting.Tests
                 _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
+
+            PostgresContainer?.DisposeAsync().AsTask().Wait();
+            PostgresContainer = null;
 
             this.DeleteData();
             this.DeleteLogs();
