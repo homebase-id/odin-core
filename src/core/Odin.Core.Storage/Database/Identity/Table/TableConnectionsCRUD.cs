@@ -133,7 +133,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS connections("
                    +"identityId BYTEA NOT NULL, "
-                   +"identity TEXT NOT NULL UNIQUE, "
+                   +"identity TEXT NOT NULL, "
                    +"displayName TEXT NOT NULL, "
                    +"status BIGINT NOT NULL, "
                    +"accessIsRevoked BIGINT NOT NULL, "
@@ -526,6 +526,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
                 inCursor = "";
 
@@ -577,6 +579,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
                 inCursor = "";
 
@@ -632,6 +636,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(long.MaxValue);
 
@@ -687,6 +693,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(long.MaxValue);
 

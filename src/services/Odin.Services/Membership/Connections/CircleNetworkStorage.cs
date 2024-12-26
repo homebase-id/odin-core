@@ -154,7 +154,7 @@ public class CircleNetworkStorage
 
 
         // SEB:TODO NO! MapFromStorageAsync is called in parallel. It must be called sequentially.
-        HER!
+        // HER!
         var mappedRecords = await Task.WhenAll(records.Select(MapFromStorageAsync));
 
         return (mappedRecords, nextCursor);

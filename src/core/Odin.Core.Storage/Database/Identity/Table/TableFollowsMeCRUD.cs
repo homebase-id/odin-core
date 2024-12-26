@@ -487,7 +487,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         while (true)
                         {
                             result.Add(ReadRecordFromReader1(rdr, identityId,identity));
-                            if (!rdr.Read())
+                            if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;

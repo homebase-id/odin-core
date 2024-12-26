@@ -86,7 +86,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyValue("
                    +"identityId BYTEA NOT NULL, "
-                   +"key BYTEA NOT NULL UNIQUE, "
+                   +"key BYTEA NOT NULL, "
                    +"data BYTEA  "
                    + rowid
                    +", PRIMARY KEY (identityId,key)"

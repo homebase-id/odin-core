@@ -400,27 +400,18 @@ namespace Odin.Services.DataSubscription
             //
             // ChatGPT from here:
             //
-
-            // Find the intersection of followers and connected identities
-            var intersectedFollowers = followers.Intersect(connectedIdentities).ToList();
-
-            _logger.LogDebug("XXXXXXXXXXXXXXXXXXXXX");
-
-
-            // SEB:TODO this is the correct, sequential version
-
-            // var permissionResults = new List<(OdinId OdinId, bool HasPermission)>();
-            //
-            // foreach (var follower in intersectedFollowers)
+            // // Prepare a list of tasks to check permissions asynchronously
+            // var permissionTasks = intersectedFollowers.Select(async follower => new
             // {
-            //     var odinId = (OdinId)follower.DomainName;
-            //     var hasPermission = await _driveAcl.IdentityHasPermissionAsync(
-            //         odinId,
+            //     OdinId = (OdinId)follower.DomainName,
+            //     HasPermission = await _driveAcl.IdentityHasPermissionAsync(
+            //         (OdinId)follower.DomainName,
             //         notification.ServerFileHeader.ServerMetadata.AccessControlList,
-            //         odinContext);
+            //         odinContext)
+            // }).ToList();
             //
-            //     permissionResults.Add((odinId, hasPermission));
-            // }
+            // // Await all permission checks concurrently
+            // var permissionResults = await Task.WhenAll(permissionTasks);
             //
             // // Filter and select the followers who have the necessary permissions
             // var connectedFollowers = permissionResults
@@ -428,20 +419,27 @@ namespace Odin.Services.DataSubscription
             //     .Select(result => result.OdinId)
             //     .ToList();
 
-            HER!
+            //
+            // ChatGPT again:
+            // The above ChatGPT solution, while theoretically correct, is parallelizing database queries
+            // on the same connnection, which is not allowed. Below is its solution without parallelization.
+            //
 
-            // Prepare a list of tasks to check permissions asynchronously
-            var permissionTasks = intersectedFollowers.Select(async follower => new
+            // Find the intersection of followers and connected identities
+            var intersectedFollowers = followers.Intersect(connectedIdentities).ToList();
+
+            var permissionResults = new List<(OdinId OdinId, bool HasPermission)>();
+
+            foreach (var follower in intersectedFollowers)
             {
-                OdinId = (OdinId)follower.DomainName,
-                HasPermission = await _driveAcl.IdentityHasPermissionAsync(
-                    (OdinId)follower.DomainName,
+                var odinId = (OdinId)follower.DomainName;
+                var hasPermission = await _driveAcl.IdentityHasPermissionAsync(
+                    odinId,
                     notification.ServerFileHeader.ServerMetadata.AccessControlList,
-                    odinContext)
-            }).ToList();
+                    odinContext);
 
-            // Await all permission checks concurrently
-            var permissionResults = await Task.WhenAll(permissionTasks);
+                permissionResults.Add((odinId, hasPermission));
+            }
 
             // Filter and select the followers who have the necessary permissions
             var connectedFollowers = permissionResults

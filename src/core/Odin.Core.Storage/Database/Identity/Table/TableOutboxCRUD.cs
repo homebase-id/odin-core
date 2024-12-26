@@ -713,7 +713,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         while (true)
                         {
                             result.Add(ReadRecordFromReader0(rdr, identityId,driveId,fileId));
-                            if (!rdr.Read())
+                            if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;

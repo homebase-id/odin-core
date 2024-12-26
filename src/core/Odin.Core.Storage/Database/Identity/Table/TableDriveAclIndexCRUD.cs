@@ -436,7 +436,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
-                        if (!rdr.Read()) {
+                        if (!await rdr.ReadAsync()) {
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[65535+1];
@@ -457,7 +457,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             result0tmp = new Guid(guid);
                         }
                         thelistresult.Add(result0tmp);
-                        if (!rdr.Read())
+                        if (!await rdr.ReadAsync())
                            break;
                     } // while
                     return thelistresult;

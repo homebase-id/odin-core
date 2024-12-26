@@ -432,7 +432,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         while (true)
                         {
                             result.Add(ReadRecordFromReader1(rdr, identityId,circleId));
-                            if (!rdr.Read())
+                            if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;
@@ -493,7 +493,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         while (true)
                         {
                             result.Add(ReadRecordFromReader2(rdr, identityId,memberId));
-                            if (!rdr.Read())
+                            if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;
