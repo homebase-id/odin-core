@@ -109,7 +109,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
 
-            var result = await circleNetworkRequestService.GetSentRequest(id, WebOdinContext);
+            var result = await circleNetworkRequestService.GetSentRequestAsync(id, WebOdinContext);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;

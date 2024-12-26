@@ -246,12 +246,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinSecurityException("Identity is blocked");
             }
 
-            //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial
-            // if (existingConnection.IsConnected())
-            // {
-            //     
-            // }
-
             var request = new PendingConnectionRequestHeader()
             {
                 SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
@@ -273,7 +267,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// Gets a connection request sent to the specified recipient
         /// </summary>
         /// <returns>Returns the <see cref="ConnectionRequest"/> if one exists, otherwise null</returns>
-        public async Task<ConnectionRequest> GetSentRequest(OdinId recipient, IOdinContext odinContext)
+        public async Task<ConnectionRequest> GetSentRequestAsync(OdinId recipient, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
 

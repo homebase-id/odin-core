@@ -32,10 +32,10 @@ namespace Odin.Services.Membership.Connections.Requests;
 /// Enables introducing identities to each other
 /// </summary>
 public class CircleNetworkIntroductionService : PeerServiceBase,
-        INotificationHandler<ConnectionFinalizedNotification>,
-        INotificationHandler<ConnectionBlockedNotification>,
-        INotificationHandler<ConnectionDeletedNotification>,
-        INotificationHandler<ConnectionRequestReceivedNotification>
+    INotificationHandler<ConnectionFinalizedNotification>,
+    INotificationHandler<ConnectionBlockedNotification>,
+    INotificationHandler<ConnectionDeletedNotification>,
+    INotificationHandler<ConnectionRequestReceivedNotification>
 {
     private readonly TenantContext _tenantContext;
     private readonly CircleNetworkRequestService _circleNetworkRequestService;
@@ -93,7 +93,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         OdinValidationUtils.AssertNotNull(group, nameof(group));
         OdinValidationUtils.AssertValidRecipientList(group.Recipients, allowEmpty: false);
-        
+
         var driveId = (await _driveManager.GetDriveAsync(SystemDriveConstants.TransientTempDrive)).Id;
 
         async Task<bool> EnqueueOutboxItem(OdinId recipient, Introduction introduction)
@@ -276,7 +276,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 return;
             }
 
-            var existingSentRequest = await _circleNetworkRequestService.GetSentRequest(sender, newContext);
+            var existingSentRequest = await _circleNetworkRequestService.GetSentRequestAsync(sender, newContext);
             if (null != existingSentRequest)
             {
                 _logger.LogDebug("Auto-accept connection request from {sender} due to an existing outgoing request", sender);
@@ -363,7 +363,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     public async Task<List<IdentityIntroduction>> GetReceivedIntroductionsAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_db.KeyThreeValue, ReceivedIntroductionDataType);
+        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_db.KeyThreeValue,
+            ReceivedIntroductionDataType);
         return results.ToList();
     }
 
@@ -508,36 +509,38 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 dataTypeKey: iid.IntroducerOdinId.ToHashId().ToByteArray(),
                 ReceivedIntroductionDataType, iid);
 
-            var item = new OutboxFileItem
+            if (!_tenantContext.Settings.DisableAutoAcceptIntroductions)
             {
-                Recipient = recipient,
-                Priority = 55, //super high priority to ensure these are sent quickly,
-                Type = OutboxItemType.ConnectIntroducee,
-                AttemptCount = 0,
-                File = new InternalDriveFileId()
+                var item = new OutboxFileItem
                 {
-                    DriveId = driveId,
-                    FileId = recipient.ToHashId()
-                },
-                DependencyFileId = default,
-                State = new OutboxItemState
-                {
-                    TransferInstructionSet = null,
-                    OriginalTransitOptions = null,
-                    EncryptedClientAuthToken = default,
-                    Data = OdinSystemSerializer.Serialize(iid).ToUtf8ByteArray()
-                },
-            };
+                    Recipient = recipient,
+                    Priority = 55, //super high priority to ensure these are sent quickly,
+                    Type = OutboxItemType.ConnectIntroducee,
+                    AttemptCount = 0,
+                    File = new InternalDriveFileId()
+                    {
+                        DriveId = driveId,
+                        FileId = recipient.ToHashId()
+                    },
+                    DependencyFileId = default,
+                    State = new OutboxItemState
+                    {
+                        TransferInstructionSet = null,
+                        OriginalTransitOptions = null,
+                        EncryptedClientAuthToken = default,
+                        Data = OdinSystemSerializer.Serialize(iid).ToUtf8ByteArray()
+                    },
+                };
 
-            await _peerOutbox.AddItemAsync(item, useUpsert: true);
+                await _peerOutbox.AddItemAsync(item, useUpsert: true);
+            }
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Failed to enqueue ConnectIntroducee for recipient: [{recipient}]", recipient);
         }
-
     }
-    
+
     private async Task DeleteIntroductionsToAsync(OdinId identity)
     {
         _logger.LogDebug("Deleting introduction sent to {identity}", identity);
@@ -547,8 +550,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private async Task DeleteIntroductionsFromAsync(OdinId introducer)
     {
         _logger.LogDebug("Deleting introduction sent from {identity}", introducer);
-        
-        var introductionsFromIdentity = await ReceivedIntroductionValueStorage.GetByDataTypeAsync<IdentityIntroduction>(_db.KeyThreeValue, introducer.ToHashId().ToByteArray());
+
+        var introductionsFromIdentity =
+            await ReceivedIntroductionValueStorage.GetByDataTypeAsync<IdentityIntroduction>(_db.KeyThreeValue,
+                introducer.ToHashId().ToByteArray());
 
         foreach (var introduction in introductionsFromIdentity)
         {
@@ -560,7 +565,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     {
         _logger.LogDebug("Deleting all introductions");
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
-        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_db.KeyThreeValue, ReceivedIntroductionDataType);
+        var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_db.KeyThreeValue,
+            ReceivedIntroductionDataType);
         foreach (var intro in results)
         {
             await ReceivedIntroductionValueStorage.DeleteAsync(_db.KeyThreeValue, intro.Identity);
