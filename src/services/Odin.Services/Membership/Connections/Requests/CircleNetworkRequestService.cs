@@ -439,8 +439,8 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             catch (TryRetryException)
             {
-                throw new OdinSystemException(
-                    $"Failed to establish connection request.  Either response was empty or server returned a failure");
+                throw new OdinSystemException("Failed to establish connection request.  Either " +
+                                              "response was empty or server returned a failure");
             }
 
             if (!httpResponse.IsSuccessStatusCode)
@@ -452,8 +452,8 @@ namespace Odin.Services.Membership.Connections.Requests
                         OdinClientErrorCode.RemoteServerMissingOutgoingRequest);
                 }
 
-                throw new OdinSystemException(
-                    $"Failed to establish connection request.  Either response was empty or server returned a failure");
+                throw new OdinSystemException("Failed to establish connection request.  Either " +
+                                              "response was empty or server returned a failure");
             }
 
             await this.DeleteSentRequestInternalAsync(senderOdinId);
@@ -849,7 +849,7 @@ namespace Odin.Services.Membership.Connections.Requests
             clientAccessToken.SharedSecret.Wipe();
             clientAccessToken.AccessTokenHalfKey.Wipe();
 
-            await TrySendRequestInternalAsync((OdinId)header.Recipient, outgoingRequest, odinContext);
+            await TrySendRequestInternalAsync((OdinId)header.Recipient, outgoingRequest);
 
             keyStoreKey.Wipe();
             tempRawKey.Wipe();
@@ -884,7 +884,7 @@ namespace Odin.Services.Membership.Connections.Requests
             return (clientAccessToken, grant);
         }
 
-        private async Task TrySendRequestInternalAsync(OdinId recipient, ConnectionRequest request, IOdinContext odinContext)
+        private async Task TrySendRequestInternalAsync(OdinId recipient, ConnectionRequest request)
         {
             var keyType = GetPublicPrivateKeyType(request.ConnectionRequestOrigin);
 

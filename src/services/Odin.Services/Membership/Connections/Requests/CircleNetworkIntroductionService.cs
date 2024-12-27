@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -20,7 +21,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
-using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -44,7 +44,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private readonly PeerOutbox _peerOutbox;
     private readonly IdentityDatabase _db;
     private readonly PushNotificationService _pushNotificationService;
-    private readonly PublicPrivateKeyService _publicPrivateKeyService;
     private readonly DriveManager _driveManager;
 
     /// <summary>
@@ -59,7 +58,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         IMediator mediator,
         PeerOutbox peerOutbox,
         PushNotificationService pushNotificationService,
-        PublicPrivateKeyService publicPrivateKeyService,
         DriveManager driveManager,
         TenantContext tenantContext,
         IdentityDatabase db)
@@ -71,7 +69,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         _peerOutbox = peerOutbox;
         _db = db;
         _pushNotificationService = pushNotificationService;
-        _publicPrivateKeyService = publicPrivateKeyService;
         _driveManager = driveManager;
         _tenantContext = tenantContext;
     }
@@ -291,26 +288,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 return;
             }
 
-            // var incomingRequest = await circleNetworkRequestService.GetPendingRequestAsync(sender, newContext);
-            // if (incomingRequest?.IntroducerOdinId != null)
-            // {
-            //     var introducerIcr = await CircleNetworkService.GetIcrAsync(incomingRequest.IntroducerOdinId.Value, newContext);
-            //
-            //     if (introducerIcr.IsConnected() &&
-            //         introducerIcr.AccessGrant.CircleGrants.Values.Any(v =>
-            //             v.PermissionSet?.HasKey(PermissionKeys.AllowIntroductions) ?? false))
-            //     {
-            //         logger.LogDebug(
-            //             "Auto-accept connection request from {sender} since sender was introduced by " +
-            //             "[{introducer}]; who is connected and has {permission}",
-            //             sender,
-            //             introducerIcr.OdinId,
-            //             nameof(PermissionKeys.AllowIntroductions));
-            //         await AutoAcceptAsync(sender, newContext);
-            //         return;
-            //     }
-            // }
-
             _logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
         }
         catch (Exception ex)
@@ -424,52 +401,6 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         await this.SendIntroductoryConnectionRequestInternalAsync(iid, cancellationToken, odinContext);
     }
 
-    /// <summary>
-    /// Auto-connects an introducee
-    /// </summary>
-    public async Task<AutoConnectResult> AcceptIntroduceeAutoConnectRequest(EccEncryptedPayload payload,
-        CancellationToken cancellationToken,
-        IOdinContext odinContext)
-    {
-        var payloadBytes = await _publicPrivateKeyService.EccDecryptPayload(payload, odinContext);
-        var request = OdinSystemSerializer.Deserialize<IntroductionAutoConnectRequest>(payloadBytes.ToStringFromUtf8Bytes());
-
-        if (_tenantContext.Settings.DisableAutoAcceptIntroductions)
-        {
-            //
-            // Fall back to connection request
-            //
-            _logger.LogDebug("Received introducee auto connect request but auto-accept is disabled, creating connection request instead");
-            return new AutoConnectResult()
-            {
-                ConnectionSucceeded = false
-            };
-        }
-
-        OdinValidationUtils.AssertNotNull(request, nameof(request));
-        OdinValidationUtils.AssertIsValidOdinId(request.Identity, out _);
-
-        try
-        {
-            //
-            // and on the sender side, also needs to create a connection
-            // 
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Failed to accept introducee request");
-            return new AutoConnectResult()
-            {
-                ConnectionSucceeded = false
-            };
-        }
-
-        return new AutoConnectResult()
-        {
-            ConnectionSucceeded = true
-        };
-    }
-
     private async Task<IdentityIntroduction> GetIntroductionInternalAsync(OdinId identity)
     {
         var result = await ReceivedIntroductionValueStorage.GetAsync<IdentityIntroduction>(_db.KeyThreeValue, identity);
@@ -488,8 +419,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         try
         {
             _logger.LogDebug("Attempting to auto-accept connection request from {sender}", sender);
-            var newContext =
-                OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.ReadCircleMembership, PermissionKeys.ManageFeed);
+            var newContext = OdinContextUpgrades.UsePermissions(odinContext,
+                PermissionKeys.ReadCircleMembership,
+                PermissionKeys.ManageFeed);
+
             await _circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, newContext);
         }
         catch (Exception ex)

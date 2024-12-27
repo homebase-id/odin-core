@@ -33,7 +33,6 @@ public class SendIntroductionOutboxWorker(
 
         AssertHasRemainingAttempts();
 
-        bool success = false;
         try
         {
             var clientAuthToken = FileItem.State.GetClientAccessToken();
@@ -51,7 +50,6 @@ public class SendIntroductionOutboxWorker(
                         clientAuthToken.ToAuthenticationToken());
 
                     response = await client.MakeIntroduction(encryptedPayload);
-                    success = response.IsSuccessStatusCode;
                 });
 
             if (response.IsSuccessStatusCode)

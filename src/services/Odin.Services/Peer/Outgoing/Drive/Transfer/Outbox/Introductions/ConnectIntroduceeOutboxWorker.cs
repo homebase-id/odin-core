@@ -29,7 +29,7 @@ public class ConnectIntroduceeOutboxWorker(
         var recipient = FileItem.Recipient;
 
         AssertHasRemainingAttempts();
-        
+
         try
         {
             await introductionService.SendAutoConnectIntroduceeRequest(iid, cancellationToken, odinContext);
@@ -40,7 +40,7 @@ public class ConnectIntroduceeOutboxWorker(
         }
         catch (OdinSecurityException)
         {
-            return (false, UnixTimeUtc.Now().AddMinutes(10));
+            return (true, UnixTimeUtc.ZeroTime);
         }
         catch (Exception ex)
         {

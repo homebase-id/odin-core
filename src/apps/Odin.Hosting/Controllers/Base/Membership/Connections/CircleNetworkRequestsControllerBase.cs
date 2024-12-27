@@ -166,7 +166,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("introductions/process-incoming-introductions")]
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
-            
             await introductionService.SendOutstandingConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }

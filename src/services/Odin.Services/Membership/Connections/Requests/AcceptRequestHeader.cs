@@ -4,11 +4,6 @@ using Odin.Services.Util;
 
 namespace Odin.Services.Membership.Connections.Requests;
 
-public class AutoConnectResult
-{
-    public bool ConnectionSucceeded { get; init; }
-}
-
 public class AcceptRequestHeader
 {
     public string Sender { get; set; }

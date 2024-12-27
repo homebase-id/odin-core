@@ -166,11 +166,6 @@ public class AutoAcceptTests
         await Cleanup();
     }
 
-    // [Test]
-    // public Task WillAutoAcceptIncomingConnectionRequestsWhenOnlyOneRecipientIsConnected()
-    // {
-    // }
-
     [Test]
     public async Task WillNotAutoAcceptWhenIntroducerDoesNotHaveAllowIntroductionsPermission()
     {

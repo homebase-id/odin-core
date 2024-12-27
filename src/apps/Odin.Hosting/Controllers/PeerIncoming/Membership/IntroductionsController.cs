@@ -23,11 +23,5 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             await introductionService.ReceiveIntroductions(payload, WebOdinContext);
             return Ok();
         }
-
-        [HttpPost("auto-connect-introducee")]
-        public async Task<AutoConnectResult> AutoConnectIntroducee([FromBody] EccEncryptedPayload payload)
-        {
-            return await introductionService.AcceptIntroduceeAutoConnectRequest(payload, HttpContext.RequestAborted, WebOdinContext);
-        }
     }
 }
