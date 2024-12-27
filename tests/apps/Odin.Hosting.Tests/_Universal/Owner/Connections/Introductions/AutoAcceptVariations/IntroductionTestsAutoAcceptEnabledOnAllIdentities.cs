@@ -150,10 +150,10 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         // Assert: Sam does not have a connection from Merry
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
+        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
 
         // Assert: Merry does not have a connection from Sam
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
+        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
 
         // Assert: Sam does not have an introduction
         Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
@@ -272,12 +272,12 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         //
         // Assert: sam has no connection request
         //
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
+        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
 
         //
         // Assert: merry has no connection request
         //
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
+        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
 
         //
         // Assert: sam should have merry has a normal connection
@@ -305,7 +305,7 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    public async Task WillHandleWithAllWhenConnectionFailsVerification(IApiClientContext callerContext,
+    public async Task WillHandleWhenAllWhenConnectionsFailsVerification(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
         var debugTimeout = TimeSpan.FromMinutes(60);
@@ -343,9 +343,16 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         await samOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         
+        // both send connection request; identities get connected
+        // R3's ICR record on R2's identity must be reset to an auto-connection because we won't
+        // have master key and the shared secret get reset.  This means all circles also get reset.  "
         
+        Assert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(samOwnerClient, merry, ConnectionRequestOrigin.Introduction));
+     
+        Assert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(merryOwnerClient, sam, ConnectionRequestOrigin.Introduction));
+
         await IntroductionTestUtils.Cleanup(_scaffold);
         
-        Assert.Inconclusive("TODO");
     }
+    
 }

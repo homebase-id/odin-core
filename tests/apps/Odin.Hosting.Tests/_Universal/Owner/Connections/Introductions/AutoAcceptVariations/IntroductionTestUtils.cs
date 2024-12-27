@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests._Universal.Owner.Connections.Introductions.AutoAcce
 
 internal static class IntroductionTestUtils
 {
-    public static async Task<bool> HasIntroducedConnectionRequestFromIntroducee(OwnerApiClientRedux owner, OdinId introducee)
+    public static async Task<bool> HasReceivedIntroducedConnectionRequestFromIntroducee(OwnerApiClientRedux owner, OdinId introducee)
     {
         var response = await owner.Connections.GetIncomingRequestFrom(introducee);
         Assert.IsTrue(response.IsSuccessStatusCode);
@@ -23,6 +23,12 @@ internal static class IntroductionTestUtils
     }
 
 
+    public static async Task<bool> HasSentIntroducedConnectionRequestToIntroducee(OwnerApiClientRedux owner, OdinId introducee)
+    {
+        var response = await owner.Connections.GetOutgoingSentRequestTo(introducee);
+        Assert.IsTrue(response.IsSuccessStatusCode);
+        return response.Content != null && response.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction;
+    }
     public static async Task<bool> HasIntroductionFromIdentity(OwnerApiClientRedux owner, OdinId introducee)
     {
         var response = await owner.Connections.GetReceivedIntroductions();
