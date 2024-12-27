@@ -77,7 +77,7 @@ public class DemoTests : IocTestBase
         var cacheHelper = new CacheHelper("whatever");
         var counters = new DatabaseCounters();
         var poolLogger = TestLogFactory.CreateConsoleLogger<DbConnectionPool>(LogEventMemoryStore, LogEventLevel.Verbose);
-        var connectionPool = new DbConnectionPool(poolLogger, 32);
+        var connectionPool = new DbConnectionPool(poolLogger, counters, Environment.ProcessorCount * 2);
         var sqliteIdentityDbConnectionFactory = new SqliteIdentityDbConnectionFactory(connectionString, connectionPool);
 
         var factory = new ScopedIdentityConnectionFactory(

@@ -27,7 +27,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory), "74c23c98"},
         {typeof(Odin.Core.Storage.Database.Identity.Connection.SqliteIdentityDbConnectionFactory), "08513a77"},
         {typeof(Odin.Core.Storage.Database.Identity.Connection.PgsqlIdentityDbConnectionFactory), "74c23c98"},
-        {typeof(Odin.Core.Storage.Factory.DbConnectionPool), "2365bbed"},
+        {typeof(Odin.Core.Storage.Factory.DbConnectionPool), "37e46385"},
         {typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute), "e7045f27"},
         {typeof(Odin.Hosting.Controllers.Admin.AdminApiRestrictedAttribute), "509d6046"},
         {typeof(Odin.Services.Email.IEmailSender), "eacd5b8f"},
@@ -46,11 +46,6 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Base.SharedOdinContextCache<FollowerAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<IdentitiesIFollowAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<TransitAuthenticationService>), "822f02f2"},
-
-
-
-
-
     };
 
     public void AssertSingletonDependencies()
