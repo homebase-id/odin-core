@@ -194,7 +194,7 @@ public sealed class CertesAcme : ICertesAcme
             }
 
             var pfx = pfxBuilder.Build("letsencrypt-cert", "doesnt-matter");
-            var xcert = new X509Certificate2(pfx, "doesnt-matter");
+            var xcert = X509CertificateLoader.LoadCertificate(pfx);
             var chain = new X509Chain();
             chain.Build(xcert);
             var sb = new StringBuilder();

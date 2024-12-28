@@ -18,8 +18,7 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 
         var certPem = File.ReadAllText(Path.Combine(assemblyDirectory!, "certificate.crt"));
         var keyPem = File.ReadAllText(Path.Combine(assemblyDirectory!, "private.key"));
-        using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
-        var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
+        var x509 = X509Certificate2.CreateFromPem(certPem, keyPem);
         listenOptions.UseHttps(x509);
     });
 });

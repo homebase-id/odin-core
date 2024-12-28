@@ -99,11 +99,9 @@ public class CertificateCache : ICertificateCache
             keyPem = File.ReadAllText(keyPemPath);
         }
 
-        // Work around for error "No credentials are available in the security package"
+        // SEB:TODO test this on Windows
         // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
-        // SEB:NOTE 25-May-2024 this is still required on Windows. WTH Microsoft??
-        using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
-        var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
+        var x509 = X509Certificate2.CreateFromPem(certPem, keyPem);
 
         // Sanity check certificate
         ThrowIfBadCertificate(domain, x509);

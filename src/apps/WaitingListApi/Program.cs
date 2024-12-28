@@ -230,11 +230,7 @@ namespace WaitingListApi
                 keyPem = File.ReadAllText(keyPemPath);
             }
 
-            // Work around for error "No credentials are available in the security package"
-            // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
-            // X509Certificate2.CreateFromCertFile(certPem)
-            using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
-            var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
+            var x509 = X509Certificate2.CreateFromPem(certPem, keyPem);
 
             return x509;
         }
