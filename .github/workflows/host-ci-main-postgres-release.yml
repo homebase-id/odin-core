@@ -1,4 +1,4 @@
-name: "Host: Build and test main (release/ubuntu)"
+name: "Host: CI main/ubuntu/postgres/release"
 
 on:
   push:
@@ -18,14 +18,14 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4.0.0
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore ./odin-core.sln
 
       - name: Build
         # below: %3B is ASCII for semicolon
-        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX" ./odin-core.sln
+        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX%3BRUN_POSTGRES_TESTS" ./odin-core.sln
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln

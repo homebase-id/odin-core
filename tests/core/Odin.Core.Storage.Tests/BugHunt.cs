@@ -37,7 +37,7 @@ public class DemoTests : IocTestBase
         DbConnection? cn = null;
         try
         {
-            cn = await SqliteConcreteConnectionFactory.Create(connectionString);
+            cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
             var tx1 = await cn.BeginTransactionAsync();
 
             // tx1.Dispose();
@@ -55,6 +55,9 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task D02_Connect_Sqlite_Without_Di(DatabaseType databaseType)
     {
         // Demo only, don't do this
@@ -73,7 +76,9 @@ public class DemoTests : IocTestBase
         var logger = TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, LogEventLevel.Verbose);
         var cacheHelper = new CacheHelper("whatever");
         var counters = new DatabaseCounters();
-        var sqliteIdentityDbConnectionFactory = new SqliteIdentityDbConnectionFactory(connectionString);
+        var poolLogger = TestLogFactory.CreateConsoleLogger<DbConnectionPool>(LogEventMemoryStore, LogEventLevel.Verbose);
+        var connectionPool = new DbConnectionPool(poolLogger, counters, Environment.ProcessorCount * 2);
+        var sqliteIdentityDbConnectionFactory = new SqliteIdentityDbConnectionFactory(connectionString, connectionPool);
 
         var factory = new ScopedIdentityConnectionFactory(
             lifetimeScopeMock.Object,
@@ -83,9 +88,9 @@ public class DemoTests : IocTestBase
             counters
         );
 
-        ScopedIdentityConnectionFactory.ConnectionWrapper? cn = null;
-        ScopedIdentityConnectionFactory.TransactionWrapper? tx1 = null;
-        ScopedIdentityConnectionFactory.TransactionWrapper? tx2 = null;
+        IConnectionWrapper? cn = null;
+        ITransactionWrapper? tx1 = null;
+        ITransactionWrapper? tx2 = null;
         try
         {
             cn = await factory.CreateScopedConnectionAsync();
@@ -115,6 +120,9 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task D03_Connect_Sqlite_With_Di(DatabaseType databaseType)
     {
         var factory = Services.Resolve<ScopedIdentityConnectionFactory>();
@@ -130,6 +138,9 @@ public class DemoTests : IocTestBase
 
     [Test, Explicit]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task D04_Connect_Sqlite_Parallel(DatabaseType databaseType)
     {
         var logger = TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, LogEventLevel.Verbose);

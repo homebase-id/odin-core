@@ -453,6 +453,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 var storageConfig = GetStorageConfig(registration);
                 storageConfig.CreateDirectories();
 
+                // Sanity: create database if missing (can be necessary when switching dev from sqlite to postgres)
+                await using var scope = GetOrCreateMultiTenantScope(registration)
+                    .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
+                var identityDatabase = scope.Resolve<IdentityDatabase>();
+                await identityDatabase.CreateDatabaseAsync(false);
+
                 _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
                 await CacheIdentity(registration);
 
