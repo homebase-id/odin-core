@@ -47,20 +47,18 @@ public static class Env
     // - Can consist of A-Z, a-z, 0-9, _
     // - Cannot start with a digit.            
     private static readonly Regex LinuxEnvVarPattern = new(@"\$(\{?[A-Za-z_][A-Za-z0-9_]*\}?)");
-    public static string ExpandEnvironmentVariablesCrossPlatform(string value)
+    public static string ExpandEnvironmentVariablesCrossPlatform(string variableName)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        ArgumentNullException.ThrowIfNull(variableName);
         
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        // Replace Linux-style $VARIABLE or ${VARIABLE} with %VARIABLE% for compatibility w/ ExpandEnvironmentVariables
+        variableName = LinuxEnvVarPattern.Replace(variableName, match =>
         {
-            // Replace Linux-style $VARIABLE or ${VARIABLE} with %VARIABLE% for ExpandEnvironmentVariables
-            value = LinuxEnvVarPattern.Replace(value, match =>
-            {
-                // Remove the curly braces if present (${VARIABLE} -> VARIABLE)
-                var variableName = match.Value.Trim('$', '{', '}');
-                return $"%{variableName}%";
-            });
-        }
-        return Environment.ExpandEnvironmentVariables(value);
+            // Remove the curly braces if present (${VARIABLE} -> VARIABLE)
+            var trimmed = match.Value.Trim('$', '{', '}');
+            return $"%{trimmed}%";
+        });
+
+        return Environment.ExpandEnvironmentVariables(variableName);
     }
 }
