@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Certes;
@@ -168,8 +167,7 @@ public sealed class CertesAcme : ICertesAcme
         var cert = await order.Download();
 
         //
-        // If we are using LetsEncrypt staging servers, we need to add their root certificates
-        // or BouncyCastle will blow up when generating full-chain certificates.
+        // If we are using LetsEncrypt staging servers, we need to add their root certificates.
         //
         // Staging env: https://letsencrypt.org/docs/staging-environment/
         //
@@ -183,27 +181,18 @@ public sealed class CertesAcme : ICertesAcme
         }
         else
         {
-            var pfxBuilder = cert.ToPfx(privateKey);
-            pfxBuilder.FullChain = true;
+            var sb = new StringBuilder();
+
+            sb.AppendLine(cert.Certificate.ToPem());
+            foreach (var issuer in cert.Issuers)
+            {
+                sb.AppendLine(issuer.ToPem());
+            }
 
             var stagingRoots = await DownloadStagingRootCerts();
             foreach (var stagingRoot in stagingRoots)
             {
-                var bytes = Encoding.ASCII.GetBytes(stagingRoot);
-                pfxBuilder.AddIssuer(bytes);
-            }
-
-            var pfx = pfxBuilder.Build("letsencrypt-cert", "doesnt-matter");
-            var xcert = X509CertificateLoader.LoadCertificate(pfx);
-            var chain = new X509Chain();
-            chain.Build(xcert);
-            var sb = new StringBuilder();
-            foreach (var element in chain.ChainElements)
-            {
-                sb.AppendLine("-----BEGIN CERTIFICATE-----");
-                sb.AppendLine(Convert.ToBase64String(element.Certificate.Export(X509ContentType.Cert),
-                    Base64FormattingOptions.InsertLineBreaks));
-                sb.AppendLine("-----END CERTIFICATE-----");
+                sb.AppendLine(stagingRoot);
             }
 
             certificatesPem = sb.ToString();
