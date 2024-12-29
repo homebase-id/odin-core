@@ -13,6 +13,11 @@ namespace Odin.Services.Membership.Connections.Requests
         public ConnectionRequest() { }
 
         /// <summary>
+        /// A sequential guid id used to determine who was first when two introductory requests were sent
+        /// </summary>
+        public Guid IntroductoryId { get; set; }
+
+        /// <summary>
         /// Individual who sent the invite
         /// </summary>
         public string SenderOdinId { get; set; }

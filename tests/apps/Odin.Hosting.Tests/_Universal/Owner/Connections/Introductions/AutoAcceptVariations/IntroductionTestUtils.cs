@@ -5,9 +5,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
-using Odin.Services.Authorization.Permissions;
-using Odin.Services.Drives;
-using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 
@@ -18,6 +15,12 @@ internal static class IntroductionTestUtils
     public static async Task<bool> HasReceivedIntroducedConnectionRequestFromIntroducee(OwnerApiClientRedux owner, OdinId introducee)
     {
         var response = await owner.Connections.GetIncomingRequestFrom(introducee);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+
         Assert.IsTrue(response.IsSuccessStatusCode);
         return response.Content != null && response.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction;
     }
@@ -26,9 +29,16 @@ internal static class IntroductionTestUtils
     public static async Task<bool> HasSentIntroducedConnectionRequestToIntroducee(OwnerApiClientRedux owner, OdinId introducee)
     {
         var response = await owner.Connections.GetOutgoingSentRequestTo(introducee);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+
         Assert.IsTrue(response.IsSuccessStatusCode);
         return response.Content != null && response.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction;
     }
+
     public static async Task<bool> HasIntroductionFromIdentity(OwnerApiClientRedux owner, OdinId introducee)
     {
         var response = await owner.Connections.GetReceivedIntroductions();
@@ -84,6 +94,10 @@ internal static class IntroductionTestUtils
         var sam = scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
+        //Note disconnecting does not unblock
+        await merry.Network.UnblockConnection(sam.OdinId);
+        await sam.Network.UnblockConnection(merry.OdinId);
+
         await frodo.Connections.DisconnectFrom(sam.OdinId);
         await frodo.Connections.DisconnectFrom(merry.OdinId);
 
@@ -92,5 +106,8 @@ internal static class IntroductionTestUtils
 
         await merry.Connections.DisconnectFrom(sam.OdinId);
         await sam.Connections.DisconnectFrom(merry.OdinId);
+
+        await merry.Connections.DeleteAllIntroductions();
+        await sam.Connections.DeleteAllIntroductions();
     }
 }

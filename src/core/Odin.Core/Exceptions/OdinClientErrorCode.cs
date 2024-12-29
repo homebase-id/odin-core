@@ -9,7 +9,8 @@ public enum OdinClientErrorCode
     // Auth Errors 10xx
     InvalidAuthToken = 1001,
     SharedSecretEncryptionIsInvalid = 1002,
-
+    PublicKeyEncryptionIsInvalid = 1004,
+    
     // Notifcation Errors 20xx
     InvalidNotificationType = 2001,
     UnknownNotificationId = 2002,
@@ -103,5 +104,6 @@ public enum OdinClientErrorCode
     UnknownFlagName = 9003,
     InvalidOrExpiredRsaKey = 9004,
     MissingVerificationHash = 9005,
-    PasswordAlreadySet = 9006
+    PasswordAlreadySet = 9006,
+    IntroductoryRequestAlreadySent = 9007,
 }

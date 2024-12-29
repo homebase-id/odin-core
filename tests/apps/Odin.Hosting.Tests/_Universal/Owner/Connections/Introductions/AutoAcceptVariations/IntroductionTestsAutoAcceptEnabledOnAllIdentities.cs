@@ -74,11 +74,10 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         await callerContext.Initialize(introducer);
         var client = new UniversalCircleNetworkRequestsApiClient(introducer.OdinId, callerContext.GetFactory());
         var response = await client.SendIntroductions(new IntroductionGroup
-            // var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
-            {
-                Message = "test message from frodo",
-                Recipients = [sam, merry]
-            });
+        {
+            Message = "test message from frodo",
+            Recipients = [sam, merry]
+        });
 
         Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
         await introducer.Connections.AwaitIntroductionsProcessing(debugTimeout);
@@ -270,34 +269,21 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         //
-        // Assert: sam has no connection request
+        // Assert there are no introductions
         //
-        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
+        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
+        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
 
         //
-        // Assert: merry has no connection request
-        //
+        // Assert: there are no connection requests
+        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
         Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
 
         //
-        // Assert: sam should have merry has a normal connection
+        // Assert: no one is connected
         //
         Assert.IsFalse(await IntroductionTestUtils.IsConnected(samOwnerClient, merry));
-
-        //
-        // Assert: merry should have sam as a normal connection
-        //
         Assert.IsFalse(await IntroductionTestUtils.IsConnected(merryOwnerClient, sam));
-
-        //
-        // Assert: Sam does not have an introduction
-        //
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
-
-        //
-        // Assert: Merry does not have an introduction
-        //
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
 
         await IntroductionTestUtils.Cleanup(_scaffold);
     }
@@ -342,17 +328,17 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
 
         await samOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
-        
+
         // both send connection request; identities get connected
         // R3's ICR record on R2's identity must be reset to an auto-connection because we won't
         // have master key and the shared secret get reset.  This means all circles also get reset.  "
-        
-        Assert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(samOwnerClient, merry, ConnectionRequestOrigin.Introduction));
-     
-        Assert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(merryOwnerClient, sam, ConnectionRequestOrigin.Introduction));
+
+        Assert.IsTrue(
+            await IntroductionTestUtils.IsConnectedWithExpectedOrigin(samOwnerClient, merry, ConnectionRequestOrigin.Introduction));
+
+        Assert.IsTrue(
+            await IntroductionTestUtils.IsConnectedWithExpectedOrigin(merryOwnerClient, sam, ConnectionRequestOrigin.Introduction));
 
         await IntroductionTestUtils.Cleanup(_scaffold);
-        
     }
-    
 }

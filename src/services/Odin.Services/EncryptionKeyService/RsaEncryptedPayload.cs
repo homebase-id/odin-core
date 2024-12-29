@@ -1,3 +1,7 @@
+using System;
+using Odin.Core;
+using Odin.Core.Time;
+
 namespace Odin.Services.EncryptionKeyService
 {
     /// <summary>
@@ -57,5 +61,10 @@ namespace Odin.Services.EncryptionKeyService
         public uint EncryptionPublicKeyCrc32 { get; set; }
 
         public PublicPrivateKeyType KeyType { get; set; }
+
+        /// <summary>
+        /// Specifies the time this was encrypted in the form of a SequentialGuid
+        /// </summary>
+        public Guid TimestampId { get; set; } = SequentialGuid.CreateGuid();
     }
 }
