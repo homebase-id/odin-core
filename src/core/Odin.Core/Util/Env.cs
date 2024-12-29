@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace Odin.Core.Util;
@@ -10,7 +11,7 @@ public static class Env
     static Env()
     {
         // Windows: HOME is not set by default, set it to USERPROFILE
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var home = Environment.GetEnvironmentVariable("HOME");
             if (home == null)
@@ -46,23 +47,20 @@ public static class Env
     // - Can consist of A-Z, a-z, 0-9, _
     // - Cannot start with a digit.            
     private static readonly Regex LinuxEnvVarPattern = new(@"\$(\{?[A-Za-z_][A-Za-z0-9_]*\}?)");
-    public static string ExpandEnvironmentVariablesCrossPlatform(string name)
+    public static string ExpandEnvironmentVariablesCrossPlatform(string value)
     {
-        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(value);
         
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return Environment.ExpandEnvironmentVariables(name);
+            // Replace Linux-style $VARIABLE or ${VARIABLE} with %VARIABLE% for ExpandEnvironmentVariables
+            value = LinuxEnvVarPattern.Replace(value, match =>
+            {
+                // Remove the curly braces if present (${VARIABLE} -> VARIABLE)
+                var variableName = match.Value.Trim('$', '{', '}');
+                return $"%{variableName}%";
+            });
         }
-
-        // Replace Linux-style $VARIABLE or ${VARIABLE} with %VARIABLE% for ExpandEnvironmentVariables
-        var windowsStyleInput = LinuxEnvVarPattern.Replace(name, match =>
-        {
-            // Remove the curly braces if present (${VARIABLE} -> VARIABLE)
-            var variableName = match.Value.Trim('$', '{', '}');
-            return $"%{variableName}%";
-        });
-
-        return Environment.ExpandEnvironmentVariables(windowsStyleInput);
+        return Environment.ExpandEnvironmentVariables(value);
     }
 }
