@@ -116,9 +116,6 @@ public sealed class MultiTenantContainer(IContainer applicationContainer) : ICon
 
     //
 
-    public object ResolveComponent(ResolveRequest request) =>
-        applicationContainer.ResolveComponent(request);
-
     public object ResolveComponent(in ResolveRequest request) =>
         applicationContainer.ResolveComponent(request);
 
