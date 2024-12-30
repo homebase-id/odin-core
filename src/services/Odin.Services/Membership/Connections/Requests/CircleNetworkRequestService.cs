@@ -68,6 +68,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
+        private readonly SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> _outgoingIntroductionRequests;
 
         public CircleNetworkRequestService(
             CircleNetworkService cns,
@@ -84,7 +85,8 @@ namespace Odin.Services.Membership.Connections.Requests
             FileSystemResolver fileSystemResolver,
             CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration,
-            TableKeyThreeValue tblKeyThreeValue)
+            TableKeyThreeValue tblKeyThreeValue,
+            SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> outgoingIntroductionRequests)
             : base(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
         {
             _cns = cns;
@@ -101,6 +103,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _verificationService = verificationService;
             _odinConfiguration = odinConfiguration;
             _tblKeyThreeValue = tblKeyThreeValue;
+            _outgoingIntroductionRequests = outgoingIntroductionRequests;
         }
 
         /// <summary>
@@ -247,10 +250,10 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinSecurityException("Identity is blocked");
             }
 
-            var existingSentRequest = await GetSentRequestAsync(sender, odinContext);
-            if (existingSentRequest != null && existingSentRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
+            if (_outgoingIntroductionRequests.TryGetValue(recipient, out var timestampId))
             {
-                if (ByteArrayUtil.muidcmp(existingSentRequest.IntroductoryId, payload.TimestampId) == 1)
+                //who short first?  if mine was sent first
+                if (ByteArrayUtil.muidcmp(timestampId, payload.TimestampId) == -1)
                 {
                     throw new OdinClientException("Introductory request already sent", OdinClientErrorCode.IntroductoryRequestAlreadySent);
                 }
@@ -820,70 +823,76 @@ namespace Odin.Services.Membership.Connections.Requests
         private async Task CreateAndSendRequestInternalAsync(ConnectionRequestHeader header, SensitiveByteArray masterKey,
             IOdinContext odinContext)
         {
-            var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var recipient = (OdinId)header.Recipient;
 
+            _outgoingIntroductionRequests[recipient] = SequentialGuid.CreateGuid();
+
+            var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
-            var (clientAccessToken, grant) = await CreateTokenAndExchangeGrantAsync(keyStoreKey, circles, header.ConnectionRequestOrigin,
-                masterKey, odinContext);
+
+            var (clientAccessToken, grant) = await CreateTokenAndExchangeGrantAsync(keyStoreKey,
+                circles,
+                header.ConnectionRequestOrigin,
+                masterKey,
+                odinContext);
 
             var tempRawKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
             var outgoingRequest = new ConnectionRequest
             {
                 Id = header.Id,
                 ContactData = header.ContactData,
-                Recipient = header.Recipient,
+                Recipient = recipient,
                 Message = header.Message,
-                ClientAccessToken64 = "",
-                TempRawKey = null,
-                VerificationRandomCode = randomCode,
+                ClientAccessToken64 = clientAccessToken.ToPortableBytes64(),
+                TempRawKey = tempRawKey.GetKey(), //give the key to the recipient, so they can give it back when they accept the request
+                VerificationRandomCode = ByteArrayUtil.GetRandomCryptoGuid(),
                 ConnectionRequestOrigin = header.ConnectionRequestOrigin,
-                IntroducerOdinId = header.IntroducerOdinId,
-                PendingAccessExchangeGrant = grant,
-                VerificationHash = _cns.CreateVerificationHash(randomCode, clientAccessToken.SharedSecret),
-                IntroductoryId = SequentialGuid.CreateGuid()
+                IntroducerOdinId = header.IntroducerOdinId
             };
 
-            if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
-            {
-                var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
-                outgoingRequest.TempEncryptedIcrKey = new SymmetricKeyEncryptedAes(tempRawKey, rawIcrKey);
-
-                var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-                var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
-                outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
-            }
-
+            //
+            // Store the outgoing request in a cache while we try to send a new request
+            // this will be used if we receive a connection request while waiting on 
+            // TrySendRequestInternalAsync to finish (see ReceiveConnectionRequestAsync())
+            //
             try
             {
-                //TODO need transaction
-                await UpsertSentConnectionRequestAsync(outgoingRequest);
-
-                // Clean up items we do not want being sent to the recipient
-                //give the key to the recipient, so they can give it back when they accept the request
-                outgoingRequest.TempRawKey = tempRawKey.GetKey();
-                outgoingRequest.ClientAccessToken64 = clientAccessToken.ToPortableBytes64();
-                outgoingRequest.VerificationHash = null;
-                outgoingRequest.PendingAccessExchangeGrant = null;
-                outgoingRequest.TempEncryptedIcrKey = null;
-                outgoingRequest.TempEncryptedFeedDriveStorageKey = null;
-                clientAccessToken.SharedSecret.Wipe();
-                clientAccessToken.AccessTokenHalfKey.Wipe();
-
-                if (!await TrySendRequestInternalAsync((OdinId)header.Recipient, outgoingRequest))
+                if (await TrySendRequestInternalAsync(recipient, outgoingRequest))
                 {
-                    //TODO: rollback UpsertSentConnectionRequestAsync
+                    outgoingRequest.VerificationHash = _cns.CreateVerificationHash(
+                        outgoingRequest.VerificationRandomCode,
+                        clientAccessToken.SharedSecret);
+
+                    clientAccessToken.SharedSecret.Wipe();
+                    clientAccessToken.AccessTokenHalfKey.Wipe();
+
+                    //
+                    // Note: These items are set after we send the request, so we can store them locally only
+                    //
+                    outgoingRequest.ClientAccessToken64 = "";
+                    outgoingRequest.PendingAccessExchangeGrant = grant;
+
+                    if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+                    {
+                        var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
+                        outgoingRequest.TempEncryptedIcrKey = new SymmetricKeyEncryptedAes(tempRawKey, rawIcrKey);
+
+                        var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                        var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
+                        outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
+                    }
+
+                    keyStoreKey.Wipe();
+                    tempRawKey.Wipe();
+                    outgoingRequest.TempRawKey.Wipe();
+
+                    await UpsertSentConnectionRequestAsync(outgoingRequest);
                 }
             }
-            catch (Exception)
+            finally
             {
-                //TODO: rollback
-
-                throw;
+                _outgoingIntroductionRequests.TryRemove(recipient, out _);
             }
-
-            keyStoreKey.Wipe();
-            tempRawKey.Wipe();
         }
 
         private async Task<(ClientAccessToken clientAccessToken, AccessExchangeGrant)> CreateTokenAndExchangeGrantAsync(
