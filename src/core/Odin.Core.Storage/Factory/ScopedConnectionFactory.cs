@@ -216,7 +216,7 @@ public class ScopedConnectionFactory<T>(
                 var message =
                     $"Connection ref count is {_connectionRefCount} but connection is null. This should never happen";
                 LogError(message);
-                throw new ScopedDbConnectionException(message);
+                throw new OdinDatabaseException(DatabaseType, message);
             }
 
             return new ConnectionWrapper(this);
@@ -293,7 +293,7 @@ public class ScopedConnectionFactory<T>(
                 if (instance._connection == null)
                 {
                     instance.LogError("No connection available to begin transaction");
-                    throw new ScopedDbConnectionException("No connection available to begin transaction");
+                    throw new OdinDatabaseException(instance.DatabaseType, "No connection available to begin transaction");
                 }
 
                 if (instance._transactionRefCount == 0)
@@ -306,7 +306,7 @@ public class ScopedConnectionFactory<T>(
                     catch (Exception e)
                     {
                         instance.LogException("BeginTransactionAsync failed", e);
-                        throw;
+                        throw new OdinDatabaseException(instance.DatabaseType, "BeginTransactionAsync failed", e);
                     }
                 }
 
@@ -318,7 +318,7 @@ public class ScopedConnectionFactory<T>(
                     var message =
                         $"Transaction ref count is {instance._transactionRefCount} but transaction is null. This should never happen";
                     instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
+                    throw new OdinDatabaseException(instance.DatabaseType, message);
                 }
 
                 return new TransactionWrapper(instance);
@@ -336,7 +336,7 @@ public class ScopedConnectionFactory<T>(
                 if (instance._connection == null)
                 {
                     instance.LogError("No connection available to create command");
-                    throw new ScopedDbConnectionException("No connection available to create command");
+                    throw new OdinDatabaseException(instance.DatabaseType, "No connection available to create command");
                 }
 
                 // We only allow one command to be created at a time per connection. This is to prevent multiple
@@ -347,7 +347,7 @@ public class ScopedConnectionFactory<T>(
                 {
                     var error = $"Only one command can be created at a time per connection. Current command: {instance._commandDiagnostics}";
                     instance.LogError(error);
-                    throw new ScopedDbConnectionException(error);
+                    throw new OdinDatabaseException(instance.DatabaseType, error);
                 }
 
                 instance._commandDiagnostics = $"tid:{Environment.CurrentManagedThreadId} at {filePath}:{lineNumber}";
@@ -385,14 +385,14 @@ public class ScopedConnectionFactory<T>(
                     {
                         const string message = "Cannot dispose connection while a transaction is active";
                         instance.LogError(message);
-                        throw new ScopedDbConnectionException(message);
+                        throw new OdinDatabaseException(instance.DatabaseType, message);
                     }
 
                     if (instance._command != null)
                     {
                         const string message = "Cannot dispose connection while a command is active";
                         instance.LogError(message);
-                        throw new ScopedDbConnectionException(message);
+                        throw new OdinDatabaseException(instance.DatabaseType, message);
                     }
 
                     instance.LogTrace("Disposing connection");
@@ -413,7 +413,7 @@ public class ScopedConnectionFactory<T>(
                     var message =
                         $"Connection ref count is negative ({instance._connectionRefCount}). This should never happen";
                     instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
+                    throw new OdinDatabaseException(instance.DatabaseType, message);
                 }
             }
         }
@@ -454,7 +454,7 @@ public class ScopedConnectionFactory<T>(
                 {
                     const string message = "No transaction available";
                     instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
+                    throw new OdinDatabaseException(instance.DatabaseType, message);
                 }
 
                 if (instance._transactionRefCount == 1)
@@ -500,7 +500,7 @@ public class ScopedConnectionFactory<T>(
                 {
                     const string message = "No connection available to dispose transaction. This should never happen.";
                     instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
+                    throw new OdinDatabaseException(instance.DatabaseType, message);
                 }
 
                 if (instance._transaction == null)
@@ -540,7 +540,7 @@ public class ScopedConnectionFactory<T>(
                 {
                     const string message = "Transaction stacking is negative. This should never happen.";
                     instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
+                    throw new OdinDatabaseException(instance.DatabaseType, message);
                 }
             }
         }
@@ -636,7 +636,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("ExecuteNonQueryAsync failed", e);
-                throw;
+                throw new OdinDatabaseException(instance.DatabaseType, "ExecuteNonQueryAsync failed", e);
             }
         }
 
@@ -661,7 +661,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("ExecuteReaderAsync failed", e);
-                throw;
+                throw new OdinDatabaseException(instance.DatabaseType, "ExecuteReaderAsync failed", e);
             }
         }
 
@@ -685,7 +685,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("ExecuteScalarAsync failed", e);
-                throw;
+                throw new OdinDatabaseException(instance.DatabaseType, "ExecuteScalarAsync failed", e);
             }
         }
 
@@ -706,7 +706,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("PrepareAsync failed", e);
-                throw;
+                throw new OdinDatabaseException(instance.DatabaseType, "PrepareAsync failed", e);
             }
         }
 
@@ -752,4 +752,3 @@ public class ScopedConnectionFactory<T>(
     //
 }
 
-public class ScopedDbConnectionException(string message) : OdinSystemException(message);

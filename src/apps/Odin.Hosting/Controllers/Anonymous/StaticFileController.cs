@@ -5,20 +5,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Primitives;
-using Odin.Core.Storage.SQLite;
-using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Optimization.Cdn;
 using Odin.Services.Tenant;
 using Odin.Services.Util;
 using Odin.Core.Time;
-using Odin.Hosting.Controllers.Home;
 
 namespace Odin.Hosting.Controllers.Anonymous
 {

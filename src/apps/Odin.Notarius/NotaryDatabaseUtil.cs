@@ -1,5 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
-using Odin.Core.Storage.SQLite.NotaryDatabase;
+﻿using Odin.Core.Storage.SQLite.NotaryDatabase;
 using Odin.Core.Time;
 using Odin.Core;
 using System.Text;

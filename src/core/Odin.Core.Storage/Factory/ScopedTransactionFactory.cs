@@ -41,10 +41,10 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
             var tx = await cn.BeginStackedTransactionAsync(isolationLevel, cancellationToken);
             return new ScopedTransaction(cn, tx);
         }
-        catch (Exception)
+        catch (Exception e)
         {
             await cn.DisposeAsync();
-            throw;
+            throw new OdinDatabaseException(scopedConnectionFactory.DatabaseType, "BeginStackedTransactionAsync failed", e);
         }
     }
 
