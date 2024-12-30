@@ -203,7 +203,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinClientException("You've blocked this connection", OdinClientErrorCode.BlockedConnection);
             }
 
-            if (existingConnection.IsConnected())
+            if (existingConnection.IsConnected() && header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
                 if ((await _verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext)).IsValid)
                 {
