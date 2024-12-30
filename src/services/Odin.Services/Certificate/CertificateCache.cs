@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Odin.Core.Exceptions;
@@ -99,11 +100,15 @@ public class CertificateCache : ICertificateCache
             keyPem = File.ReadAllText(keyPemPath);
         }
 
-        // Work around for error "No credentials are available in the security package"
-        // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
-        // SEB:NOTE 25-May-2024 this is still required on Windows. WTH Microsoft??
-        using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
-        var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
+        var x509 = X509Certificate2.CreateFromPem(certPem, keyPem);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // SEB:NOTE 29-Dec-2024 this is still required on Windows. WTH Microsoft??
+            // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
+            var pfxData = x509.Export(X509ContentType.Pfx);
+            x509.Dispose();
+            x509 = X509CertificateLoader.LoadPkcs12(pfxData, password: null);    
+        }        
 
         // Sanity check certificate
         ThrowIfBadCertificate(domain, x509);

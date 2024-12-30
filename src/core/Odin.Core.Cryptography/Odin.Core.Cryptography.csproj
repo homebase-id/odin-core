@@ -3,12 +3,12 @@
     <Import Project="$(ProjectDir)../../../common-project.props" />
     
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="BouncyCastle.NetCore" Version="2.2.1" />
-      <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="8.0.11" />
+      <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.0" />
       <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
     </ItemGroup>
 
