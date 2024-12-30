@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -13,9 +12,7 @@ using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
-using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Peer.Encryption;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query;
@@ -219,9 +216,9 @@ public class DriveQuery(
         {
             await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags);
         }
-        catch (SqliteException e)
+        catch (OdinDatabaseException e)
         {
-            if (e.SqliteErrorCode == 19)
+            if (e.IsUniqueConstraintViolation)
             {
                 DriveMainIndexRecord rf = null;
                 DriveMainIndexRecord ru = null;
@@ -258,7 +255,7 @@ public class DriveQuery(
                 // I wonder if we should test if the client UniqueId is in fact the culprit. 
                 // 
                 logger.LogDebug(
-                    "SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}.  DriveName {driveName}",
+                    "IsUniqueConstraintViolation (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}.  DriveName {driveName}",
                     s,
                     GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
                     GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
@@ -316,24 +313,17 @@ public class DriveQuery(
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction)
     {
-        try
+        var reactionAdded = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
         {
-            await tblDriveReactions.InsertAsync(new DriveReactionsRecord()
-            {
-                driveId = drive.Id,
-                identity = odinId,
-                postId = fileId,
-                singleReaction = reaction
-            });
-        }
-        catch (SqliteException e)
-        {
-            if (e.SqliteErrorCode == 19)
-            {
-                throw new OdinClientException("Cannot add duplicate reaction");
-            }
+            driveId = drive.Id,
+            identity = odinId,
+            postId = fileId,
+            singleReaction = reaction
+        });
 
-            throw;
+        if (!reactionAdded)
+        {
+            throw new OdinClientException("Cannot add duplicate reaction");
         }
     }
 

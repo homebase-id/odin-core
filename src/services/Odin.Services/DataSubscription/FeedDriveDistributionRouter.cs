@@ -73,6 +73,8 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
+            _logger.LogDebug("FeedDriveDistributionRouter Handle");
+
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDriveAsync(notification.File.DriveId);
@@ -238,6 +240,8 @@ namespace Odin.Services.DataSubscription
         /// </summary>
         private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext)
         {
+            _logger.LogDebug("DistributeToConnectedFollowersUsingTransit");
+
             var connectedFollowers = await GetConnectedFollowersWithFilePermissionAsync(notification, odinContext);
             if (connectedFollowers.Any())
             {
@@ -369,6 +373,8 @@ namespace Odin.Services.DataSubscription
 
         private async Task<List<OdinId>> GetConnectedFollowersWithFilePermissionAsync(IDriveNotification notification, IOdinContext odinContext)
         {
+            _logger.LogDebug("GetConnectedFollowersWithFilePermissionAsync");
+
             var followers = await GetFollowersAsync(notification.File.DriveId, odinContext);
             if (!followers.Any())
             {
@@ -394,22 +400,46 @@ namespace Odin.Services.DataSubscription
             //
             // ChatGPT from here:
             //
+            // // Prepare a list of tasks to check permissions asynchronously
+            // var permissionTasks = intersectedFollowers.Select(async follower => new
+            // {
+            //     OdinId = (OdinId)follower.DomainName,
+            //     HasPermission = await _driveAcl.IdentityHasPermissionAsync(
+            //         (OdinId)follower.DomainName,
+            //         notification.ServerFileHeader.ServerMetadata.AccessControlList,
+            //         odinContext)
+            // }).ToList();
+            //
+            // // Await all permission checks concurrently
+            // var permissionResults = await Task.WhenAll(permissionTasks);
+            //
+            // // Filter and select the followers who have the necessary permissions
+            // var connectedFollowers = permissionResults
+            //     .Where(result => result.HasPermission)
+            //     .Select(result => result.OdinId)
+            //     .ToList();
+
+            //
+            // ChatGPT again:
+            // The above ChatGPT solution, while theoretically correct, is parallelizing database queries
+            // on the same connnection, which is not allowed. Below is its solution without parallelization.
+            //
 
             // Find the intersection of followers and connected identities
             var intersectedFollowers = followers.Intersect(connectedIdentities).ToList();
 
-            // Prepare a list of tasks to check permissions asynchronously
-            var permissionTasks = intersectedFollowers.Select(async follower => new
-            {
-                OdinId = (OdinId)follower.DomainName,
-                HasPermission = await _driveAcl.IdentityHasPermissionAsync(
-                    (OdinId)follower.DomainName,
-                    notification.ServerFileHeader.ServerMetadata.AccessControlList,
-                    odinContext)
-            }).ToList();
+            var permissionResults = new List<(OdinId OdinId, bool HasPermission)>();
 
-            // Await all permission checks concurrently
-            var permissionResults = await Task.WhenAll(permissionTasks);
+            foreach (var follower in intersectedFollowers)
+            {
+                var odinId = (OdinId)follower.DomainName;
+                var hasPermission = await _driveAcl.IdentityHasPermissionAsync(
+                    odinId,
+                    notification.ServerFileHeader.ServerMetadata.AccessControlList,
+                    odinContext);
+
+                permissionResults.Add((odinId, hasPermission));
+            }
 
             // Filter and select the followers who have the necessary permissions
             var connectedFollowers = permissionResults

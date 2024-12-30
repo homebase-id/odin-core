@@ -15,6 +15,7 @@ public static class SystemExtensions
 
         cb.Register(builder => new DbConnectionPool(
                 builder.Resolve<ILogger<DbConnectionPool>>(),
+                builder.Resolve<DatabaseCounters>(),
                 Environment.ProcessorCount * 2))
             .As<IDbConnectionPool>()
             .SingleInstance();

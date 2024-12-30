@@ -109,7 +109,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
                    +"identityId BYTEA NOT NULL, "
-                   +"key1 BYTEA NOT NULL UNIQUE, "
+                   +"key1 BYTEA NOT NULL, "
                    +"key2 BYTEA NOT NULL, "
                    +"key3 BYTEA NOT NULL, "
                    +"data BYTEA  "
@@ -388,7 +388,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
-                        if (!rdr.Read()) {
+                        if (!await rdr.ReadAsync()) {
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[1048576+1];
@@ -412,7 +412,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) bytesRead);
                         }
                         thelistresult.Add(result0tmp);
-                        if (!rdr.Read())
+                        if (!await rdr.ReadAsync())
                            break;
                     } // while
                     return thelistresult;
@@ -445,7 +445,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
-                        if (!rdr.Read()) {
+                        if (!await rdr.ReadAsync()) {
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[1048576+1];
@@ -469,7 +469,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) bytesRead);
                         }
                         thelistresult.Add(result0tmp);
-                        if (!rdr.Read())
+                        if (!await rdr.ReadAsync())
                            break;
                     } // while
                     return thelistresult;
@@ -551,7 +551,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         while (true)
                         {
                             result.Add(ReadRecordFromReader2(rdr, identityId,key2,key3));
-                            if (!rdr.Read())
+                            if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;

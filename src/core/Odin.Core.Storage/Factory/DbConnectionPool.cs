@@ -3,27 +3,42 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
+using Odin.Core.Storage.Database;
 
 namespace Odin.Core.Storage.Factory;
 
-public interface IDbConnectionPool : IDisposable
+public interface IDbConnectionPool : IDisposable, IAsyncDisposable
 {
     Task<DbConnection> GetConnectionAsync(string connectionString, Func<Task<DbConnection>> creator);
     Task ReturnConnectionAsync(DbConnection connection);
-    void Clear(string connectionString);
+    Task ClearAsync(string connectionString);
+    Task ClearAllAsync();
+    int PoolSize { get; }
 }
 
-public class DbConnectionPool(ILogger<DbConnectionPool> logger, int poolSize) : IDbConnectionPool
+public class DbConnectionPool(
+    ILogger<DbConnectionPool> logger,
+    DatabaseCounters counters,
+    int poolSize) : IDbConnectionPool
 {
-    private readonly object _mutex = new ();
+    private bool _disposed;
+    private readonly AsyncLock _mutex = new();
     private readonly Dictionary<string, Stack<DbConnection>> _connections = new (); // connectionString -> connections
+
+    public int PoolSize => poolSize;
 
     //
 
     public async Task<DbConnection> GetConnectionAsync(string connectionString, Func<Task<DbConnection>> creator)
     {
-        lock (_mutex)
+        using (_mutex.Lock())
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(DbConnectionPool));
+            }
+
             if (_connections.TryGetValue(connectionString, out var stack) && stack.Count > 0)
             {
                 logger.LogTrace("Pool returning cached connection");
@@ -32,6 +47,7 @@ public class DbConnectionPool(ILogger<DbConnectionPool> logger, int poolSize) : 
         }
 
         logger.LogTrace("Pool creating new connection");
+        counters.IncrementNoPoolOpened();
         return await creator();
     }
 
@@ -41,8 +57,13 @@ public class DbConnectionPool(ILogger<DbConnectionPool> logger, int poolSize) : 
     {
         var connectionString = connection.ConnectionString;
 
-        lock (_mutex)
+        using (await _mutex.LockAsync())
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(DbConnectionPool));
+            }
+
             if (!_connections.TryGetValue(connectionString, out var stack))
             {
                 stack = new Stack<DbConnection>();
@@ -60,22 +81,23 @@ public class DbConnectionPool(ILogger<DbConnectionPool> logger, int poolSize) : 
         if (connection != null)
         {
             logger.LogTrace("Pool disposing connection due to pool size limit");
-            await connection.DisposeAsync();
+            await CloseConnectionAsync(connection);
         }
     }
 
     //
 
-    public void Clear(string connectionString)
+    public async Task ClearAsync(string connectionString)
     {
+        // NOTE: don't log connection string here, it might contain sensitive information
         logger.LogTrace("Pool clearing connections");
-        lock (_mutex)
+        using (await _mutex.LockAsync())
         {
             if (_connections.TryGetValue(connectionString, out var stack))
             {
                 foreach (var connection in stack)
                 {
-                    connection.Dispose();
+                    await CloseConnectionAsync(connection);
                 }
                 stack.Clear();
             }
@@ -84,20 +106,47 @@ public class DbConnectionPool(ILogger<DbConnectionPool> logger, int poolSize) : 
 
     //
 
-    public void Dispose()
+    public async Task ClearAllAsync()
     {
-        GC.SuppressFinalize(this);
-        logger.LogTrace("Pool disposing connections");
-        lock (_mutex)
+        logger.LogTrace("Pool clearing all connections");
+        using (await _mutex.LockAsync())
         {
             foreach (var stack in _connections.Values)
             {
                 foreach (var connection in stack)
                 {
-                    connection.Dispose();
+                    await CloseConnectionAsync(connection);
                 }
             }
             _connections.Clear();
         }
+    }
+
+    //
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    //
+
+    public async ValueTask DisposeAsync()
+    {
+        GC.SuppressFinalize(this);
+        using (await _mutex.LockAsync())
+        {
+            _disposed = true;
+        }
+        await ClearAllAsync();
+    }
+
+    //
+
+    private async Task CloseConnectionAsync(DbConnection connection)
+    {
+        counters.IncrementNoPoolClosed();
+        await connection.DisposeAsync();
     }
 }

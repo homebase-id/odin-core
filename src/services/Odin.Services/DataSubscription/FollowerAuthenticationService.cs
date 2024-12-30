@@ -1,16 +1,11 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
-using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.DataSubscription.Follower;
-using Odin.Services.Mediator;
 
 namespace Odin.Services.DataSubscription;
 

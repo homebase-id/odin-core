@@ -25,6 +25,14 @@ public class DatabaseCounters
     public long NoDbExecuteScalarAsync => _noDbExecuteScalarAsync;
     public long IncrementNoDbExecuteScalarAsync() => Interlocked.Increment(ref _noDbExecuteScalarAsync);
 
+    private long _noPoolOpened;
+    public long NoPoolOpened => _noPoolOpened;
+    public long IncrementNoPoolOpened() => Interlocked.Increment(ref _noPoolOpened);
+
+    private long _noPoolClosed;
+    public long NoPoolClosed => _noPoolClosed;
+    public long IncrementNoPoolClosed() => Interlocked.Increment(ref _noPoolClosed);
+
     public void Reset()
     {
         Interlocked.Exchange(ref _noDbOpened, 0);
@@ -32,6 +40,8 @@ public class DatabaseCounters
         Interlocked.Exchange(ref _noDbExecuteNonQueryAsync, 0);
         Interlocked.Exchange(ref _noDbExecuteReaderAsync, 0);
         Interlocked.Exchange(ref _noDbExecuteScalarAsync, 0);
+        Interlocked.Exchange(ref _noPoolOpened, 0);
+        Interlocked.Exchange(ref _noPoolClosed, 0);
     }
 
     public override string ToString()
@@ -43,6 +53,8 @@ public class DatabaseCounters
         sb.AppendLine($"DB ExecuteNonQueryAsync \t{NoDbExecuteNonQueryAsync}");
         sb.AppendLine($"DB ExecuteReaderAsync   \t{NoDbExecuteReaderAsync}");
         sb.AppendLine($"DB ExecuteScalar        \t{NoDbExecuteScalarAsync}");
+        sb.AppendLine($"Pool Opened             \t{_noPoolOpened}");
+        sb.AppendLine($"Pool Closed             \t{_noPoolClosed}");
 
         return sb.ToString();
     }
