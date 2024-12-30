@@ -32,6 +32,12 @@ public class TableDriveReactions(
         return await base.InsertAsync(item);
     }
 
+    public new async Task<bool> TryInsertAsync(DriveReactionsRecord item)
+    {
+        item.identityId = identityKey;
+        return await base.TryInsertAsync(item);
+    }
+
     public async Task<(List<string>, int)> GetPostReactionsAsync(Guid driveId, Guid postId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
