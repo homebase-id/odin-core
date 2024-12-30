@@ -1,7 +1,6 @@
 using System;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections.Requests;

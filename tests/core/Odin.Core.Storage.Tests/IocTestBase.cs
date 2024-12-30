@@ -19,7 +19,7 @@ namespace Odin.Core.Storage.Tests;
 
 public abstract class IocTestBase
 {
-    protected DatabaseType DatabaseType;
+    protected static DatabaseType DatabaseType;
     protected string TempFolder;
     protected ILifetimeScope Services = null!;
     protected LogEventMemoryStore LogEventMemoryStore = null!;
