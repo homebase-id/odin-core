@@ -250,9 +250,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var existingSentRequest = await GetSentRequestAsync(sender, odinContext);
             if (existingSentRequest != null && existingSentRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
-                var sent = SequentialGuid.ToUnixTimeUtc(existingSentRequest.IntroductoryId);
-                var received = SequentialGuid.ToUnixTimeUtc(payload.TimestampId);
-                if (sent > received)
+                if (ByteArrayUtil.muidcmp(existingSentRequest.IntroductoryId, payload.TimestampId) == 1)
                 {
                     throw new OdinClientException("Introductory request already sent", OdinClientErrorCode.IntroductoryRequestAlreadySent);
                 }
