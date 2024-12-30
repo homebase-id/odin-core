@@ -152,8 +152,7 @@ namespace Odin.Services.EncryptionKeyService
                 EncryptedData = AesGcm.Encrypt(payload, transferSharedSecret, iv),
                 Salt = randomSalt,
                 EncryptionPublicKeyCrc32 = recipientPublicKey.crc32c,
-                KeyType = keyType,
-                TimestampId = SequentialGuid.CreateGuid()
+                KeyType = keyType
             };
         }
 
@@ -177,7 +176,6 @@ namespace Odin.Services.EncryptionKeyService
                 Salt = randomSalt,
                 EncryptionPublicKeyCrc32 = recipientPublicEccKey.crc32c,
                 KeyType = keyType,
-                TimestampId = SequentialGuid.CreateGuid()
             };
         }
 

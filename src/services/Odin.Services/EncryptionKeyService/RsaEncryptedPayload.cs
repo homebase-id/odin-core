@@ -1,5 +1,6 @@
 using System;
 using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Core.Time;
 
 namespace Odin.Services.EncryptionKeyService
@@ -66,5 +67,6 @@ namespace Odin.Services.EncryptionKeyService
         /// Specifies the time this was encrypted in the form of a SequentialGuid
         /// </summary>
         public Guid TimestampId { get; set; } = SequentialGuid.CreateGuid();
+        // public long TimestampUtcTicks { get; set; } = DateTime.UtcNow.Ticks;
     }
 }
