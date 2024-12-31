@@ -42,5 +42,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext);
             return new JsonResult(new NoResultResponse(true));
         }
+        
     }
 }

@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Membership.Connections.Requests;
 using Refit;
 
@@ -82,7 +86,8 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> SendConnectionRequest(OdinId recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
+    public async Task<ApiResponse<HttpContent>> SendConnectionRequest(OdinId recipient,
+        IEnumerable<GuidId> circlesGrantedToRecipient = null)
     {
         // Send the request
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
@@ -160,6 +165,47 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
             var disconnectResponse = await RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret)
                 .Disconnect(new OdinIdRequest() { OdinId = recipient });
             return disconnectResponse;
+        }
+    }
+
+    public async Task<TimeSpan> AwaitIntroductionsProcessing(TimeSpan? maxWaitTime = null)
+    {
+        //
+        // Note: this checks the transient temp drive since it's what we hacked in for the outbox sending
+        //
+        
+        var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        var drive = SystemDriveConstants.TransientTempDrive;
+        
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var response = await svc.GetDriveStatus(drive.Alias, drive.Type);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error occured while retrieving outbox status");
+            }
+
+            var status = response.Content;
+            if (status.Outbox.TotalItems == 0)
+            {
+                return sw.Elapsed;
+            }
+
+            if (sw.Elapsed > maxWait)
+            {
+                throw new TimeoutException(
+                    $"timeout occured while waiting for outbox to complete processing " +
+                    $"(wait time: {maxWait.TotalSeconds}sec. " +
+                    $"Total Items: {status.Outbox.TotalItems} " +
+                    $"Checked Out {status.Outbox.CheckedOutCount})");
+            }
+
+            await Task.Delay(100);
         }
     }
 }

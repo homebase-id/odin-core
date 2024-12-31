@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Identity;
@@ -27,6 +25,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -311,7 +310,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             },
             TransitOptions = new TransitOptions
             {
-                UseAppNotification = notificationOptions !=null,
+                UseAppNotification = notificationOptions != null,
                 AppNotificationOptions = notificationOptions
             },
             Manifest = uploadManifest,
@@ -875,6 +874,14 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var driveSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await driveSvc.GetDriveStatus(drive.Alias, drive.Type);
+        return response;
+    }
+
+    public async Task<ApiResponse<RedactedOutboxFileItem>> GetOutboxItem(TargetDrive drive, Guid fileId, OdinId recipient)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var driveSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await driveSvc.GetOutboxItem(drive.Alias, drive.Type, fileId, recipient);
         return response;
     }
 
