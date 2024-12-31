@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ using Odin.Services.Authorization;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Services.AppNotifications.Push;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Tenant;
@@ -80,7 +82,16 @@ namespace Odin.Hosting.Authentication.Owner
                 try
                 {
                     var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                    if (!await authService.UpdateOdinContextAsync(authResult, clientContext: null, odinContext))
+                    var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(Context.Request);
+                    var clientContext = new OdinClientContext
+                    {
+                        CorsHostName = null,
+                        ClientIdOrDomain = null,
+                        AccessRegistrationId = authResult.Id,
+                        DevicePushNotificationKey = pushDeviceToken
+                    };
+
+                    if (!await authService.UpdateOdinContextAsync(authResult, clientContext, odinContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
