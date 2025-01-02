@@ -22,7 +22,6 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
-    <PackageReference Include="Refit" Version="8.0.0" />
     <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
     <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
@@ -31,10 +30,6 @@
     <ProjectReference Include="../../core/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj" />
     <ProjectReference Include="../../core/Odin.Core.Storage/Odin.Core.Storage.csproj" />
     <ProjectReference Include="../../core/Odin.Core/Odin.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Mediator\Owner\" />
   </ItemGroup>
 
 </Project>
