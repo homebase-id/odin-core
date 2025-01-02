@@ -84,7 +84,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     //
     // Connection
     //
-    public override async Task<ScopedConnectionFactory<IIdentityDbConnectionFactory>.ConnectionWrapper> CreateScopedConnectionAsync()
+    public override async Task<IConnectionWrapper> CreateScopedConnectionAsync()
     {
         var factory = _lifetimeScope.Resolve<ScopedIdentityConnectionFactory>();
         var cn = await factory.CreateScopedConnectionAsync();
@@ -94,7 +94,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     //
     // Transaction
     //
-    public override async Task<ScopedTransactionFactory<IIdentityDbConnectionFactory>.ScopedTransaction> BeginStackedTransactionAsync()
+    public override async Task<IScopedTransaction> BeginStackedTransactionAsync()
     {
         var factory = _lifetimeScope.Resolve<ScopedIdentityTransactionFactory>();
         var tx = await factory.BeginStackedTransactionAsync();

@@ -13,6 +13,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task InsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -31,6 +34,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task TryInsertTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -45,10 +51,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d2 = Guid.NewGuid().ToByteArray();
 
             var i = await tblAppGrants.TryInsertAsync(new AppGrantsRecord() { identityId = identityKey, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
-            Debug.Assert(i == 1);
+            Assert.IsTrue(i);
 
             i = await tblAppGrants.TryInsertAsync(new AppGrantsRecord() { identityId = identityKey, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
-            Debug.Assert(i == 0);
+            Assert.IsFalse(i);
         }
     }
 }

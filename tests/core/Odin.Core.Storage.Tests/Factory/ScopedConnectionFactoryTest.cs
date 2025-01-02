@@ -50,6 +50,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCreateScopedConnections(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -58,7 +61,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         using var scope = Services.BeginLifetimeScope();
         var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
 
-        ScopedSystemConnectionFactory.ConnectionWrapper cn;
+        IConnectionWrapper cn;
         await using (cn = await scopedConnectionFactory.CreateScopedConnectionAsync())
         {
             Assert.That(cn.RefCount, Is.EqualTo(1));
@@ -99,6 +102,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCreateScopedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -111,7 +117,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         Assert.That(cn.RefCount, Is.EqualTo(1));
         Assert.That(cn.DangerousInstance, Is.Not.Null);
 
-        ScopedSystemConnectionFactory.TransactionWrapper tx;
+        ITransactionWrapper tx;
         await using (tx = await cn.BeginStackedTransactionAsync())
         {
             Assert.That(tx.RefCount, Is.EqualTo(1));
@@ -152,6 +158,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldQueryDatabase(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -191,6 +200,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndCommitTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -218,6 +230,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task OnlyOuterMostCommitMatters(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -248,6 +263,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndImplicitlyRollbackTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -274,6 +292,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndCommitStackedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -307,6 +328,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateAndImplicitlyRollbackStackedTransactions(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -339,6 +363,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldCreateCmdWithParamsBeforeTransaction(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -349,16 +376,18 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
-        await using var cmd1 = cn.CreateCommand();
-        var nameParam = cmd1.CreateParameter();
-        nameParam.ParameterName = "@name";
-        nameParam.Value = "test";
-        cmd1.Parameters.Add(nameParam);
-        cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
+        {
+            await using var cmd1 = cn.CreateCommand();
+            var nameParam = cmd1.CreateParameter();
+            nameParam.ParameterName = "@name";
+            nameParam.Value = "test";
+            cmd1.Parameters.Add(nameParam);
+            cmd1.CommandText = "INSERT INTO test (name) VALUES (@name);";
 
-        await using var tx = await cn.BeginStackedTransactionAsync();
-        await cmd1.ExecuteNonQueryAsync();
-        tx.Commit();
+            await using var tx = await cn.BeginStackedTransactionAsync();
+            await cmd1.ExecuteNonQueryAsync();
+            tx.Commit();
+        }
 
         await using var cmd2 = cn.CreateCommand();
         cmd2.CommandText = "SELECT COUNT(*) FROM test;";
@@ -369,6 +398,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldUpdateOnIsolatedScopes(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
@@ -417,22 +449,6 @@ public class ScopedConnectionFactoryTest : IocTestBase
             var result = await cmd.ExecuteScalarAsync();
             Assert.That(result, Is.EqualTo(5));
         }
-    }
-    
-    //
-
-    [Test]
-    [TestCase(DatabaseType.Sqlite)]
-    public async Task ItShouldResolveScopeUsers(DatabaseType databaseType)
-    {
-        await RegisterServicesAsync(databaseType);
-        await CreateTestDatabaseAsync();
-        
-        var scopedSystemUser = Services.Resolve<ScopedSystemUser>();
-        Assert.That(await scopedSystemUser.GetCountAsync(), Is.EqualTo(0));
-        
-        var transientSystemUser = Services.Resolve<TransientSystemUser>();
-        Assert.That(await transientSystemUser.GetCountAsync(), Is.EqualTo(0));
     }
     
     //

@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -79,23 +80,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS circle;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS circle("
-                 +"identityId BLOB NOT NULL, "
-                 +"circleName STRING NOT NULL, "
-                 +"circleId BLOB NOT NULL UNIQUE, "
-                 +"data BLOB  "
-                 +", PRIMARY KEY (identityId,circleId)"
-                 +");"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS circle;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS circle("
+                   +"identityId BYTEA NOT NULL, "
+                   +"circleName TEXT NOT NULL, "
+                   +"circleId BYTEA NOT NULL UNIQUE, "
+                   +"data BYTEA  "
+                   + rowid
+                   +", PRIMARY KEY (identityId,circleId)"
+                   +");"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(CircleRecord item)
@@ -132,15 +137,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(CircleRecord item)
+        protected virtual async Task<bool> TryInsertAsync(CircleRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO circle (identityId,circleName,circleId,data) " +
-                                             "VALUES (@identityId,@circleName,@circleId,@data)";
+                insertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
+                                             "VALUES (@identityId,@circleName,@circleId,@data) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -162,7 +168,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    _cache.AddOrUpdate("TableCircleCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -235,13 +241,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM circle; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM circle;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -371,6 +377,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
                 inCursor = Guid.Empty;
 
@@ -378,12 +386,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging3Command = cn.CreateCommand();
             {
                 getPaging3Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
-                                            "WHERE (identityId = @identityId) AND circleId > @circleId ORDER BY circleId ASC LIMIT $_count;";
+                                            "WHERE (identityId = @identityId) AND circleId > @circleId ORDER BY circleId ASC LIMIT @count;";
                 var getPaging3Param1 = getPaging3Command.CreateParameter();
                 getPaging3Param1.ParameterName = "@circleId";
                 getPaging3Command.Parameters.Add(getPaging3Param1);
                 var getPaging3Param2 = getPaging3Command.CreateParameter();
-                getPaging3Param2.ParameterName = "$_count";
+                getPaging3Param2.ParameterName = "@count";
                 getPaging3Command.Parameters.Add(getPaging3Param2);
                 var getPaging3Param3 = getPaging3Command.CreateParameter();
                 getPaging3Param3.ParameterName = "@identityId";

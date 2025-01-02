@@ -1,6 +1,9 @@
+using System;
 using Autofac;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.System;
 
@@ -9,16 +12,25 @@ public static class SystemExtensions
     public static ContainerBuilder AddSqliteSystemDatabaseServices(this ContainerBuilder cb, string databasePath)
     {
         cb.RegisterSystemDatabase();
-        
+
+        cb.Register(builder => new DbConnectionPool(
+                builder.Resolve<ILogger<DbConnectionPool>>(),
+                builder.Resolve<DatabaseCounters>(),
+                Environment.ProcessorCount * 2))
+            .As<IDbConnectionPool>()
+            .SingleInstance();
+
         var connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Private, // Shared is discouraged: https://www.sqlite.org/sharedcache.html
-            Pooling = true
+            Pooling = false // We use our own (DbConnectionPool)
         }.ToString();
 
-        cb.Register(_ => new SqliteSystemDbConnectionFactory(connectionString))
+        cb.Register(builder => new SqliteSystemDbConnectionFactory(
+                connectionString,
+                builder.Resolve<IDbConnectionPool>()))
             .As<ISystemDbConnectionFactory>()
             .SingleInstance();
 

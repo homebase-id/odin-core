@@ -1,7 +1,7 @@
 using System;
 using Odin.Core.Time;
 
-namespace Odin.Services.Drives.DriveCore.Query.Sqlite;
+namespace Odin.Services.Drives.DriveCore.Query;
 
 public class UnprocessedCommandMessage
 {

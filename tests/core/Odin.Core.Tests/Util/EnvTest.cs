@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Odin.Core.Util;
 
@@ -35,7 +36,7 @@ public class EnvTest
         Assert.IsNotNull(home);
         Assert.IsNotEmpty(home);
 
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             Console.WriteLine("Windows %HOME%: " + home);    
         }
@@ -44,7 +45,14 @@ public class EnvTest
     [Test]
     public void ItShouldExpandEnvVariablesCrossPlatform()
     {
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            Environment.SetEnvironmentVariable("FOO", "foo");
+            Environment.SetEnvironmentVariable("BAR", "bar");
+            var expanded = Env.ExpandEnvironmentVariablesCrossPlatform("$FOO/${BAR}/baz");
+            Assert.That(expanded, Is.EqualTo("foo/bar/baz"));
+        }
+      
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var expanded = Env.ExpandEnvironmentVariablesCrossPlatform("%HOME%/foo/bar");
             Assert.That(expanded, Is.EqualTo(Environment.GetEnvironmentVariable("HOME") + "/foo/bar"));
