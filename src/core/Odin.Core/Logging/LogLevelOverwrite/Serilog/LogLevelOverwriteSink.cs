@@ -1,3 +1,6 @@
+// SEB:TODO delete me when we're sure Kestrel no longer throws "The server mode SSL must use a certificate with the associated private key." on SSLv2 probes
+
+#if false
 using System;
 using System.Linq;
 using Serilog;
@@ -67,3 +70,4 @@ public class LogLevelModifierSink : ILogEventSink
         return logEvent.Level;
     }
 }
+#endif
