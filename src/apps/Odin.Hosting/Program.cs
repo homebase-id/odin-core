@@ -17,6 +17,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
+using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Cli;
 using Odin.Services.Certificate;
@@ -86,12 +87,12 @@ namespace Odin.Hosting
                 .Enrich.FromLogContext()
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                .WriteTo.Async(
-                    sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme));
+                .WriteTo.LogLevelModifier(s => s.Async(
+                    sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme)));
 
             if (odinConfig.Logging.LogFilePath != "")
             {
-                loggerConfig.WriteTo.Async(
+                loggerConfig.WriteTo.LogLevelModifier(s => s.Async(
                     sink => sink.File(
                         path: Path.Combine(odinConfig.Logging.LogFilePath, "app-.log"),
                         rollingInterval: RollingInterval.Day,
@@ -99,7 +100,7 @@ namespace Odin.Hosting
                         fileSizeLimitBytes: 1L * 1024 * 1024 * 1024,
                         rollOnFileSizeLimit: true,
                         retainedFileCountLimit: null
-                    ));
+                    )));
             }
 
             if (services != null)
@@ -227,8 +228,6 @@ namespace Odin.Hosting
                     // Without ever hitting this part of the code.
                     //
                     // Reproducible with: $ testssl.sh --serial --protocols <identity-host>
-                    //
-                    // SEB:NOTE (02-01-2025) this seems to have been fixed in NET9
                     //
 
                     throw new ConnectionAbortedException();
