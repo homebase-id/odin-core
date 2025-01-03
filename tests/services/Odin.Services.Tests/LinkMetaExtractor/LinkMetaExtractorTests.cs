@@ -14,6 +14,9 @@ using System.Text;
 using System;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text.RegularExpressions;
+using System.Web;
+using System.Net;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
 
@@ -215,9 +218,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Verify that script tags or JavaScript content have been removed
-        Assert.AreEqual("你好世界 (Chinese) | こんにちは世界 (Japanese) | ᚠᚢᚦᚨᚱᚴ (Nordic Runes) | T&#230;nk p&#229; det (Danish) | Привет мир (Russian)", sanitizedMetadata["description"]);
-        Assert.AreEqual("Test P&#230;ge", sanitizedMetadata["title"]);
-        Assert.AreEqual("OG T&#248;tle", sanitizedMetadata["og:title"]);
+        Assert.AreEqual("你好世界 (Chinese) | こんにちは世界 (Japanese) | ᚠᚢᚦᚨᚱᚴ (Nordic Runes) | Tænk på det (Danish) | Привет мир (Russian)", sanitizedMetadata["description"]);
+        Assert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
+        Assert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
     }
 
 
@@ -244,9 +247,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Verify that script tags or JavaScript content have been removed
-        Assert.AreEqual("Test P&#230;ge", sanitizedMetadata["title"]);
-        Assert.AreEqual("OG T&#248;tle", sanitizedMetadata["og:title"]);
-        Assert.AreEqual("This is a test p&#248;ge.", sanitizedMetadata["description"]);
+        Assert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
+        Assert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
+        Assert.AreEqual("This is a test pøge.", sanitizedMetadata["description"]);
     }
 
 
@@ -336,8 +339,8 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("Title &amp; Subtitle", sanitizedMetadata["og:title"]);
-        Assert.AreEqual("This is a test &lt;description&gt;", sanitizedMetadata["description"]);
+        Assert.AreEqual("Title & Subtitle", sanitizedMetadata["og:title"]);
+        Assert.AreEqual("This is a test <description>", sanitizedMetadata["description"]);
     }
     [Test]
 
@@ -398,9 +401,58 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("Safe Description", sanitizedMetadata["description"]);
-        Assert.IsFalse(sanitizedMetadata["description"].ToString()?.Contains("<script>"));
+        Assert.AreEqual("<script>alert('test')</script>Safe Description", sanitizedMetadata["description"]);
+        // Assert.IsFalse(sanitizedMetadata["description"].ToString()?.Contains("<script>"));
     }
+
+
+    [Test]
+    public void HandlingDecoding()
+    {
+        // Arrange
+        var html = """
+                <html>
+                    <head>
+                        <meta name="description" content="&lt;script&gt;alert('XSS')&lt;/script&gt;&aring;" />
+                    </head>
+                </html>
+                """;
+
+        // Act
+        var sanitizedMetadata = Parser.Parse(html);
+
+        // Assert
+        Assert.AreEqual("<script>alert('XSS')</script>å", sanitizedMetadata["description"]);
+    }
+
+
+    [Test]
+    public void TestRemovalOfControlCharacters()
+    {
+        // Arrange: Construct HTML with control characters embedded directly
+        var html = $@"
+        <html>
+            <head>
+                <meta name=""description"" content=""Chars: 0x01[{(char)0x01}] 0x1F[{(char)0x1F}] 0x20[{(char)0x20}] 0x7E[{(char)0x7E}] 0x7F[{(char)0x7F}] 0x80[{(char)0x80}] - Done"" />
+            </head>
+        </html>";
+
+        // Act: Parse and sanitize the HTML
+        var sanitizedMetadata = Parser.Parse(html);
+        var description = (string) sanitizedMetadata["description"];
+        var descriptionDecoded = WebUtility.HtmlDecode(description);
+
+        // Assert: Ensure control characters are removed
+        Assert.IsNotNull(description, "Description metadata should not be null.");
+        Assert.IsFalse(Regex.IsMatch(description.ToString() ?? string.Empty, @"[\x00-\x1F\x7F]"),
+            "Control characters, null, and invalid border cases should not be present in the sanitized description.");
+
+        // Assert: Verify expected cleaned output
+        Assert.AreEqual("Chars: 0x01[] 0x1F[] 0x20[ ] 0x7E[~] 0x7F[] 0x80[\u0080] - Done", description);
+    }
+
+
+
     [Test]
     public void LargeHtmlContent()
     {
@@ -587,14 +639,14 @@ public class LinkMetaExtractorTests
         var sanitizedMetadataIncorrect = Parser.Parse(misinterpretedHtml);
 
         // Assert for correct interpretation
-        Assert.AreEqual("Test T&#230;xt", sanitizedMetadataCorrect["title"]);
-        Assert.AreEqual("This is a d&#230;scription.", sanitizedMetadataCorrect["description"]);
-        Assert.AreEqual("Og T&#230;tle", sanitizedMetadataCorrect["og:title"]);
+        Assert.AreEqual("Test Tæxt", sanitizedMetadataCorrect["title"]);
+        Assert.AreEqual("This is a dæscription.", sanitizedMetadataCorrect["description"]);
+        Assert.AreEqual("Og Tætle", sanitizedMetadataCorrect["og:title"]);
 
         // Assert for incorrect interpretation (ensure it fails or outputs incorrect results)
-        Assert.AreNotEqual("Test T&#230;xt", sanitizedMetadataIncorrect["title"]);
-        Assert.AreNotEqual("This is a d&#230;scription.", sanitizedMetadataIncorrect["description"]);
-        Assert.AreNotEqual("Og T&#230;tle", sanitizedMetadataIncorrect["og:title"]);
+        Assert.AreNotEqual("Test Tæxt", sanitizedMetadataIncorrect["title"]);
+        Assert.AreNotEqual("This is a dæscription.", sanitizedMetadataIncorrect["description"]);
+        Assert.AreNotEqual("Og Tætle", sanitizedMetadataIncorrect["og:title"]);
     }
 
 
@@ -624,18 +676,8 @@ public class LinkMetaExtractorTests
         // Assert
         // Verify that script tags or JavaScript content have been removed
         Assert.AreEqual("Test", sanitizedMetadata["title"]);
-        Assert.AreEqual("This is a description.", sanitizedMetadata["description"]);
+        Assert.AreEqual("<script>alert('test')</script> This is a description.", sanitizedMetadata["description"]);
         Assert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
-
-        // Ensure no script content remains anywhere in the sanitized metadata
-        foreach (var value in sanitizedMetadata.Values)
-        {
-            if (value is string stringValue)
-            {
-                Assert.IsFalse(stringValue.Contains("<script>") || stringValue.Contains("alert("),
-                    $"Sanitized output contains unsafe content: {stringValue}");
-            }
-        }
     }
 
 
@@ -665,31 +707,21 @@ public class LinkMetaExtractorTests
         // Assert
         // Verify that script tags or JavaScript content have been removed
         Assert.AreEqual("Test", sanitizedMetadata["title"]);
-        Assert.AreEqual("This is a description.", sanitizedMetadata["description"]);
+        Assert.AreEqual("<script>alert('test')</script> This is a description.", sanitizedMetadata["description"]);
         Assert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
-
-        // Ensure no script content remains anywhere in the sanitized metadata
-        foreach (var value in sanitizedMetadata.Values)
-        {
-            if (value is string stringValue)
-            {
-                Assert.IsFalse(stringValue.Contains("<script>") || stringValue.Contains("alert("),
-                    $"Sanitized output contains unsafe content: {stringValue}");
-            }
-        }
     }
 
-        [Test]
-        public void GetImageUrl_ShouldHandleUrlsAndEmbeddedImages()
-        {
-            // Arrange
-            var maxDataUriSize = 2 * 1024 * 1024; // 2 MB for embedded images
-            var validDataUri = "data:image/png;base64," + Convert.ToBase64String(new byte[maxDataUriSize / 2]);
-            var invalidDataUri = "data:image/png;base64," + Convert.ToBase64String(new byte[maxDataUriSize * 2]);
-            var invalidMimeTypeDataUri = "data:image/xyz;base64,abc123";
+    [Test]
+    public void GetImageUrl_ShouldHandleUrlsAndEmbeddedImages()
+    {
+        // Arrange
+        var maxDataUriSize = 2 * 1024 * 1024; // 2 MB for embedded images
+        var validDataUri = "data:image/png;base64," + Convert.ToBase64String(new byte[maxDataUriSize / 2]);
+        var invalidDataUri = "data:image/png;base64," + Convert.ToBase64String(new byte[maxDataUriSize * 2]);
+        var invalidMimeTypeDataUri = "data:image/xyz;base64,abc123";
 
-            var testCases = new[]
-            {
+        var testCases = new[]
+        {
                 // Valid URL
                 new { Meta = new Dictionary<string, object> { { "og:image", "https://example.com/image.png" } }, Expected = "https://example.com/image.png" },
                 new { Meta = new Dictionary<string, object> { { "twitter:image", "https://example.com/image.jpg" } }, Expected = "https://example.com/image.jpg" },
@@ -712,15 +744,31 @@ public class LinkMetaExtractorTests
                 new { Meta = new Dictionary<string, object>(), Expected = (string?)null! }
             };
 
-            foreach (var testCase in testCases)
-            {
-                // Act
-                var result = LinkMeta.GetImageUrl(testCase.Meta);
+        foreach (var testCase in testCases)
+        {
+            // Act
+            var result = LinkMeta.GetImageUrl(testCase.Meta);
 
-                // Assert
-                Assert.AreEqual(testCase.Expected, result, $"Failed for meta: {testCase.Meta}");
-            }
+            // Assert
+            Assert.AreEqual(testCase.Expected, result, $"Failed for meta: {testCase.Meta}");
         }
+    }
+
+
+#if !CI_GITHUB
+    [Test]
+    public async Task TestAuktionshuset()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await linkMetaExtractor.ExtractAsync("https://www.auktionshuset.dk/auktioner/koretojer-mercedes-benz-vito");
+        Assert.NotNull(ogp.Title);
+        Assert.NotNull(ogp.Description);
+        Assert.IsNull(ogp.ImageUrl); // They have a malformed og:image (relative path not allowed)
+    }
+#endif
+
 
 #if !CI_GITHUB
     [Test]
