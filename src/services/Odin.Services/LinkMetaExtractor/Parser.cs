@@ -5,6 +5,7 @@ using Ganss.Xss;
 using System.Linq;
 using System;
 using System.Web;
+using System.Net;
 
 namespace Odin.Services.LinkMetaExtractor;
 
@@ -12,10 +13,17 @@ namespace Odin.Services.LinkMetaExtractor;
 
 public static class Parser
 {
-    private static readonly HtmlSanitizer Sanitizer = new HtmlSanitizer();
     private const int MaxContentLength = 2 * 1024 * 1024 + 500; // We can accept embedded images up to 2MB and a little
     private static readonly HashSet<string> InterestedInPrefixes = new HashSet<string> { "og", "twitter" };
     private static readonly HashSet<string> MetaAttributes = new HashSet<string> { "name", "property" };
+
+
+    public static string RemoveControlCharacters(string content)
+    {
+        // Clean out control characters
+        return Regex.Replace(content, @"[\x00-\x1F\x7F]", "");
+    }
+
 
     public static Dictionary<string, object> Parse(string content)
     {
@@ -42,6 +50,7 @@ public static class Parser
                         continue;
 
                     var contentValue = meta.GetAttributeValue("content", null);
+
                     if (string.IsNullOrWhiteSpace(contentValue)) 
                         continue;
 
@@ -80,10 +89,16 @@ public static class Parser
         // If we want to support that someday then we'll need to change this to whatever max we want
         // to have and return the larger data.
         //
+        value = RemoveControlCharacters(WebUtility.HtmlDecode(value));
+
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
         if (value.Length > MaxContentLength)
             value = value.Substring(0, MaxContentLength - 3) + "...";
 
-        value = HttpUtility.HtmlEncode(HttpUtility.HtmlDecode(Sanitizer.Sanitize(value)).Trim());
+        value = value.Trim();
+        key = key.Trim().ToLower();
 
         if (!dict.ContainsKey(key))
         {
