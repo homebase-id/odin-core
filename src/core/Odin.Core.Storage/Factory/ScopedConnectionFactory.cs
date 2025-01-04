@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Nito.AsyncEx;
-using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database;
 using Odin.Core.Util;
 
