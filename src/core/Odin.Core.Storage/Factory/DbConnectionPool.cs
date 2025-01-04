@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 using Odin.Core.Storage.Database;
 
 namespace Odin.Core.Storage.Factory;
@@ -23,7 +22,7 @@ public class DbConnectionPool(
     int poolSize) : IDbConnectionPool
 {
     private bool _disposed;
-    private readonly AsyncLock _mutex = new();
+    private readonly object _mutex = new();
     private readonly Dictionary<string, Stack<DbConnection>> _connections = new (); // connectionString -> connections
 
     public int PoolSize => poolSize;
@@ -32,7 +31,8 @@ public class DbConnectionPool(
 
     public async Task<DbConnection> GetConnectionAsync(string connectionString, Func<Task<DbConnection>> creator)
     {
-        using (_mutex.Lock())
+        LogTrace("Acquiring pool lock");
+        lock (_mutex)
         {
             if (_disposed)
             {
@@ -41,14 +41,18 @@ public class DbConnectionPool(
 
             if (_connections.TryGetValue(connectionString, out var stack) && stack.Count > 0)
             {
-                logger.LogTrace("Pool returning cached connection");
+                LogTrace("Pool returning cached connection");
+                LogTrace("Releasing pool lock");
                 return stack.Pop();
             }
+            LogTrace("Releasing pool lock");
         }
 
-        logger.LogTrace("Pool creating new connection");
+        LogTrace("Pool creating new connection");
         counters.IncrementNoPoolOpened();
-        return await creator();
+        var cn = await creator();
+        LogTrace("Pool created new connection");
+        return cn;
     }
 
     //
@@ -57,7 +61,8 @@ public class DbConnectionPool(
     {
         var connectionString = connection.ConnectionString;
 
-        using (await _mutex.LockAsync())
+        LogTrace("Acquiring pool lock");
+        lock(_mutex)
         {
             if (_disposed)
             {
@@ -72,16 +77,18 @@ public class DbConnectionPool(
 
             if (stack.Count < poolSize)
             {
-                logger.LogTrace("Pool caching connection");
+                LogTrace("Pool caching connection");
                 stack.Push(connection);
                 connection = null;
             }
+            LogTrace("Releasing pool lock");
         }
 
         if (connection != null)
         {
-            logger.LogTrace("Pool disposing connection due to pool size limit");
+            LogTrace("Pool disposing connection due to pool size limit");
             await CloseConnectionAsync(connection);
+            LogTrace("Pool disposed connection");
         }
     }
 
@@ -90,36 +97,51 @@ public class DbConnectionPool(
     public async Task ClearAsync(string connectionString)
     {
         // NOTE: don't log connection string here, it might contain sensitive information
-        logger.LogTrace("Pool clearing connections");
-        using (await _mutex.LockAsync())
+        LogTrace("Pool clearing connections");
+        List<DbConnection> connectionsToDispose = [];
+
+        lock(_mutex)
         {
             if (_connections.TryGetValue(connectionString, out var stack))
             {
-                foreach (var connection in stack)
-                {
-                    await CloseConnectionAsync(connection);
-                }
+                connectionsToDispose.AddRange(stack);
                 stack.Clear();
             }
         }
+
+        foreach (var connection in connectionsToDispose)
+        {
+            await CloseConnectionAsync(connection);
+        }
+
+        LogTrace("Pool done clearing connections");
     }
 
     //
 
     public async Task ClearAllAsync()
     {
-        logger.LogTrace("Pool clearing all connections");
-        using (await _mutex.LockAsync())
+        LogTrace("Pool clearing all connections");
+
+        List<DbConnection> connectionsToDispose = [];
+        lock(_mutex)
         {
             foreach (var stack in _connections.Values)
             {
                 foreach (var connection in stack)
                 {
-                    await CloseConnectionAsync(connection);
+                    connectionsToDispose.Add(connection);
                 }
             }
             _connections.Clear();
         }
+
+        foreach (var connection in connectionsToDispose)
+        {
+            await CloseConnectionAsync(connection);
+        }
+
+        LogTrace("Pool done clearing all connections");
     }
 
     //
@@ -135,7 +157,7 @@ public class DbConnectionPool(
     public async ValueTask DisposeAsync()
     {
         GC.SuppressFinalize(this);
-        using (await _mutex.LockAsync())
+        lock(_mutex)
         {
             _disposed = true;
         }
@@ -149,4 +171,17 @@ public class DbConnectionPool(
         counters.IncrementNoPoolClosed();
         await connection.DisposeAsync();
     }
+
+    //
+
+    private void LogTrace(string message)
+    {
+        if (logger.IsEnabled(LogLevel.Trace))
+        {
+            logger.LogTrace("{message}", message);
+        }
+    }
+
+    //
+
 }
