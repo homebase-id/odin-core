@@ -90,7 +90,9 @@ public static class Parser
         if (string.IsNullOrWhiteSpace(value))
             return;
 
-        value = RemoveControlCharacters(WebUtility.HtmlDecode(value));
+        // Do a double decode because on some sites (like e.g. Twitter) it's not uncommon that & becomes &amp;amp;
+        //
+        value = RemoveControlCharacters(WebUtility.HtmlDecode(WebUtility.HtmlDecode(value)));
 
         if (string.IsNullOrWhiteSpace(value))
             return;
