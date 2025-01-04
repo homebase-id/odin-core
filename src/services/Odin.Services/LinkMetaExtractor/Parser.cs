@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
-using Ganss.Xss;
 using System.Linq;
 using System;
-using System.Web;
 using System.Net;
 
 namespace Odin.Services.LinkMetaExtractor;
@@ -33,7 +31,7 @@ public static class Parser
         var metadata = new Dictionary<string, object>();
 
         // Parse all meta tags once
-        var metaNodes = doc.DocumentNode.SelectNodes("//meta");
+        var metaNodes = doc.DocumentNode?.SelectNodes("//meta");
         if (metaNodes != null)
         {
             foreach (var meta in metaNodes)
@@ -64,7 +62,7 @@ public static class Parser
 
         // Parse description
         var descriptionNode = metaNodes?.FirstOrDefault(
-            node => node.GetAttributeValue("name", "").Trim().Equals("description", StringComparison.OrdinalIgnoreCase)
+            node => node.GetAttributeValue("name", "")?.Trim().Equals("description", StringComparison.OrdinalIgnoreCase) == true
         );
         ParseNode(descriptionNode, "description", metadata);
         return metadata;
@@ -89,6 +87,9 @@ public static class Parser
         // If we want to support that someday then we'll need to change this to whatever max we want
         // to have and return the larger data.
         //
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
         value = RemoveControlCharacters(WebUtility.HtmlDecode(value));
 
         if (string.IsNullOrWhiteSpace(value))
@@ -110,7 +111,7 @@ public static class Parser
         }
         else
         {
-            dict[key] = new List<string> { dict[key].ToString(), value };
+            dict[key] = new List<string> { dict[key]?.ToString() ?? string.Empty, value };
         }
     }
 }
