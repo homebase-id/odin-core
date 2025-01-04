@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
@@ -169,9 +170,10 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
                 return null;
             }
 
-            // Decode the HTML content
-            var decodedHtml = WebUtility.HtmlDecode(content);
-            return decodedHtml;
+            // Do NOT decode the HTML content. The chat client and stuff reliably handles unsafe "html".
+            // var decodedHtml = WebUtility.HtmlDecode(content);
+
+            return content;
         }
         catch (OperationCanceledException)
         {
