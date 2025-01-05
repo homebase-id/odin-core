@@ -32,6 +32,16 @@ public sealed class LogEventMemoryStore : ILogEventMemoryStore
 
     //
 
+    public void Clear(LogEventLevel level)
+    {
+        lock (_mutex)
+        {
+            _logEvents[level].Clear();
+        }
+    }
+
+    //
+
     public void Add(LogEvent logEvent)
     {
         lock (_mutex)

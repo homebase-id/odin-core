@@ -172,15 +172,14 @@ public class ScopedConnectionFactory<T>(
     private readonly T _connectionFactory = connectionFactory;
     private readonly CacheHelper _cache = cache; // SEB:NOTE ported from earlier db code, cache needs redesign
     private readonly DatabaseCounters _counters = counters;
-    private readonly AsyncLock _mutex = new();
+    private readonly AsyncLock _mutex = new(); // SEB:TODO remove when we're sure parallel detection works
+    private int _parallelDetectionRefCount;
     private DbConnection? _connection;
     private int _connectionRefCount;
     private DbTransaction? _transaction;
     private int _transactionRefCount;
     private bool _commit;
     private Guid _connectionId;
-    private DbCommand? _command;
-    private string _commandDiagnostics = "";
 
     public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
 
@@ -190,6 +189,8 @@ public class ScopedConnectionFactory<T>(
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
+        using var np = NoParallelism("CreateScopedConnectionAsync");
+
         using (await _mutex.LockAsync())
         {
             if (_connectionRefCount == 0)
@@ -240,9 +241,8 @@ public class ScopedConnectionFactory<T>(
     private void LogError(string message)
     {
         LogDiagnostics();
-        _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag})",
-            message, _connectionId, lifetimeScope.Tag);
-        _logger.LogError(Environment.StackTrace);
+        _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag}\n{stackTrace}",
+            message, _connectionId, lifetimeScope.Tag, Environment.StackTrace);
     }
 
     //
@@ -271,6 +271,28 @@ public class ScopedConnectionFactory<T>(
 
     //
 
+    private NoParallelismDisposer NoParallelism(string context, int expectedRefCount = 1)
+    {
+        if (Interlocked.Increment(ref _parallelDetectionRefCount) != expectedRefCount)
+        {
+            var message = $"Parallelism detected ({context}). Use a new scope for each parallel task or thread.";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
+        }
+
+        return new NoParallelismDisposer(this);
+    }
+
+    //
+
+    private sealed class NoParallelismDisposer(ScopedConnectionFactory<T> instance) : IDisposable
+    {
+        public void Dispose()
+        {
+            Interlocked.Decrement(ref instance._parallelDetectionRefCount);
+        }
+    }
+
     //
     // ConnectionWrapper
     // A wrapper around a DbConnection that ensures that the transaction is disposed correctly.
@@ -287,6 +309,8 @@ public class ScopedConnectionFactory<T>(
             IsolationLevel isolationLevel = IsolationLevel.Unspecified,
             CancellationToken cancellationToken = default)
         {
+            using var np = instance.NoParallelism("BeginStackedTransactionAsync");
+
             using (await instance._mutex.LockAsync(cancellationToken))
             {
                 if (instance._connection == null)
@@ -330,6 +354,8 @@ public class ScopedConnectionFactory<T>(
             [CallerFilePath] string? filePath = null,
             [CallerLineNumber] int lineNumber = 0)
         {
+            using var np = instance.NoParallelism(nameof(CreateCommand));
+
             using (instance._mutex.Lock())
             {
                 if (instance._connection == null)
@@ -338,22 +364,14 @@ public class ScopedConnectionFactory<T>(
                     throw new OdinDatabaseException(instance.DatabaseType, "No connection available to create command");
                 }
 
-                // We only allow one command to be created at a time per connection. This is to prevent multiple
-                // commands from being executed concurrently on the same connection, which is not supported by
-                // most drivers. While this makes it more cumbersome to run multiple commands, it makes
-                // troubleshooting easier and prevents potential issues.
-                if (instance._command != null)
+                if (instance._logger.IsEnabled(LogLevel.Trace))
                 {
-                    var error = $"Only one command can be created at a time per connection. Current command: {instance._commandDiagnostics}";
-                    instance.LogError(error);
-                    throw new OdinDatabaseException(instance.DatabaseType, error);
+                    instance.LogTrace(
+                        $" Creating command on tid:{Environment.CurrentManagedThreadId} at {filePath}:{lineNumber}");
                 }
 
-                instance._commandDiagnostics = $"tid:{Environment.CurrentManagedThreadId} at {filePath}:{lineNumber}";
-                instance.LogTrace($" Creating command on {instance._commandDiagnostics}");
-
-                instance._command = instance._connection.CreateCommand();
-                return new CommandWrapper(instance, instance._command);
+                var command = instance._connection.CreateCommand();
+                return new CommandWrapper(instance, command);
             }
         }
 
@@ -369,6 +387,8 @@ public class ScopedConnectionFactory<T>(
 
         public async ValueTask DisposeAsync()
         {
+            // Don't check for parallelism here, because have allow dispose to run
+
             GC.SuppressFinalize(this);
             using (await instance._mutex.LockAsync())
             {
@@ -383,13 +403,6 @@ public class ScopedConnectionFactory<T>(
                     if (instance._transaction != null)
                     {
                         const string message = "Cannot dispose connection while a transaction is active";
-                        instance.LogError(message);
-                        throw new OdinDatabaseException(instance.DatabaseType, message);
-                    }
-
-                    if (instance._command != null)
-                    {
-                        const string message = "Cannot dispose connection while a command is active";
                         instance.LogError(message);
                         throw new OdinDatabaseException(instance.DatabaseType, message);
                     }
@@ -485,6 +498,8 @@ public class ScopedConnectionFactory<T>(
 
         public async ValueTask DisposeAsync()
         {
+            // Don't check for parallelism here, because have allow dispose to run
+
             GC.SuppressFinalize(this);
             using (await instance._mutex.LockAsync())
             {
@@ -563,7 +578,6 @@ public class ScopedConnectionFactory<T>(
     // accesses the DbConnection, we make sure it is synchronized.
     //
     public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
-
     {
         private bool _disposed;
         public DbCommand DangerousInstance => command;
@@ -619,6 +633,8 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
         {
+            using var np = instance.NoParallelism("ExecuteNonQueryAsync");
+
             instance._counters.IncrementNoDbExecuteNonQueryAsync();
 
             try
@@ -644,6 +660,8 @@ public class ScopedConnectionFactory<T>(
         public async Task<DbDataReader> ExecuteReaderAsync(
             CommandBehavior behavior = CommandBehavior.Default, CancellationToken cancellationToken = default)
         {
+            using var np = instance.NoParallelism("ExecuteReaderAsync");
+
             instance._counters.IncrementNoDbExecuteReaderAsync();
 
             try
@@ -668,6 +686,8 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default)
         {
+            using var np = instance.NoParallelism("ExecuteScalarAsync");
+
             instance._counters.IncrementNoDbExecuteScalarAsync();
 
             try
@@ -692,6 +712,8 @@ public class ScopedConnectionFactory<T>(
 
         public async Task PrepareAsync(CancellationToken cancellationToken = default)
         {
+            using var np = instance.NoParallelism("PrepareAsync");
+
             try
             {
                 using (await instance._mutex.LockAsync(cancellationToken))
@@ -721,6 +743,8 @@ public class ScopedConnectionFactory<T>(
 
         public async ValueTask DisposeAsync()
         {
+            // Don't check for parallelism here, because have allow dispose to run
+
             GC.SuppressFinalize(this);
 
             using (await instance._mutex.LockAsync())
@@ -732,7 +756,6 @@ public class ScopedConnectionFactory<T>(
                 }
 
                 _disposed = true;
-                instance._command = null;
 
                 instance.LogTrace(" Disposing command");
                 await command.DisposeAsync();
