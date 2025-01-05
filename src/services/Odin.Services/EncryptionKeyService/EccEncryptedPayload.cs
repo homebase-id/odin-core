@@ -32,7 +32,7 @@ public class EccEncryptedPayload
     /// </summary>
     public uint EncryptionPublicKeyCrc32 { get; set; }
 
-    public PublicPrivateKeyType KeyType { get; set; }
+    public PublicPrivateKeyType KeyType { get; set; } = PublicPrivateKeyType.OnlineIcrEncryptedKey; // defaulting to OnlineIcrEncryptedKey because backwards-compatibility 
 
     /// <summary>
     /// Specifies the time this was encrypted in the form of a SequentialGuid
