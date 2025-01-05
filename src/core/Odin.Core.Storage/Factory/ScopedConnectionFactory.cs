@@ -185,7 +185,7 @@ public class ScopedConnectionFactory<T>(
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        using var _ = NoParallelism("CreateScopedConnectionAsync");
+        using var _ = NoParallelism(nameof(CreateScopedConnectionAsync));
 
         if (_connectionRefCount == 0)
         {
