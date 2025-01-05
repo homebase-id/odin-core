@@ -258,6 +258,12 @@ public class ScopedConnectionFactory<T>(
 
     //
 
+    // SEB:NOTE
+    // This method is used to detect parallelism, i.e. if the same connection is used in multiple threads.
+    // We used to have locking all around this class, but while that might save you when (mis)using the class across
+    // different threads or parallel tasks, it would not alert you to the fact that you are doing something wrong.
+    // Since we already know we're not thread-safe, we might as well make it explicit and throw an exception instead
+    // of wasting cycles doing locking.
     private NoParallelismDisposer NoParallelism(string context, int expectedRefCount = 1)
     {
         if (Interlocked.Increment(ref _parallelDetectionRefCount) != expectedRefCount)
