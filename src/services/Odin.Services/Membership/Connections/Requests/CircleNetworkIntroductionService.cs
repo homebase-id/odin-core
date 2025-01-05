@@ -253,7 +253,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return;
         }
 
-        if (_tenantContext.Settings.DisableAutoAcceptIntroductions && !force)
+        if (_tenantContext.Settings.DisableAutoAcceptIntroductionsForTests && !force)
         {
             return;
         }
@@ -441,7 +441,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 dataTypeKey: iid.IntroducerOdinId.ToHashId().ToByteArray(),
                 ReceivedIntroductionDataType, iid);
 
-            if (!_tenantContext.Settings.DisableAutoAcceptIntroductions)
+            if (!_tenantContext.Settings.DisableAutoAcceptIntroductionsForTests)
             {
                 var item = new OutboxFileItem
                 {
