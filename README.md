@@ -2,8 +2,9 @@
 
 ##### Open Decentralized Identity Network (ODIN)
 
-[![Build](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-debug.yml/badge.svg)](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-debug.yml)
-[![Build](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-release.yml/badge.svg)](https://github.com/homebase-id/odin-core/actions/workflows/host-build-and-test-main-release.yml)
+[![Build](https://github.com/homebase-id/odin-core/actions/workflows/host-ci-main-sqlite-debug.yml/badge.svg)](https://github.com/homebase-id/odin-core/actions/workflows/host-ci-main-sqlite-debug.yml)
+[![Build](https://github.com/homebase-id/odin-core/actions/workflows/host-ci-main-sqlite-release.yml/badge.svg)](https://github.com/homebase-id/odin-core/actions/workflows/host-ci-main-sqlite-release.yml)
+[![Build](https://github.com/homebase-id/odin-core/actions/workflows/host-ci-main-postgres-release.yml/badge.svg)](https://github.com/homebase-id/odin-core/actions/workflows/host-ci-main-postgres-release.yml)
 
 ####
 
@@ -52,4 +53,4 @@ This is an Alpha version of Homebase.id. Expect breaking changes and significant
 
 ### Security disclosures
 
-If you discover any security issues, please send an email to info *at* homebase *dot* id. The email is automatically CCed to the entire team and we'll respond promptly.
+If you discover any security issues, please send an email to info _at_ homebase _dot_ id. The email is automatically CCed to the entire team and we'll respond promptly.
