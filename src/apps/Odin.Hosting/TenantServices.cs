@@ -52,6 +52,7 @@ using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Configuration.VersionUpgrade.Version1tov2;
+using Odin.Services.Configuration.VersionUpgrade.Version2tov3;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Reactions.Redux.Group;
@@ -297,6 +298,7 @@ public static class TenantServices
 
         cb.RegisterType<V0ToV1VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V1ToV2VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V2ToV3VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 

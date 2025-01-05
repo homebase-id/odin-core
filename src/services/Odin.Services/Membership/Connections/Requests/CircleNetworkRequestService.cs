@@ -254,7 +254,6 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 //who short first?  if mine was sent first
                 if (ByteArrayUtil.muidcmp(outgoingTimestamp, payload.TimestampId) == -1)
-                    // if (outgoingTime < payload.TimestampUtcTicks)
                 {
                     throw new OdinClientException("Introductory request already sent", OdinClientErrorCode.IntroductoryRequestAlreadySent);
                 }

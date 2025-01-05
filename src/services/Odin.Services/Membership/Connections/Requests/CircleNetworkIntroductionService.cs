@@ -493,7 +493,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         }
     }
 
-    public async Task DeleteIntroductionsAsync(IOdinContext odinContext)
+    public async Task DeleteIntroductionsAsync(IOdinContext odinContext, UnixTimeUtc? maxDate = null)
     {
         _logger.LogDebug("Deleting all introductions");
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
@@ -501,7 +501,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             ReceivedIntroductionDataType);
         foreach (var intro in results)
         {
-            await ReceivedIntroductionValueStorage.DeleteAsync(_db.KeyThreeValue, intro.Identity);
+            if (maxDate != null && intro.Received < maxDate)
+            {
+                await ReceivedIntroductionValueStorage.DeleteAsync(_db.KeyThreeValue, intro.Identity);
+            }
+            else
+            {
+                await ReceivedIntroductionValueStorage.DeleteAsync(_db.KeyThreeValue, intro.Identity);
+            }
         }
     }
 }
