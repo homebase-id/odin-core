@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
+using Serilog.Events;
 
 namespace Odin.Core.Storage.Tests.Factory;
 
@@ -452,6 +454,64 @@ public class ScopedConnectionFactoryTest : IocTestBase
     }
     
     //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldDetectParallelism(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        {
+            using var scope = Services.BeginLifetimeScope();
+            var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+            const string busySql =
+                """
+                WITH RECURSIVE busy_wait(counter) AS (
+                    VALUES(1)
+                    UNION ALL
+                    SELECT counter + 1 
+                    FROM busy_wait 
+                    WHERE counter < 20000000
+                )
+                SELECT COUNT(*) FROM busy_wait;
+                """;
+
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd1 = cn.CreateCommand();
+            cmd1.CommandText = busySql;
+            await using var cmd2 = cn.CreateCommand();
+            cmd2.CommandText = busySql;
+
+            var task1 = Task.Run(async () =>
+            {
+                await Task.Delay(10);
+                await cmd1.ExecuteScalarAsync();
+            });
+
+            var task2 = Task.Run(async () =>
+            {
+                await Task.Delay(200);
+                await cmd2.ExecuteScalarAsync();
+            });
+
+            // Good!
+            Assert.DoesNotThrowAsync(async () => await task1);
+
+            // Bad!
+            var ex = Assert.ThrowsAsync<OdinDatabaseException>(async () => await task2);
+            Assert.That(ex!.Message, Does.StartWith("Parallelism detected (ExecuteScalarAsync)"));
+
+            var errorLogs = LogEventMemoryStore.GetLogEvents()[LogEventLevel.Error];
+            LogEventMemoryStore.Clear(LogEventLevel.Error);
+
+            Assert.That(errorLogs.Count, Is.EqualTo(1));
+            var found = errorLogs.Any(e => e.RenderMessage().Contains("Parallelism detected (ExecuteScalarAsync)"));
+            Assert.That(found, Is.True);
+        }
+    }
+
 
 }
 

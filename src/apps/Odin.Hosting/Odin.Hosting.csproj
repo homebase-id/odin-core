@@ -26,9 +26,6 @@
         <PackageReference Include="Autofac" Version="8.2.0" />
         <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
         <PackageReference Include="HttpClientFactoryLite" Version="0.4.0"/>
-        <PackageReference Include="JsonModelBinder" Version="2.1.1"/>
-        <PackageReference Include="MagicOnion.Abstractions" Version="5.1.8" />
-        <PackageReference Include="MagicOnion.Client" Version="5.1.8" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="9.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="9.0.0" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
