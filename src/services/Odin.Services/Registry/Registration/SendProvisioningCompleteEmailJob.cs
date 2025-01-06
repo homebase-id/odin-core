@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -5,6 +6,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -24,6 +26,9 @@ public class SendProvisioningCompleteEmailJob(
     IEmailSender emailSender,
     IIdentityRegistrationService identityRegistrationService) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("37b89769-b428-428d-9d7d-697058184370");
+    public override string JobType => JobTypeId.ToString();
+
     public SendProvisioningCompleteEmailJobData Data { get; set; } = new ();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)

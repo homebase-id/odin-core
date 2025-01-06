@@ -95,11 +95,6 @@ namespace Odin.Hosting
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
 
-            //
-            // Background and job stuff
-            //
-            services.AddJobManagerServices();
-
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -255,6 +250,7 @@ namespace Odin.Hosting
             builder.RegisterModule(new MultiTenantAutofacModule());
            
             builder.AddSystemBackgroundServices();
+            builder.AddJobManagerServices();
 
             // Global database services
             builder.AddDatabaseCacheServices();
