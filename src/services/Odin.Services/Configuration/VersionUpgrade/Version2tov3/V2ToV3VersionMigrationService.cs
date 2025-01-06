@@ -30,7 +30,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version2tov3
             //
             // delete all old introductions for sanity
             //
-            logger.LogDebug("Deleting all introductions");
+            logger.LogDebug("Deleting all introductions before {maxDate}", _maxDate.ToDateTime().ToShortDateString());
             await introductionService.DeleteIntroductionsAsync(odinContext, _maxDate);
         }
 
