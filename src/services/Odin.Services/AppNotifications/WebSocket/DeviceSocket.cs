@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
@@ -17,8 +16,6 @@ namespace Odin.Services.AppNotifications.WebSocket;
 
 public class EstablishConnectionOptions
 {
-    public string ClientAuthenticationToken64 { get; set; }
-    
     public List<TargetDrive> Drives { get; set; } = new();
 
     /// <summary>

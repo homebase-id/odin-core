@@ -23,6 +23,12 @@ using Odin.Services.Peer.AppNotification;
 
 namespace Odin.Services.AppNotifications.WebSocket
 {
+    public class AuthenticationPackage
+    {
+        public string ClientAuthToken64 { get; set; }
+        public string SharedEncryptEncryptedOptions64 { get; set; }
+    }
+
     public class PeerAppNotificationHandler(
         DriveManager driveManager,
         ILogger<PeerAppNotificationHandler> logger,
@@ -84,7 +90,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext odinContext)
+        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext currentOdinContext)
         {
             var webSocket = deviceSocket.Socket;
             while (!cancellationToken.IsCancellationRequested && webSocket?.State == WebSocketState.Open)
@@ -103,11 +109,25 @@ namespace Odin.Services.AppNotifications.WebSocket
                 if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
                 {
                     var completeMessage = ms.ToArray();
-                    var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-
                     byte[] decryptedBytes;
+                    
                     try
                     {
+                        if (deviceSocket.DeviceOdinContext == null)
+                        {
+                            var authenticationPackage = OdinSystemSerializer.Deserialize<AuthenticationPackage>(completeMessage);
+
+                            if (null == authenticationPackage?.ClientAuthToken64)
+                            {
+                                throw new OdinSecurityException("The socket could not be authenticated");
+                            }
+                        
+                            var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
+                            deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
+                            completeMessage = authenticationPackage.SharedEncryptEncryptedOptions64.FromBase64();
+                        }
+
+                        var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
                         decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
                     }
                     catch (Exception)
@@ -138,7 +158,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     {
                         try
                         {
-                            await ProcessCommand(deviceSocket, command, cancellationToken, odinContext);
+                            await ProcessCommand(deviceSocket, command, cancellationToken);
                         }
                         catch (OperationCanceledException)
                         {
@@ -281,9 +301,10 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken,
-            IOdinContext currentOdinContext)
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken)
         {
+            var odinContext = deviceSocket.DeviceOdinContext;
+
             //process the command
             switch (command.Command)
             {
@@ -299,13 +320,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                                           Drives = []
                                       };
 
-                        var newOdinContext =  await HandleAuthentication(options.ClientAuthenticationToken64, currentOdinContext);
-                        deviceSocket.DeviceOdinContext = newOdinContext;
-
                         foreach (var td in options.Drives)
                         {
-                            var driveId = newOdinContext.PermissionsContext.GetDriveId(td);
-                            newOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
+                            var driveId = odinContext.PermissionsContext.GetDriveId(td);
+                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
                             drives.Add(driveId);
                         }
 
