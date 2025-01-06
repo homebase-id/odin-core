@@ -124,7 +124,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         
                             var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
                             deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
-                            completeMessage = authenticationPackage.SharedEncryptEncryptedOptions64.FromBase64();
+                            completeMessage = authenticationPackage.SharedEncryptEncryptedOptions64.ToUtf8ByteArray();
                         }
 
                         var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
@@ -373,9 +373,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                 }
 
                 ctx.SetAuthContext("websocket-peer-app-subscriber-token");
-                ctx.Caller = ctx.Caller;
-                ctx.SetPermissionContext(ctx.PermissionsContext);
-
                 return ctx;
             }
 
