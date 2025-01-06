@@ -2,11 +2,7 @@ using System;
 using Autofac;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration.VersionUpgrade;
-<<<<<<< HEAD
-=======
 using Odin.Services.JobManagement.Jobs;
-using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
->>>>>>> main
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.JobManagement;
