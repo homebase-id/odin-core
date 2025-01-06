@@ -495,7 +495,15 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task DeleteIntroductionsAsync(IOdinContext odinContext, UnixTimeUtc? maxDate = null)
     {
-        _logger.LogDebug("Deleting all introductions");
+        if (maxDate == null)
+        {
+            _logger.LogDebug("Deleting all introductions");
+        }
+        else
+        {
+            _logger.LogDebug("Deleting all introductions before {maxDate}", maxDate.GetValueOrDefault().ToDateTime().ToShortDateString());
+        }
+
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
         var results = await ReceivedIntroductionValueStorage.GetByCategoryAsync<IdentityIntroduction>(_db.KeyThreeValue,
             ReceivedIntroductionDataType);
