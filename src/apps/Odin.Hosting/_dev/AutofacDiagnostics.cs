@@ -46,6 +46,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Base.SharedOdinContextCache<FollowerAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<IdentitiesIFollowAuthenticationService>), "822f02f2"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<TransitAuthenticationService>), "822f02f2"},
+        {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
     };
 
     public void AssertSingletonDependencies()

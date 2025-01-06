@@ -5,7 +5,7 @@ using Autofac;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.System.Table;
 
-namespace Odin.Services.JobManagement;
+namespace Odin.Services.JobManagement.Jobs;
 
 #nullable enable
 
@@ -33,7 +33,7 @@ public abstract class AbstractJob : IDisposable
     public string? LastError => Record?.lastError;
 
     // JobType
-    public virtual string JobType => GetType().AssemblyQualifiedName ?? throw new OdinSystemException("JobType is null");
+    public abstract string JobType { get; }
 
     // Override this to create a job hash value. This is used to determine if a job is unique. Two jobs
     // with the same hash cannot exist in the database at the same time. If this method returns null, it means
@@ -68,15 +68,26 @@ public abstract class AbstractJob : IDisposable
             throw new ArgumentException("Job type cannot be null or empty.", nameof(record.jobType));
         }
 
-        var type = Type.GetType(record.jobType);
-        if (type == null)
+        Type? jobType;
+        if (Guid.TryParse(record.jobType, out var jobTypeId))
+        {
+            var jobTypeRegistry = lifetimeScope.Resolve<IJobTypeRegistry>();
+            jobType = jobTypeRegistry.GetJobType(jobTypeId);
+        }
+        else
+        {
+            // Fallback to old behavior
+            jobType = Type.GetType(record.jobType);
+        }
+
+        if (jobType == null)
         {
             throw new OdinSystemException($"Unable to find job type {record.jobType}");
         }
 
-        if (lifetimeScope.Resolve(type) is not AbstractJob job)
+        if (lifetimeScope.Resolve(jobType) is not AbstractJob job)
         {
-            throw new OdinSystemException($"Unable to create instance of job type {type}");
+            throw new OdinSystemException($"Unable to create instance of job type {jobType}");
         }
 
         job.Record = record;

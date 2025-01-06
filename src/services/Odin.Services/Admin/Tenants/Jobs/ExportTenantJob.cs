@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Admin.Tenants.Jobs;
@@ -27,6 +27,9 @@ public class ExportTenantJob(
     OdinConfiguration config,
     IIdentityRegistry identityRegistry) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("d58812e0-b087-48e3-b115-2a9f92dd671a");
+    public override string JobType => JobTypeId.ToString();
+
     public ExportTenantJobData Data { get; set; } = new ();
 
     //

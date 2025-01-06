@@ -9,6 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Background;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.JobManagement;
 
@@ -309,8 +310,19 @@ public class JobManager(
             return null;
         }
 
-        var job = AbstractJob.CreateInstance<T>(lifetimeScope, record);
-    
+        T job;
+        try
+        {
+            job = AbstractJob.CreateInstance<T>(lifetimeScope, record);
+        }
+        catch (Exception e)
+        {
+            record.state = (int)JobState.Failed;
+            record.lastError = $"Activator error: {e.Message}";
+            await UpdateAsync(record);
+            throw;
+        }
+
         return job;
     }
     
