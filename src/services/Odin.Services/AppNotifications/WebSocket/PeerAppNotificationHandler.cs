@@ -12,10 +12,12 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
+using Odin.Services.Peer.AppNotification;
 
 #nullable enable
 
@@ -24,11 +26,11 @@ namespace Odin.Services.AppNotifications.WebSocket
     public class PeerAppNotificationHandler(
         DriveManager driveManager,
         ILogger<PeerAppNotificationHandler> logger,
+        PeerAppNotificationService peerAppNotificationService,
         SharedDeviceSocketCollection<PeerAppNotificationHandler> deviceSocketCollection) :
         INotificationHandler<IClientNotification>,
         INotificationHandler<IDriveNotification>
     {
-
         //
 
         /// <summary>
@@ -280,7 +282,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         //
 
         private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken,
-            IOdinContext odinContext)
+            IOdinContext currentOdinContext)
         {
             //process the command
             switch (command.Command)
@@ -297,14 +299,16 @@ namespace Odin.Services.AppNotifications.WebSocket
                                           Drives = []
                                       };
 
+                        var newOdinContext =  await HandleAuthentication(options.ClientAuthenticationToken64, currentOdinContext);
+                        deviceSocket.DeviceOdinContext = newOdinContext;
+
                         foreach (var td in options.Drives)
                         {
-                            var driveId = odinContext.PermissionsContext.GetDriveId(td);
-                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
+                            var driveId = newOdinContext.PermissionsContext.GetDriveId(td);
+                            newOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
                             drives.Add(driveId);
                         }
 
-                        deviceSocket.DeviceOdinContext = odinContext.Clone();
                         deviceSocket.Drives = drives;
                         deviceSocket.ForcePushInterval = TimeSpan.FromMilliseconds(options.WaitTimeMs);
                         deviceSocket.BatchSize = options.BatchSize;
@@ -331,6 +335,33 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await SendErrorMessageAsync(deviceSocket, "Invalid command", cancellationToken);
                     break;
             }
+        }
+
+        private async Task<IOdinContext> HandleAuthentication(string clientAuthToken64, IOdinContext currentOdinContext)
+        {
+            if (ClientAuthenticationToken.TryParse(clientAuthToken64, out var clientAuthToken))
+            {
+                if (clientAuthToken.ClientTokenType != ClientTokenType.RemoteNotificationSubscriber)
+                {
+                    throw new OdinSecurityException("Invalid Client Token Type");
+                }
+
+                // authToken comes from ICR, not the app registration
+                // because it's a caller wanting to get peer app notifications
+                var ctx = await peerAppNotificationService.GetDotYouContext(clientAuthToken, currentOdinContext);
+                if (null == ctx)
+                {
+                    throw new OdinSecurityException("Invalid Client Token");
+                }
+
+                ctx.SetAuthContext("websocket-peer-app-subscriber-token");
+                ctx.Caller = ctx.Caller;
+                ctx.SetPermissionContext(ctx.PermissionsContext);
+
+                return ctx;
+            }
+
+            throw new OdinSecurityException("No token provided");
         }
 
         //

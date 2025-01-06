@@ -15,7 +15,7 @@ using Odin.Services.AppNotifications.WebSocket;
 namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
     [ApiController]
-    [AuthorizeValidAppNotificationSubscriberToken]
+    // [AuthorizeValidAppNotificationSubscriberToken]
     [Route(GuestApiPathConstants.PeerNotificationsV1)]
     public class PeerAppNotificationSocketController(
         PeerAppNotificationHandler notificationHandler,

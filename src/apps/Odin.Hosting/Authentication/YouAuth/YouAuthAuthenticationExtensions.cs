@@ -16,15 +16,5 @@ namespace Odin.Hosting.Authentication.YouAuth
                 YouAuthConstants.YouAuthScheme, op => { });
         }
         
-        public static AuthenticationBuilder AddAppNotificationSubscriberAuthentication(this AuthenticationBuilder builder)
-        {
-            if (builder == null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-
-            return builder.AddScheme<YouAuthAuthenticationSchemeOptions, YouAuthAuthenticationHandler>(
-                YouAuthConstants.AppNotificationSubscriberScheme, op => { });
-        }
     }
 }
