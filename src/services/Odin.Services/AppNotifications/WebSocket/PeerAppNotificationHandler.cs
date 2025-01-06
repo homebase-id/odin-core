@@ -26,7 +26,7 @@ namespace Odin.Services.AppNotifications.WebSocket
     public class AuthenticationPackage
     {
         public string ClientAuthToken64 { get; set; }
-        public string SharedEncryptEncryptedOptions64 { get; set; }
+        public SharedSecretEncryptedPayload SharedEncryptEncryptedOptions64 { get; set; }
     }
 
     public class PeerAppNotificationHandler(
@@ -124,11 +124,14 @@ namespace Odin.Services.AppNotifications.WebSocket
                         
                             var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
                             deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
-                            completeMessage = authenticationPackage.SharedEncryptEncryptedOptions64.ToUtf8ByteArray();
+                            decryptedBytes = authenticationPackage.SharedEncryptEncryptedOptions64.Decrypt(deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey);
+                        }
+                        else
+                        {
+                            var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
+                            decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
                         }
 
-                        var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
-                        decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
                     }
                     catch (Exception)
                     {
