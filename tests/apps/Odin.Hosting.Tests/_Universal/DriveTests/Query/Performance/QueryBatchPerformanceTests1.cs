@@ -89,6 +89,10 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             await PrepareScenario(frodo, sam);
             await CreateConversation(frodo, sam);
 
+            Console.WriteLine("Setup:");
+            Console.WriteLine($"\tFrodo Sent Chats: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
+            Console.WriteLine($"\tSam Sent Chats: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
+
             //
             // Act
             //
@@ -108,18 +112,15 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
 
             SimplePerformanceCounter.Reset();
 
+            var counters = _scaffold.Services.GetRequiredService<DatabaseCounters>();
+            counters.Reset();
+
             await MeasureQueryBatch(frodo, qbr, maxThreads: 1, iterations: 5000);
             // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
 
-            var counters = _scaffold.Services.GetRequiredService<DatabaseCounters>();
+            Console.WriteLine("Results:");
             Console.WriteLine(counters.ToString());
             Console.WriteLine(SimplePerformanceCounter.Dump());
-
-            Console.WriteLine("Test Metrics:");
-            Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
-            Console.WriteLine($"\tSam Sent Files: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
-
-            // PerformanceCounter.WriteCounters();
 
             await Shutdown(frodo, sam);
         }
@@ -144,6 +145,10 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             await PrepareScenario(frodo, sam);
             await CreateConversation(frodo, sam);
 
+            Console.WriteLine("Setup:");
+            Console.WriteLine($"\tFrodo Sent Chats: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
+            Console.WriteLine($"\tSam Sent Chats: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
+
             //
             // Act
             //
@@ -160,14 +165,14 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                     MaxRecords = Int32.MaxValue
                 }
             };
+
+            var counters = _scaffold.Services.GetRequiredService<DatabaseCounters>();
+            counters.Reset();
             await MeasureQueryBatch(frodo, qbr, maxThreads: 5, iterations: 50);
             // await MeasureQueryBatch(sam, maxThreads: 5, iterations: 50);
 
-            Console.WriteLine("Test Metrics:");
-            Console.WriteLine($"\tFrodo Sent Files: {_filesSent.Count(kvp => kvp.Key == frodo.OdinId)}");
-            Console.WriteLine($"\tSam Sent Files: {_filesSent.Count(kvp => kvp.Key == sam.OdinId)}");
-
-            // PerformanceCounter.WriteCounters();
+            Console.WriteLine("Results:");
+            Console.WriteLine(counters.ToString());
 
             await Shutdown(frodo, sam);
         }
