@@ -754,6 +754,20 @@ public class LinkMetaExtractorTests
         }
     }
 
+#if !CI_GITHUB
+    [Test]
+    public async Task TestBenz()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await linkMetaExtractor.ExtractAsync("https://x.com/i/bookmarks?post_id=1875214258046193880");
+        Assert.NotNull(ogp.Title);
+        Assert.NotNull(ogp.Description);
+        Assert.IsTrue(!ogp.Title.Contains("&amp;") && !ogp.Description.Contains("&amp;"), "Encoded HTML entities (&amp;) should not be present.");
+    }
+#endif
+
 
 #if !CI_GITHUB
     [Test]

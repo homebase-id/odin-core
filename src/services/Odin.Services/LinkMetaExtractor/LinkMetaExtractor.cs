@@ -198,12 +198,12 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
         try
         {
             var meta = Parser.Parse(htmlContent);
-            if (meta.Count == 0)
+            if (meta == null || meta.Count == 0)
                 return null;
 
             var linkMeta = LinkMeta.FromMetaData(meta, url);
 
-            if (linkMeta.Title == string.Empty)
+            if (string.IsNullOrEmpty(linkMeta.Title))
             {
                 logger.LogDebug("LinkExtractor: The Title must be set (I'm not sure why) [{Url}]", url);
                 return null;
