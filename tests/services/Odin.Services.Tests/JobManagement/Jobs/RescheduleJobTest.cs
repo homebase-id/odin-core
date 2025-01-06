@@ -3,11 +3,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
 public class RescheduleJobTest(ILogger<RescheduleJobTest> logger) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("621134bc-d789-4ca2-a8a3-99688252ec40");
+    public override string JobType => JobTypeId.ToString();
 
     //
     

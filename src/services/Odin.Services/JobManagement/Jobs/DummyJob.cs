@@ -1,10 +1,10 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
-using Odin.Services.JobManagement;
 
-namespace Odin.Hosting.Controllers.Job;
+namespace Odin.Services.JobManagement.Jobs;
 
 #nullable enable
 
@@ -15,6 +15,9 @@ public class DummyJobData
 
 public class DummyJob(ILogger<DummyJob> logger) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("783c4685-111f-4732-aebe-ab40f034da74");
+    public override string JobType => JobTypeId.ToString();
+
     public DummyJobData Data { get; set; } = new();
 
     public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)

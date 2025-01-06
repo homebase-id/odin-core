@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry;
 
 namespace Odin.Services.Admin.Tenants.Jobs;
@@ -17,6 +18,9 @@ public class DeleteTenantJobData
 
 public class DeleteTenantJob(ILogger<DeleteTenantJob> logger, IIdentityRegistry identityRegistry) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("324fa88f-2ef6-404a-a511-9ef65ea841af");
+    public override string JobType => JobTypeId.ToString();
+
     public DeleteTenantJobData Data { get; set; } = new ();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)

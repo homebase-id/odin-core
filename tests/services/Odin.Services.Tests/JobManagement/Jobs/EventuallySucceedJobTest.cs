@@ -1,8 +1,10 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
@@ -15,6 +17,9 @@ public class EventuallySucceedJobTestData
 
 public class EventuallySucceedJobTest(ILogger<EventuallySucceedJobTest> logger) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("8c120758-0abd-4076-adf4-0d73b9a0fa48");
+    public override string JobType => JobTypeId.ToString();
+
     public EventuallySucceedJobTestData JobData { get; set; } = new ();
 
     //

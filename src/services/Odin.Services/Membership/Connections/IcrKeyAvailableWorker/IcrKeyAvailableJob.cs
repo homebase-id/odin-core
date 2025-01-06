@@ -10,6 +10,7 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
@@ -22,6 +23,9 @@ public class IcrKeyAvailableJob(
     IMultiTenantContainerAccessor tenantContainerAccessor,
     ILogger<IcrKeyAvailableJob> logger) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("59d25227-25c1-4b26-b1e6-c50612eb15e3");
+    public override string JobType => JobTypeId.ToString();
+
     public IcrKeyAvailableJobData Data { get; set; } = new();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)

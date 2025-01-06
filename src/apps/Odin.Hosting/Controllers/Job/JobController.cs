@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Hosting.Controllers.Job;
 #nullable enable
@@ -43,6 +44,24 @@ public class JobController(IJobManager jobManager) : ControllerBase
 
         return AcceptedAtRoute(GetJobResponseRouteName, new { jobId });
     }
+
+    [AllowAnonymous]
+    [HttpGet("/api/job/v1/dummy/future")]
+    public async Task<ActionResult> JobTestFuture()
+    {
+        var job = jobManager.NewJob<DummyJob>();
+        job.Data.Echo = "Hello, World!";
+
+        var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            RunAt = DateTimeOffset.UtcNow.AddSeconds(30),
+            OnSuccessDeleteAfter = TimeSpan.Zero,
+            OnFailureDeleteAfter = TimeSpan.Zero,
+        });
+
+        return AcceptedAtRoute(GetJobResponseRouteName, new { jobId });
+    }
+
 #endif
 
 }

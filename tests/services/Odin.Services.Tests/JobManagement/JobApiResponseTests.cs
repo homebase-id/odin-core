@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Tests.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement;
@@ -18,11 +19,12 @@ public class JobApiResponseTests
     public void Setup()
     {
         var builder = new ContainerBuilder();
-
         var mockLogger = Mock.Of<ILogger<SimpleJobTest>>();
-
         builder.RegisterInstance(mockLogger).As<ILogger<SimpleJobTest>>();
-        builder.RegisterType<SimpleJobTest>().AsSelf().InstancePerDependency();
+
+        var jobTypeRegistry = new JobTypeRegistry();
+        builder.RegisterInstance(jobTypeRegistry).As<IJobTypeRegistry>().SingleInstance();
+        jobTypeRegistry.RegisterJobType<SimpleJobTest>(builder, SimpleJobTest.JobTypeId);
 
         _container = builder.Build();    
     }
@@ -35,7 +37,7 @@ public class JobApiResponseTests
             id = Guid.NewGuid(),
             state = (int)JobState.Scheduled,
             lastError = "some error",
-            jobType = typeof(SimpleJobTest).AssemblyQualifiedName,
+            jobType = SimpleJobTest.JobTypeId.ToString(),
         };
 
         using var job = AbstractJob.CreateInstance<SimpleJobTest>(_container, record);

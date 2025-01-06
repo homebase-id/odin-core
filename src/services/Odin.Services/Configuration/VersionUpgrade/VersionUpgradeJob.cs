@@ -9,6 +9,7 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -21,6 +22,9 @@ public class VersionUpgradeJob(
     IMultiTenantContainerAccessor tenantContainerAccessor,
     ILogger<VersionUpgradeJob> logger) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("0607585d-6adc-4993-a6e4-11638c7071d6");
+    public override string JobType => JobTypeId.ToString();
+
     public VersionUpgradeJobData Data { get; set; } = new();
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
