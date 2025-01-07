@@ -18,17 +18,12 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.AppNotification;
+using Odin.Services.Util;
 
 #nullable enable
 
 namespace Odin.Services.AppNotifications.WebSocket
 {
-    public class AuthenticationPackage
-    {
-        public string ClientAuthToken64 { get; set; }
-        public SharedSecretEncryptedPayload SharedEncryptEncryptedOptions64 { get; set; }
-    }
-
     public class PeerAppNotificationHandler(
         DriveManager driveManager,
         ILogger<PeerAppNotificationHandler> logger,
@@ -115,16 +110,15 @@ namespace Odin.Services.AppNotifications.WebSocket
                     {
                         if (deviceSocket.DeviceOdinContext == null)
                         {
-                            var authenticationPackage = OdinSystemSerializer.Deserialize<AuthenticationPackage>(completeMessage);
+                            var authenticationPackage = OdinSystemSerializer.Deserialize<SocketAuthenticationPackage>(completeMessage);
 
-                            if (null == authenticationPackage?.ClientAuthToken64)
-                            {
-                                throw new OdinSecurityException("The socket could not be authenticated");
-                            }
-                        
+                            OdinValidationUtils.AssertNotNull(authenticationPackage, "authenticationPackage");
+                            OdinValidationUtils.AssertNotNull(authenticationPackage!.ClientAuthToken64, nameof(authenticationPackage.ClientAuthToken64));
+                            OdinValidationUtils.AssertNotNull(authenticationPackage.SharedSecretEncryptedOptions, nameof(authenticationPackage.SharedSecretEncryptedOptions));
+                            
                             var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
                             deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
-                            decryptedBytes = authenticationPackage.SharedEncryptEncryptedOptions64.Decrypt(deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey);
+                            decryptedBytes = authenticationPackage.SharedSecretEncryptedOptions!.Decrypt(deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey);
                         }
                         else
                         {
@@ -306,6 +300,11 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken)
         {
+            if (null == deviceSocket.DeviceOdinContext)
+            {
+                throw new OdinSystemException("DeviceOdinContext is null");
+            }
+            
             var odinContext = deviceSocket.DeviceOdinContext;
 
             //process the command
