@@ -248,36 +248,38 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        private async Task<bool> TryDirectDeleteFile(
-            Guid globalTransitId,
+        private async Task<bool> TryDirectDeleteFile(Guid globalTransitId,
             Guid driveId,
             FileSystemType fileSystemType,
             IOdinContext odinContext)
         {
-            var fs = FileSystemResolver.ResolveFileSystem(fileSystemType);
-
-            //Note: we need to check if the person deleting the comment is the original commenter or the owner
-            var header = await fs.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
-            if (null == header)
+            if (fileSystemType == FileSystemType.Comment)
             {
-                //TODO: should this be a 404?
-                throw new OdinClientException("Invalid global transit Id");
-            }
-
-            // header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-            if (!header.IsOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault()))
-            {
-                return false;
-            }
-
-            await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                //Note: we need to check if the person deleting the comment is the original commenter or the owner
+                var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
+                if (null == header)
                 {
-                    FileId = header.FileId,
-                    DriveId = driveId
-                },
-                odinContext);
+                    //TODO: should this be a 404?
+                    throw new OdinClientException("Invalid global transit Id");
+                }
 
-            return true;
+                // header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
+                if (!header.IsOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault()))
+                {
+                    return false;
+                }
+
+                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                    {
+                        FileId = header.FileId,
+                        DriveId = driveId
+                    },
+                    odinContext);
+
+                return true;
+            }
+
+            return false;
         }
 
         public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId,
