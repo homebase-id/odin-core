@@ -192,27 +192,33 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //TODO: add checks if the sender can write comments if this is a comment
             await fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
-            //if the sender can write, we can perform this now
+            // if (fileSystemType == FileSystemType.Comment)
+            // {
+            //     //Note: we need to check if the person deleting the comment is the original commenter or the owner
+            //     var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
+            //     if (null == header)
+            //     {
+            //         //TODO: should this be a 404?
+            //         throw new OdinClientException("Invalid global transit Id");
+            //     }
+            //
+            //     header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
+            //
+            //     await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+            //         {
+            //             FileId = header.FileId,
+            //             DriveId = driveId
+            //         },
+            //         odinContext);
+            //
+            //     return new PeerTransferResponse()
+            //     {
+            //         Code = PeerResponseCode.AcceptedDirectWrite
+            //     };
+            // }
 
-            if (fileSystemType == FileSystemType.Comment)
+            if (await TryDirectDeleteFile(driveId, globalTransitId, fileSystemType, odinContext))
             {
-                //Note: we need to check if the person deleting the comment is the original commenter or the owner
-                var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
-                if (null == header)
-                {
-                    //TODO: should this be a 404?
-                    throw new OdinClientException("Invalid global transit Id");
-                }
-
-                header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-
-                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                    {
-                        FileId = header.FileId,
-                        DriveId = driveId
-                    },
-                    odinContext);
-
                 return new PeerTransferResponse()
                 {
                     Code = PeerResponseCode.AcceptedDirectWrite
@@ -242,7 +248,40 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
+        private async Task<bool> TryDirectDeleteFile(
+            Guid globalTransitId,
+            Guid driveId,
+            FileSystemType fileSystemType,
+            IOdinContext odinContext)
+        {
+            var fs = FileSystemResolver.ResolveFileSystem(fileSystemType);
+
+            //Note: we need to check if the person deleting the comment is the original commenter or the owner
+            var header = await fs.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
+            if (null == header)
+            {
+                //TODO: should this be a 404?
+                throw new OdinClientException("Invalid global transit Id");
+            }
+
+            // header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
+            if (!header.IsOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault()))
+            {
+                return false;
+            }
+
+            await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                {
+                    FileId = header.FileId,
+                    DriveId = driveId
+                },
+                odinContext);
+
+            return true;
+        }
+
+        public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId,
+            FileSystemType fileSystemType,
             IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
