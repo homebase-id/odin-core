@@ -88,6 +88,9 @@ public class CircleGrantTests
 
         await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
         await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
+        //
+        // await merryOwnerClient.Connections.AwaitIntroductionsProcessing();
+        // await samOwnerClient.Connections.AwaitIntroductionsProcessing();
 
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);

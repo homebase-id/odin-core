@@ -228,7 +228,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         await _mediator.Publish(notification);
     }
 
-    public async Task AutoAcceptEligibleConnectionRequestsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
+    public async Task ForceAutoAcceptEligibleConnectionRequestsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var incomingConnectionRequests = await _circleNetworkRequestService.GetPendingRequestsAsync(PageOptions.All, odinContext);
         _logger.LogDebug("Running AutoAccept for incomingConnectionRequests ({count} requests)",
