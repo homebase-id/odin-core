@@ -35,14 +35,13 @@ public sealed class PeerTestAppWebSocketListener
     public async Task ConnectAsync(OdinId identity, ClientAccessToken token, EstablishConnectionOptions options)
     {
         _token = token;
-        _clientWebSocket.Options.Cookies = new CookieContainer();
-
-        var cookie = new Cookie(YouAuthConstants.SubscriberCookieName, token.ToAuthenticationToken().ToString())
-        {
-            Domain = identity
-        };
-
-        _clientWebSocket.Options.Cookies.Add(cookie);
+        // _clientWebSocket.Options.Cookies = new CookieContainer();
+        // var cookie = new Cookie(YouAuthConstants.SubscriberCookieName, token.ToAuthenticationToken().ToString())
+        // {
+        //     Domain = identity
+        // };
+        //
+        // _clientWebSocket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
 
         //
@@ -51,9 +50,6 @@ public sealed class PeerTestAppWebSocketListener
         var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{GuestApiPathConstants.PeerNotificationsV1}/ws");
         await _clientWebSocket.ConnectAsync(uri, tokenSource.Token);
 
-        //
-        // Send a request indicating the drives (handshake1)
-        //
         var request = new SocketCommand
         {
             Command = SocketCommandType.EstablishConnectionRequest,
@@ -63,7 +59,16 @@ public sealed class PeerTestAppWebSocketListener
         var ssp = SharedSecretEncryptedPayload.Encrypt(
             OdinSystemSerializer.Serialize(request).ToUtf8ByteArray(),
             _token.SharedSecret);
-        var sendBuffer = OdinSystemSerializer.Serialize(ssp).ToUtf8ByteArray();
+        //
+        // Send a request indicating the drives (handshake1)
+        //
+        var authPackage = new SocketAuthenticationPackage
+        {
+            ClientAuthToken64 = token.ToAuthenticationToken().ToPortableBytes64(),
+            SharedSecretEncryptedOptions = ssp
+        };
+        
+        var sendBuffer = OdinSystemSerializer.Serialize(authPackage).ToUtf8ByteArray();
         await _clientWebSocket.SendAsync(new ArraySegment<byte>(sendBuffer), WebSocketMessageType.Text, true, tokenSource.Token);
 
         //
