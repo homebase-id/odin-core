@@ -16,7 +16,7 @@ using Odin.Services.Base;
 
 namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
 
-public sealed class TestAppWebSocketListener
+public sealed class PeerTestAppWebSocketListener
 {
     public event Func<TestClientNotification, Task> NotificationReceived;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
