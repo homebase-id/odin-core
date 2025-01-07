@@ -217,12 +217,31 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //     };
             // }
 
-            if (await TryDirectDeleteFile(driveId, globalTransitId, fileSystemType, odinContext))
+            // if (fileSystemType == FileSystemType.Comment)
             {
-                return new PeerTransferResponse()
+                //Note: we need to check if the person deleting the comment is the original commenter or the owner
+                var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
+                if (null == header)
                 {
-                    Code = PeerResponseCode.AcceptedDirectWrite
-                };
+                    //TODO: should this be a 404?
+                    throw new OdinClientException("Invalid global transit Id");
+                }
+
+                // header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
+                if (header.IsOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault()))
+                {
+                    await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                        {
+                            FileId = header.FileId,
+                            DriveId = driveId
+                        },
+                        odinContext);
+
+                    return new PeerTransferResponse()
+                    {
+                        Code = PeerResponseCode.AcceptedDirectWrite
+                    };
+                }
             }
 
             var item = new TransferInboxItem()
