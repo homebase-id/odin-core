@@ -54,7 +54,7 @@ public class VersionUpgradeService(
             if (currentVersion == 0)
             {
                 _isRunning = true;
-                logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
+                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
                 await v1.UpgradeAsync(odinContext, cancellationToken);
 
@@ -62,7 +62,7 @@ public class VersionUpgradeService(
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
-                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
+                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -74,7 +74,7 @@ public class VersionUpgradeService(
             if (currentVersion == 1)
             {
                 _isRunning = true;
-                logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
+                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
                 await v2.UpgradeAsync(odinContext, cancellationToken);
 
@@ -82,13 +82,13 @@ public class VersionUpgradeService(
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
-                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
+                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             if (currentVersion == 2)
             {
                 _isRunning = true;
-                logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
+                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
                 await v3.UpgradeAsync(odinContext, cancellationToken);
 
@@ -96,7 +96,7 @@ public class VersionUpgradeService(
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
-                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
+                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
             
             // ...
