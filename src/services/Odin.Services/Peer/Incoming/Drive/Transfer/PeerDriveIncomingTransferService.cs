@@ -192,33 +192,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //TODO: add checks if the sender can write comments if this is a comment
             await fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
-            // if (fileSystemType == FileSystemType.Comment)
-            // {
-            //     //Note: we need to check if the person deleting the comment is the original commenter or the owner
-            //     var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
-            //     if (null == header)
-            //     {
-            //         //TODO: should this be a 404?
-            //         throw new OdinClientException("Invalid global transit Id");
-            //     }
-            //
-            //     header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-            //
-            //     await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-            //         {
-            //             FileId = header.FileId,
-            //             DriveId = driveId
-            //         },
-            //         odinContext);
-            //
-            //     return new PeerTransferResponse()
-            //     {
-            //         Code = PeerResponseCode.AcceptedDirectWrite
-            //     };
-            // }
-
-            // if (fileSystemType == FileSystemType.Comment)
+            var drive = await driveManager.GetDriveAsync(driveId);
+            if (fileSystemType == FileSystemType.Comment || drive.IsCollaborationDrive())
             {
+                
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
                 var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
                 if (null == header)
@@ -227,21 +204,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     throw new OdinClientException("Invalid global transit Id");
                 }
 
-                // header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-                if (header.IsOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault()))
-                {
-                    await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                        {
-                            FileId = header.FileId,
-                            DriveId = driveId
-                        },
-                        odinContext);
-
-                    return new PeerTransferResponse()
+                header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
+                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
-                        Code = PeerResponseCode.AcceptedDirectWrite
-                    };
-                }
+                        FileId = header.FileId,
+                        DriveId = driveId
+                    },
+                    odinContext);
+
+                return new PeerTransferResponse()
+                {
+                    Code = PeerResponseCode.AcceptedDirectWrite
+                };
             }
 
             var item = new TransferInboxItem()
@@ -265,40 +239,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 Code = PeerResponseCode.AcceptedIntoInbox
             };
-        }
-
-        private async Task<bool> TryDirectDeleteFile(Guid globalTransitId,
-            Guid driveId,
-            FileSystemType fileSystemType,
-            IOdinContext odinContext)
-        {
-            if (fileSystemType == FileSystemType.Comment)
-            {
-                //Note: we need to check if the person deleting the comment is the original commenter or the owner
-                var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
-                if (null == header)
-                {
-                    //TODO: should this be a 404?
-                    throw new OdinClientException("Invalid global transit Id");
-                }
-
-                // header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-                if (!header.IsOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault()))
-                {
-                    return false;
-                }
-
-                await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                    {
-                        FileId = header.FileId,
-                        DriveId = driveId
-                    },
-                    odinContext);
-
-                return true;
-            }
-
-            return false;
         }
 
         public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId,
