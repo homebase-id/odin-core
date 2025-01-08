@@ -8,6 +8,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Configuration.VersionUpgrade.Version1tov2;
+using Odin.Services.Configuration.VersionUpgrade.Version2tov3;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
 
@@ -16,6 +17,7 @@ public class VersionUpgradeService(
     TenantConfigService tenantConfigService,
     V0ToV1VersionMigrationService v1,
     V1ToV2VersionMigrationService v2,
+    V2ToV3VersionMigrationService v3,
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
@@ -52,7 +54,7 @@ public class VersionUpgradeService(
             if (currentVersion == 0)
             {
                 _isRunning = true;
-                logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
+                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
                 await v1.UpgradeAsync(odinContext, cancellationToken);
 
@@ -60,7 +62,7 @@ public class VersionUpgradeService(
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
-                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
+                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -72,7 +74,7 @@ public class VersionUpgradeService(
             if (currentVersion == 1)
             {
                 _isRunning = true;
-                logger.LogInformation("Upgrading from {currentVersion}", currentVersion);
+                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
                 await v2.UpgradeAsync(odinContext, cancellationToken);
 
@@ -80,9 +82,23 @@ public class VersionUpgradeService(
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
-                logger.LogInformation("Upgrading to {currentVersion} successful", currentVersion);
+                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
 
+            if (currentVersion == 2)
+            {
+                _isRunning = true;
+                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+
+                await v3.UpgradeAsync(odinContext, cancellationToken);
+
+                await v3.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+            }
+            
             // ...
         }
         catch (Exception ex)

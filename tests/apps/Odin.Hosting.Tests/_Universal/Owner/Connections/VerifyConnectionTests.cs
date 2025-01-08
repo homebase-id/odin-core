@@ -149,7 +149,10 @@ public class VerifyConnectionTests
         
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
+        
+        await frodo.Configuration.DisableAutoAcceptIntroductions(true);
+        await sam.Configuration.DisableAutoAcceptIntroductions(true);
+        
         await frodo.Connections.SendConnectionRequest(sam.OdinId);
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
 

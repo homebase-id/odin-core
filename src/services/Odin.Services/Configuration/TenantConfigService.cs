@@ -336,8 +336,8 @@ public class TenantConfigService
                 cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
 
-            case TenantConfigFlagNames.DisableAutoAcceptIntroductions:
-                cfg.DisableAutoAcceptIntroductions = bool.Parse(request.Value);
+            case TenantConfigFlagNames.DisableAutoAcceptIntroductionsForTests:
+                cfg.DisableAutoAcceptIntroductionsForTests = bool.Parse(request.Value);
                 break;
 
             default:

@@ -46,13 +46,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             await mediator.Publish(new OutboxItemAddedNotification());
             PerformanceCounter.IncrementCounter($"Outbox Item Added {fileItem.Type}");
-            
         }
 
         public async Task MarkCompleteAsync(Guid marker)
         {
             await tblOutbox.CompleteAndRemoveAsync(marker);
-            
+
             PerformanceCounter.IncrementCounter("Outbox Mark Complete");
         }
 
@@ -62,50 +61,33 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         public async Task MarkFailureAsync(Guid marker, UnixTimeUtc nextRun)
         {
             await tblOutbox.CheckInAsCancelledAsync(marker, nextRun);
-            
+
             PerformanceCounter.IncrementCounter("Outbox Mark Failure");
         }
 
         public async Task<int> RecoverDeadAsync(UnixTimeUtc time)
         {
             var recovered = await tblOutbox.RecoverCheckedOutDeadItemsAsync(time);
-            
+
             PerformanceCounter.IncrementCounter("Outbox Recover Dead");
 
             return recovered;
         }
 
+        public async Task<RedactedOutboxFileItem> GetItemAsync(Guid driveId, Guid fileId, OdinId recipient)
+        {
+            var record = await tblOutbox.GetAsync(driveId, fileId, recipient);
+            return OutboxRecordToFileItem(record)?.Redacted();
+        }
+
         public async Task<OutboxFileItem> GetNextItemAsync()
         {
             var record = await tblOutbox.CheckOutItemAsync();
-            
-            if (null == record)
+            var item = OutboxRecordToFileItem(record);
+            if (null != item)
             {
-                return null;
+                PerformanceCounter.IncrementCounter("Outbox Item Checkout");
             }
-
-            PerformanceCounter.IncrementCounter("Outbox Item Checkout");
-
-            OutboxItemState state;
-            state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
-
-            var item = new OutboxFileItem()
-            {
-                File = new InternalDriveFileId()
-                {
-                    DriveId = record.driveId,
-                    FileId = record.fileId
-                },
-
-                Recipient = (OdinId)record.recipient,
-                Priority = record.priority,
-                AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
-                Type = (OutboxItemType)record.type,
-
-                AttemptCount = record.checkOutCount,
-                Marker = record.checkOutStamp.GetValueOrDefault(),
-                State = state
-            };
 
             return item;
         }
@@ -131,7 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             };
         }
 
-        
+
         /// <summary>
         /// Get time until the next scheduled item should run (if any).
         /// </summary>
@@ -142,15 +124,46 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             {
                 return null;
             }
-            
+
             var dt = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value.milliseconds);
             var now = DateTimeOffset.Now;
             if (dt < now)
             {
                 return TimeSpan.Zero;
             }
-            
+
             return dt - now;
+        }
+
+        private static OutboxFileItem OutboxRecordToFileItem(OutboxRecord record)
+        {
+            if (null == record)
+            {
+                return null;
+            }
+
+            OutboxItemState state;
+            state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
+
+            var item = new OutboxFileItem()
+            {
+                File = new InternalDriveFileId()
+                {
+                    DriveId = record.driveId,
+                    FileId = record.fileId
+                },
+
+                Recipient = (OdinId)record.recipient,
+                Priority = record.priority,
+                AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
+                Type = (OutboxItemType)record.type,
+
+                AttemptCount = record.checkOutCount,
+                Marker = record.checkOutStamp.GetValueOrDefault(),
+                State = state
+            };
+
+            return item;
         }
     }
 }

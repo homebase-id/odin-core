@@ -74,7 +74,8 @@ public sealed class VersionUpgradeScheduler(
 
         if (upgradeRequired)
         {
-            logger.LogDebug("Upgrade is required.  Current Version: {cv}, release version: {rv} " +
+            logger.LogDebug("Upgrade test indicated that upgrade is required.  It will be scheduled only when you are running as owner " +
+                            "Current Version: v{cv}, release version: v{rv} " +
                             "(previously failed build version: {failure})",
                 currentVersion,
                 ReleaseVersionInfo.DataVersionNumber,
