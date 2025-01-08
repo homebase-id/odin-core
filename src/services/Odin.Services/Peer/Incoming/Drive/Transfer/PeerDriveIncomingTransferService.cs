@@ -195,7 +195,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var drive = await driveManager.GetDriveAsync(driveId);
             if (fileSystemType == FileSystemType.Comment || drive.IsCollaborationDrive())
             {
-                
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
                 var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
                 if (null == header)
@@ -205,6 +204,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
+                
                 await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
