@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,9 +20,8 @@ using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Configuration.VersionUpgrade;
-using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Tenant;
-using Version = Odin.Hosting.Extensions.Version;
 
 namespace Odin.Hosting.Authentication.Owner
 {
@@ -31,22 +31,19 @@ namespace Odin.Hosting.Authentication.Owner
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
-        private readonly IcrKeyAvailableScheduler _icrKeyAvailableScheduler;
-        private readonly IcrKeyAvailableBackgroundService _icrKeyAvailableBackgroundService;
+        private readonly CircleNetworkService _circleNetworkService;
         private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options,
             VersionUpgradeScheduler versionUpgradeScheduler,
-            IcrKeyAvailableScheduler icrKeyAvailableScheduler,
-            IcrKeyAvailableBackgroundService icrKeyAvailableBackgroundService,
+            CircleNetworkService circleNetworkService,
             ILoggerFactory logger,
             UrlEncoder encoder,
             ITenantProvider tenantProvider) : base(options, logger, encoder)
         {
             _versionUpgradeScheduler = versionUpgradeScheduler;
-            _icrKeyAvailableScheduler = icrKeyAvailableScheduler;
-            _icrKeyAvailableBackgroundService = icrKeyAvailableBackgroundService;
+            _circleNetworkService = circleNetworkService;
             _tenantProvider = tenantProvider;
         }
 
@@ -93,14 +90,14 @@ namespace Odin.Hosting.Authentication.Owner
                         AccessRegistrationId = authResult.Id,
                         DevicePushNotificationKey = pushDeviceToken
                     };
-                    
+
                     if (!await authService.UpdateOdinContextAsync(authResult, clientContext, odinContext))
                     {
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
 
+                    await _circleNetworkService.UpgradeKeyStoreKeyEncryptionIfNeededAsync(odinContext);
                     await _versionUpgradeScheduler.EnsureScheduledAsync(authResult, odinContext);
-                    await _icrKeyAvailableScheduler.EnsureScheduledAsync(authResult, odinContext, IcrKeyAvailableJobData.JobTokenType.Owner);
                 }
                 catch (OdinSecurityException e)
                 {

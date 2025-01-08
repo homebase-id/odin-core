@@ -3,7 +3,6 @@ using Autofac;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.JobManagement.Jobs;
-using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.JobManagement;
@@ -29,7 +28,6 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<DeleteTenantJob>(cb, DeleteTenantJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<SendProvisioningCompleteEmailJob>(cb, SendProvisioningCompleteEmailJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<VersionUpgradeJob>(cb, VersionUpgradeJob.JobTypeId);
-        jobTypeRegistry.RegisterJobType<IcrKeyAvailableJob>(cb, IcrKeyAvailableJob.JobTypeId);
 
         //
         // Deprecated job types here.
@@ -37,8 +35,8 @@ public static class JobExtensions
         // Id must be the JobType ID of the job type that no longer exists.
         //
 
-        // Example:
-        jobTypeRegistry.RegisterJobType<DeprecatedJob>(cb, Guid.Parse("11111111-2222-3333-4444-555555555555"));
+        // Old IcrKeyAvailableJob
+        jobTypeRegistry.RegisterJobType<DeprecatedJob>(cb, Guid.Parse("59d25227-25c1-4b26-b1e6-c50612eb15e3"));
 
         return cb;
     }

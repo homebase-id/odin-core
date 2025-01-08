@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Services.Base;
+using Odin.Core.Identity;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -23,7 +23,6 @@ public abstract class DriveStatusControllerBase(
             Type = type
         });
 
-        
         var status = new DriveStatus()
         {
             Inbox = await peerInbox.GetStatusAsync(driveId),
@@ -32,5 +31,18 @@ public abstract class DriveStatusControllerBase(
         };
 
         return new JsonResult(status);
+    }
+
+    [HttpGet("outbox-item")]
+    public async Task<IActionResult> GetOutboxItem(Guid alias, Guid type, Guid fileId, string recipient)
+    {
+        var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
+        {
+            Alias = alias,
+            Type = type
+        });
+
+        var item = await peerOutbox.GetItemAsync(driveId, fileId, (OdinId)recipient);
+        return new JsonResult(item);
     }
 }

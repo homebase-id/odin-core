@@ -49,7 +49,7 @@ public class PushNotificationService(
     IMediator mediator,
     TableKeyTwoValue twoKeyValue)
     : INotificationHandler<ConnectionRequestAcceptedNotification>,
-        INotificationHandler<ConnectionRequestReceived>
+        INotificationHandler<ConnectionRequestReceivedNotification>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
@@ -126,7 +126,7 @@ public class PushNotificationService(
             notification.OdinContext);
     }
 
-    public async Task Handle(ConnectionRequestReceived notification, CancellationToken cancellationToken)
+    public async Task Handle(ConnectionRequestReceivedNotification notification, CancellationToken cancellationToken)
     {
         await this.EnqueueNotificationInternalAsync(notification.Sender, new AppNotificationOptions()
             {
@@ -343,7 +343,7 @@ public class PushNotificationService(
 
         var item = new OutboxFileItem()
         {
-            Priority = 0, //super high priority to ensure these are sent quickly,
+            Priority = 100, //super high priority to ensure these are sent quickly,
             Type = OutboxItemType.PushNotification,
             File = new InternalDriveFileId()
             {

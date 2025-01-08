@@ -1,4 +1,3 @@
-
 using System;
 using System.IO;
 using Autofac;
@@ -53,13 +52,13 @@ using Odin.Services.Drives.FileSystem.Standard.Update;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version0tov1;
 using Odin.Services.Configuration.VersionUpgrade.Version1tov2;
+using Odin.Services.Configuration.VersionUpgrade.Version2tov3;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Fingering;
 using Odin.Services.LinkMetaExtractor;
 using Odin.Services.Peer.AppNotification;
-using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
@@ -99,7 +98,7 @@ public static class TenantServices
         cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<PushNotificationService>()
-            .As<INotificationHandler<ConnectionRequestReceived>>()
+            .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
             .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
@@ -121,7 +120,7 @@ public static class TenantServices
 
         cb.RegisterType<AppNotificationHandler>()
             .As<INotificationHandler<FileAddedNotification>>()
-            .As<INotificationHandler<ConnectionRequestReceived>>()
+            .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
             .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
             .As<INotificationHandler<DriveFileAddedNotification>>()
             .As<INotificationHandler<DriveFileChangedNotification>>()
@@ -147,8 +146,6 @@ public static class TenantServices
             // .As<INotificationHandler<AppNotificationAddedNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
-
-
 
 
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
@@ -241,6 +238,7 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
             .As<INotificationHandler<ConnectionBlockedNotification>>()
             .As<INotificationHandler<ConnectionDeletedNotification>>()
+            .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
             .InstancePerLifetimeScope();
 
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
@@ -300,13 +298,11 @@ public static class TenantServices
 
         cb.RegisterType<V0ToV1VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V1ToV2VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V2ToV3VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 
         cb.RegisterType<PeerAppNotificationService>().AsSelf().InstancePerLifetimeScope();
-        cb.RegisterType<IcrKeyAvailableBackgroundService>().InstancePerLifetimeScope();
-        cb.RegisterType<IcrKeyAvailableScheduler>().AsSelf().InstancePerLifetimeScope();
-
         cb.RegisterType<CircleNetworkStorage>().InstancePerDependency();
 
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
