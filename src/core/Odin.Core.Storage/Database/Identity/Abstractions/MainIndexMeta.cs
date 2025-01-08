@@ -1,8 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic.FileIO;
+using System.Xml;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -19,6 +24,19 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         TableDriveMainIndex driveMainIndex)
     {
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
+        private static readonly string selectOutputFields;
+
+        static MainIndexMeta()
+        {
+            // Initialize selectOutputFields statically
+            selectOutputFields = string.Join(",",
+                TableDriveMainIndex.GetColumnNames()
+                    .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
+                                && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
+                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase)
+                                    ? "driveMainIndex.fileId"
+                                    : name));
+        }
 
         public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
         {
@@ -308,13 +326,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
                 uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
                 fileSystemType, driveId);
-
             if (IsSet(fileStateAnyOf))
             {
                 listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
             }
 
-            string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            // string selectOutputFields    = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            // string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData,                                    hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
             /*if (fileIdSort)
                 selectOutputFields = "driveMainIndex.fileId";
             else
@@ -332,7 +350,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
-
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
 
@@ -578,7 +595,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
                 fileSystemType, driveId);
 
-            string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            // string selectOutputFields =  "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
             // string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
 
