@@ -368,7 +368,7 @@ namespace Odin.Services.Membership.Connections
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
-                EncryptedClientAccessToken = keys.EncryptedCat,
+                EncryptedClientAccessToken = keys.EncryptedCat, //may come in as NULL; meaning this cannot be used until we have the ICR key
                 TemporaryWeakClientAccessToken = keys.Temp.Token,
                 TempWeakKeyStoreKey = keys.Temp.KeyStoreKey,
                 ConnectionRequestOrigin = connectionRequestOrigin,
@@ -745,7 +745,7 @@ namespace Odin.Services.Membership.Connections
                 foreach (var odinId in members)
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                    if (await UpgradeKeyStoreKeyEncryptionIfNeededAsync(icr, odinContext))
+                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
                     {
                         // refetch the record since the above method just writes to db
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
@@ -825,7 +825,7 @@ namespace Odin.Services.Membership.Connections
             // await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-                await UpgradeKeyStoreKeyEncryptionIfNeededAsync(icr, odinContext);
+                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
 
                 await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
                 await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
@@ -921,18 +921,6 @@ namespace Odin.Services.Membership.Connections
                 {
                     logger.LogInformation(e, "Failed while upgrading token for {identity}", identity.OdinId);
                 }
-
-                if (odinContext.Caller.HasMasterKey)
-                {
-                    try
-                    {
-                        await UpgradeKeyStoreKeyEncryptionIfNeededAsync(identity, odinContext);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogInformation(e, "Failed while upgrading KSK for {identity}", identity.OdinId);
-                    }
-                }
             }
         }
 
@@ -959,7 +947,7 @@ namespace Odin.Services.Membership.Connections
         {
             return await circleNetworkStorage.GetPeerIcrClientAsync(accessRegId);
         }
-
+        
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
             RedactedAppRegistration appReg,
             SensitiveByteArray keyStoreKey,
@@ -1220,9 +1208,7 @@ namespace Odin.Services.Membership.Connections
             {
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 
-                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
-                    PublicPrivateKeyType.OnlineIcrEncryptedKey,
-                    identity.TemporaryWeakClientAccessToken, odinContext);
+                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TemporaryWeakClientAccessToken, odinContext);
 
                 var unencryptedCat = ClientAccessToken.FromPortableBytes(keyStoreKey);
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
@@ -1232,16 +1218,14 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        private async Task<bool> UpgradeKeyStoreKeyEncryptionIfNeededAsync(IdentityConnectionRegistration identity,
+        private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,
             IOdinContext odinContext)
         {
             if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
             {
                 logger.LogDebug("Upgrading KSK Encryption for {id}", identity.OdinId);
 
-                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(
-                    PublicPrivateKeyType.OnlineIcrEncryptedKey,
-                    identity.TempWeakKeyStoreKey, odinContext);
+                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TempWeakKeyStoreKey, odinContext);
 
                 var masterKey = odinContext.Caller.GetMasterKey();
                 var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));

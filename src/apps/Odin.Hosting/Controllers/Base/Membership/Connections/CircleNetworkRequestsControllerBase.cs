@@ -109,7 +109,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
 
-            var result = await circleNetworkRequestService.GetSentRequest(id, WebOdinContext);
+            var result = await circleNetworkRequestService.GetSentRequestAsync(id, WebOdinContext);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -166,7 +166,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("introductions/process-incoming-introductions")]
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
-            
             await introductionService.SendOutstandingConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }
@@ -174,8 +173,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("introductions/auto-accept-eligible-introductions")]
         public async Task<IActionResult> AutoAcceptEligibleIntroductions()
         {
-            
-            await introductionService.AutoAcceptEligibleConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
+            await introductionService.ForceAutoAcceptEligibleConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }
 

@@ -12,6 +12,10 @@
     <DebugType>full</DebugType>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(USER)' == 'seb'">
+    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="HttpClientFactoryLite" Version="0.4.0" />
     <PackageReference Include="JetBrains.Profiler.Api" Version="1.4.8" />
@@ -30,9 +34,6 @@
     <ProjectReference Include="../../../src/apps/Odin.Hosting/Odin.Hosting.csproj" />
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="_Universal\NotificationTests\Transit\" />
-  </ItemGroup>
+  
 
 </Project>

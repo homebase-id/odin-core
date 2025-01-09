@@ -27,15 +27,13 @@ using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Services.Peer.AppNotification;
-using Odin.Services.Membership.Connections.IcrKeyAvailableWorker;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
     public class YouAuthAuthenticationHandler(
         IOptionsMonitor<YouAuthAuthenticationSchemeOptions> options,
         ILoggerFactory logger,
-        UrlEncoder encoder,
-        IcrKeyAvailableScheduler icrKeyAvailableScheduler)
+        UrlEncoder encoder)
         : AuthenticationHandler<YouAuthAuthenticationSchemeOptions>(options, logger, encoder)
     {
         //
@@ -99,8 +97,6 @@ namespace Odin.Hosting.Authentication.YouAuth
 
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
-
-            await icrKeyAvailableScheduler.EnsureScheduledAsync(authToken, ctx, IcrKeyAvailableJobData.JobTokenType.App);
 
             var claims = new List<Claim>
             {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.DataConversion;
@@ -20,6 +21,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
     /// <summary>
     /// Owner API client v2 - transitioning to this one
     /// </summary>
+    [DebuggerDisplay("Owner client for {Identity.OdinId}")]
     public class OwnerApiClientRedux
     {
         private readonly TestIdentity _identity;

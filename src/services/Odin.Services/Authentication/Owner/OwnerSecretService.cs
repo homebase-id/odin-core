@@ -225,7 +225,7 @@ namespace Odin.Services.Authentication.Owner
 
         public async Task ResetPasswordUsingRecoveryKeyAsync(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext)
         {
-            var decryptedBytes = await _publicPrivateKeyService.EccDecryptPayload(PublicPrivateKeyType.OfflineKey, request.EncryptedRecoveryKey, odinContext);
+            var decryptedBytes = await _publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
 
             var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
             var masterKey = await _recoveryService.AssertValidKeyAsync(recoveryKey);

@@ -20,6 +20,5 @@ namespace Odin.Services.Membership.Connections.Requests
 
         [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply);
-        
     }
 }
