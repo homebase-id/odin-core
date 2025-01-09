@@ -18,6 +18,7 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
@@ -1098,17 +1099,27 @@ namespace Odin.Services.Drives.FileSystem.Base
             //);
         }
 
-        public async Task UpdateLocalMetadata(InternalDriveFileId file, List<Guid> tags, IOdinContext odinContext)
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata(InternalDriveFileId file, string content, List<Guid> tags,
+            IOdinContext odinContext)
         {
+            const int maxLength = 8 * 1024;
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+            OdinValidationUtils.AssertMaxStringLength(content, maxLength, $"local app content is too long; max length is {maxLength}");
+
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
             {
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
+            
+            var newVersionTag = SequentialGuid.CreateGuid();
+            await longTermStorageManager.SaveLocalMetadataAsync(file, content, tags, newVersionTag);
 
-            await longTermStorageManager.SaveLocalMetadataAsync(file, tags);
+            return new UpdateLocalMetadataResult()
+            {
+                NewVersionTag = newVersionTag
+            };
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)

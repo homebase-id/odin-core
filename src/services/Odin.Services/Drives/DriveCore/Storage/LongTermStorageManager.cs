@@ -57,10 +57,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await _driveQuery.SaveFileHeaderAsync(drive, header);
         }
         
-        public async Task SaveLocalMetadataAsync(InternalDriveFileId file, List<Guid> tags)
+        public async Task SaveLocalMetadataAsync(InternalDriveFileId file, string content, List<Guid> tags, Guid newVersionTag)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            await _driveQuery.SaveLocalMetadataAsync(file.DriveId, file.FileId, tags);
+            await _driveQuery.SaveLocalMetadataAsync(file.DriveId, file.FileId, content, tags, newVersionTag);
         }
 
         public async Task SoftDeleteFileHeader(ServerFileHeader header)

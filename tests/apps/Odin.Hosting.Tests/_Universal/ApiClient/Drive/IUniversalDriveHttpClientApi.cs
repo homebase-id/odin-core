@@ -10,6 +10,8 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
+using Odin.Hosting.Controllers.Base.Drive.Update;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -38,6 +40,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Multipart]
         [Patch(RootStorageEndpoint + "/update")]
         Task<ApiResponse<UploadPayloadResult>> UpdateFile(StreamPart[] streamdata);
+
+        [Patch(RootStorageEndpoint + "/update-local-metadata")]
+        Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalMetadata([Body] UpdateLocalMetadataRequest request);
 
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteFileResult>> SoftDeleteFile([Body] DeleteFileRequest file);

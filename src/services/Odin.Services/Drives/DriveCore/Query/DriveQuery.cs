@@ -269,8 +269,13 @@ public class DriveQuery(
         }
     }
 
-    public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, List<Guid> tags)
+    public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, string content, List<Guid> tags, Guid newVersionTag)
     {
+        // await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        // await using var tx = await cn.BeginStackedTransactionAsync();
+        
+        //TODO connections Need a transaction here
+        await tblDriveMainIndex.UpdateLocalAppMetadata(driveId, fileId, newVersionTag, content);
         await tableDriveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
         await tableDriveLocalTagIndex.InsertRowsAsync(driveId, fileId, tags);
     }

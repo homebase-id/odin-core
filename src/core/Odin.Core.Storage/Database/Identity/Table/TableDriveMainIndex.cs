@@ -55,7 +55,7 @@ public class TableDriveMainIndex(
         return await base.UpsertAsync(item);
     }
 
-    public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId) 
+    public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
         return base.ReadRecordFromReader2(rdr, identityKey.Id, driveId);
     }
@@ -76,11 +76,12 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var upsertCommand = cn.CreateCommand();
 
-        upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
-                                     "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)" +
-                                     "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
-                                     "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified " +
-                                     "RETURNING created, modified;";
+        upsertCommand.CommandText =
+            "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
+            "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)" +
+            "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
+            "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified " +
+            "RETURNING created, modified;";
         var upsertParam1 = upsertCommand.CreateParameter();
         upsertParam1.ParameterName = "@identityId";
         upsertCommand.Parameters.Add(upsertParam1);
@@ -197,8 +198,8 @@ public class TableDriveMainIndex(
         upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
         upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
         upsertParam28.Value = now.uniqueTime;
-        upsertParam29.Value = now.uniqueTime; 
-        
+        upsertParam29.Value = now.uniqueTime;
+
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
         {
             if (await rdr.ReadAsync())
@@ -213,9 +214,47 @@ public class TableDriveMainIndex(
                 return 1;
             }
         }
+
         return 0;
     }
 
+    public async Task<int> UpdateLocalAppMetadata(Guid driveId, Guid fileId, Guid versionTag, string content)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var updateCommand = cn.CreateCommand();
+
+        //modified=@modified
+        updateCommand.CommandText = $"UPDATE driveMainIndex " +
+                                    $"SET hdrLocalVersionTag=@hdrLocalVersionTag,hdrLocalAppData=@hdrLocalAppData " +
+                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+
+        var sparam1 = updateCommand.CreateParameter();
+        var sparam2 = updateCommand.CreateParameter();
+        var sparam3 = updateCommand.CreateParameter();
+        var versionTagParam = updateCommand.CreateParameter();
+        var contentParam = updateCommand.CreateParameter();
+
+        sparam1.ParameterName = "@identityId";
+        sparam2.ParameterName = "@driveId";
+        sparam3.ParameterName = "@fileId";
+        versionTagParam.ParameterName = "@hdrLocalVersionTag";
+        contentParam.ParameterName = "@hdrLocalAppData";
+
+        updateCommand.Parameters.Add(sparam1);
+        updateCommand.Parameters.Add(sparam2);
+        updateCommand.Parameters.Add(sparam3);
+        updateCommand.Parameters.Add(versionTagParam);
+        updateCommand.Parameters.Add(contentParam);
+
+        sparam1.Value = identityKey.ToByteArray();
+        sparam2.Value = driveId.ToByteArray();
+        sparam3.Value = fileId.ToByteArray();
+        versionTagParam.Value = versionTag;
+        contentParam.Value = content;
+        // modifiedParam.Value = UnixTimeUtcUnique.Now().uniqueTime; //modified
+
+        return await updateCommand.ExecuteNonQueryAsync();
+    }
 
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {

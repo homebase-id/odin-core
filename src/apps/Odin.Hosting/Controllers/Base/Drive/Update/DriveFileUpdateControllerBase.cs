@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
 
@@ -14,7 +11,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 {
     /// <summary />
     [ApiController]
-    public class DriveFileUpdateControllerBase : DriveUploadControllerBase
+    public abstract class DriveFileUpdateControllerBase : DriveUploadControllerBase
     {
         /// <summary>
         /// Uploads a file using multi-part form data
@@ -76,18 +73,14 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
         }
 
         [HttpPatch("update-local-metadata")]
-        public async Task<IActionResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataRequest request)
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataRequest request)
         {
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            await fs.Storage.UpdateLocalMetadata(MapToInternalFile(request.File), request.Tags, WebOdinContext);
-            return Ok();
+            var result = await fs.Storage.UpdateLocalMetadata(MapToInternalFile(request.File), 
+                request.Content, 
+                request.Tags,
+                WebOdinContext);
+            return result;
         }
-    }
-
-    public class UpdateLocalMetadataRequest
-    {
-        public ExternalFileIdentifier File { get; set; }
-
-        public List<Guid> Tags { get; set; }
     }
 }
