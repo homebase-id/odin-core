@@ -96,7 +96,6 @@ namespace Odin.Hosting.Authentication.Owner
                         return AuthenticateResult.Fail("Invalid Owner Token");
                     }
 
-                    await _circleNetworkService.UpgradeKeyStoreKeyEncryptionIfNeededAsync(odinContext);
                     await _versionUpgradeScheduler.EnsureScheduledAsync(authResult, odinContext);
                 }
                 catch (OdinSecurityException e)
