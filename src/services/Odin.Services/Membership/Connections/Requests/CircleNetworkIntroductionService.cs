@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -289,6 +290,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
             _logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
         }
+        catch (OdinClientException oce)
+        {
+            if(oce.ErrorCode == )
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed while trying to auto-accept a connection request from {identity}", sender);
@@ -415,19 +420,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             ContactData = new ContactRequestData(),
         };
 
-        try
-        {
-            _logger.LogDebug("Attempting to auto-accept connection request from {sender}", sender);
-            var newContext = OdinContextUpgrades.UsePermissions(odinContext,
-                PermissionKeys.ReadCircleMembership,
-                PermissionKeys.ManageFeed);
+        _logger.LogDebug("Attempting to auto-accept connection request from {sender}", sender);
+        var newContext = OdinContextUpgrades.UsePermissions(odinContext,
+            PermissionKeys.ReadCircleMembership,
+            PermissionKeys.ManageFeed);
 
-            await _circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, newContext);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to auto-except connection request: original-sender: {originalSender}", header.Sender);
-        }
+        await _circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, newContext);
     }
 
     private async Task SaveAndEnqueueToConnect(IdentityIntroduction iid, Guid driveId)

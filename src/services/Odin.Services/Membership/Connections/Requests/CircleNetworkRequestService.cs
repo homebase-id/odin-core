@@ -331,7 +331,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var incomingRequest = await GetPendingRequestAsync((OdinId)header.Sender, odinContext);
             if (null == incomingRequest)
             {
-                throw new OdinClientException($"No pending request was found from sender [{header.Sender}]");
+                throw new OdinClientException($"No pending request was found from sender [{header.Sender}]", OdinClientErrorCode.);
             }
 
             incomingRequest.Validate();
@@ -506,15 +506,18 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 if (_outgoingIntroductionRequests.ContainsKey(caller))
                 {
-                    // db record is not yet written.
+                    // I have an outgoing request to the caller while the caller is trying to establish a connection with me
+                    // this will always be true due to the fact the record is removed AFTER the request is sent AND the fact the 
+                    // establish connection is called as part of the outgoing request.
                 }
+                
                 // this can also happen if the connection was already approved via auto-accept 
-                // var existingConnection = await _cns.GetIcrAsync(caller, odinContext, true);
-                // if (existingConnection.IsConnected() && existingConnection.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
-                // {
-                //     _logger.LogDebug("Ignoring EstablishConnection from {caller}. Already connected via introduction", caller);
-                //     return;
-                // }
+                var existingConnection = await _cns.GetIcrAsync(caller, odinContext, true);
+                if (existingConnection.IsConnected() && existingConnection.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
+                {
+                    _logger.LogDebug("Ignoring EstablishConnection from {caller}. Already connected via introduction", caller);
+                    return;
+                }
 
                 throw new OdinSecurityException("The original request no longer exists in Sent Requests");
             }
