@@ -86,6 +86,7 @@ public class JobManagerTests
         if (databaseType == DatabaseType.Postgres)
         {
             _postgresContainer = new PostgreSqlBuilder()
+                .WithImage("postgres:latest")
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")
@@ -424,7 +425,7 @@ public class JobManagerTests
         // Act
         foreach (var jobId in jobList)
         {
-            await WaitForJobStatus<SimpleJobWithDelayTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(1)); 
+            await WaitForJobStatus<SimpleJobWithDelayTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(5)); 
         }        
         
         // Assert

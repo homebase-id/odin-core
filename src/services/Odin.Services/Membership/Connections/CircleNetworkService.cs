@@ -947,17 +947,7 @@ namespace Odin.Services.Membership.Connections
         {
             return await circleNetworkStorage.GetPeerIcrClientAsync(accessRegId);
         }
-
-        public async Task UpgradeKeyStoreKeyEncryptionIfNeededAsync(IOdinContext odinContext)
-        {
-            //TODO: use _db.CreateCommitUnitOfWork()
-            var members = await this.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-            foreach (var icr in members.Results)
-            {
-                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
-            }
-        }
-
+        
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
             RedactedAppRegistration appReg,
             SensitiveByteArray keyStoreKey,

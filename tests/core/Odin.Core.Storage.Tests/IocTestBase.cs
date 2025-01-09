@@ -61,6 +61,7 @@ public abstract class IocTestBase
         if (databaseType == DatabaseType.Postgres)
         {
             PostgresContainer = new PostgreSqlBuilder()
+                .WithImage("postgres:latest")
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")

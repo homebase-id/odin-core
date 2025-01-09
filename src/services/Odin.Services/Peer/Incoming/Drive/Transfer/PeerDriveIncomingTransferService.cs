@@ -192,9 +192,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //TODO: add checks if the sender can write comments if this is a comment
             await fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
-            //if the sender can write, we can perform this now
-
-            if (fileSystemType == FileSystemType.Comment)
+            var drive = await driveManager.GetDriveAsync(driveId);
+            if (fileSystemType == FileSystemType.Comment || drive.IsCollaborationDrive())
             {
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
                 var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
@@ -205,7 +204,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-
+                
                 await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
@@ -242,7 +241,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType,
+        public async Task<PeerTransferResponse> MarkFileAsReadAsync(TargetDrive targetDrive, Guid globalTransitId,
+            FileSystemType fileSystemType,
             IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);

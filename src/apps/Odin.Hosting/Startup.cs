@@ -161,7 +161,6 @@ namespace Odin.Hosting
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
-                .AddAppNotificationSubscriberAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
