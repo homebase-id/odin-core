@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -37,7 +39,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 
             string json = await new StreamReader(section!.Body).ReadToEndAsync();
             var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
-            
+
 
             await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
@@ -60,8 +62,10 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey,
+                        out var contentTypeFromMultipartSection);
+                    await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream,
+                        WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
@@ -70,5 +74,20 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
             var result = await updateWriter.FinalizeFileUpdate(WebOdinContext);
             return result;
         }
+
+        [HttpPatch("update-local-metadata")]
+        public async Task<IActionResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataRequest request)
+        {
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            await fs.Storage.UpdateLocalMetadata(MapToInternalFile(request.File), request.Tags, WebOdinContext);
+            return Ok();
+        }
+    }
+
+    public class UpdateLocalMetadataRequest
+    {
+        public ExternalFileIdentifier File { get; set; }
+
+        public List<Guid> Tags { get; set; }
     }
 }

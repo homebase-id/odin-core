@@ -160,7 +160,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Writes a new file header w/o checking for an existing one
         /// </summary>
         public async Task WriteNewFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            
             bool raiseEvent = false)
         {
             if (!header.IsValid())
@@ -241,7 +240,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             await tempStorageManager.EnsureDeleted(drive, file.FileId);
         }
 
-        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file, int width,
+        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
+            int width,
             int height,
             string payloadKey, UnixTimeUtcUnique payloadUid, IOdinContext odinContext, bool directMatchOnly = false)
         {
@@ -427,7 +427,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header.ServerMetadata.FileSystemType;
         }
 
-        public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk, IOdinContext odinContext)
+        public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk,
+            IOdinContext odinContext)
         {
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
             DriveFileUtility.AssertValidPayloadKey(key);
@@ -530,7 +531,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(drive, targetFile.FileId, extension);
-                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
+                            thumb);
                     }
                 }
             }
@@ -619,7 +621,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(drive, tempFile.FileId, extension);
-                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
+                            thumb);
                     }
                 }
             }
@@ -863,7 +866,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata, IOdinContext odinContext,
-            
             bool bypassCallerCheck = false)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -978,7 +980,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            
             bool raiseEvent = false)
         {
             await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, raiseEvent);
@@ -1045,7 +1046,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         var extension = DriveFileUtility.GetThumbnailFileExtension(newDescriptor.Key, newDescriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(drive, tempFile.FileId, extension);
-                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, newDescriptor, thumb);
+                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, newDescriptor,
+                            thumb);
                     }
 
                     //
@@ -1094,6 +1096,19 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
             //);
+        }
+
+        public async Task UpdateLocalMetadata(InternalDriveFileId file, List<Guid> tags, IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
+            }
+
+            await longTermStorageManager.SaveLocalMetadataAsync(file, tags);
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)
@@ -1290,7 +1305,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Delete the thumbnail files for this payload
             foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
             {
-                await longTermStorageManager.DeleteThumbnailFile(drive, file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
+                await longTermStorageManager.DeleteThumbnailFile(drive, file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth,
+                    thumb.PixelHeight);
             }
 
             // Delete the payload file

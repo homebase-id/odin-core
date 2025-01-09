@@ -21,7 +21,8 @@ public class DriveQuery(
     ILogger<DriveQuery> logger,
     MainIndexMeta metaIndex,
     TableDriveMainIndex tblDriveMainIndex,
-    TableDriveReactions tblDriveReactions
+    TableDriveReactions tblDriveReactions,
+    TableDriveLocalTagIndex tableDriveLocalTagIndex
 ) : IDriveDatabaseManager
 {
     public async Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
@@ -263,10 +264,16 @@ public class DriveQuery(
                 GuidOneOrTwo(metadata.File.FileId, r.fileId),
                 drive.Name);
 
-            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.",
+                OdinClientErrorCode.ExistingFileWithUniqueId);
         }
     }
 
+    public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, List<Guid> tags)
+    {
+        await tableDriveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
+        await tableDriveLocalTagIndex.InsertRowsAsync(driveId, fileId, tags);
+    }
 
     public async Task SaveTransferHistoryAsync(StorageDrive drive, Guid fileId, RecipientTransferHistory history)
     {
@@ -369,7 +376,8 @@ public class DriveQuery(
 
     public async Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(StorageDrive drive, int maxCount, int cursor, Guid fileId)
     {
-        var (items, nextCursor) = await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id, postIdFilter: fileId);
+        var (items, nextCursor) =
+            await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id, postIdFilter: fileId);
 
         var results = items.Select(item =>
             new Reaction()
