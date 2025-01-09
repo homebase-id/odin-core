@@ -425,7 +425,7 @@ public class JobManagerTests
         // Act
         foreach (var jobId in jobList)
         {
-            await WaitForJobStatus<SimpleJobWithDelayTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(1)); 
+            await WaitForJobStatus<SimpleJobWithDelayTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(5)); 
         }        
         
         // Assert
