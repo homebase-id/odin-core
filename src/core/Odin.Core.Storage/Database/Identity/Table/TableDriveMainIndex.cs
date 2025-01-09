@@ -77,10 +77,10 @@ public class TableDriveMainIndex(
         await using var upsertCommand = cn.CreateCommand();
 
         upsertCommand.CommandText =
-            "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
-            "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)" +
+            "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
+            "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)" +
             "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
-            "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified " +
+            "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified " +
             "RETURNING created, modified;";
         var upsertParam1 = upsertCommand.CreateParameter();
         upsertParam1.ParameterName = "@identityId";
@@ -139,12 +139,12 @@ public class TableDriveMainIndex(
         var upsertParam19 = upsertCommand.CreateParameter();
         upsertParam19.ParameterName = "@hdrAppData";
         upsertCommand.Parameters.Add(upsertParam19);
-        var upsertParam20 = upsertCommand.CreateParameter();
-        upsertParam20.ParameterName = "@hdrLocalVersionTag";
-        upsertCommand.Parameters.Add(upsertParam20);
-        var upsertParam21 = upsertCommand.CreateParameter();
-        upsertParam21.ParameterName = "@hdrLocalAppData";
-        upsertCommand.Parameters.Add(upsertParam21);
+        // var upsertParam20 = upsertCommand.CreateParameter();
+        // upsertParam20.ParameterName = "@hdrLocalVersionTag";
+        // upsertCommand.Parameters.Add(upsertParam20);
+        // var upsertParam21 = upsertCommand.CreateParameter();
+        // upsertParam21.ParameterName = "@hdrLocalAppData";
+        // upsertCommand.Parameters.Add(upsertParam21);
         //var upsertParam22 = upsertCommand.CreateParameter();
         //upsertParam22.ParameterName = "@hdrReactionSummary";
         //upsertCommand.Parameters.Add(upsertParam22);
@@ -189,8 +189,9 @@ public class TableDriveMainIndex(
         upsertParam17.Value = item.hdrEncryptedKeyHeader;
         upsertParam18.Value = item.hdrVersionTag.ToByteArray();
         upsertParam19.Value = item.hdrAppData;
-        upsertParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-        upsertParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+        // hdrLocalAppData and hdrLocalVersionTag are set in a specific method
+        // upsertParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+        // upsertParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
         //upsertParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
         upsertParam23.Value = item.hdrServerData;
         //upsertParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;

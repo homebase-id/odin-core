@@ -13,6 +13,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query;
@@ -199,6 +200,10 @@ public class DriveQuery(
 
             hdrServerData = OdinSystemSerializer.Serialize(strippedServerMetadata),
 
+            // local data is updated by a specific method
+            // hdrLocalVersionTag =  ...
+            // hdrLocalAppData = ...
+            
             //this is updated by the SaveReactionSummary method
             // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
             // this is handled by the SaveTransferHistory method
