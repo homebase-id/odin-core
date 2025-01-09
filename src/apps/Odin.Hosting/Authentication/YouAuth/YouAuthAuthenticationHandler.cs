@@ -118,11 +118,6 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleYouAuth(IOdinContext odinContext)
         {
-            if (this.Scheme.Name == YouAuthConstants.AppNotificationSubscriberScheme)
-            {
-                return await HandleRemoteNotificationSubscriberScheme(odinContext);
-            }
-
             /////
             odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
@@ -142,40 +137,6 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             throw new OdinClientException("Unhandled youauth token type");
-        }
-
-        private async Task<AuthenticateResult> HandleRemoteNotificationSubscriberScheme(IOdinContext odinContext)
-        {
-            if (TryGetClientAuthToken(YouAuthConstants.SubscriberCookieName, out var subscriberToken, true))
-            {
-                if (subscriberToken.ClientTokenType != ClientTokenType.RemoteNotificationSubscriber)
-                {
-                    return AuthenticateResult.Fail("Invalid client token type");
-                }
-
-                // authToken comes from ICR, not the app registration
-                // because it's a caller wanting to get peer app notifications
-                var peerAppNotificationService = this.Context.RequestServices.GetRequiredService<PeerAppNotificationService>();
-                var ctx = await peerAppNotificationService.GetDotYouContext(subscriberToken, odinContext);
-                if (null == ctx)
-                {
-                    return AuthenticateResult.Fail("Invalid subscriber token");
-                }
-
-                odinContext.SetAuthContext(YouAuthConstants.AppNotificationSubscriberScheme);
-                odinContext.Caller = ctx.Caller;
-                odinContext.SetPermissionContext(ctx.PermissionsContext);
-
-                // Steal this path from the http controller because here we have the client auth token
-                if (Context.Request.Path.StartsWithSegments($"{GuestApiPathConstants.PeerNotificationsV1}/preauth"))
-                {
-                    AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.SubscriberCookieName, subscriberToken, SameSiteMode.None);
-                }
-
-                return CreateAuthenticationResult(GetYouAuthClaims(odinContext), YouAuthConstants.YouAuthScheme);
-            }
-
-            return AuthenticateResult.Fail("No token provided");
         }
 
         private async Task<AuthenticateResult> HandleBuiltInBrowserAppToken(ClientAuthenticationToken clientAuthToken,
@@ -312,18 +273,18 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private bool TryGetClientAuthToken(string cookieName, out ClientAuthenticationToken clientAuthToken, bool preferHeader = false)
         {
-            var clientAccessTokenValue64 = string.Empty;
+            var clientAuthToken64 = string.Empty;
             if (preferHeader)
             {
-                clientAccessTokenValue64 = Context.Request.Headers[cookieName];
+                clientAuthToken64 = Context.Request.Headers[cookieName];
             }
 
-            if (string.IsNullOrWhiteSpace(clientAccessTokenValue64))
+            if (string.IsNullOrWhiteSpace(clientAuthToken64))
             {
-                clientAccessTokenValue64 = Context.Request.Cookies[cookieName];
+                clientAuthToken64 = Context.Request.Cookies[cookieName];
             }
 
-            return ClientAuthenticationToken.TryParse(clientAccessTokenValue64, out clientAuthToken);
+            return ClientAuthenticationToken.TryParse(clientAuthToken64, out clientAuthToken);
         }
     }
 }

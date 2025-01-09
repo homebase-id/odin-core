@@ -13,7 +13,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
 
 public class PeerAppNotificationSocketHandler(int notificationBatchSize, int notificationWaitTime)
 {
-    private readonly TestAppWebSocketListener _socketListener = new();
+    private readonly PeerTestAppWebSocketListener _socketListener = new();
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileAdded;
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileModified;
 
