@@ -357,7 +357,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         #endif
         public async Task PerformanceTest03B(DatabaseType databaseType) // Just making sure multi-threaded doesn't give worse performance
         {
-            await RegisterServicesAsync(databaseType, true, LogEventLevel.Verbose);
+            await RegisterServicesAsync(databaseType);
 
             // var logger = Services.Resolve<ILogger<ScopedIdentityConnectionFactory>>();
 
