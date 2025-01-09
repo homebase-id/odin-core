@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -72,24 +73,28 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS driveTagIndex;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveTagIndex("
-                 +"identityId BLOB NOT NULL, "
-                 +"driveId BLOB NOT NULL, "
-                 +"fileId BLOB NOT NULL, "
-                 +"tagId BLOB NOT NULL "
-                 +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS driveTagIndex;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS driveTagIndex("
+                   +"identityId BYTEA NOT NULL, "
+                   +"driveId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL, "
+                   +"tagId BYTEA NOT NULL "
+                   + rowid
+                   +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(DriveTagIndexRecord item)
@@ -127,7 +132,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(DriveTagIndexRecord item)
+        protected virtual async Task<bool> TryInsertAsync(DriveTagIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -136,8 +141,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@tagId)";
+                insertCommand.CommandText = "INSERT INTO driveTagIndex (identityId,driveId,fileId,tagId) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@tagId) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -158,7 +164,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (count > 0)
                 {
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -232,13 +238,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveTagIndex; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM driveTagIndex;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -257,13 +263,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        protected virtual async Task<int> GetDriveCountDirtyAsync(Guid driveId)
+        protected virtual async Task<int> GetDriveCountAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountDriveCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM driveTagIndex WHERE driveId = $driveId;PRAGMA read_uncommitted = 0;";
+                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM driveTagIndex WHERE driveId = $driveId;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
@@ -430,7 +436,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
-                        if (!rdr.Read()) {
+                        if (!await rdr.ReadAsync()) {
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[65535+1];
@@ -451,7 +457,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             result0tmp = new Guid(guid);
                         }
                         thelistresult.Add(result0tmp);
-                        if (!rdr.Read())
+                        if (!await rdr.ReadAsync())
                            break;
                     } // while
                     return thelistresult;

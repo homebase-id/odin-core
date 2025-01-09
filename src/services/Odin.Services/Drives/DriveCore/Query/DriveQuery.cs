@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -13,9 +12,7 @@ using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
-using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Peer.Encryption;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query;
@@ -219,57 +216,54 @@ public class DriveQuery(
         {
             await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags);
         }
-        catch (SqliteException e)
+        catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
         {
-            if (e.SqliteErrorCode == 19)
+            DriveMainIndexRecord rf = null;
+            DriveMainIndexRecord ru = null;
+            DriveMainIndexRecord rt = null;
+
+            rf = await tblDriveMainIndex.GetAsync(drive.Id, metadata.File.FileId);
+            if (metadata.AppData.UniqueId.HasValue)
+                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, metadata.AppData.UniqueId);
+            if (metadata.GlobalTransitId.HasValue)
+                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, metadata.GlobalTransitId);
+
+            string s = "";
+            DriveMainIndexRecord r = null;
+
+            if (rf != null)
             {
-                DriveMainIndexRecord rf = null;
-                DriveMainIndexRecord ru = null;
-                DriveMainIndexRecord rt = null;
-
-                rf = await tblDriveMainIndex.GetAsync(drive.Id, metadata.File.FileId);
-                if (metadata.AppData.UniqueId.HasValue)
-                    ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, metadata.AppData.UniqueId);
-                if (metadata.GlobalTransitId.HasValue)
-                    rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, metadata.GlobalTransitId);
-
-                string s = "";
-                DriveMainIndexRecord r = null;
-
-                if (rf != null)
-                {
-                    s += " FileId";
-                    r = rf;
-                }
-
-                if (rt != null)
-                {
-                    s += " GlobalTransitId";
-                    r = rt;
-                }
-
-                if (ru != null)
-                {
-                    s += " UniqueId";
-                    r = ru;
-                }
-
-                //
-                // I wonder if we should test if the client UniqueId is in fact the culprit. 
-                // 
-                logger.LogDebug(
-                    "SqliteErrorCode:19 (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}.  DriveName {driveName}",
-                    s,
-                    GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
-                    GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
-                    GuidOneOrTwo(drive.Id, r?.driveId),
-                    IntOneOrTwo((int)metadata.FileState, r?.fileState ?? -1),
-                    IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
-                    GuidOneOrTwo(metadata.File.FileId, r.fileId),
-                    drive.Name);
-
-                throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+                s += " FileId";
+                r = rf;
             }
+
+            if (rt != null)
+            {
+                s += " GlobalTransitId";
+                r = rt;
+            }
+
+            if (ru != null)
+            {
+                s += " UniqueId";
+                r = ru;
+            }
+
+            //
+            // I wonder if we should test if the client UniqueId is in fact the culprit.
+            //
+            logger.LogDebug(
+                "IsUniqueConstraintViolation (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}.  DriveName {driveName}",
+                s,
+                GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
+                GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
+                GuidOneOrTwo(drive.Id, r?.driveId),
+                IntOneOrTwo((int)metadata.FileState, r?.fileState ?? -1),
+                IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
+                GuidOneOrTwo(metadata.File.FileId, r.fileId),
+                drive.Name);
+
+            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
         }
     }
 
@@ -316,24 +310,17 @@ public class DriveQuery(
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction)
     {
-        try
+        var reactionAdded = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
         {
-            await tblDriveReactions.InsertAsync(new DriveReactionsRecord()
-            {
-                driveId = drive.Id,
-                identity = odinId,
-                postId = fileId,
-                singleReaction = reaction
-            });
-        }
-        catch (SqliteException e)
-        {
-            if (e.SqliteErrorCode == 19)
-            {
-                throw new OdinClientException("Cannot add duplicate reaction");
-            }
+            driveId = drive.Id,
+            identity = odinId,
+            postId = fileId,
+            singleReaction = reaction
+        });
 
-            throw;
+        if (!reactionAdded)
+        {
+            throw new OdinClientException("Cannot add duplicate reaction");
         }
     }
 

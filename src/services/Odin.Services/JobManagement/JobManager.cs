@@ -9,6 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Background;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.JobManagement;
 
@@ -89,25 +90,23 @@ public class JobManager(
             // while another job is being scheduled with the same hash, will fail to look it up. In which case
             // we let it retry the insert.
 
-            var inserted = 0;
+            var didInsert = false;
             var attempt = 0;
-            while (inserted == 0 && attempt < 5)
+            while (!didInsert && attempt < 5)
             {
-                inserted = await tableJobs.TryInsertAsync(record);
-                if (inserted == 0)
+                // Check if job already exists, lets look it up using the jobHash
+                var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
+                if (existingRecord != null)
                 {
-                    // Job already exists, lets look it up using the jobHash
-                    var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
-                    if (existingRecord != null)
-                    {
-                        logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                            existingRecord.name, jobId, record.jobHash, existingRecord.id);
-                        return existingRecord.id;
-                    }
+                    logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
+                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
+                    return existingRecord.id;
                 }
+
+                didInsert = await tableJobs.TryInsertAsync(record);
                 attempt++;
             }
-            if (inserted == 0)
+            if (!didInsert)
             {
                 var error = $"Could neither insert nor lookup job '{job.Name}' with hash:{record.jobHash}. Check logs. Good luck.";
                 logger.LogError(error);
@@ -311,8 +310,19 @@ public class JobManager(
             return null;
         }
 
-        var job = AbstractJob.CreateInstance<T>(lifetimeScope, record);
-    
+        T job;
+        try
+        {
+            job = AbstractJob.CreateInstance<T>(lifetimeScope, record);
+        }
+        catch (Exception e)
+        {
+            record.state = (int)JobState.Failed;
+            record.lastError = $"Activator error: {e.Message}";
+            await UpdateAsync(record);
+            throw;
+        }
+
         return job;
     }
     

@@ -9,7 +9,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Base;
@@ -200,7 +199,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtc.Now(),
                 Sender = odinContext.GetCallerOdinIdOrFail(),
-                Priority = 0,
+                Priority = 500,
 
                 InstructionType = TransferInstructionType.UpdateFile,
                 DriveId = _tempFile.DriveId,

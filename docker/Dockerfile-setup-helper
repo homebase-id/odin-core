@@ -1,4 +1,4 @@
-﻿FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+﻿FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 LABEL org.opencontainers.image.source="https://github.com/homebase-id/odin-core"
 ARG TARGETARCH
 
@@ -22,7 +22,7 @@ COPY src/apps/Odin.SetupHelper/             src/apps/Odin.SetupHelper/
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.SetupHelper/Odin.SetupHelper.csproj -c Release -o out
 
 # Create runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
 RUN echo "alias l='ls -lah'" >> ~/.bashrc
 RUN echo "alias ll='ls -lh'" >> ~/.bashrc

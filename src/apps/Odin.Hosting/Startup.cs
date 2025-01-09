@@ -23,6 +23,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
@@ -50,7 +51,6 @@ using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
-using Odin.Services.Util;
 
 namespace Odin.Hosting
 {
@@ -94,11 +94,6 @@ namespace Odin.Hosting
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
-
-            //
-            // Background and job stuff
-            //
-            services.AddJobManagerServices();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -166,7 +161,6 @@ namespace Odin.Hosting
             services.AddAuthentication(options => { })
                 .AddOwnerAuthentication()
                 .AddYouAuthAuthentication()
-                .AddAppNotificationSubscriberAuthentication()
                 .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
                 .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
@@ -255,6 +249,7 @@ namespace Odin.Hosting
             builder.RegisterModule(new MultiTenantAutofacModule());
            
             builder.AddSystemBackgroundServices();
+            builder.AddJobManagerServices();
 
             // Global database services
             builder.AddDatabaseCacheServices();

@@ -8,14 +8,13 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Util;
@@ -35,21 +34,24 @@ namespace Odin.Services.Membership.YouAuth
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly CircleMembershipService _circleMembershipService;
-        private readonly TableKeyThreeValue _tblKeyThreeValue;
+        private readonly IdentityDatabase _db;
 
         private readonly SharedOdinContextCache<YouAuthDomainRegistrationService> _cache;
         private readonly TenantContext _tenantContext;
 
         public YouAuthDomainRegistrationService(
-            ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
-            CircleNetworkService circleNetworkService, CircleMembershipService circleMembershipService,
-            TableKeyThreeValue tblKeyThreeValue, SharedOdinContextCache<YouAuthDomainRegistrationService> cache)
+            ExchangeGrantService exchangeGrantService,
+            TenantContext tenantContext,
+            CircleNetworkService circleNetworkService,
+            CircleMembershipService circleMembershipService,
+            IdentityDatabase db,
+            SharedOdinContextCache<YouAuthDomainRegistrationService> cache)
         {
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _circleNetworkService = circleNetworkService;
             _circleMembershipService = circleMembershipService;
-            _tblKeyThreeValue = tblKeyThreeValue;
+            _db = db;
             _cache = cache;
         }
 
@@ -207,7 +209,7 @@ namespace Odin.Services.Membership.YouAuth
             
             odinContext.Caller.AssertHasMasterKey();
 
-            var list = await ClientStorage.GetByCategoryAsync<YouAuthDomainClient>(_tblKeyThreeValue, ClientDataType);
+            var list = await ClientStorage.GetByCategoryAsync<YouAuthDomainClient>(_db.KeyThreeValue, ClientDataType);
             var resp = list.Where(d => d.Domain.DomainName.ToLower() == domain.DomainName.ToLower()).Select(domainClient => new RedactedYouAuthDomainClient()
             {
                 Domain = domainClient.Domain,
@@ -238,14 +240,14 @@ namespace Odin.Services.Membership.YouAuth
                 throw new OdinSecurityException("Invalid call to Delete domain client");
             }
 
-            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValue, accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            await ClientStorage.DeleteAsync(_tblKeyThreeValue, accessRegistrationId);
+            await ClientStorage.DeleteAsync(_db.KeyThreeValue, accessRegistrationId);
         }
 
         public async Task DeleteClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
@@ -253,14 +255,14 @@ namespace Odin.Services.Membership.YouAuth
             
             odinContext.Caller.AssertHasMasterKey();
 
-            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValue, accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            await ClientStorage.DeleteAsync(_tblKeyThreeValue, accessRegistrationId);
+            await ClientStorage.DeleteAsync(_db.KeyThreeValue, accessRegistrationId);
         }
 
         public async Task DeleteDomainRegistrationAsync(AsciiDomainName domain, IOdinContext odinContext)
@@ -276,17 +278,15 @@ namespace Odin.Services.Membership.YouAuth
             }
 
             //delete the clients
-            var clientsByDomain = await ClientStorage.GetByDataTypeAsync<YouAuthDomainClient>(_tblKeyThreeValue, GetDomainKey(domain).ToByteArray());
+            var clientsByDomain = await ClientStorage.GetByDataTypeAsync<YouAuthDomainClient>(_db.KeyThreeValue, GetDomainKey(domain).ToByteArray());
 
-            // TODO CONNECTIONS
-            // _tblKeyThreeValue.CreateCommitUnitOfWork(() => {
+            await using var tx = await _db.BeginStackedTransactionAsync();
             foreach (var c in clientsByDomain)
             {
-                await ClientStorage.DeleteAsync(_tblKeyThreeValue, c.AccessRegistration.Id);
+                await ClientStorage.DeleteAsync(_db.KeyThreeValue, c.AccessRegistration.Id);
             }
-
-            await DomainStorage.DeleteAsync(_tblKeyThreeValue, GetDomainKey(domain));
-            // });
+            await DomainStorage.DeleteAsync(_db.KeyThreeValue, GetDomainKey(domain));
+            tx.Commit();
         }
 
         public async Task<List<RedactedYouAuthDomainRegistration>> GetRegisteredDomainsAsync(IOdinContext odinContext)
@@ -294,7 +294,7 @@ namespace Odin.Services.Membership.YouAuth
             
             odinContext.Caller.AssertHasMasterKey();
 
-            var domains = await DomainStorage.GetByCategoryAsync<YouAuthDomainRegistration>(_tblKeyThreeValue, DomainRegistrationDataType);
+            var domains = await DomainStorage.GetByCategoryAsync<YouAuthDomainRegistration>(_db.KeyThreeValue, DomainRegistrationDataType);
             var redactedList = domains.Select(d => d.Redacted()).ToList();
             return redactedList;
         }
@@ -393,7 +393,7 @@ namespace Odin.Services.Membership.YouAuth
             ClientAuthenticationToken authToken)
         {
             
-            var domainClient = await ClientStorage.GetAsync<YouAuthDomainClient>(_tblKeyThreeValue, authToken.Id);
+            var domainClient = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValue, authToken.Id);
             if (null == domainClient)
             {
                 return (false, null, null);
@@ -420,7 +420,7 @@ namespace Odin.Services.Membership.YouAuth
         {
             
 
-            await ClientStorage.UpsertAsync(_tblKeyThreeValue, youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
+            await ClientStorage.UpsertAsync(_db.KeyThreeValue, youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
                 ClientDataType,
                 youAuthDomainClient);
         }
@@ -428,7 +428,7 @@ namespace Odin.Services.Membership.YouAuth
         private async Task<YouAuthDomainRegistration?> GetDomainRegistrationInternalAsync(AsciiDomainName domain)
         {
             var key = GuidId.FromString(domain.DomainName);
-            var reg = await DomainStorage.GetAsync<YouAuthDomainRegistration>(_tblKeyThreeValue, key);
+            var reg = await DomainStorage.GetAsync<YouAuthDomainRegistration>(_db.KeyThreeValue, key);
 
             if (null != reg)
             {
@@ -459,8 +459,8 @@ namespace Odin.Services.Membership.YouAuth
 
             var domain = new OdinId(registration.Domain);
 
-            // TODO CONNECTIONS
-            // _tblKeyThreeValue.CreateCommitUnitOfWork(() => {
+            // TODO CONNECTIONS (TODD:TODO)
+            // _db.KeyThreeValue.CreateCommitUnitOfWork(() => {
             //Store the circles for this registration
 
             //TODO: this is causing an issue where in the circles are also deleted for the ICR 
@@ -487,7 +487,7 @@ namespace Odin.Services.Membership.YouAuth
             //clear them here so we don't have two locations
             registration.CircleGrants.Clear();
 
-            await DomainStorage.UpsertAsync(_tblKeyThreeValue, GetDomainKey(registration.Domain), GuidId.Empty, DomainRegistrationDataType,
+            await DomainStorage.UpsertAsync(_db.KeyThreeValue, GetDomainKey(registration.Domain), GuidId.Empty, DomainRegistrationDataType,
                 registration);
             // });
         }
@@ -500,7 +500,7 @@ namespace Odin.Services.Membership.YouAuth
         {
             if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))
             {
-                //just in case something changed in the _tblKeyThreeValue record
+                //just in case something changed in the _db.KeyThreeValue record
                 AppUtil.AssertValidCorsHeader(domainRegistration.CorsHostName);
             }
 

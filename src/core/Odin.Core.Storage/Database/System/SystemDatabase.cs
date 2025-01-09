@@ -29,7 +29,7 @@ public class SystemDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<ISy
     //
     // Connection
     //
-    public override async Task<ScopedConnectionFactory<ISystemDbConnectionFactory>.ConnectionWrapper> CreateScopedConnectionAsync()
+    public override async Task<IConnectionWrapper> CreateScopedConnectionAsync()
     {
         var factory = _lifetimeScope.Resolve<ScopedSystemConnectionFactory>();
         var cn = await factory.CreateScopedConnectionAsync();
@@ -39,7 +39,7 @@ public class SystemDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<ISy
     //
     // Transaction
     //
-    public override async Task<ScopedTransactionFactory<ISystemDbConnectionFactory>.ScopedTransaction> BeginStackedTransactionAsync()
+    public override async Task<IScopedTransaction> BeginStackedTransactionAsync()
     {
         var factory = _lifetimeScope.Resolve<ScopedSystemTransactionFactory>();
         var tx = await factory.BeginStackedTransactionAsync();

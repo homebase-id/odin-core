@@ -1,13 +1,12 @@
 using System;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Mediator;
 
 namespace Odin.Services.AppNotifications.ClientNotifications
 {
-    public class ConnectionRequestReceived : MediatorNotificationBase, IClientNotification
+    public class ConnectionRequestReceivedNotification : MediatorNotificationBase, IClientNotification
     {
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.ConnectionRequestReceived;
 

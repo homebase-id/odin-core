@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
@@ -14,6 +15,9 @@ public class RescheduleOnCancelJobTestData
 
 public class RescheduleOnCancelJobTest(ILogger<RescheduleOnCancelJobTest> logger) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("de878720-f0ce-4269-9d19-49c34b36a343");
+    public override string JobType => JobTypeId.ToString();
+
     public RescheduleOnCancelJobTestData JobData { get; set; } = new ();
 
     //

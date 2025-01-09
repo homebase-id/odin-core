@@ -3,7 +3,7 @@
   <Import Project="$(ProjectDir)../../../common-project.props" />
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
 
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -12,11 +12,15 @@
     <DebugType>full</DebugType>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(USER)' == 'seb'">
+    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="HttpClientFactoryLite" Version="0.4.0" />
-    <PackageReference Include="JetBrains.Profiler.Api" Version="1.4.0" />
-    <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.11" />
+    <PackageReference Include="JetBrains.Profiler.Api" Version="1.4.8" />
+    <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.12" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="NUnit" Version="3.14.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
@@ -30,9 +34,6 @@
     <ProjectReference Include="../../../src/apps/Odin.Hosting/Odin.Hosting.csproj" />
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="_Universal\NotificationTests\Transit\" />
-  </ItemGroup>
+  
 
 </Project>

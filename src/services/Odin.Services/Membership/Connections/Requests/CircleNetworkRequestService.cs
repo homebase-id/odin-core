@@ -40,15 +40,18 @@ namespace Odin.Services.Membership.Connections.Requests
     /// </summary>
     public class CircleNetworkRequestService : PeerServiceBase
     {
-        private const PublicPrivateKeyType KeyType = PublicPrivateKeyType.OnlineIcrEncryptedKey;
         private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
         private static readonly byte[] SentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();
 
         private const string PendingContextKey = "11e5788a-8117-489e-9412-f2ab2978b46d";
-        private readonly ThreeKeyValueStorage _pendingRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(PendingContextKey));
+
+        private readonly ThreeKeyValueStorage _pendingRequestValueStorage =
+            TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(PendingContextKey));
 
         private const string SentContextKey = "27a49f56-dd00-4383-bf5e-cd94e3ac193b";
-        private readonly ThreeKeyValueStorage _sentRequestValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(SentContextKey));
+
+        private readonly ThreeKeyValueStorage _sentRequestValueStorage =
+            TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(SentContextKey));
 
         private readonly CircleNetworkService _cns;
         private readonly ILogger<CircleNetworkRequestService> _logger;
@@ -65,6 +68,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
+        private readonly SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> _outgoingIntroductionRequests;
 
         public CircleNetworkRequestService(
             CircleNetworkService cns,
@@ -81,7 +85,8 @@ namespace Odin.Services.Membership.Connections.Requests
             FileSystemResolver fileSystemResolver,
             CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration,
-            TableKeyThreeValue tblKeyThreeValue)
+            TableKeyThreeValue tblKeyThreeValue,
+            SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> outgoingIntroductionRequests)
             : base(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
         {
             _cns = cns;
@@ -98,6 +103,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _verificationService = verificationService;
             _odinConfiguration = odinConfiguration;
             _tblKeyThreeValue = tblKeyThreeValue;
+            _outgoingIntroductionRequests = outgoingIntroductionRequests;
         }
 
         /// <summary>
@@ -106,7 +112,8 @@ namespace Odin.Services.Membership.Connections.Requests
         public async Task<ConnectionRequest> GetPendingRequestAsync(OdinId sender, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, MakePendingRequestsKey(sender));
+            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue,
+                MakePendingRequestsKey(sender));
 
             if (null == header)
             {
@@ -125,7 +132,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     return null;
                 }
 
-                payloadBytes = await _publicPrivateKeyService.EccDecryptPayload(KeyType, header.EccEncryptedPayload, odinContext);
+                payloadBytes = await _publicPrivateKeyService.EccDecryptPayload(header.EccEncryptedPayload, odinContext);
             }
             else
             {
@@ -153,7 +160,8 @@ namespace Odin.Services.Membership.Connections.Requests
             IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
-            var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, PendingRequestsDataType);
+            var results = await _pendingRequestValueStorage.GetByCategoryAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue,
+                PendingRequestsDataType);
             return new PagedResult<PendingConnectionRequestHeader>(pageOptions, 1, results.Select(p => p.Redacted()).ToList());
         }
 
@@ -195,7 +203,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinClientException("You've blocked this connection", OdinClientErrorCode.BlockedConnection);
             }
 
-            if (existingConnection.IsConnected())
+            if (existingConnection.IsConnected() && header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
                 if ((await _verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext)).IsValid)
                 {
@@ -227,10 +235,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
             //TODO: check robot detection code
 
-            if (!await _publicPrivateKeyService.IsValidEccPublicKeyAsync(KeyType,
-                    payload.EncryptionPublicKeyCrc32))
+            if (!await _publicPrivateKeyService.IsValidEccPublicKeyAsync(payload.KeyType, payload.EncryptionPublicKeyCrc32))
             {
-                throw new OdinClientException("Encrypted Payload Public Key does not match recipient");
+                throw new OdinClientException("Encrypted Payload Public Key does not match recipient",
+                    OdinClientErrorCode.PublicKeyEncryptionIsInvalid);
             }
 
             var sender = odinContext.GetCallerOdinIdOrFail();
@@ -242,61 +250,37 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinSecurityException("Identity is blocked");
             }
 
-            //TODO: I removed this because the caller does not have the required shared secret; will revisit later if checking this is crucial
-            if (existingConnection.IsConnected())
+            if (_outgoingIntroductionRequests.TryGetValue(sender, out var outgoingTimestamp))
             {
-                try
+                //who short first?  if mine was sent first
+                if (ByteArrayUtil.muidcmp(outgoingTimestamp, payload.TimestampId) == -1)
                 {
-                    if ((await _verificationService.VerifyConnectionAsync(sender, cancellationToken, odinContext)).IsValid)
-                    {
-                        _logger.LogInformation("Validated connection with {sender}, connection is good", sender);
-
-                        //TODO decide if we should throw an error here?
-                        return;
-                    }
+                    throw new OdinClientException("Introductory request already sent", OdinClientErrorCode.IntroductoryRequestAlreadySent);
                 }
-                catch (OdinIdentityVerificationException)
-                {
-                    // This can occur if the sender does not have access to the ICR
-                    //No-op, ignore this issue
-                }
-            }
-
-            //Check if a request was sent to the sender
-            var sentRequest = await GetSentRequestInternalAsync(sender);
-            if (null != sentRequest)
-            {
-                //we can auto-accept
-                _logger.LogInformation("Auto-accepting connection request from {sender}", sender);
-                //Note: nothing to do here for now because of the MasterKeyAvailableBackgroundService
-                // will check this same logic and auto-approve
-                // However, if we drop the MasterKeyAvailableBackgroundService - we will need to
-                // put in an inbox item to perform the auto-accept
             }
 
             var request = new PendingConnectionRequestHeader()
             {
                 SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
                 ReceivedTimestampMilliseconds = UnixTimeUtc.Now(),
-                // Payload = payload
                 EccEncryptedPayload = payload
             };
 
             await UpsertPendingConnectionRequestAsync(request);
 
-            await _mediator.Publish(new ConnectionRequestReceived()
+            await _mediator.Publish(new ConnectionRequestReceivedNotification()
             {
                 Sender = request.SenderOdinId,
                 Recipient = recipient,
                 OdinContext = odinContext,
-            });
+            }, cancellationToken);
         }
 
         /// <summary>
         /// Gets a connection request sent to the specified recipient
         /// </summary>
         /// <returns>Returns the <see cref="ConnectionRequest"/> if one exists, otherwise null</returns>
-        public async Task<ConnectionRequest> GetSentRequest(OdinId recipient, IOdinContext odinContext)
+        public async Task<ConnectionRequest> GetSentRequestAsync(OdinId recipient, IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
 
@@ -317,7 +301,6 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task DeleteSentRequestInternalAsync(OdinId recipient)
         {
-
             var newKey = MakeSentRequestsKey(recipient);
             var recordFromNewKeyFormat = await _sentRequestValueStorage.GetAsync<ConnectionRequest>(_tblKeyThreeValue, newKey);
             if (null != recordFromNewKeyFormat)
@@ -330,7 +313,6 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 //old method
                 await _sentRequestValueStorage.DeleteAsync(_tblKeyThreeValue, recipient.ToHashId());
-                return;
             }
             catch (Exception e)
             {
@@ -361,7 +343,7 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 //If I had previously sent a connection request; use the ACLs I already created
                 var existingSentRequest = await GetSentRequestInternalAsync(senderOdinId);
-                if (null != existingSentRequest)
+                if (null != existingSentRequest && existingSentRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
                 {
                     accessGrant = existingSentRequest.PendingAccessExchangeGrant;
                 }
@@ -392,11 +374,9 @@ namespace Odin.Services.Membership.Connections.Requests
                     masterKey,
                     odinContext),
                 AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles,
-                    incomingRequest.ConnectionRequestOrigin, masterKey,
-                    odinContext),
+                    incomingRequest.ConnectionRequestOrigin, masterKey, odinContext),
                 AccessRegistration = accessRegistration
             };
-
 
             var verificationHash = _cns.CreateVerificationHash(
                 incomingRequest.VerificationRandomCode,
@@ -413,11 +393,12 @@ namespace Odin.Services.Membership.Connections.Requests
             else
             {
                 //TODO: should we validate all drives are write-only ?
-
-                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
+                var keyType = GetPublicPrivateKeyType(incomingRequest.ConnectionRequestOrigin);
+                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(
+                    keyType,
                     remoteClientAccessToken.ToPortableBytes());
 
-                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
+                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(keyType,
                     keyStoreKey.GetKey());
 
                 eccEncryptedKeys = (Token: eccEncryptedCat, KeyStoreKey: eccEncryptedKeyStoreKey);
@@ -471,8 +452,8 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             catch (TryRetryException)
             {
-                throw new OdinSystemException(
-                    $"Failed to establish connection request.  Either response was empty or server returned a failure");
+                throw new OdinSystemException("Failed to establish connection request.  Either " +
+                                              "response was empty or server returned a failure");
             }
 
             if (!httpResponse.IsSuccessStatusCode)
@@ -484,8 +465,8 @@ namespace Odin.Services.Membership.Connections.Requests
                         OdinClientErrorCode.RemoteServerMissingOutgoingRequest);
                 }
 
-                throw new OdinSystemException(
-                    $"Failed to establish connection request.  Either response was empty or server returned a failure");
+                throw new OdinSystemException("Failed to establish connection request.  Either " +
+                                              "response was empty or server returned a failure");
             }
 
             await this.DeleteSentRequestInternalAsync(senderOdinId);
@@ -517,19 +498,31 @@ namespace Odin.Services.Membership.Connections.Requests
             //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
 
             var authToken = ClientAuthenticationToken.FromPortableBytes64(authenticationToken64);
+            var caller = odinContext.GetCallerOdinIdOrFail();
+            var originalRequest = await GetSentRequestInternalAsync(caller);
 
-            var originalRequest = await GetSentRequestInternalAsync(odinContext.GetCallerOdinIdOrFail());
-
-            //Assert that I previously sent a request to the dotIdentity attempting to connected with me
+            //Assert that I previously sent a request to the identity attempting to connected with me
             if (null == originalRequest)
             {
+                if (_outgoingIntroductionRequests.ContainsKey(caller))
+                {
+                    // db record is not yet written.
+                }
+                // this can also happen if the connection was already approved via auto-accept 
+                // var existingConnection = await _cns.GetIcrAsync(caller, odinContext, true);
+                // if (existingConnection.IsConnected() && existingConnection.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
+                // {
+                //     _logger.LogDebug("Ignoring EstablishConnection from {caller}. Already connected via introduction", caller);
+                //     return;
+                // }
+
                 throw new OdinSecurityException("The original request no longer exists in Sent Requests");
             }
 
             var recipient = (OdinId)originalRequest.Recipient;
 
-            var (keyStoreKey, sharedSecret) =
-                originalRequest.PendingAccessExchangeGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
+            var (keyStoreKey, sharedSecret) = originalRequest.PendingAccessExchangeGrant
+                .AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
             var payloadBytes = payload.Decrypt(sharedSecret);
 
             ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
@@ -553,11 +546,12 @@ namespace Odin.Services.Membership.Connections.Requests
                 // we're here because the original request was
                 // automatically sent (w/o the owner)
                 //TODO: should we validate all drives are write-only ?
+                var keyType = GetPublicPrivateKeyType(originalRequest.ConnectionRequestOrigin);
 
-                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
+                var eccEncryptedCat = await _publicPrivateKeyService.EccEncryptPayload(keyType,
                     remoteClientAccessToken.ToPortableBytes());
 
-                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(KeyType,
+                var eccEncryptedKeyStoreKey = await _publicPrivateKeyService.EccEncryptPayload(keyType,
                     keyStoreKey.GetKey());
 
                 eccEncryptedKeys = (Token: eccEncryptedCat, KeyStoreKey: eccEncryptedKeyStoreKey);
@@ -567,7 +561,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 rawIcrKey = originalRequest.TempEncryptedIcrKey?.DecryptKeyClone(tempKey);
                 encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
             }
-
 
             await _cns.ConnectAsync(reply.SenderOdinId,
                 originalRequest.PendingAccessExchangeGrant,
@@ -657,14 +650,17 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private async Task<bool> HasPendingRequestInternal(OdinId sender)
         {
-            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, MakePendingRequestsKey(sender));
+            var header = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue,
+                MakePendingRequestsKey(sender));
             return header != null;
         }
 
         private async Task DeletePendingRequestInternal(OdinId sender)
         {
             var newKey = MakePendingRequestsKey(sender);
-            var recordFromNewKeyFormat = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, newKey);
+            var recordFromNewKeyFormat = await _pendingRequestValueStorage
+                .GetAsync<PendingConnectionRequestHeader>(_tblKeyThreeValue, newKey);
+
             if (null != recordFromNewKeyFormat)
             {
                 await _pendingRequestValueStorage.DeleteAsync(_tblKeyThreeValue, newKey);
@@ -675,7 +671,6 @@ namespace Odin.Services.Membership.Connections.Requests
             try
             {
                 await _pendingRequestValueStorage.DeleteAsync(_tblKeyThreeValue, sender.ToHashId());
-                return;
             }
             catch (Exception e)
             {
@@ -686,13 +681,15 @@ namespace Odin.Services.Membership.Connections.Requests
         private async Task UpsertSentConnectionRequestAsync(ConnectionRequest request)
         {
             request.SenderOdinId = _tenantContext.HostOdinId; //store for when we support multiple domains per identity
-            await _sentRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty, SentRequestsDataType,
+            await _sentRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakeSentRequestsKey(new OdinId(request.Recipient)), GuidId.Empty,
+                SentRequestsDataType,
                 request);
         }
 
         private async Task UpsertPendingConnectionRequestAsync(PendingConnectionRequestHeader request)
         {
-            await _pendingRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty, PendingRequestsDataType,
+            await _pendingRequestValueStorage.UpsertAsync(_tblKeyThreeValue, MakePendingRequestsKey(request.SenderOdinId), GuidId.Empty,
+                PendingRequestsDataType,
                 request);
         }
 
@@ -780,7 +777,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             _logger.LogDebug("Sending Introduced-connection request to {recipient}", recipient);
 
-            if (_tenantContext.Settings.DisableAutoAcceptIntroductions)
+            if (_tenantContext.Settings.DisableAutoAcceptIntroductionsForTests)
             {
                 var existingOutgoingRequest = await this.GetSentRequestInternalAsync(recipient);
                 if (null == existingOutgoingRequest)
@@ -830,40 +827,34 @@ namespace Odin.Services.Membership.Connections.Requests
         private async Task CreateAndSendRequestInternalAsync(ConnectionRequestHeader header, SensitiveByteArray masterKey,
             IOdinContext odinContext)
         {
+            var recipient = (OdinId)header.Recipient;
+
+            //TODO: scalability - _outgoingIntroductionRequests needs to work across servers
+            var timestamp = SequentialGuid.CreateGuid();
+            _outgoingIntroductionRequests[recipient] = timestamp;
+
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
-
             var (clientAccessToken, grant) = await CreateTokenAndExchangeGrantAsync(keyStoreKey, circles, header.ConnectionRequestOrigin,
                 masterKey, odinContext);
 
             var tempRawKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var randomCode = ByteArrayUtil.GetRandomCryptoGuid();
             var outgoingRequest = new ConnectionRequest
             {
                 Id = header.Id,
                 ContactData = header.ContactData,
                 Recipient = header.Recipient,
                 Message = header.Message,
-                ClientAccessToken64 = clientAccessToken.ToPortableBytes64(),
-                TempRawKey = tempRawKey.GetKey(), //give the key to the recipient, so they can give it back when they accept the request
-                VerificationRandomCode = ByteArrayUtil.GetRandomCryptoGuid(),
+                ClientAccessToken64 = "",
+                TempRawKey = null,
+                VerificationRandomCode = randomCode,
                 ConnectionRequestOrigin = header.ConnectionRequestOrigin,
-                IntroducerOdinId = header.IntroducerOdinId
+                IntroducerOdinId = header.IntroducerOdinId,
+                PendingAccessExchangeGrant = grant,
+                VerificationHash = _cns.CreateVerificationHash(randomCode, clientAccessToken.SharedSecret)
             };
-
-            await TrySendRequestInternalAsync((OdinId)header.Recipient, outgoingRequest, odinContext);
-
-            outgoingRequest.VerificationHash =
-                _cns.CreateVerificationHash(outgoingRequest.VerificationRandomCode, clientAccessToken.SharedSecret);
-
-            clientAccessToken.SharedSecret.Wipe();
-            clientAccessToken.AccessTokenHalfKey.Wipe();
-
-            //
-            // Note: These items are set after we send the request, so we can store them locally only
-            //
-            outgoingRequest.ClientAccessToken64 = "";
-            outgoingRequest.PendingAccessExchangeGrant = grant;
 
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
@@ -875,11 +866,33 @@ namespace Odin.Services.Membership.Connections.Requests
                 outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
             }
 
+            try
+            {
+                await UpsertSentConnectionRequestAsync(outgoingRequest);
+
+                // Clean up items we do not want being sent to the recipient
+                //give the key to the recipient, so they can give it back when they accept the request
+                outgoingRequest.TempRawKey = tempRawKey.GetKey();
+                outgoingRequest.ClientAccessToken64 = clientAccessToken.ToPortableBytes64();
+                outgoingRequest.VerificationHash = null;
+                outgoingRequest.PendingAccessExchangeGrant = null;
+                outgoingRequest.TempEncryptedIcrKey = null;
+                outgoingRequest.TempEncryptedFeedDriveStorageKey = null;
+                clientAccessToken.SharedSecret.Wipe();
+                clientAccessToken.AccessTokenHalfKey.Wipe();
+
+                if (!await TrySendRequestInternalAsync((OdinId)header.Recipient, outgoingRequest, timestamp))
+                {
+                    await DeleteSentRequestInternalAsync(recipient);
+                }
+            }
+            finally
+            {
+                _outgoingIntroductionRequests.TryRemove(recipient, out _);
+            }
+
             keyStoreKey.Wipe();
             tempRawKey.Wipe();
-            outgoingRequest.TempRawKey.Wipe();
-
-            await UpsertSentConnectionRequestAsync(outgoingRequest);
         }
 
         private async Task<(ClientAccessToken clientAccessToken, AccessExchangeGrant)> CreateTokenAndExchangeGrantAsync(
@@ -911,8 +924,10 @@ namespace Odin.Services.Membership.Connections.Requests
             return (clientAccessToken, grant);
         }
 
-        private async Task TrySendRequestInternalAsync(OdinId recipient, ConnectionRequest request, IOdinContext odinContext)
+        private async Task<bool> TrySendRequestInternalAsync(OdinId recipient, ConnectionRequest request, Guid timestamp)
         {
+            var keyType = GetPublicPrivateKeyType(request.ConnectionRequestOrigin);
+
             async Task<(bool encryptionSucceeded, ApiResponse<HttpContent> deliveryResponse)> Send()
             {
                 EccEncryptedPayload eccEncryptedPayload;
@@ -920,7 +935,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 {
                     var payloadBytes = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray();
                     eccEncryptedPayload = await _publicPrivateKeyService.EccEncryptPayloadForRecipientAsync(
-                        KeyType,
+                        keyType,
                         recipient,
                         payloadBytes);
                 }
@@ -930,22 +945,45 @@ namespace Odin.Services.Membership.Connections.Requests
                     return (false, null);
                 }
 
-                var token = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
-                var client = token == null
-                    ? _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient)
-                    : _odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkRequestHttpClient>(recipient,
-                        token.ToAuthenticationToken());
+                var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient);
+
+                eccEncryptedPayload.TimestampId = timestamp;
 
                 var response = await client.DeliverConnectionRequest(eccEncryptedPayload);
-                return (response.StatusCode != HttpStatusCode.BadRequest, response);
+
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    var code = response.Error.ParseProblemDetails();
+                    if (code == OdinClientErrorCode.PublicKeyEncryptionIsInvalid)
+                    {
+                        return (false, response);
+                    }
+                }
+
+                return (true, response);
             }
 
             var sendResult1 = await Send();
-            if (!sendResult1.encryptionSucceeded)
+            if (sendResult1.encryptionSucceeded)
             {
-                _logger.LogDebug("TrySendRequestInternal to {recipient} failed the first time. Invalidating public key cache and retrying",
-                    recipient);
-                await _publicPrivateKeyService.InvalidateRecipientEccPublicKeyAsync(KeyType, recipient);
+                if (sendResult1.deliveryResponse.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    var code = sendResult1.deliveryResponse.Error.ParseProblemDetails();
+                    if (code == OdinClientErrorCode.IntroductoryRequestAlreadySent)
+                    {
+                        return false;
+                        // there was already a request sent, bubble this up
+                        // throw new OdinClientException("Remote server already sent a request",
+                        //     OdinClientErrorCode.IntroductoryRequestAlreadySent);
+                    }
+                }
+            }
+            else
+            {
+                _logger.LogDebug("TrySendRequestInternal to {recipient} failed the first time. " +
+                                 "Invalidating public key cache and retrying", recipient);
+
+                await _publicPrivateKeyService.InvalidateRecipientEccPublicKeyAsync(keyType, recipient);
                 sendResult1 = await Send();
 
                 if (!sendResult1.encryptionSucceeded)
@@ -972,6 +1010,15 @@ namespace Odin.Services.Membership.Connections.Requests
                     throw new OdinClientException("Failed to establish connection request");
                 }
             }
+
+            return true;
+        }
+
+        private PublicPrivateKeyType GetPublicPrivateKeyType(ConnectionRequestOrigin origin)
+        {
+            return origin == ConnectionRequestOrigin.Introduction
+                ? PublicPrivateKeyType.OfflineKey
+                : PublicPrivateKeyType.OnlineIcrEncryptedKey;
         }
     }
 }

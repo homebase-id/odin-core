@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
@@ -15,6 +13,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert and read a row
         public async Task InsertRowTest(DatabaseType databaseType)
         {
@@ -49,6 +50,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert and read two tagmembers
         public async Task InsertDoubleRowTest(DatabaseType databaseType)
         {
@@ -92,6 +96,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we cannot insert the same tagmember key twice on the same key
         public async Task InsertDuplicatetagMemberTest(DatabaseType databaseType)
         {
@@ -124,6 +131,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we can insert the same tagmember on two different keys
         public async Task InsertDoubletagMemberTest(DatabaseType databaseType)
         {
@@ -153,6 +163,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         // Test we cannot insert the same key twice
         public async Task InsertDoubleKeyTest(DatabaseType databaseType)
         {
@@ -186,6 +199,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task DeleteRowTest(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

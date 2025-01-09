@@ -202,7 +202,7 @@ public class CircleNetworkVerificationService(
 
         var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
-        //TODO CONNECTIONS
+        //TODO CONNECTIONS (TODD:TODO)
         // await db.CreateCommitUnitOfWorkAsync(async () =>
         {
             foreach (var identity in allIdentities.Results)

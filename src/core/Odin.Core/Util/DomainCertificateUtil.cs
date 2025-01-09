@@ -23,8 +23,8 @@ namespace Odin.Core.Util
 
         private void ParseCertificate()
         {
-            using var cert = new X509Certificate2(Convert.FromBase64String(_certData));
-            this.OdinId = (OdinId) CertificateUtils.GetDomainFromCommonName(cert.Subject);
+            using var cert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(_certData));
+            OdinId = (OdinId) CertificateUtils.GetDomainFromCommonName(cert.Subject);
         }
     }
 }

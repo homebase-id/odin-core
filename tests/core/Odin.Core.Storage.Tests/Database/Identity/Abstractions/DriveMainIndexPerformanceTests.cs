@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Test.Helpers.Benchmark;
 using Serilog.Events;
@@ -30,6 +29,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         ///     </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTestGetNone(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -63,6 +65,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTestGetOne(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -108,6 +113,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTest01(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -163,6 +171,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTest01B(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -218,6 +229,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTest02(DatabaseType databaseType) // Test batch of 100
         {
             await RegisterServicesAsync(databaseType);
@@ -276,6 +290,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         [Test]
         [Ignore("no lock")]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTest03(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -335,9 +352,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// SEB:NOTE this is a BAD idea with scoped connections, but I'll leave it for completeness
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTest03B(DatabaseType databaseType) // Just making sure multi-threaded doesn't give worse performance
         {
-            await RegisterServicesAsync(databaseType, LogEventLevel.Verbose);
+            await RegisterServicesAsync(databaseType);
 
             // var logger = Services.Resolve<ILogger<ScopedIdentityConnectionFactory>>();
 
@@ -429,6 +449,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
         public async Task PerformanceTest10(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);

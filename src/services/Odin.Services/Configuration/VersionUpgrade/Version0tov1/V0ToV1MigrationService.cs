@@ -134,7 +134,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             odinContext.Caller.AssertHasMasterKey();
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
-            //TODO CONNECTIONS
+            //TODO CONNECTIONS (TODD:TODO when is this code running? is it a one time thing? Transactions will lock database)
             // await cn.CreateCommitUnitOfWorkAsync(async () =>
             {
                 foreach (var identity in allIdentities.Results)

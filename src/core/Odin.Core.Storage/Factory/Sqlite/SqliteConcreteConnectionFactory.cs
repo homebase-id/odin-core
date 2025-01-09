@@ -11,7 +11,7 @@ internal static class SqliteConcreteConnectionFactory
     private static readonly AsyncLock Mutex = new ();
     private static readonly HashSet<string> PragmasExecuted = [];
 
-    internal static async Task<DbConnection> Create(string connectionString)
+    internal static async Task<DbConnection> CreateAsync(string connectionString)
     {
         // SEB:TODO do we need explicit retry logic here?
         var connection = new SqliteConnection(connectionString);

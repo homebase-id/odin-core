@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -17,13 +17,13 @@ namespace Odin.Services.DataSubscription.Follower
     public class FollowerPerimeterService
     {
         private readonly IMediator _mediator;
-        private readonly TableFollowsMe _tableFollowsMe;
+        private readonly IdentityDatabase _db;
 
 
-        public FollowerPerimeterService(IMediator mediator, TableFollowsMe tableFollowsMe)
+        public FollowerPerimeterService(IMediator mediator, IdentityDatabase db)
         {
             _mediator = mediator;
-            _tableFollowsMe = tableFollowsMe;
+            _db = db;
         }
 
         /// <summary>
@@ -38,17 +38,11 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                /* TODO CONNECTIONS - FIX THIS UP!
-                cn.CreateCommitUnitOfWork(() =>
-                {
-                    _tableFollowsMe.DeleteByIdentity(cn, request.OdinId);
-                    _tableFollowsMe.Insert(cn,
-                        new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
-                });*/
-
                 // Created sample DeleteAndAddFollower() - take a look
-                await _tableFollowsMe.DeleteByIdentityAsync(new OdinId(request.OdinId));
-                await _tableFollowsMe.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
+                await using var trx = await _db.BeginStackedTransactionAsync();
+                await _db.FollowsMe.DeleteByIdentityAsync(new OdinId(request.OdinId));
+                await _db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
+                trx.Commit();
             }
 
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -75,24 +69,6 @@ namespace Odin.Services.DataSubscription.Follower
                     throw new OdinSecurityException("Caller does not have read access to one or more channels");
                 }
 
-                // TODO CONNECTIONS - FIX THIS UP!
-                /*cn.CreateCommitUnitOfWork(() =>
-                {
-                    _tableFollowsMe.DeleteByIdentity(cn, request.OdinId);
-                    foreach (var channel in request.Channels)
-                    {
-                        _tableFollowsMe.Insert(cn,
-                            new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
-                    }
-                });*/
-
-                // Created sample DeleteAndAddFollower() - take a look - make it a list so it works both here and above?
-                //_tableFollowsMe.DeleteByIdentity(new OdinId(request.OdinId));
-                //foreach (var channel in request.Channels)
-                //{
-                //    _tableFollowsMe.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
-                //}
-
                 var followsMeRecords = new List<FollowsMeRecord>();
 
                 foreach (var channel in request.Channels)
@@ -100,7 +76,7 @@ namespace Odin.Services.DataSubscription.Follower
                     followsMeRecords.Add(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                 }
 
-                await _tableFollowsMe.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
+                await _db.FollowsMe.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
             }
 
             await _mediator.Publish(new NewFollowerNotification
@@ -118,7 +94,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             var follower = odinContext.Caller.OdinId;
 
-            await _tableFollowsMe.DeleteByIdentityAsync(new OdinId(follower));
+            await _db.FollowsMe.DeleteByIdentityAsync(new OdinId(follower));
         }
     }
 }

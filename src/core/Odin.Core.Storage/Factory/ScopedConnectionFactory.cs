@@ -7,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
-using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database;
 using Odin.Core.Util;
 
@@ -34,8 +32,6 @@ namespace Odin.Core.Storage.Factory;
 /// <b>Thread Safety:</b> ALWAYS create a new DI scope for each parallel task or thread. This ensures that each
 /// task or thread will work on its own connection and transaction, preventing concurrency issues.
 /// Be careful when using this class in singleton-registrations: make sure scopes are created and disposed correctly.
-/// `ScopedConnectionFactory` uses an asynchronous lock to ensure only one thread or
-/// task can access the connection at a time, preventing issues with `DbConnection`'s lack of thread safety.
 /// To simulate nested transactions (which are not natively supported in SQLite), the factory employs a reference
 /// count on transactions, committing or rolling back only at the outermost transaction level.
 /// </para>
@@ -58,7 +54,7 @@ namespace Odin.Core.Storage.Factory;
 ///    await using var cmd = cn.CreateCommand();
 ///    cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
 ///    await cmd.ExecuteNonQueryAsync();
-///    await tx.CommitAsync();
+///    tx.Commit();
 /// }
 /// </code>
 /// <code>
@@ -71,7 +67,7 @@ namespace Odin.Core.Storage.Factory;
 ///    await using var cmd = cn.CreateCommand();
 ///    cmd.CommandText = "INSERT INTO test (name) VALUES ('test');";
 ///    await cmd.ExecuteNonQueryAsync();
-///    await tx.CommitAsync();
+///    tx.Commit();
 /// }
 /// </code>
 /// <code>
@@ -108,12 +104,63 @@ namespace Odin.Core.Storage.Factory;
 /// </example>
 /// </remarks>
 
+//
+// Interfaces
+//
+
+public interface IScopedConnectionFactory
+{
+    Task<IConnectionWrapper> CreateScopedConnectionAsync(
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0);
+
+    DatabaseType DatabaseType { get; }
+}
+
+public interface IConnectionWrapper : IDisposable, IAsyncDisposable
+{
+    DbConnection DangerousInstance { get; }
+    int RefCount { get; }
+    Task<ITransactionWrapper> BeginStackedTransactionAsync(
+        IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+        CancellationToken cancellationToken = default);
+    ICommandWrapper CreateCommand([CallerFilePath] string? filePath = null, [CallerLineNumber] int lineNumber = 0);
+}
+
+public interface ITransactionWrapper : IDisposable, IAsyncDisposable
+{
+    DbTransaction DangerousInstance { get; }
+    int RefCount { get; }
+    void Commit();
+}
+
+public interface ICommandWrapper : IDisposable, IAsyncDisposable
+{
+    DbCommand DangerousInstance { get; }
+    string CommandText { get; set; }
+    int CommandTimeout { get; set; }
+    CommandType CommandType { get; set; }
+    DbParameterCollection Parameters { get; }
+    void Cancel();
+    DbParameter CreateParameter();
+    Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default);
+    Task<DbDataReader> ExecuteReaderAsync(
+        CommandBehavior behavior = CommandBehavior.Default,
+        CancellationToken cancellationToken = default);
+    Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default);
+    Task PrepareAsync(CancellationToken cancellationToken = default);
+}
+
+//
+// Implementation
+//
+
 public class ScopedConnectionFactory<T>(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedConnectionFactory<T>> logger,
     T connectionFactory,
     CacheHelper cache,
-    DatabaseCounters counters) where T : IDbConnectionFactory
+    DatabaseCounters counters) : IScopedConnectionFactory where T : IDbConnectionFactory
 {
     // ReSharper disable once StaticMemberInGenericType
     private static readonly ConcurrentDictionary<Guid, string> Diagnostics = new();
@@ -122,7 +169,7 @@ public class ScopedConnectionFactory<T>(
     private readonly T _connectionFactory = connectionFactory;
     private readonly CacheHelper _cache = cache; // SEB:NOTE ported from earlier db code, cache needs redesign
     private readonly DatabaseCounters _counters = counters;
-    private readonly AsyncLock _mutex = new();
+    private int _parallelDetectionRefCount;
     private DbConnection? _connection;
     private int _connectionRefCount;
     private DbTransaction? _transaction;
@@ -130,105 +177,49 @@ public class ScopedConnectionFactory<T>(
     private bool _commit;
     private Guid _connectionId;
 
+    public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
+
     //
 
-    public async Task<ConnectionWrapper> CreateScopedConnectionAsync(
+    public async Task<IConnectionWrapper> CreateScopedConnectionAsync(
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        using (await _mutex.LockAsync())
+        using var _ = NoParallelism(nameof(CreateScopedConnectionAsync));
+
+        if (_connectionRefCount == 0)
         {
-            if (_connectionRefCount == 0)
-            {
-                _counters.IncrementNoDbOpened();
-                _connection = await _connectionFactory.CreateAsync();
-                _connectionId = Guid.NewGuid();
-                Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
-
-                LogTrace("Created connection");
-            }
-
-            _connectionRefCount++;
-
-            // Sanity
-            if (_connectionRefCount != 0 && _connection == null)
-            {
-                var message =
-                    $"Connection ref count is {_connectionRefCount} but connection is null. This should never happen";
-                LogError(message);
-                throw new ScopedDbConnectionException(message);
-            }
-
-            return new ConnectionWrapper(this);
+            _counters.IncrementNoDbOpened();
+            _connection = await _connectionFactory.OpenAsync();
+            _connectionId = Guid.NewGuid();
+            Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
+            LogTrace("Created connection");
         }
-    }
 
-    //
+        _connectionRefCount++;
 
-    private async Task<TransactionWrapper> BeginStackedTransactionAsync(
-        IsolationLevel isolationLevel = IsolationLevel.Unspecified,
-        CancellationToken cancellationToken = default)
-    {
-        using (await _mutex.LockAsync(cancellationToken))
+        // Sanity
+        if (_connectionRefCount != 0 && _connection == null)
         {
-            if (_connection == null)
-            {
-                LogError("No connection available to begin transaction");
-                throw new ScopedDbConnectionException("No connection available to begin transaction");
-            }
-
-            if (_transactionRefCount == 0)
-            {
-                try
-                {
-                    LogTrace("Beginning transaction");
-                    _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
-                }
-                catch (Exception)
-                {
-                    LogDiagnostics();
-                    throw;
-                }
-            }
-
-            _transactionRefCount++;
-
-            // Sanity
-            if (_transactionRefCount != 0 && _transaction == null)
-            {
-                var message =
-                    $"Transaction ref count is {_transactionRefCount} but transaction is null. This should never happen";
-                LogError(message);
-                throw new ScopedDbConnectionException(message);
-            }
-
-            return new TransactionWrapper(this);
+            var message =
+                $"Connection ref count is {_connectionRefCount} but connection is null. This should never happen";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
         }
-    }
 
-    //
-
-    private CommandWrapper CreateCommand()
-    {
-        using (_mutex.Lock())
-        {
-            if (_connection == null)
-            {
-                LogError("No connection available to create command");
-                throw new ScopedDbConnectionException("No connection available to create command");
-            }
-            LogTrace(" Creating command");
-            return new CommandWrapper(this, _connection.CreateCommand());
-        }
+        return new ConnectionWrapper(this);
     }
 
     //
 
     private void LogDiagnostics()
     {
-        foreach (var (guid, info) in Diagnostics)
+        if (_logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogInformation("Connection {id} was created at {info}", guid, info);
+            foreach (var (guid, info) in Diagnostics)
+            {
+                _logger.LogDebug("Connection {id} was created at {info}", guid, info);
+            }
         }
     }
 
@@ -237,9 +228,21 @@ public class ScopedConnectionFactory<T>(
     private void LogError(string message)
     {
         LogDiagnostics();
-        _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag})",
-            message, _connectionId, lifetimeScope.Tag);
-        _logger.LogError(Environment.StackTrace);
+        _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag}\n{stackTrace}",
+            message, _connectionId, lifetimeScope.Tag, Environment.StackTrace);
+    }
+
+    //
+
+    private void LogException(string message, Exception exception)
+    {
+        LogDiagnostics();
+
+        // SEB:NOTE we log the exception as a non-error, because it should be possible for the caller
+        // to catch and handle the exception silently (e.g. in case of an expected sql constraint error),
+        // but we prefix it with an "ERR" to make it easier to spot in the logs.
+        _logger.LogDebug(exception, "ERR {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
+            message, exception.Message, _connectionId, lifetimeScope.Tag);
     }
 
     //
@@ -255,11 +258,39 @@ public class ScopedConnectionFactory<T>(
 
     //
 
+    // SEB:NOTE
+    // This method is used to detect parallelism, i.e. if the same instance of this claass is used in multiple threads.
+    // We used to have locking all around this class, but while that might save you when (mis)using the class across
+    // different threads or parallel tasks, it would not alert you to the fact that you are doing something wrong.
+    // Since we already know we're not thread-safe, we might as well make it explicit and throw an exception instead
+    // of wasting cycles doing locking.
+    private NoParallelismDisposer NoParallelism(string context, int expectedRefCount = 1)
+    {
+        if (Interlocked.Increment(ref _parallelDetectionRefCount) != expectedRefCount)
+        {
+            var message = $"Parallelism detected ({context}). Use a new scope for each parallel task or thread.";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
+        }
+
+        return new NoParallelismDisposer(this);
+    }
+
+    //
+
+    private sealed class NoParallelismDisposer(ScopedConnectionFactory<T> instance) : IDisposable
+    {
+        public void Dispose()
+        {
+            Interlocked.Decrement(ref instance._parallelDetectionRefCount);
+        }
+    }
+
     //
     // ConnectionWrapper
     // A wrapper around a DbConnection that ensures that the transaction is disposed correctly.
     //
-    public sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
+    public sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IConnectionWrapper
     {
         private bool _disposed;
         public DbConnection DangerousInstance => instance._connection!;
@@ -267,18 +298,68 @@ public class ScopedConnectionFactory<T>(
 
         //
 
-        public async Task<TransactionWrapper> BeginStackedTransactionAsync(
+        public async Task<ITransactionWrapper> BeginStackedTransactionAsync(
             IsolationLevel isolationLevel = IsolationLevel.Unspecified,
             CancellationToken cancellationToken = default)
         {
-            return await instance.BeginStackedTransactionAsync(isolationLevel, cancellationToken);
+            using var _ = instance.NoParallelism(nameof(BeginStackedTransactionAsync));
+
+            if (instance._connection == null)
+            {
+                instance.LogError("No connection available to begin transaction");
+                throw new OdinDatabaseException(instance.DatabaseType, "No connection available to begin transaction");
+            }
+
+            if (instance._transactionRefCount == 0)
+            {
+                try
+                {
+                    instance.LogTrace("Beginning transaction");
+                    instance._transaction = await instance._connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+                }
+                catch (Exception e)
+                {
+                    instance.LogException("BeginTransactionAsync failed", e);
+                    throw new OdinDatabaseException(instance.DatabaseType, "BeginTransactionAsync failed", e);
+                }
+            }
+
+            instance._transactionRefCount++;
+
+            // Sanity
+            if (instance._transactionRefCount != 0 && instance._transaction == null)
+            {
+                var message =
+                    $"Transaction ref count is {instance._transactionRefCount} but transaction is null. This should never happen";
+                instance.LogError(message);
+                throw new OdinDatabaseException(instance.DatabaseType, message);
+            }
+
+            return new TransactionWrapper(instance);
         }
 
         //
 
-        public CommandWrapper CreateCommand()
+        public ICommandWrapper CreateCommand(
+            [CallerFilePath] string? filePath = null,
+            [CallerLineNumber] int lineNumber = 0)
         {
-            return instance.CreateCommand();
+            using var _ = instance.NoParallelism(nameof(CreateCommand));
+
+            if (instance._connection == null)
+            {
+                instance.LogError("No connection available to create command");
+                throw new OdinDatabaseException(instance.DatabaseType, "No connection available to create command");
+            }
+
+            if (instance._logger.IsEnabled(LogLevel.Trace))
+            {
+                instance.LogTrace(
+                    $" Creating command on tid:{Environment.CurrentManagedThreadId} at {filePath}:{lineNumber}");
+            }
+
+            var command = instance._connection.CreateCommand();
+            return new CommandWrapper(instance, command);
         }
 
         //
@@ -293,44 +374,43 @@ public class ScopedConnectionFactory<T>(
 
         public async ValueTask DisposeAsync()
         {
+            // Don't check for parallelism here. Dispose must always be allowed to run.
+
             GC.SuppressFinalize(this);
-            using (await instance._mutex.LockAsync())
+            if (_disposed)
             {
-                if (_disposed)
+                instance.LogError("Connection already disposed");
+                return;
+            }
+
+            if (--instance._connectionRefCount == 0)
+            {
+                if (instance._transaction != null)
                 {
-                    instance.LogError("Connection already disposed");
-                    return;
-                }
-
-                if (--instance._connectionRefCount == 0)
-                {
-                    if (instance._transaction != null)
-                    {
-                        const string message = "Cannot dispose connection while a transaction is active";
-                        instance.LogError(message);
-                        throw new ScopedDbConnectionException(message);
-                    }
-
-                    instance.LogTrace("Disposing connection");
-                    instance._counters.IncrementNoDbClosed();
-
-                    await instance._connection!.DisposeAsync();
-                    instance._connection = null;
-                    _disposed = true;
-
-                    Diagnostics.TryRemove(instance._connectionId, out _);
-
-                    instance.LogTrace("Disposed connection");
-                }
-
-                // Sanity
-                if (instance._connectionRefCount < 0)
-                {
-                    var message =
-                        $"Connection ref count is negative ({instance._connectionRefCount}). This should never happen";
+                    const string message = "Cannot dispose connection while a transaction is active";
                     instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
+                    throw new OdinDatabaseException(instance.DatabaseType, message);
                 }
+
+                instance.LogTrace("Disposing connection");
+                instance._counters.IncrementNoDbClosed();
+
+                await instance._connectionFactory.CloseAsync(instance._connection!);
+                instance._connection = null;
+                _disposed = true;
+
+                Diagnostics.TryRemove(instance._connectionId, out _);
+
+                instance.LogTrace("Disposed connection");
+            }
+
+            // Sanity
+            if (instance._connectionRefCount < 0)
+            {
+                var message =
+                    $"Connection ref count is negative ({instance._connectionRefCount}). This should never happen";
+                instance.LogError(message);
+                throw new OdinDatabaseException(instance.DatabaseType, message);
             }
         }
 
@@ -349,7 +429,7 @@ public class ScopedConnectionFactory<T>(
     // A wrapper around a DbTransaction that supports stacked transactions
     // and ensures that the transaction is disposed correctly.
     //
-    public sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : IDisposable, IAsyncDisposable
+    public sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : ITransactionWrapper
     {
         private bool _disposed;
         public DbTransaction DangerousInstance => instance._transaction!;
@@ -364,19 +444,18 @@ public class ScopedConnectionFactory<T>(
         // behaves.
         public void Commit()
         {
-            using (instance._mutex.Lock())
-            {
-                if (instance._transaction == null)
-                {
-                    const string message = "No transaction available";
-                    instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
-                }
+            using var _ = instance.NoParallelism(nameof(Commit));
 
-                if (instance._transactionRefCount == 1)
-                {
-                    instance._commit = true;
-                }
+            if (instance._transaction == null)
+            {
+                const string message = "No transaction available";
+                instance.LogError(message);
+                throw new OdinDatabaseException(instance.DatabaseType, message);
+            }
+
+            if (instance._transactionRefCount == 1)
+            {
+                instance._commit = true;
             }
         }
 
@@ -402,62 +481,61 @@ public class ScopedConnectionFactory<T>(
 
         public async ValueTask DisposeAsync()
         {
+            // Don't check for parallelism here. Dispose must always be allowed to run.
+
             GC.SuppressFinalize(this);
-            using (await instance._mutex.LockAsync())
+            if (_disposed)
             {
-                if (_disposed)
-                {
-                    instance.LogError("Transaction already disposed");
-                    return;
-                }
+                instance.LogError("Transaction already disposed");
+                return;
+            }
 
-                // Sanity
-                if (instance._connection == null)
-                {
-                    const string message = "No connection available to dispose transaction. This should never happen.";
-                    instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
-                }
+            // Sanity
+            if (instance._connection == null)
+            {
+                const string message = "No connection available to dispose transaction. This should never happen.";
+                instance.LogError(message);
+                throw new OdinDatabaseException(instance.DatabaseType, message);
+            }
 
-                if (instance._transaction == null)
-                {
-                    return;
-                }
+            if (instance._transaction == null)
+            {
+                return;
+            }
 
-                if (--instance._transactionRefCount == 0)
-                {
-                    instance.LogTrace("Disposing transaction");
+            if (--instance._transactionRefCount == 0)
+            {
+                instance.LogTrace("Disposing transaction");
 
-                    try
+                try
+                {
+                    if (instance._commit)
                     {
-                        if (instance._commit)
-                        {
-                            await instance._transaction!.CommitAsync();
-                        }
-                        else
-                        {
-                            await instance._transaction!.RollbackAsync();
-                            instance._cache.ClearCache();
-                        }
+                        await instance._transaction!.CommitAsync();
                     }
-                    finally
+                    else
                     {
-                        await instance._transaction!.DisposeAsync();
-                        instance._transaction = null!;
-                        instance._commit = false;
-                        _disposed = true;
+                        await instance._transaction!.RollbackAsync();
+                        instance._cache.ClearCache();
                     }
-
-                    instance.LogTrace("Disposed transaction");
                 }
-
-                // Sanity
-                if (instance._transactionRefCount < 0)
+                finally
                 {
-                    const string message = "Transaction stacking is negative. This should never happen.";
-                    instance.LogError(message);
-                    throw new ScopedDbConnectionException(message);
+                    await instance._transaction!.DisposeAsync();
+                    instance._transaction = null!;
+                    instance._commit = false;
+                    _disposed = true;
                 }
+
+                instance.LogTrace("Disposed transaction");
+            }
+
+            // Sanity
+            if (instance._transactionRefCount < 0)
+            {
+                const string message = "Transaction stacking is negative. This should never happen.";
+                instance.LogError(message);
+                throw new OdinDatabaseException(instance.DatabaseType, message);
             }
         }
 
@@ -479,9 +557,7 @@ public class ScopedConnectionFactory<T>(
     // and having "forgotten" to create a new scope foreach parallel task (or thread). Since DbCommand directly
     // accesses the DbConnection, we make sure it is synchronized.
     //
-    public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command)
-        : IDisposable, IAsyncDisposable
-
+    public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
     {
         private bool _disposed;
         public DbCommand DangerousInstance => command;
@@ -518,42 +594,37 @@ public class ScopedConnectionFactory<T>(
 
         public void Cancel()
         {
-            using (instance._mutex.Lock())
-            {
-                command.Cancel();
-            }
+            using var _ = instance.NoParallelism(nameof(Cancel));
+            command.Cancel();
         }
 
         //
         public DbParameter CreateParameter()
         {
-            using (instance._mutex.Lock())
-            {
-                return command.CreateParameter();
-            }
+            using var _ = instance.NoParallelism(nameof(CreateParameter));
+            return command.CreateParameter();
         }
 
         //
 
         public async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken = default)
         {
+            using var _ = instance.NoParallelism(nameof(ExecuteNonQueryAsync));
+
             instance._counters.IncrementNoDbExecuteNonQueryAsync();
 
             try
             {
-                using (await instance._mutex.LockAsync(cancellationToken))
-                {
-                    instance.LogTrace("  ExecuteNonQueryAsync start");
-                    command.Transaction = instance._transaction;
-                    var result = await command.ExecuteNonQueryAsync(cancellationToken);
-                    instance.LogTrace("  ExecuteNonQueryAsync done");
-                    return result;
-                }
+                instance.LogTrace("  ExecuteNonQueryAsync start");
+                command.Transaction = instance._transaction;
+                var result = await command.ExecuteNonQueryAsync(cancellationToken);
+                instance.LogTrace("  ExecuteNonQueryAsync done");
+                return result;
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteNonQueryAsync: {e.Message}");
-                throw;
+                instance.LogException("ExecuteNonQueryAsync failed", e);
+                throw new OdinDatabaseException(instance.DatabaseType, "ExecuteNonQueryAsync failed", e);
             }
         }
 
@@ -562,23 +633,22 @@ public class ScopedConnectionFactory<T>(
         public async Task<DbDataReader> ExecuteReaderAsync(
             CommandBehavior behavior = CommandBehavior.Default, CancellationToken cancellationToken = default)
         {
+            using var _ = instance.NoParallelism(nameof(ExecuteReaderAsync));
+
             instance._counters.IncrementNoDbExecuteReaderAsync();
 
             try
             {
-                using (await instance._mutex.LockAsync(cancellationToken))
-                {
-                    instance.LogTrace("  ExecuteReaderAsync start");
-                    command.Transaction = instance._transaction;
-                    var result = await command.ExecuteReaderAsync(behavior, cancellationToken);
-                    instance.LogTrace("  ExecuteReaderAsync done");
-                    return result;
-                }
+                instance.LogTrace("  ExecuteReaderAsync start");
+                command.Transaction = instance._transaction;
+                var result = await command.ExecuteReaderAsync(behavior, cancellationToken);
+                instance.LogTrace("  ExecuteReaderAsync done");
+                return result;
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteReaderAsync: {e.Message}");
-                throw;
+                instance.LogException("ExecuteReaderAsync failed", e);
+                throw new OdinDatabaseException(instance.DatabaseType, "ExecuteReaderAsync failed", e);
             }
         }
 
@@ -586,23 +656,22 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken = default)
         {
+            using var _ = instance.NoParallelism(nameof(ExecuteScalarAsync));
+
             instance._counters.IncrementNoDbExecuteScalarAsync();
 
             try
             {
-                using (await instance._mutex.LockAsync(cancellationToken))
-                {
-                    instance.LogTrace("  ExecuteScalarAsync start");
-                    command.Transaction = instance._transaction;
-                    var result = await command.ExecuteScalarAsync(cancellationToken);
-                    instance.LogTrace("  ExecuteScalarAsync done");
-                    return result;
-                }
+                instance.LogTrace("  ExecuteScalarAsync start");
+                command.Transaction = instance._transaction;
+                var result = await command.ExecuteScalarAsync(cancellationToken);
+                instance.LogTrace("  ExecuteScalarAsync done");
+                return result;
             }
             catch (Exception e)
             {
-                instance.LogTrace($"ExecuteScalarAsync: {e.Message}");
-                throw;
+                instance.LogException("ExecuteScalarAsync failed", e);
+                throw new OdinDatabaseException(instance.DatabaseType, "ExecuteScalarAsync failed", e);
             }
         }
 
@@ -610,20 +679,19 @@ public class ScopedConnectionFactory<T>(
 
         public async Task PrepareAsync(CancellationToken cancellationToken = default)
         {
+            using var _ = instance.NoParallelism(nameof(PrepareAsync));
+
             try
             {
-                using (await instance._mutex.LockAsync(cancellationToken))
-                {
-                    instance.LogTrace("  PrepareAsync start");
-                    command.Transaction = instance._transaction;
-                    await command.PrepareAsync(cancellationToken);
-                    instance.LogTrace("  PrepareAsync done");
-                }
+                instance.LogTrace("  PrepareAsync start");
+                command.Transaction = instance._transaction;
+                await command.PrepareAsync(cancellationToken);
+                instance.LogTrace("  PrepareAsync done");
             }
             catch (Exception e)
             {
-                instance.LogTrace($"PrepareAsync: {e.Message}");
-                throw;
+                instance.LogException("PrepareAsync failed", e);
+                throw new OdinDatabaseException(instance.DatabaseType, "PrepareAsync failed", e);
             }
         }
 
@@ -632,24 +700,26 @@ public class ScopedConnectionFactory<T>(
         public void Dispose()
         {
             GC.SuppressFinalize(this);
-            command.Dispose();
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
         //
 
         public async ValueTask DisposeAsync()
         {
-            GC.SuppressFinalize(this);
+            // Don't check for parallelism here. Dispose must always be allowed to run.
 
+            GC.SuppressFinalize(this);
             if (_disposed)
             {
                 instance.LogError("Command already disposed");
                 return;
             }
 
+            _disposed = true;
+
             instance.LogTrace(" Disposing command");
             await command.DisposeAsync();
-            _disposed = true;
             instance.LogTrace(" Disposed command");
         }
 
@@ -663,7 +733,4 @@ public class ScopedConnectionFactory<T>(
 
     //
 }
-
-public class ScopedDbConnectionException(string message) : OdinSystemException(message);
-
 

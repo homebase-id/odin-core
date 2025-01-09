@@ -8,6 +8,7 @@ using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -95,27 +96,31 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
+            if (dropExisting)
             {
-                if (dropExisting)
-                {
-                   cmd.CommandText = "DROP TABLE IF EXISTS keyUniqueThreeValue;";
-                   await cmd.ExecuteNonQueryAsync();
-                }
-                cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
-                 +"identityId BLOB NOT NULL, "
-                 +"key1 BLOB NOT NULL UNIQUE, "
-                 +"key2 BLOB NOT NULL, "
-                 +"key3 BLOB NOT NULL, "
-                 +"data BLOB  "
-                 +", PRIMARY KEY (identityId,key1)"
-                 +", UNIQUE(identityId,key2,key3)"
-                 +");"
-                 +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(identityId,key2);"
-                 +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
-                 ;
-                 await cmd.ExecuteNonQueryAsync();
+                cmd.CommandText = "DROP TABLE IF EXISTS keyUniqueThreeValue;";
+                await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
+            cmd.CommandText =
+                "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
+                   +"identityId BYTEA NOT NULL, "
+                   +"key1 BYTEA NOT NULL, "
+                   +"key2 BYTEA NOT NULL, "
+                   +"key3 BYTEA NOT NULL, "
+                   +"data BYTEA  "
+                   + rowid
+                   +", PRIMARY KEY (identityId,key1)"
+                   +", UNIQUE(identityId,key2,key3)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(identityId,key2);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
+                   ;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)
@@ -155,14 +160,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> TryInsertAsync(KeyUniqueThreeValueRecord item)
+        protected virtual async Task<bool> TryInsertAsync(KeyUniqueThreeValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT OR IGNORE INTO keyUniqueThreeValue (identityId,key1,key2,key3,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@key3,@data)";
+                insertCommand.CommandText = "INSERT INTO keyUniqueThreeValue (identityId,key1,key2,key3,data) " +
+                                             "VALUES (@identityId,@key1,@key2,@key3,@data) " +
+                                             "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -188,7 +194,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                 }
-                return count;
+                return count > 0;
             }
         }
 
@@ -267,13 +273,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountDirtyAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "PRAGMA read_uncommitted = 1; SELECT COUNT(*) FROM keyUniqueThreeValue; PRAGMA read_uncommitted = 0;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM keyUniqueThreeValue;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -382,7 +388,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
-                        if (!rdr.Read()) {
+                        if (!await rdr.ReadAsync()) {
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[1048576+1];
@@ -406,7 +412,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) bytesRead);
                         }
                         thelistresult.Add(result0tmp);
-                        if (!rdr.Read())
+                        if (!await rdr.ReadAsync())
                            break;
                     } // while
                     return thelistresult;
@@ -439,7 +445,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
-                        if (!rdr.Read()) {
+                        if (!await rdr.ReadAsync()) {
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[1048576+1];
@@ -463,7 +469,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) bytesRead);
                         }
                         thelistresult.Add(result0tmp);
-                        if (!rdr.Read())
+                        if (!await rdr.ReadAsync())
                            break;
                     } // while
                     return thelistresult;
@@ -545,7 +551,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         while (true)
                         {
                             result.Add(ReadRecordFromReader2(rdr, identityId,key2,key3));
-                            if (!rdr.Read())
+                            if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;

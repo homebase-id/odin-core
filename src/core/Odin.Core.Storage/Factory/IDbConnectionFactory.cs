@@ -7,6 +7,8 @@ namespace Odin.Core.Storage.Factory;
 
 public interface IDbConnectionFactory
 {
-    Task<DbConnection> CreateAsync();
+    DatabaseType DatabaseType { get; }
+    Task<DbConnection> OpenAsync();
+    Task CloseAsync(DbConnection connection);
 }
 

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
@@ -14,6 +15,9 @@ public class ChainedJobTestData
 
 public class ChainedJobTest(ILogger<ChainedJobTest> logger, IJobManager jobManager) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("ef3590bc-b4df-48dd-8385-2f8ee84fa505");
+    public override string JobType => JobTypeId.ToString();
+
     public ChainedJobTestData JobData { get; private set; } = new ();
     
     //

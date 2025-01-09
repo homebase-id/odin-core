@@ -6,7 +6,7 @@ namespace Odin.Core.Storage.Factory.Pgsql;
 
 internal static class PgsqlConcreteConnectionFactory
 {
-    internal static async Task<DbConnection> Create(string connectionString)
+    internal static async Task<DbConnection> CreateAsync(string connectionString)
     {
         // SEB:TODO do we need explicit retry logic here?
         var connection = new NpgsqlConnection(connectionString);

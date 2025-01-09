@@ -91,27 +91,19 @@ public class TenantConfigService
     /// </summary>
     public async Task<TenantVersionInfo> IncrementVersionAsync()
     {
-
-
-        TenantVersionInfo newVersion = null;
-        //TODO CONNECTIONS
-        // cn.CreateCommitUnitOfWork(() =>
+        var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key) ?? new TenantVersionInfo()
         {
-            var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key) ?? new TenantVersionInfo()
-            {
-                DataVersionNumber = 0,
-                LastUpgraded = 0
-            };
+            DataVersionNumber = 0,
+            LastUpgraded = 0
+        };
 
-            newVersion = new TenantVersionInfo()
-            {
-                DataVersionNumber = ++currentVersion.DataVersionNumber,
-                LastUpgraded = UnixTimeUtc.Now().milliseconds
-            };
+        var newVersion = new TenantVersionInfo()
+        {
+            DataVersionNumber = ++currentVersion.DataVersionNumber,
+            LastUpgraded = UnixTimeUtc.Now().milliseconds
+        };
 
-            await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, TenantVersionInfo.Key, newVersion);
-        }
-        //);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, TenantVersionInfo.Key, newVersion);
 
         return newVersion;
     }
@@ -121,19 +113,14 @@ public class TenantConfigService
     /// </summary>
     public async Task SetVersionFailureInfoAsync(int dataVersionNumber)
     {
-        //TODO CONNECTIONS
-        // cn.CreateCommitUnitOfWork(() =>
+        var info = new FailedUpgradeVersionInfo
         {
-            var info = new FailedUpgradeVersionInfo
-            {
-                FailedDataVersionNumber = dataVersionNumber,
-                BuildVersion = ReleaseVersionInfo.BuildVersion,
-                LastAttempted = UnixTimeUtc.Now().milliseconds
-            };
+            FailedDataVersionNumber = dataVersionNumber,
+            BuildVersion = ReleaseVersionInfo.BuildVersion,
+            LastAttempted = UnixTimeUtc.Now().milliseconds
+        };
 
-            await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, FailedUpgradeVersionInfo.Key, info);
-        }
-        //);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, FailedUpgradeVersionInfo.Key, info);
     }
 
     public async Task<FailedUpgradeVersionInfo> GetVersionFailureInfoAsync()
@@ -349,8 +336,8 @@ public class TenantConfigService
                 cfg.ConnectedIdentitiesCanCommentOnAnonymousDrives = bool.Parse(request.Value);
                 break;
 
-            case TenantConfigFlagNames.DisableAutoAcceptIntroductions:
-                cfg.DisableAutoAcceptIntroductions = bool.Parse(request.Value);
+            case TenantConfigFlagNames.DisableAutoAcceptIntroductionsForTests:
+                cfg.DisableAutoAcceptIntroductionsForTests = bool.Parse(request.Value);
                 break;
 
             default:

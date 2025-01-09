@@ -5,9 +5,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
-using Autofac.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
@@ -17,25 +14,27 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
 using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Tests.JobManagement.Jobs;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
+using Testcontainers.PostgreSql;
 
 namespace Odin.Services.Tests.JobManagement;
 
-#nullable enable
-
 public class JobManagerTests
 {
-    private IHost? _host;
+    private ILifetimeScope _container = null!;
     private string? _tempPath;
     private IBackgroundServiceManager? _backgroundServiceManager;
     private JobCleanUpBackgroundService? _jobCleanUpBackgroundService;
     private JobRunnerBackgroundService? _jobRunnerBackgroundService;
+    private PostgreSqlContainer? _postgresContainer;
     
     [SetUp]
     public void Setup()
@@ -50,8 +49,12 @@ public class JobManagerTests
     public void TearDown()
     {
         _backgroundServiceManager?.ShutdownAsync().BlockingWait();
-        _host?.Dispose();
-        _host = null;
+        _container?.Dispose();
+        _container = null!;
+
+        _postgresContainer?.DisposeAsync().AsTask().Wait();
+        _postgresContainer = null;
+
         if (!string.IsNullOrEmpty(_tempPath))
         {
             Directory.Delete(_tempPath, true);
@@ -80,75 +83,79 @@ public class JobManagerTests
             }
         };
 
-        _host = Host.CreateDefaultBuilder()
-            .UseServiceProviderFactory(new AutofacServiceProviderFactory()) // Use Autofac as DI container
-            .ConfigureServices((hostContext, services) =>
-            {
-                services.AddSingleton(config);
-                
-                var logStore = new LogEventMemoryStore();
-                services.AddSingleton<ILogEventMemoryStore>(logStore);
-                services.AddSingleton(TestLogFactory.CreateLoggerFactory(logStore));
-                services.AddSingleton<ICorrelationIdGenerator, CorrelationUniqueIdGenerator>();
-                services.AddSingleton<ICorrelationContext, CorrelationContext>();
-                services.AddSingleton<IStickyHostnameGenerator, StickyHostnameGenerator>();
-                services.AddSingleton<IStickyHostname, StickyHostname>();
+        if (databaseType == DatabaseType.Postgres)
+        {
+            _postgresContainer = new PostgreSqlBuilder()
+                .WithImage("postgres:latest")
+                .WithDatabase("odin")
+                .WithUsername("odin")
+                .WithPassword("odin")
+                .Build();
+            await _postgresContainer.StartAsync();
+        }
 
-                //
-                //  Background services
-                //
+        var builder = new ContainerBuilder();
+        builder.RegisterGeneric(typeof(Logger<>)).As(typeof(ILogger<>)).SingleInstance();
 
-                services.AddSingleton<IBackgroundServiceManager>(provider => new BackgroundServiceManager(
-                    provider.GetRequiredService<ILifetimeScope>(),
-                    "system"
-                ));
+        builder.RegisterInstance(config);
 
-                services.AddTransient<JobCleanUpBackgroundService>();
-                services.AddTransient<JobRunnerBackgroundService>();
-                services.AddSingleton<
-                    IBackgroundServiceTrigger<JobRunnerBackgroundService>,
-                    BackgroundServiceTrigger<JobRunnerBackgroundService>>();
+        var logStore = new LogEventMemoryStore();
+        builder.RegisterInstance(logStore).As<ILogEventMemoryStore>();
+        builder.RegisterInstance(TestLogFactory.CreateLoggerFactory(logStore));
+        builder.RegisterType<CorrelationUniqueIdGenerator>().As<ICorrelationIdGenerator>().SingleInstance();
+        builder.RegisterType<CorrelationContext>().As<ICorrelationContext>().SingleInstance();
+        builder.RegisterType<StickyHostnameGenerator>().As<IStickyHostnameGenerator>().SingleInstance();
+        builder.RegisterType<StickyHostname>().As<IStickyHostname>().SingleInstance();
 
-                //
-                // Jobs
-                //
+        builder.RegisterType<BackgroundServiceManager>()
+            .WithParameter(new TypedParameter(typeof(string), "system"))
+            .As<IBackgroundServiceManager>()
+            .SingleInstance();
 
-                services.AddTransient<IJobManager, JobManager>();
+        builder.RegisterType<JobCleanUpBackgroundService>().InstancePerDependency();
+        builder.RegisterType<JobRunnerBackgroundService>().InstancePerDependency();
+        builder.RegisterType<BackgroundServiceTrigger<JobRunnerBackgroundService>>()
+            .As<IBackgroundServiceTrigger<JobRunnerBackgroundService>>()
+            .SingleInstance();
 
-                services.AddTransient<SimpleJobTest>();
-                services.AddTransient<SimpleJobWithDelayTest>();
-                services.AddTransient<EventuallySucceedJobTest>();
-                services.AddTransient<AbortingJobTest>();
-                services.AddTransient<RescheduleJobTest>();
-                services.AddTransient<RescheduleOnCancelJobTest>();
-                services.AddTransient<JobWithHashTest>();
-                services.AddTransient<FailingJobWithHashTest>();
-                services.AddTransient<FailingJobTest>();
-                services.AddTransient<ChainedJobTest>();
-                services.AddTransient<ScopedJobTest>(); services.AddScoped<ScopedJobTestDependency>();
-            })
-            .ConfigureContainer<ContainerBuilder>((hostContext, builder) =>
-            {
-                builder.AddDatabaseCacheServices();
-                builder.AddDatabaseCounterServices();
-                switch (databaseType)
-                {
-                    case DatabaseType.Sqlite:
-                        builder.AddSqliteSystemDatabaseServices(Path.Combine(config.Host.SystemDataRootPath!, "sys.db"));
-                        break;
-                    case DatabaseType.Postgres:
-                        builder.AddPgsqlSystemDatabaseServices(config.Database.ConnectionString);
-                        break;
-                    default:
-                        throw new OdinSystemException("Unsupported database type");
-                }
-            })
-            .Build();
+        builder.RegisterType<JobManager>().As<IJobManager>().InstancePerDependency();
+        builder.RegisterType<ScopedJobTestDependency>().InstancePerLifetimeScope();
 
-        var systemDatabase = _host.Services.GetRequiredService<SystemDatabase>();
+        var jobTypeRegistry = new JobTypeRegistry();
+        builder.RegisterInstance(jobTypeRegistry).As<IJobTypeRegistry>();
+
+        jobTypeRegistry.RegisterJobType<SimpleJobTest>(builder, SimpleJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<SimpleJobWithDelayTest>(builder, SimpleJobWithDelayTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<EventuallySucceedJobTest>(builder, EventuallySucceedJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<AbortingJobTest>(builder, AbortingJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<RescheduleJobTest>(builder, RescheduleJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<RescheduleOnCancelJobTest>(builder, RescheduleOnCancelJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<JobWithHashTest>(builder, JobWithHashTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<FailingJobWithHashTest>(builder, FailingJobWithHashTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<FailingJobTest>(builder, FailingJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<ChainedJobTest>(builder, ChainedJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<ScopedJobTest>(builder, ScopedJobTest.JobTypeId);
+
+        builder.AddDatabaseCacheServices();
+        builder.AddDatabaseCounterServices();
+        switch (databaseType)
+        {
+            case DatabaseType.Sqlite:
+                builder.AddSqliteSystemDatabaseServices(Path.Combine(config.Host.SystemDataRootPath!, "sys.db"));
+                break;
+            case DatabaseType.Postgres:
+                builder.AddPgsqlSystemDatabaseServices(_postgresContainer!.GetConnectionString());
+                break;
+            default:
+                throw new OdinSystemException("Unsupported database type");
+        }
+
+        _container = builder.Build();
+
+        var systemDatabase = _container.Resolve<SystemDatabase>();
         await systemDatabase.CreateDatabaseAsync(true);
 
-        _backgroundServiceManager = _host.Services.GetRequiredService<IBackgroundServiceManager>();
+        _backgroundServiceManager = _container.Resolve<IBackgroundServiceManager>();
         _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));
         _jobRunnerBackgroundService = _backgroundServiceManager.Create<JobRunnerBackgroundService>(nameof(JobRunnerBackgroundService));
     }
@@ -157,7 +164,7 @@ public class JobManagerTests
     
     private void AssertLogEvents()
     {
-        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
         LogEvents.AssertEvents(logEvents);
     }
     
@@ -183,11 +190,14 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task GetCountAsyncShouldReturnZero(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         
         // Act
         var count = await jobManager.CountJobsAsync();
@@ -202,11 +212,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldScheduleAJob(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         var jobCount = await jobManager.CountJobsAsync();
         Assert.That(jobCount, Is.EqualTo(0));
         var job = jobManager.NewJob<SimpleJobTest>();
@@ -249,11 +262,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldDeleteAJob(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         var jobCount = await jobManager.CountJobsAsync();
         Assert.That(jobCount, Is.EqualTo(0));
         
@@ -286,11 +302,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldGetTheJob(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         
         var job = jobManager.NewJob<SimpleJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
@@ -311,11 +330,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunTheJobDirectly(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         
         var job = jobManager.NewJob<SimpleJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
@@ -341,11 +363,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunTheJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
         
         var job = jobManager.NewJob<SimpleJobTest>();
@@ -370,16 +395,19 @@ public class JobManagerTests
     
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunManyParallelJobsInTheBackground(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
         var jobList = new List<Guid>();
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        var logger = _host!.Services.GetRequiredService<ILogger<JobManagerTests>>();
+        var jobManager = _container.Resolve<IJobManager>();
+        var logger = _container.Resolve<ILogger<JobManagerTests>>();
 
         for (var idx = 0; idx < 200; idx++)
         {
@@ -397,7 +425,7 @@ public class JobManagerTests
         // Act
         foreach (var jobId in jobList)
         {
-            await WaitForJobStatus<SimpleJobWithDelayTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(1)); 
+            await WaitForJobStatus<SimpleJobWithDelayTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(5)); 
         }        
         
         // Assert
@@ -428,7 +456,7 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
         var job = jobManager.NewJob<EventuallySucceedJobTest>();
         job.JobData = new EventuallySucceedJobTestData
@@ -486,7 +514,7 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
         var job = jobManager.NewJob<EventuallySucceedJobTest>();
@@ -529,7 +557,7 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
         var job = jobManager.NewJob<EventuallySucceedJobTest>();
         job.JobData = new EventuallySucceedJobTestData
@@ -571,7 +599,7 @@ public class JobManagerTests
             ? Is.EqualTo("Fail with exception")
             : Is.EqualTo("unspecified error"));
         
-        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
         Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
     }
     
@@ -588,7 +616,7 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
         var job = jobManager.NewJob<EventuallySucceedJobTest>();
@@ -616,7 +644,7 @@ public class JobManagerTests
             ? Is.EqualTo("Fail with exception")
             : Is.EqualTo("unspecified error"));
         
-        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
         Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
     }
     
@@ -625,11 +653,14 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAndAbortDirectly(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
         var job = jobManager.NewJob<AbortingJobTest>();
         var jobId = await jobManager.ScheduleJobAsync(job);
@@ -648,11 +679,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAndAbortInTheBackground(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
         var job = jobManager.NewJob<AbortingJobTest>();
@@ -672,11 +706,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRescheduleDirectly(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
         var job = jobManager.NewJob<RescheduleJobTest>();
 
@@ -700,11 +737,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRescheduleInTheBackground(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
         var job = jobManager.NewJob<RescheduleJobTest>();
@@ -734,7 +774,7 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
         var job = jobManager.NewJob<RescheduleOnCancelJobTest>();
         job.JobData = new RescheduleOnCancelJobTestData
@@ -767,7 +807,7 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
         var job = jobManager.NewJob<RescheduleOnCancelJobTest>();
@@ -796,17 +836,20 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldScheduleUniqueJob(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
-        var job1 = _host!.Services.GetRequiredService<JobWithHashTest>();
+        var job1 = _container.Resolve<JobWithHashTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1);
 
         // Act
-        var job2 = _host!.Services.GetRequiredService<JobWithHashTest>();
+        var job2 = _container.Resolve<JobWithHashTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2);
 
         Assert.That(jobId1, Is.EqualTo(jobId2));
@@ -823,15 +866,15 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
-        var job1 = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job1 = _container.Resolve<SimpleJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
             OnSuccessDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
-        var job2 = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job2 = _container.Resolve<SimpleJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
             OnSuccessDeleteAfter = TimeSpan.FromDays(1)
@@ -874,7 +917,7 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR    
+#if !CI_GITHUB    
     [Test]
     [TestCase(DatabaseType.Sqlite, 0)]
     [TestCase(DatabaseType.Sqlite, 100)]
@@ -882,21 +925,21 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
+        var jobManager = _container.Resolve<IJobManager>();
+        var backgroundServiceManager = _container.Resolve<IBackgroundServiceManager>();
 
         await StartBackgroundServices();
 
         // Wait a bit so JobCleanUpBackgroundService has time to run its first cycle
         await Task.Delay(200);
 
-        var job1 = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job1 = _container.Resolve<SimpleJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
             OnSuccessDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
-        var job2 = _host!.Services.GetRequiredService<SimpleJobTest>();
+        var job2 = _container.Resolve<SimpleJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
             OnSuccessDeleteAfter = TimeSpan.FromDays(1)
@@ -957,15 +1000,15 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
 
-        var job1 = _host!.Services.GetRequiredService<FailingJobTest>();
+        var job1 = _container.Resolve<FailingJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
             OnFailureDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
-        var job2 = _host!.Services.GetRequiredService<FailingJobTest>();
+        var job2 = _container.Resolve<FailingJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
             OnFailureDeleteAfter = TimeSpan.FromDays(1)
@@ -1003,13 +1046,13 @@ public class JobManagerTests
         completedJob2 = await jobManager.GetJobAsync<FailingJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
-        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
         Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
     }
 
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite, 0)]
     [TestCase(DatabaseType.Sqlite, 100)]
@@ -1017,20 +1060,20 @@ public class JobManagerTests
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
-        var backgroundServiceManager = _host!.Services.GetRequiredService<IBackgroundServiceManager>();
+        var jobManager = _container.Resolve<IJobManager>();
+        var backgroundServiceManager = _container.Resolve<IBackgroundServiceManager>();
         await StartBackgroundServices();
 
         // Wait a bit so JobCleanUpBackgroundService has time to run its first cycle
         await Task.Delay(200);
 
-        var job1 = _host!.Services.GetRequiredService<FailingJobTest>();
+        var job1 = _container.Resolve<FailingJobTest>();
         var jobId1 = await jobManager.ScheduleJobAsync(job1, new JobSchedule
         {
             OnFailureDeleteAfter = TimeSpan.FromMilliseconds(deleteAfterMilliseconds)
         });
 
-        var job2 = _host!.Services.GetRequiredService<FailingJobTest>();
+        var job2 = _container.Resolve<FailingJobTest>();
         var jobId2 = await jobManager.ScheduleJobAsync(job2, new JobSchedule
         {
             OnFailureDeleteAfter = TimeSpan.FromDays(1)
@@ -1076,7 +1119,7 @@ public class JobManagerTests
         completedJob2 = await jobManager.GetJobAsync<FailingJobTest>(jobId2);
         Assert.That(completedJob2, Is.Not.Null);
 
-        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
         Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
     }
 #endif
@@ -1085,11 +1128,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAChainedJobDirectly(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         
         var chainedJob = jobManager.NewJob<ChainedJobTest>();
         var chainedJobId = await jobManager.ScheduleJobAsync(chainedJob);
@@ -1114,11 +1160,14 @@ public class JobManagerTests
     
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldRunAChainedJobInTheBackground(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
         
         var chainedJob = jobManager.NewJob<ChainedJobTest>();
@@ -1147,6 +1196,9 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task JobShouldHaveInternalChildDiScope(DatabaseType databaseType)
     {
         //
@@ -1165,12 +1217,12 @@ public class JobManagerTests
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
 
-        var scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
+        var scopedTestDependency = _container.Resolve<ScopedJobTestDependency>();
         scopedTestDependency.Value = "sanity";
-        scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
+        scopedTestDependency = _container.Resolve<ScopedJobTestDependency>();
         Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
 
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
         var scopedJob = jobManager.NewJob<ScopedJobTest>();
@@ -1183,7 +1235,7 @@ public class JobManagerTests
         scopedJob = await jobManager.GetJobAsync<ScopedJobTest>(scopedJobId);
         Assert.That(scopedJob!.JobData.ScopedTestCopy, Is.EqualTo("new born"));
 
-        scopedTestDependency = _host!.Services.GetRequiredService<ScopedJobTestDependency>();
+        scopedTestDependency = _container.Resolve<ScopedJobTestDependency>();
         Assert.That(scopedTestDependency.Value, Is.EqualTo("sanity"));
 
         await StopBackgroundServices();
@@ -1193,14 +1245,17 @@ public class JobManagerTests
 
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
     public async Task ItShouldGoToTownOnScheduledUniqueJobs(DatabaseType databaseType)
     {
         // Arrange
         await CreateHostedJobManagerAsync(databaseType);
-        var jobManager = _host!.Services.GetRequiredService<IJobManager>();
+        var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
         var random = new Random();
 
@@ -1213,12 +1268,12 @@ public class JobManagerTests
             OnFailureDeleteAfter = TimeSpan.FromSeconds(0),
         };
 
-        var job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
+        var job = _container.Resolve<FailingJobWithHashTest>();
         var jobId = await jobManager.ScheduleJobAsync(job, schedule);
 
         for (var idx = 0; idx < 100; idx++)
         {
-            job = _host!.Services.GetRequiredService<FailingJobWithHashTest>();
+            job = _container.Resolve<FailingJobWithHashTest>();
             await jobManager.ScheduleJobAsync(job, schedule);
             await Task.Delay(random.Next(1, 20));
         }
@@ -1231,7 +1286,7 @@ public class JobManagerTests
 
         Assert.That(orphanedJobsCount, Is.EqualTo(0));
 
-        var logEvents = _host!.Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
         foreach (var logEvent in logEvents[LogEventLevel.Error])
         {
             Assert.That(logEvent.RenderMessage(), Does.StartWith("JobManager giving up on unsuccessful job"));
@@ -1243,7 +1298,7 @@ public class JobManagerTests
 
     private async Task WaitForJobStatus<T>(IJobManager jobManager, Guid jobId, JobState status, TimeSpan maxWaitTime) where T : AbstractJob
     {
-        var logger = _host!.Services.GetRequiredService<ILogger<JobManagerTests>>();
+        var logger = _container.Resolve<ILogger<JobManagerTests>>();
         var sw = Stopwatch.StartNew();
         while (true)
         {

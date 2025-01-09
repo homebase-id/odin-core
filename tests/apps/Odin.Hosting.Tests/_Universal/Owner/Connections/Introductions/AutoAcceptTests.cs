@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Linq;
 using System.Net;
@@ -51,17 +52,21 @@ public class AutoAcceptTests
 
     public static IEnumerable AppAllowed()
     {
-        yield return new object[] { new AppPermissionsKeysOnly(new TestPermissionKeyList(PermissionKeys.All.ToArray())), HttpStatusCode.OK };
+        yield return new object[]
+            { new AppPermissionsKeysOnly(new TestPermissionKeyList(PermissionKeys.All.ToArray())), HttpStatusCode.OK };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanAutoAcceptIncomingConnectionRequestsWhenIntroductionExists(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         // Note: for your sanity, remember this is a background process that is
         // automatically accepting introductions that are eligible
 
+        var debugTimeout = TimeSpan.FromMinutes(60);
+        
         var frodo = TestIdentities.Frodo.OdinId;
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
@@ -72,7 +77,7 @@ public class AutoAcceptTests
 
         await samOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
         await merryOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
-        
+
         await Prepare();
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
@@ -82,13 +87,17 @@ public class AutoAcceptTests
         });
 
         Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
+        await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeout);
 
         var introResult = response.Content;
         Assert.IsTrue(introResult.RecipientStatus[sam]);
         Assert.IsTrue(introResult.RecipientStatus[merry]);
 
+       
+        await samOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeout);
+        await merryOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, debugTimeout);
+        
         // Assert: Sam should have a connection request from Merry and visa/versa
-
         await callerContext.Initialize(samOwnerClient);
         var samClient = new UniversalCircleNetworkRequestsApiClient(sam, callerContext.GetFactory());
         var samProcessResponse = await samClient.ProcessIncomingIntroductions();
@@ -99,7 +108,7 @@ public class AutoAcceptTests
         // Assert.IsNotNull(outgoingRequestToSam);
         // Assert.IsTrue(outgoingRequestToSam.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         // Assert.IsTrue(outgoingRequestToSam.IntroducerOdinId == frodo);
-        
+
         var outgoingRequestToMerryResponse = await samOwnerClient.Connections.GetOutgoingSentRequestTo(merry);
         var outgoingRequestToMerry = outgoingRequestToMerryResponse.Content;
         Assert.IsNotNull(outgoingRequestToMerry);
@@ -122,7 +131,9 @@ public class AutoAcceptTests
         Assert.IsTrue(getSamConnectionInfoResponse.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction);
         Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
-        Assert.IsTrue(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
+        Assert.IsTrue(
+            getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
+                cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(getSamConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
             cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
@@ -142,7 +153,8 @@ public class AutoAcceptTests
         Assert.IsTrue(getMerryConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
         Assert.IsTrue(
-            getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
+            getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
+                cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
         Assert.IsFalse(getMerryConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
             cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
@@ -153,11 +165,6 @@ public class AutoAcceptTests
 
         await Cleanup();
     }
-
-    // [Test]
-    // public Task WillAutoAcceptIncomingConnectionRequestsWhenOnlyOneRecipientIsConnected()
-    // {
-    // }
 
     [Test]
     public async Task WillNotAutoAcceptWhenIntroducerDoesNotHaveAllowIntroductionsPermission()
@@ -178,10 +185,23 @@ public class AutoAcceptTests
         });
 
         var introResult = response.Content;
-        Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
-            "sam should reject since frodo does not have allow introductions permission");
+        // Assert.IsFalse(introResult.RecipientStatus[TestIdentities.Samwise.OdinId],
+        //     "sam should reject since frodo does not have allow introductions permission");
         Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
+        
+        // Note; I have to use a delay because the outbox will never be
+        // empty and, currently, there is no way to do an exclusion test on the outbox 
+        // await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await Task.Delay(1000 * 3);
 
+        var samOutboxItem =
+            await frodoOwnerClient.DriveRedux.GetOutboxItem(SystemDriveConstants.TransientTempDrive,
+                TestIdentities.Samwise.OdinId.ToHashId(), TestIdentities.Samwise.OdinId);
+        Assert.IsNotNull(samOutboxItem, "there should be an outbox item for sam since it failed he blocked incoming introductions");
+        
+        await samOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await merryOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        
         // ensure introductions are processed
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
         Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);

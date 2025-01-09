@@ -4,5 +4,5 @@
 #     --tag setup-helper:local .
 
 docker build \
-    -f Docker/Dockerfile-setup-helper \
+    -f docker/Dockerfile-setup-helper \
     --tag setup-helper:local .

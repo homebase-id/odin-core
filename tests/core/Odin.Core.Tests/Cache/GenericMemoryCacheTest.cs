@@ -299,7 +299,7 @@ public class GenericMemoryCacheTest
 
     //
 
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
     [Test]
     public void ItShouldEvictEntry()
     {

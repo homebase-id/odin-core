@@ -15,7 +15,7 @@ using Odin.Services.AppNotifications.WebSocket;
 namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
     [ApiController]
-    [AuthorizeValidAppNotificationSubscriberToken]
+    // [AuthorizeValidAppNotificationSubscriberToken]
     [Route(GuestApiPathConstants.PeerNotificationsV1)]
     public class PeerAppNotificationSocketController(
         PeerAppNotificationHandler notificationHandler,
@@ -51,16 +51,5 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
                 // ignore
             }
         }
-
-        [HttpPost("preauth")]
-        public IActionResult SocketPreAuth()
-        {
-            // If we don't set these, the response Set-Cookie isn't honored by the browser
-            HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", HttpContext.Request.Headers["Origin"]);
-            HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Credentials", "true");
-            //this only exists so we can use the [AuthorizeValidGuestToken] attribute to trigger the clienttokenauthhandler
-            return Ok();
-        }
     }
-
 }

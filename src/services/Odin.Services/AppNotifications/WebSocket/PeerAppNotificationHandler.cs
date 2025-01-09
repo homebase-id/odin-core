@@ -12,10 +12,13 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
+using Odin.Services.Peer.AppNotification;
+using Odin.Services.Util;
 
 #nullable enable
 
@@ -24,11 +27,11 @@ namespace Odin.Services.AppNotifications.WebSocket
     public class PeerAppNotificationHandler(
         DriveManager driveManager,
         ILogger<PeerAppNotificationHandler> logger,
+        PeerAppNotificationService peerAppNotificationService,
         SharedDeviceSocketCollection<PeerAppNotificationHandler> deviceSocketCollection) :
         INotificationHandler<IClientNotification>,
         INotificationHandler<IDriveNotification>
     {
-
         //
 
         /// <summary>
@@ -82,7 +85,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext odinContext)
+        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext currentOdinContext)
         {
             var webSocket = deviceSocket.Socket;
             while (!cancellationToken.IsCancellationRequested && webSocket?.State == WebSocketState.Open)
@@ -101,12 +104,28 @@ namespace Odin.Services.AppNotifications.WebSocket
                 if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
                 {
                     var completeMessage = ms.ToArray();
-                    var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-
                     byte[] decryptedBytes;
+                    
                     try
                     {
-                        decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
+                        if (deviceSocket.DeviceOdinContext == null)
+                        {
+                            var authenticationPackage = OdinSystemSerializer.Deserialize<SocketAuthenticationPackage>(completeMessage);
+
+                            OdinValidationUtils.AssertNotNull(authenticationPackage, "authenticationPackage");
+                            OdinValidationUtils.AssertNotNull(authenticationPackage!.ClientAuthToken64, nameof(authenticationPackage.ClientAuthToken64));
+                            OdinValidationUtils.AssertNotNull(authenticationPackage.SharedSecretEncryptedOptions, nameof(authenticationPackage.SharedSecretEncryptedOptions));
+                            
+                            var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
+                            deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
+                            decryptedBytes = authenticationPackage.SharedSecretEncryptedOptions!.Decrypt(deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey);
+                        }
+                        else
+                        {
+                            var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
+                            decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
+                        }
+
                     }
                     catch (Exception)
                     {
@@ -136,7 +155,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     {
                         try
                         {
-                            await ProcessCommand(deviceSocket, command, cancellationToken, odinContext);
+                            await ProcessCommand(deviceSocket, command, cancellationToken);
                         }
                         catch (OperationCanceledException)
                         {
@@ -279,9 +298,15 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken,
-            IOdinContext odinContext)
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken)
         {
+            if (null == deviceSocket.DeviceOdinContext)
+            {
+                throw new OdinSystemException("DeviceOdinContext is null");
+            }
+            
+            var odinContext = deviceSocket.DeviceOdinContext;
+
             //process the command
             switch (command.Command)
             {
@@ -304,7 +329,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                             drives.Add(driveId);
                         }
 
-                        deviceSocket.DeviceOdinContext = odinContext.Clone();
                         deviceSocket.Drives = drives;
                         deviceSocket.ForcePushInterval = TimeSpan.FromMilliseconds(options.WaitTimeMs);
                         deviceSocket.BatchSize = options.BatchSize;
@@ -331,6 +355,30 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await SendErrorMessageAsync(deviceSocket, "Invalid command", cancellationToken);
                     break;
             }
+        }
+
+        private async Task<IOdinContext> HandleAuthentication(string clientAuthToken64, IOdinContext currentOdinContext)
+        {
+            if (ClientAuthenticationToken.TryParse(clientAuthToken64, out var clientAuthToken))
+            {
+                if (clientAuthToken.ClientTokenType != ClientTokenType.RemoteNotificationSubscriber)
+                {
+                    throw new OdinSecurityException("Invalid Client Token Type");
+                }
+
+                // authToken comes from ICR, not the app registration
+                // because it's a caller wanting to get peer app notifications
+                var ctx = await peerAppNotificationService.GetDotYouContext(clientAuthToken, currentOdinContext);
+                if (null == ctx)
+                {
+                    throw new OdinSecurityException("Invalid Client Token");
+                }
+
+                ctx.SetAuthContext("websocket-peer-app-subscriber-token");
+                return ctx;
+            }
+
+            throw new OdinSecurityException("No token provided");
         }
 
         //

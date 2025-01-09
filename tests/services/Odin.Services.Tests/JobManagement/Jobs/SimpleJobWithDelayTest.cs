@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
@@ -16,6 +17,9 @@ public class SimpleJobWithDelayTestData
 
 public class SimpleJobWithDelayTest(ILogger<SimpleJobWithDelayTest> logger) : AbstractJob
 {
+    public static readonly Guid JobTypeId = Guid.Parse("d718b2a2-c102-4927-bb15-114bf3518259");
+    public override string JobType => JobTypeId.ToString();
+
     public SimpleJobWithDelayTestData JobData { get; private set; } = new ();
     
     //
