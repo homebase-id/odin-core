@@ -28,6 +28,7 @@ public class TableKeyValueCache(
 
         if (cache.TryGet<KeyValueRecord?>(key, out var record))
         {
+            cache.Set(key, record, lifespan);
             return record;
         }
 
