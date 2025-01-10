@@ -1118,7 +1118,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return new UpdateLocalMetadataResult()
             {
-                NewVersionTag = newVersionTag
+                NewLocalVersionTag = newVersionTag
             };
         }
 

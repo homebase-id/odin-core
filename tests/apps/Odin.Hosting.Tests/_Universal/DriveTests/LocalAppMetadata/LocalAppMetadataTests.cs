@@ -12,6 +12,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.LocalAppMetadata;
@@ -95,7 +96,7 @@ public class LocalAppMetadataTests
 
         var response = await callerDriveClient.UpdateLocalAppMetadata(request);
         var result = response.Content;
-        Assert.IsFalse(result.NewVersionTag == Guid.Empty);
+        Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
 
         // Assert - getting the file should include the metadata
         Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");

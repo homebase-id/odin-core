@@ -8,12 +8,12 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base.Update;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query;
@@ -23,7 +23,7 @@ public class DriveQuery(
     MainIndexMeta metaIndex,
     TableDriveMainIndex tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
-    TableDriveLocalTagIndex tableDriveLocalTagIndex
+    IdentityDatabase db
 ) : IDriveDatabaseManager
 {
     public async Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
@@ -203,7 +203,7 @@ public class DriveQuery(
             // local data is updated by a specific method
             // hdrLocalVersionTag =  ...
             // hdrLocalAppData = ...
-            
+
             //this is updated by the SaveReactionSummary method
             // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
             // this is handled by the SaveTransferHistory method
@@ -276,13 +276,13 @@ public class DriveQuery(
 
     public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, string content, List<Guid> tags, Guid newVersionTag)
     {
-        // await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        // await using var tx = await cn.BeginStackedTransactionAsync();
+        await using var tx = await db.BeginStackedTransactionAsync();
         
-        //TODO connections Need a transaction here
-        await tblDriveMainIndex.UpdateLocalAppMetadata(driveId, fileId, newVersionTag, content);
-        await tableDriveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
-        await tableDriveLocalTagIndex.InsertRowsAsync(driveId, fileId, tags);
+        await db.DriveMainIndex.UpdateLocalAppMetadata(driveId, fileId, newVersionTag, content);
+        await db.DriveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
+        await db.DriveLocalTagIndex.InsertRowsAsync(driveId, fileId, tags);
+
+        tx.Commit();
     }
 
     public async Task SaveTransferHistoryAsync(StorageDrive drive, Guid fileId, RecipientTransferHistory history)
