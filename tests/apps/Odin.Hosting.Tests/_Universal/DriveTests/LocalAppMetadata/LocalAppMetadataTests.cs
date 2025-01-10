@@ -88,7 +88,7 @@ public class LocalAppMetadataTests
 
         var tag1 = Guid.NewGuid();
         var tag2 = Guid.NewGuid();
-        var request = new UpdateLocalMetadataRequest
+        var request = new UpdateLocalMetadataTagsRequest
         {
             File = targetFile,
             Tags = [tag1, tag2]

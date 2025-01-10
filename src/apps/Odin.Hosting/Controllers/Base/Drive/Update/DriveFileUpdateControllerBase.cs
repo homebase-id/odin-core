@@ -72,13 +72,22 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
             return result;
         }
 
-        [HttpPatch("update-local-metadata")]
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataRequest request)
+        [HttpPatch("update-local-metadata-tags")]
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataTagsRequest request)
         {
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            var result = await fs.Storage.UpdateLocalMetadata(MapToInternalFile(request.File), 
-                request.Content, 
+            var result = await fs.Storage.UpdateLocalMetadataTags(MapToInternalFile(request.File), 
                 request.Tags,
+                WebOdinContext);
+            return result;
+        }
+        
+        [HttpPatch("update-local-metadata-content")]
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataContentRequest request)
+        {
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var result = await fs.Storage.UpdateLocalMetadataContent(MapToInternalFile(request.File), 
+                request.Content, 
                 WebOdinContext);
             return result;
         }

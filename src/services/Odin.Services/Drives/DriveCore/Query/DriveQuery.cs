@@ -274,11 +274,15 @@ public class DriveQuery(
         }
     }
 
-    public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, string content, List<Guid> tags, Guid newVersionTag)
+    public async Task SaveLocalMetadataContentAsync(Guid driveId, Guid fileId, Guid newVersionTag, string content)
+    {
+        await db.DriveMainIndex.UpdateLocalAppMetadata(driveId, fileId, newVersionTag, content);
+    }
+    
+    public async Task SaveLocalMetadataTagsAsync(Guid driveId, Guid fileId, Guid newVersionTag, List<Guid> tags)
     {
         await using var tx = await db.BeginStackedTransactionAsync();
-        
-        await db.DriveMainIndex.UpdateLocalAppMetadata(driveId, fileId, newVersionTag, content);
+
         await db.DriveLocalTagIndex.DeleteAllRowsAsync(driveId, fileId);
         await db.DriveLocalTagIndex.InsertRowsAsync(driveId, fileId, tags);
 

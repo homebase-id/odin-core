@@ -604,7 +604,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         }
     }
 
-    public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadata(UpdateLocalMetadataRequest request,
+    public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadata(UpdateLocalMetadataTagsRequest tagsRequest,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var keyHeader = KeyHeader.NewRandom16();
@@ -612,7 +612,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         {
             var driveSvc = RestService.For<IUniversalDriveHttpClientApi>(client);
-            ApiResponse<UpdateLocalMetadataResult> response = await driveSvc.UpdateLocalMetadata(request);
+            ApiResponse<UpdateLocalMetadataResult> response = await driveSvc.UpdateLocalMetadataTags(tagsRequest);
 
             keyHeader.AesKey.Wipe();
 

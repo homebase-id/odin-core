@@ -1099,7 +1099,28 @@ namespace Odin.Services.Drives.FileSystem.Base
             //);
         }
 
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata(InternalDriveFileId file, string content, List<Guid> tags,
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, List<Guid> tags,
+            IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
+            }
+
+            var newVersionTag = SequentialGuid.CreateGuid();
+            await longTermStorageManager.SaveLocalMetadataAsync(file, newVersionTag, null, tags);
+
+            return new UpdateLocalMetadataResult()
+            {
+                NewLocalVersionTag = newVersionTag
+            };
+        }
+
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, string content,
             IOdinContext odinContext)
         {
             const int maxLength = 8 * 1024;
@@ -1112,9 +1133,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
-            
+
             var newVersionTag = SequentialGuid.CreateGuid();
-            await longTermStorageManager.SaveLocalMetadataAsync(file, content, tags, newVersionTag);
+            await longTermStorageManager.SaveLocalMetadataAsync(file, newVersionTag, content, null);
 
             return new UpdateLocalMetadataResult()
             {

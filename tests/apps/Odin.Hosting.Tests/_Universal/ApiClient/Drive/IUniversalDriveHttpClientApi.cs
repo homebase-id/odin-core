@@ -41,8 +41,12 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Patch(RootStorageEndpoint + "/update")]
         Task<ApiResponse<UploadPayloadResult>> UpdateFile(StreamPart[] streamdata);
 
-        [Patch(RootStorageEndpoint + "/update-local-metadata")]
-        Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalMetadata([Body] UpdateLocalMetadataRequest request);
+        [Patch(RootStorageEndpoint + "/update-local-metadata-tags")]
+        Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalMetadataTags([Body] UpdateLocalMetadataTagsRequest request);
+        
+        [Patch(RootStorageEndpoint + "/update-local-metadata-content")]
+        Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalMetadataContent([Body] UpdateLocalMetadataContentRequest request);
+        
 
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteFileResult>> SoftDeleteFile([Body] DeleteFileRequest file);

@@ -3,14 +3,20 @@ using System.Collections.Generic;
 
 namespace Odin.Services.Drives.FileSystem.Base.Update;
 
-public class UpdateLocalMetadataRequest
+public class UpdateLocalMetadataTagsRequest
 {
-    public ExternalFileIdentifier File { get; set; }
+    public ExternalFileIdentifier File { get; init; }
 
-    public string Content { get; set; }
-
-    public List<Guid> Tags { get; set; }
+    public List<Guid> Tags { get; init; }
 }
+
+public class UpdateLocalMetadataContentRequest
+{
+    public ExternalFileIdentifier File { get; init; }
+
+    public string Content { get; init; }
+}
+
 
 public class UpdateLocalMetadataResult
 {
