@@ -24,5 +24,5 @@ public class UpdateLocalMetadataContentRequest
 
 public class UpdateLocalMetadataResult
 {
-    public Guid NewLocalVersionTag { get; set; }
+    public Guid NewLocalVersionTag { get; init; }
 }
