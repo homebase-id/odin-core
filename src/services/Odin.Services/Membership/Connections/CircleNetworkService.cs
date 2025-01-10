@@ -10,6 +10,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -44,7 +45,8 @@ namespace Odin.Services.Membership.Connections
         CircleDefinitionService circleDefinitionService,
         DriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
-        CircleNetworkStorage circleNetworkStorage)
+        CircleNetworkStorage circleNetworkStorage,
+        IdentityDatabase db)
         : INotificationHandler<DriveDefinitionAddedNotification>,
             INotificationHandler<AppRegistrationChangedNotification>
     {
@@ -717,7 +719,8 @@ namespace Odin.Services.Membership.Connections
             var masterKey = odinContext.Caller.GetMasterKey();
             var appKey = newAppRegistration.AppId.Value;
 
-            //TODO: use _db.CreateCommitUnitOfWork()
+            await using var tx = await db.BeginStackedTransactionAsync();
+
             if (null != oldAppRegistration)
             {
                 var circlesToRevoke = oldAppRegistration.AuthorizedCircles.Except(newAppRegistration.AuthorizedCircles);
@@ -766,6 +769,8 @@ namespace Odin.Services.Membership.Connections
                 }
             }
             //
+            
+            tx.Commit();
         }
 
         public async Task<VerifyConnectionResponse> GetCallerVerificationHashAsync(IOdinContext odinContext)
@@ -821,16 +826,15 @@ namespace Odin.Services.Membership.Connections
             }
 
 
-            // TODO CONNECTIONS (TODD:TODO)
-            // await cn.CreateCommitUnitOfWorkAsync(async () =>
-            {
-                await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
+            await using var tx = await db.BeginStackedTransactionAsync();
 
-                await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
-                await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
-            }
-            //);
+            await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+            await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
+
+            await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
+            await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
+
+            tx.Commit();
         }
 
         public async Task<bool> ClearVerificationHashAsync(OdinId odinId, IOdinContext odinContext)
@@ -947,7 +951,7 @@ namespace Odin.Services.Membership.Connections
         {
             return await circleNetworkStorage.GetPeerIcrClientAsync(accessRegId);
         }
-        
+
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
             RedactedAppRegistration appReg,
             SensitiveByteArray keyStoreKey,
