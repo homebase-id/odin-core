@@ -84,6 +84,9 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     //
     private Lazy<MainIndexMeta> _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => GetTable(ref _mainIndexMeta);
+    
+    private Lazy<LocalMetadataDataOperations> _localTags;
+    public LocalMetadataDataOperations LocalMetadataDataOperations => GetTable(ref _localTags);
 
     //
     // Connection

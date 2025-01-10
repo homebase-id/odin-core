@@ -218,47 +218,7 @@ public class TableDriveMainIndex(
 
         return 0;
     }
-
-    public async Task<int> UpdateLocalAppMetadata(Guid driveId, Guid fileId, Guid versionTag, string content)
-    {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var updateCommand = cn.CreateCommand();
-
-        updateCommand.CommandText = $"UPDATE driveMainIndex " +
-                                    $"SET hdrLocalVersionTag=@hdrLocalVersionTag,hdrLocalAppData=@hdrLocalAppData,modified=@modified" +
-                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
-
-        var sparam1 = updateCommand.CreateParameter();
-        var sparam2 = updateCommand.CreateParameter();
-        var sparam3 = updateCommand.CreateParameter();
-        var versionTagParam = updateCommand.CreateParameter();
-        var contentParam = updateCommand.CreateParameter();
-        var modifiedParam = updateCommand.CreateParameter();
-
-        sparam1.ParameterName = "@identityId";
-        sparam2.ParameterName = "@driveId";
-        sparam3.ParameterName = "@fileId";
-        versionTagParam.ParameterName = "@hdrLocalVersionTag";
-        contentParam.ParameterName = "@hdrLocalAppData";
-        modifiedParam.ParameterName = "@modified";
-
-        updateCommand.Parameters.Add(sparam1);
-        updateCommand.Parameters.Add(sparam2);
-        updateCommand.Parameters.Add(sparam3);
-        updateCommand.Parameters.Add(versionTagParam);
-        updateCommand.Parameters.Add(contentParam);
-        updateCommand.Parameters.Add(modifiedParam);
-
-        sparam1.Value = identityKey.ToByteArray();
-        sparam2.Value = driveId.ToByteArray();
-        sparam3.Value = fileId.ToByteArray();
-        versionTagParam.Value = versionTag;
-        contentParam.Value = content;
-        modifiedParam.Value = UnixTimeUtcUnique.Now().uniqueTime;
-
-        return await updateCommand.ExecuteNonQueryAsync();
-    }
-
+    
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
