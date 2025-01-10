@@ -56,7 +56,7 @@ public static class SystemAppConstants
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = SystemDriveConstants.ContactDrive,
-                    Permission = DrivePermission.Read
+                    Permission = DrivePermission.ReadWrite
                 }
             },
             new()
@@ -116,7 +116,7 @@ public static class SystemAppConstants
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = SystemDriveConstants.ContactDrive,
-                    Permission = DrivePermission.Read
+                    Permission = DrivePermission.ReadWrite
                 }
             },
             new()

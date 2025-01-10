@@ -131,6 +131,7 @@ namespace Odin.Hosting.Tests
 
 #if RUN_POSTGRES_TESTS
             PostgresContainer = new PostgreSqlBuilder()
+                .WithImage("postgres:latest")
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")

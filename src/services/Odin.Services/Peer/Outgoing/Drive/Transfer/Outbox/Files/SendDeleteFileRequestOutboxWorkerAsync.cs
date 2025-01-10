@@ -73,7 +73,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
-        async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
+        async Task<ApiResponse<PeerTransferResponse>> TrySendDeleteFileRequest()
         {
             var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
                 recipient,
@@ -91,7 +91,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
                 Configuration.Host.PeerOperationMaxAttempts,
                 Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
-                async () => { response = await TrySendFile(); });
+                async () => { response = await TrySendDeleteFileRequest(); });
 
             if (response.IsSuccessStatusCode)
             {

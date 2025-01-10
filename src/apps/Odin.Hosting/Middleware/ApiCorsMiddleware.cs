@@ -50,10 +50,11 @@ namespace Odin.Hosting.Middleware
                 }
             }
 
-            if (odinContext.AuthContext == YouAuthConstants.AppNotificationSubscriberScheme)
-            {
-                allowHeaders.Add(YouAuthConstants.SubscriberCookieName);
-            }
+            // removed when we supported auth via websocket
+            // if (odinContext.AuthContext == YouAuthConstants.AppNotificationSubscriberScheme)
+            // {
+            //     allowHeaders.Add(YouAuthConstants.SubscriberCookieName);
+            // }
 
             if (shouldSetHeaders)
             {
