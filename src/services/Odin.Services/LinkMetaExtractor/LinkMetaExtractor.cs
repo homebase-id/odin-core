@@ -147,8 +147,13 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url,
-                    response.StatusCode);
+                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url, response.StatusCode);
+                return null;
+            }
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogDebug("LinkExtractor: Not OK {Url}. Status code: {StatusCode}", url, response.StatusCode);
                 return null;
             }
 

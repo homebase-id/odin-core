@@ -107,6 +107,17 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Title);
         Assert.NotNull(ogp.Url);
     }
+#if !CI_GITHUB
+    [Test]
+    public async Task TestGoogleMeet()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await linkMetaExtractor.ExtractAsync("https://meet.google.com/kwr-dzwe-kvi?ijlm=1736499961915&hs=187&adhoc=1");
+        Assert.IsNull(ogp);
+    }
+#endif
 
 #if !CI_GITHUB
     [Test]
