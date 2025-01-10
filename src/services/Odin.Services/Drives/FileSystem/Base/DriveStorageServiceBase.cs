@@ -1099,7 +1099,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             //);
         }
 
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, List<Guid> tags,
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, Guid targetVersionTag,
+            List<Guid> tags,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
@@ -1111,8 +1112,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            var newVersionTag = SequentialGuid.CreateGuid();
-            await longTermStorageManager.SaveLocalMetadataAsync(file, newVersionTag, null, tags);
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData.VersionTag, targetVersionTag);
+
+            var newVersionTag = DriveFileUtility.CreateVersionTag();
+            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, newVersionTag, tags);
 
             return new UpdateLocalMetadataResult()
             {
@@ -1120,7 +1123,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, string content,
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, Guid targetVersionTag,
+            string content,
             IOdinContext odinContext)
         {
             const int maxLength = 8 * 1024;
@@ -1134,8 +1138,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            var newVersionTag = SequentialGuid.CreateGuid();
-            await longTermStorageManager.SaveLocalMetadataAsync(file, newVersionTag, content, null);
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData.VersionTag, targetVersionTag);
+
+            var newVersionTag = DriveFileUtility.CreateVersionTag();
+            await longTermStorageManager.SaveLocalMetadataContentAsync(file, newVersionTag, content);
 
             return new UpdateLocalMetadataResult()
             {

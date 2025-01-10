@@ -6,6 +6,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Drive.Update
 {
@@ -75,20 +76,32 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
         [HttpPatch("update-local-metadata-tags")]
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataTagsRequest request)
         {
+            OdinValidationUtils.AssertNotEmptyGuid(request.LocalTargetVersionTag, nameof(request.LocalTargetVersionTag));
+            OdinValidationUtils.AssertIsTrue(request.File.HasValue(), "File is invalid");
+
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            var result = await fs.Storage.UpdateLocalMetadataTags(MapToInternalFile(request.File), 
+            var result = await fs.Storage.UpdateLocalMetadataTags(
+                MapToInternalFile(request.File),
+                request.LocalTargetVersionTag,
                 request.Tags,
                 WebOdinContext);
+
             return result;
         }
-        
+
         [HttpPatch("update-local-metadata-content")]
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataContentRequest request)
         {
+            OdinValidationUtils.AssertNotEmptyGuid(request.LocalTargetVersionTag, nameof(request.LocalTargetVersionTag));
+            OdinValidationUtils.AssertIsTrue(request.File.HasValue(), "File is invalid");
+
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            var result = await fs.Storage.UpdateLocalMetadataContent(MapToInternalFile(request.File), 
-                request.Content, 
+            var result = await fs.Storage.UpdateLocalMetadataContent(
+                MapToInternalFile(request.File),
+                request.LocalTargetVersionTag,
+                request.Content,
                 WebOdinContext);
+
             return result;
         }
     }

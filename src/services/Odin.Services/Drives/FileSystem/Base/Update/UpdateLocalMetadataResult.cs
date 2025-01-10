@@ -5,6 +5,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Update;
 
 public class UpdateLocalMetadataTagsRequest
 {
+    public Guid LocalTargetVersionTag { get; init; }
+    
     public ExternalFileIdentifier File { get; init; }
 
     public List<Guid> Tags { get; init; }
@@ -12,6 +14,8 @@ public class UpdateLocalMetadataTagsRequest
 
 public class UpdateLocalMetadataContentRequest
 {
+    public Guid LocalTargetVersionTag { get; init; }
+
     public ExternalFileIdentifier File { get; init; }
 
     public string Content { get; init; }
