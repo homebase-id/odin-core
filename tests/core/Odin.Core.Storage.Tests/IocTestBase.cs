@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Cache;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
@@ -79,6 +80,8 @@ public abstract class IocTestBase
         builder
             .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, logEventLevel))
             .SingleInstance();
+
+        builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
 
         builder.AddDatabaseCacheServices();
         builder.AddDatabaseCounterServices();

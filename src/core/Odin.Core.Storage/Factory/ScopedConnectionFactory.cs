@@ -115,12 +115,14 @@ public interface IScopedConnectionFactory
         [CallerLineNumber] int lineNumber = 0);
 
     DatabaseType DatabaseType { get; }
+    bool HasTransaction { get; }
 }
 
 public interface IConnectionWrapper : IDisposable, IAsyncDisposable
 {
     DbConnection DangerousInstance { get; }
     int RefCount { get; }
+    bool HasTransaction { get; }
     Task<ITransactionWrapper> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default);
@@ -178,6 +180,7 @@ public class ScopedConnectionFactory<T>(
     private Guid _connectionId;
 
     public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
+    public bool HasTransaction => _transaction != null;
 
     //
 
@@ -288,13 +291,14 @@ public class ScopedConnectionFactory<T>(
 
     //
     // ConnectionWrapper
-    // A wrapper around a DbConnection that ensures that the transaction is disposed correctly.
+    // A wrapper around a DbConnection that ensures that the connection is disposed correctly.
     //
     public sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IConnectionWrapper
     {
         private bool _disposed;
         public DbConnection DangerousInstance => instance._connection!;
         public int RefCount => instance._connectionRefCount;
+        public bool HasTransaction => instance.HasTransaction;
 
         //
 

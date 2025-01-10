@@ -13,8 +13,8 @@ public abstract class AbstractDatabase<T>(ILifetimeScope lifetimeScope) where T 
     // SEB:NOTE this is temporary until we have a proper migration system
     public abstract Task CreateDatabaseAsync(bool dropExistingTables = false);
 
-    protected TTable GetTable<TTable>(ref Lazy<TTable> lazyField) where TTable : class
+    protected TLazyType LazyResolve<TLazyType>(ref Lazy<TLazyType> lazyField) where TLazyType : class
     {
-        return (lazyField ??= new Lazy<TTable>(lifetimeScope.Resolve<TTable>)).Value;
+        return (lazyField ??= new Lazy<TLazyType>(lifetimeScope.Resolve<TLazyType>)).Value;
     }
 }
