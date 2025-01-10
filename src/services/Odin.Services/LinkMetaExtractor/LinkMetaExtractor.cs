@@ -152,6 +152,12 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
                 return null;
             }
 
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogDebug("LinkExtractor: Not OK {Url}. Status code: {StatusCode}", url, response.StatusCode);
+                return null;
+            }
+
             // Check content length
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxContentLength)
