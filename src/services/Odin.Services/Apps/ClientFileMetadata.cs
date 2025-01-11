@@ -44,7 +44,7 @@ public class ClientFileMetadata
 
     public AppFileMetaData AppData { get; set; }
 
-    public LocalAppMetadata LocalAppData { get; set; } = new();
+    public LocalAppMetadataTag LocalAppData { get; set; } = new();
 
     public GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
 

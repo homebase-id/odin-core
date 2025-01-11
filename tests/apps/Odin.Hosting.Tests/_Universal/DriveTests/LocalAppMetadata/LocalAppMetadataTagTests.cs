@@ -16,7 +16,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.LocalAppMetadata;
 
-public class LocalAppMetadataTests
+public class LocalAppMetadataTagTests
 {
     private WebScaffold _scaffold;
 
@@ -66,7 +66,7 @@ public class LocalAppMetadataTests
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
     [TestCaseSource(nameof(GuestNotAllowed))]
-    public async Task CanUpdateLocalAppData(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanUpdateLocalAppMetadataTags(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
         var identity = TestIdentities.Pippin;
@@ -93,7 +93,7 @@ public class LocalAppMetadataTests
             Tags = [tag1, tag2]
         };
 
-        var response = await callerDriveClient.UpdateLocalAppMetadata(request);
+        var response = await callerDriveClient.UpdateLocalAppMetadataTags(request);
         var result = response.Content;
         Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
 

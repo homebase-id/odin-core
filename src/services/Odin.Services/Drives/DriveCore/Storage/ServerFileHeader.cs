@@ -45,7 +45,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 ? null
                 : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferHistory);
 
-            header.FileMetadata.LocalAppData = new LocalAppMetadata
+            header.FileMetadata.LocalAppData = new LocalAppMetadataTag
             {
                 VersionTag = record.hdrLocalVersionTag.GetValueOrDefault(),
                 Content = record.hdrLocalAppData,

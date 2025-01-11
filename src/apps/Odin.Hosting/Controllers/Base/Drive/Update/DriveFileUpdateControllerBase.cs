@@ -74,15 +74,15 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
         }
 
         [HttpPatch("update-local-metadata-tags")]
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataTagsRequest request)
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags([FromBody] UpdateLocalMetadataTagsRequest request)
         {
-            OdinValidationUtils.AssertNotEmptyGuid(request.LocalTargetVersionTag, nameof(request.LocalTargetVersionTag));
+            //Note: the request.LocalVersionTag might be guid.empty because local content was never written (i.e. a new file)
             OdinValidationUtils.AssertIsTrue(request.File.HasValue(), "File is invalid");
 
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
             var result = await fs.Storage.UpdateLocalMetadataTags(
                 MapToInternalFile(request.File),
-                request.LocalTargetVersionTag,
+                request.LocalVersionTag,
                 request.Tags,
                 WebOdinContext);
 
@@ -90,15 +90,15 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
         }
 
         [HttpPatch("update-local-metadata-content")]
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadata([FromBody] UpdateLocalMetadataContentRequest request)
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent([FromBody] UpdateLocalMetadataContentRequest request)
         {
-            OdinValidationUtils.AssertNotEmptyGuid(request.LocalTargetVersionTag, nameof(request.LocalTargetVersionTag));
+            //Note: the request.LocalVersionTag might be guid.empty because local content was never written (i.e. a new file)
             OdinValidationUtils.AssertIsTrue(request.File.HasValue(), "File is invalid");
 
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
             var result = await fs.Storage.UpdateLocalMetadataContent(
                 MapToInternalFile(request.File),
-                request.LocalTargetVersionTag,
+                request.LocalVersionTag,
                 request.Content,
                 WebOdinContext);
 
