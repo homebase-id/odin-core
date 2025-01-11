@@ -1,18 +1,11 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core;
-using Odin.Core.Cryptography;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.LocalAppMetadata;
 
@@ -66,7 +59,8 @@ public class LocalAppMetadataTagTests
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
     [TestCaseSource(nameof(GuestNotAllowed))]
-    public async Task CanUpdateLocalAppMetadataTags(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanUpdateLocalAppMetadataTagsWhenNotSetInTargetFile(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         // Setup
         var identity = TestIdentities.Pippin;
@@ -75,8 +69,6 @@ public class LocalAppMetadataTagTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-
-        // Act
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
@@ -87,268 +79,187 @@ public class LocalAppMetadataTagTests
 
         var tag1 = Guid.NewGuid();
         var tag2 = Guid.NewGuid();
-        var request = new UpdateLocalMetadataTagsRequest
+        var request = new UpdateLocalMetadataTagsRequest()
         {
             File = targetFile,
+            LocalVersionTag = Guid.Empty,
             Tags = [tag1, tag2]
         };
 
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request);
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK) //continue testing
+        {
+            var result = response.Content;
+            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+
+            // Get the file and see that it's updated
+            var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+            Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+            var theUpdatedFile = updatedFileResponse.Content;
+            Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
+            CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request.Tags);
+        }
+    }
+
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    public async Task CanUpdateLocalAppMetadataContentWhenSetInTargetFileUsingValidLocalVersionTag(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        //
+        // Setup
+        //
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        var targetFile = prepareFileResponse.Content.File;
+
+        var tag1r1 = Guid.NewGuid();
+        var tag2r1 = Guid.NewGuid();
+        var request1 = new UpdateLocalMetadataTagsRequest
+        {
+            File = targetFile,
+            LocalVersionTag = Guid.Empty,
+            Tags = [tag1r1, tag2r1]
+        };
+
+        // first update - just use the owner api so we can prepare a file with a nonempty local version tag
+        var prepareLocalMetadataResponse = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request1);
+        Assert.IsTrue(prepareLocalMetadataResponse.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {prepareLocalMetadataResponse.StatusCode}");
+
+        // get the updated file and read the version tag from there; to ensure a test closer to what the FE would do
+        var updatedFileResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+        Assert.IsTrue(updatedFileResponse1.IsSuccessStatusCode);
+        var latestLocalVersionTag = updatedFileResponse1.Content.FileMetadata.LocalAppData.VersionTag;
+
+        //
+        // Act - try to update the local metadata with a bad local version tag
+        //
+        var tag1r2 = Guid.NewGuid();
+        var tag2r2 = Guid.NewGuid();
+        var request2 = new UpdateLocalMetadataTagsRequest
+        {
+            File = targetFile,
+            LocalVersionTag = latestLocalVersionTag,
+            Tags = [tag1r2, tag2r2]
+        };
+
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
         var result = response.Content;
-        Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
 
-        // Assert - getting the file should include the metadata
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
-
-        // Get the file and see that it's updated
+        // Get the file and see that it was updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+        Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
         var theUpdatedFile = updatedFileResponse.Content;
-        // Assert.IsTrue(theUpdatedFile.);
+        CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request2.Tags);
+        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
-    public async Task CanUpdateLocalAppDataWithEmptyTags(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    public async Task FailsWithBadRequestWhenInvalidLocalVersionTagSpecified(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
+        //
+        // Setup
+        //
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        // upload metadata
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        var testPayloads = new List<TestPayloadDefinition>()
+        var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        var targetFile = prepareFileResponse.Content.File;
+
+        var tag1 = Guid.NewGuid();
+        var tag2 = Guid.NewGuid();
+        var request1 = new UpdateLocalMetadataTagsRequest()
         {
-            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
-            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
+            File = targetFile,
+            LocalVersionTag = Guid.Empty,
+            Tags = [tag1, tag2]
         };
 
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
+        // first update - just use the owner api so we can prepare a file with a nonempty local version tag
+        var prepareLocalMetadataResponse = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request1);
+        Assert.IsTrue(prepareLocalMetadataResponse.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {prepareLocalMetadataResponse.StatusCode}");
 
+        var r = prepareLocalMetadataResponse.Content;
+        var expectedVersionTag = r.NewLocalVersionTag;
+
+        var tag1r2 = Guid.NewGuid();
+        var tag2r2 = Guid.NewGuid();
+        var request2 = new UpdateLocalMetadataTagsRequest()
+        {
+            File = targetFile,
+            LocalVersionTag = Guid.Empty,
+            Tags = [tag1r2, tag2r2]
+        };
         await callerContext.Initialize(ownerApiClient);
-
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
 
-        // Let's test more
-        if (expectedStatusCode == HttpStatusCode.OK)
-        {
-            var uploadResult = response.Content;
-            Assert.IsNotNull(uploadResult);
-
-            // use the owner api client to validate the file that was uploaded
-            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-            var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count() == testPayloads.Count);
-
-            //test the headers payload info
-            foreach (var testPayload in testPayloads)
-            {
-                var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
-                Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
-                Assert.IsTrue(testPayload.ContentType == payload.ContentType);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(testPayload.Iv, payload.Iv));
-                //Assert.IsTrue(payload.LastModified); //TODO: how to test?
-            }
-
-            // Get the payloads
-            foreach (var definition in testPayloads)
-            {
-                var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-                Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
-                Assert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-                var content = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                CollectionAssert.AreEqual(content, definition.Content);
-
-                // Check all the thumbnails
-                foreach (var thumbnail in definition.Thumbnails)
-                {
-                    var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File,
-                        thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
-
-                    Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
-                    Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                    Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-                    var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                    CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
-                }
-            }
-        }
+        // Get the file and see that it was not updated
+        var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+        Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+        var theUpdatedFile = updatedFileResponse.Content;
+        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == expectedVersionTag);
+        CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request1.Tags, "the content should not have changed");
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
-    public async Task LocalVersionTagChangesWhenLocalMetadataIsUpdated(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    public async Task FailsWithBadRequestWhenFileDoesNotExist(IApiClientContext callerContext, HttpStatusCode _)
     {
+        //
+        // Setup
+        //
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true, false, false);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        // upload metadata
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        var testPayloads = new List<TestPayloadDefinition>()
+        //
+        // Act - try to update local metadata for non-existent file
+        //
+        var tag1 = Guid.NewGuid();
+        var tag2 = Guid.NewGuid();
+        var request = new UpdateLocalMetadataTagsRequest()
         {
-            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
-            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
-        };
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+            File = new ExternalFileIdentifier()
+            {
+                FileId = Guid.NewGuid(), //random non-existent file
+                TargetDrive = targetDrive
+            },
+            LocalVersionTag = Guid.Empty,
+            Tags = [tag1, tag2]
         };
 
         await callerContext.Initialize(ownerApiClient);
-
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
-
-        // Let's test more
-        if (expectedStatusCode == HttpStatusCode.OK)
-        {
-            var uploadResult = response.Content;
-            Assert.IsNotNull(uploadResult);
-
-            // use the owner api client to validate the file that was uploaded
-            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-            var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count() == testPayloads.Count);
-
-            //test the headers payload info
-            foreach (var testPayload in testPayloads)
-            {
-                var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
-                Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
-                Assert.IsTrue(testPayload.ContentType == payload.ContentType);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(testPayload.Iv, payload.Iv));
-                //Assert.IsTrue(payload.LastModified); //TODO: how to test?
-            }
-
-            // Get the payloads
-            foreach (var definition in testPayloads)
-            {
-                var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-                Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
-                Assert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-                var content = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                CollectionAssert.AreEqual(content, definition.Content);
-
-                // Check all the thumbnails
-                foreach (var thumbnail in definition.Thumbnails)
-                {
-                    var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File,
-                        thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
-
-                    Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
-                    Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                    Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-                    var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                    CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
-                }
-            }
-        }
-    }
-
-    [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
-    public async Task CanSearchByLocalAppMetadataTags(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    {
-        Assert.Inconclusive("TODO");
-    }
-
-    [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
-    public async Task FailsWithBadRequestWhenFileDoesNotExist(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    {
-        var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-        var targetDrive = callerContext.TargetDrive;
-
-        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-
-        // upload metadata
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
-        var testPayloads = new List<TestPayloadDefinition>()
-        {
-            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
-            SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2()
-        };
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        var response = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
-        Assert.IsTrue(response.IsSuccessStatusCode);
-        var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
-
-        // Now that we know all are there, let's delete stuff
-        await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-
-        var deleteFileResponse = await callerDriveClient.SoftDeleteFile(uploadResult.File);
-        Assert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
-
-        // Test more if we can
-        if (expectedStatusCode == HttpStatusCode.OK)
-        {
-            var result = deleteFileResponse.Content;
-            Assert.IsNotNull(result);
-
-            Assert.IsTrue(result.LocalFileDeleted);
-            Assert.IsFalse(result.RecipientStatus.Any());
-
-            // Get the payloads
-            foreach (var definition in testPayloads)
-            {
-                var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-                Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
-
-                foreach (var thumbnail in definition.Thumbnails)
-                {
-                    var getThumbnailResponse =
-                        await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File, thumbnail.PixelWidth, thumbnail.PixelHeight,
-                            definition.Key);
-                    Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
-                }
-            }
-        }
-    }
-
-    private async Task<UploadResult> UploadAndValidate(UploadFileMetadata f1, TargetDrive targetDrive)
-    {
-        var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-        var response1 = await client.DriveRedux.UploadNewMetadata(targetDrive, f1);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
-        var getHeaderResponse1 = await client.DriveRedux.GetFileHeader(response1.Content!.File);
-        Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
-        return response1.Content;
+        var response = await callerDriveClient.UpdateLocalAppMetadataTags(request);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
     }
 }
