@@ -243,8 +243,8 @@ public class ScopedConnectionFactory<T>(
 
         // SEB:NOTE we log the exception as a non-error, because it should be possible for the caller
         // to catch and handle the exception silently (e.g. in case of an expected sql constraint error),
-        // but we prefix it with an "ERR" to make it easier to spot in the logs.
-        _logger.LogDebug(exception, "ERR {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
+        // but we prefix it with "DBEX" to make it easier to spot in the logs.
+        _logger.LogDebug(exception, "DBEX {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
             message, exception.Message, _connectionId, lifetimeScope.Tag);
     }
 
