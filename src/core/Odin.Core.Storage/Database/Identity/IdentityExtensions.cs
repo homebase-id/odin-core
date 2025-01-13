@@ -78,6 +78,7 @@ public static class IdentityExtensions
         }
 
         // Abstractions
+        cb.RegisterType<TransferHistoryDataOperations>().InstancePerLifetimeScope();
         cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
         
         return cb;

@@ -21,8 +21,7 @@ public class DriveQuery(
     ILogger<DriveQuery> logger,
     MainIndexMeta metaIndex,
     TableDriveMainIndex tblDriveMainIndex,
-    TableDriveReactions tblDriveReactions
-) : IDriveDatabaseManager
+    TableDriveReactions tblDriveReactions) : IDriveDatabaseManager
 {
     public async Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
         StorageDrive drive,
@@ -263,15 +262,9 @@ public class DriveQuery(
                 GuidOneOrTwo(metadata.File.FileId, r.fileId),
                 drive.Name);
 
-            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.",
+                OdinClientErrorCode.ExistingFileWithUniqueId);
         }
-    }
-
-
-    public async Task SaveTransferHistoryAsync(StorageDrive drive, Guid fileId, RecipientTransferHistory history)
-    {
-        var json = OdinSystemSerializer.Serialize(history);
-        await tblDriveMainIndex.UpdateTransferHistoryAsync(drive.Id, fileId, json);
     }
 
     public async Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
@@ -369,7 +362,8 @@ public class DriveQuery(
 
     public async Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(StorageDrive drive, int maxCount, int cursor, Guid fileId)
     {
-        var (items, nextCursor) = await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id, postIdFilter: fileId);
+        var (items, nextCursor) =
+            await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id, postIdFilter: fileId);
 
         var results = items.Select(item =>
             new Reaction()
@@ -426,7 +420,7 @@ public class DriveQuery(
         return null;
     }
 
-
+  
     private async Task<(QueryBatchCursor cursor, List<DriveMainIndexRecord> fileIds, bool hasMoreRows)> GetBatchExplicitOrderingAsync(
         StorageDrive drive,
         IOdinContext odinContext,

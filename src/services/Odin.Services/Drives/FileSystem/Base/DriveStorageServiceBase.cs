@@ -12,7 +12,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Threading;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -35,7 +35,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         TempStorageManager tempStorageManager,
         IdentityDatabase db) : RequirePermissionsBase
     {
-        private static readonly KeyedAsyncLock KeyedAsyncLock = new();
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
         protected override DriveManager DriveManager { get; } = driveManager;
@@ -160,7 +159,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Writes a new file header w/o checking for an existing one
         /// </summary>
         public async Task WriteNewFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            
             bool raiseEvent = false)
         {
             if (!header.IsValid())
@@ -241,7 +239,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             await tempStorageManager.EnsureDeleted(drive, file.FileId);
         }
 
-        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file, int width,
+        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
+            int width,
             int height,
             string payloadKey, UnixTimeUtcUnique payloadUid, IOdinContext odinContext, bool directMatchOnly = false)
         {
@@ -427,7 +426,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header.ServerMetadata.FileSystemType;
         }
 
-        public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk, IOdinContext odinContext)
+        public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk,
+            IOdinContext odinContext)
         {
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
             DriveFileUtility.AssertValidPayloadKey(key);
@@ -530,7 +530,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(drive, targetFile.FileId, extension);
-                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
+                            thumb);
                     }
                 }
             }
@@ -619,7 +620,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(drive, tempFile.FileId, extension);
-                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
+                            thumb);
                     }
                 }
             }
@@ -777,65 +779,38 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext)
         {
-            // SEB:TODO this kind of locking won't help us when we scale out horizontally
-            using (await KeyedAsyncLock.LockAsync(file.FileId.ToString()))
+            ServerFileHeader header = null;
+
+            await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
+
+            //
+            // Get and validate the header
+            //
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            AssertValidFileSystemType(header.ServerMetadata);
+
+            _logger.LogDebug(
+                "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
+                file,
+                recipient,
+                updateData.VersionTag,
+                updateData.LatestTransferStatus,
+                updateData.IsInOutbox,
+                updateData.IsReadByRecipient);
+
+            await longTermStorageManager.SaveTransferHistoryAsync(drive.Id, file.FileId, recipient, updateData);
+
+            if (await ShouldRaiseDriveEventAsync(file))
             {
-                ServerFileHeader header = null;
-
-                await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
-
-                //
-                // Get and validate the header
-                //
-                var drive = await DriveManager.GetDriveAsync(file.DriveId);
-                header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-                AssertValidFileSystemType(header.ServerMetadata);
-
-                //
-                // update the transfer history record
-                //
-                var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-                history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-                if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+                await mediator.Publish(new DriveFileChangedNotification
                 {
-                    recipientItem = new RecipientTransferHistoryItem();
-                    history.Recipients.Add(recipient, recipientItem);
-                }
-
-                recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
-                recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
-                recipientItem.LastUpdated = UnixTimeUtc.Now();
-                recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
-                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
-                {
-                    recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
-                }
-
-                header.ServerMetadata.TransferHistory = history;
-
-                _logger.LogDebug(
-                    "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
-                    file,
-                    recipient,
-                    updateData.VersionTag,
-                    updateData.LatestTransferStatus,
-                    updateData.IsInOutbox,
-                    updateData.IsReadByRecipient);
-
-                await longTermStorageManager.SaveTransferHistory(drive, file.FileId, history);
-
-                if (await ShouldRaiseDriveEventAsync(file))
-                {
-                    await mediator.Publish(new DriveFileChangedNotification
-                    {
-                        File = file,
-                        ServerFileHeader = header,
-                        OdinContext = odinContext,
-                        IgnoreFeedDistribution = true,
-                        IgnoreReactionPreviewCalculation = true
-                    });
-                }
+                    File = file,
+                    ServerFileHeader = header,
+                    OdinContext = odinContext,
+                    IgnoreFeedDistribution = true,
+                    IgnoreReactionPreviewCalculation = true
+                });
             }
         }
 
@@ -863,7 +838,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata, IOdinContext odinContext,
-            
             bool bypassCallerCheck = false)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
@@ -978,7 +952,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            
             bool raiseEvent = false)
         {
             await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, raiseEvent);
@@ -1045,7 +1018,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         var extension = DriveFileUtility.GetThumbnailFileExtension(newDescriptor.Key, newDescriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = await tempStorageManager.GetPath(drive, tempFile.FileId, extension);
-                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, newDescriptor, thumb);
+                        await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, newDescriptor,
+                            thumb);
                     }
 
                     //
@@ -1162,7 +1136,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await longTermStorageManager.DeleteAttachments(drive, file.FileId);
                 await WriteFileHeaderInternal(deletedServerFileHeader);
                 await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
-                await longTermStorageManager.DeleteTransferHistory(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+                await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                 tx.Commit();
             }
 
@@ -1290,7 +1264,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Delete the thumbnail files for this payload
             foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
             {
-                await longTermStorageManager.DeleteThumbnailFile(drive, file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
+                await longTermStorageManager.DeleteThumbnailFile(drive, file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth,
+                    thumb.PixelHeight);
             }
 
             // Delete the payload file
