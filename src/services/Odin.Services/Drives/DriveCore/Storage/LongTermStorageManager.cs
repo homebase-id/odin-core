@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
@@ -57,16 +58,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await _driveQuery.SaveFileHeaderAsync(drive, header);
         }
 
-        public async Task SaveLocalMetadataContentAsync(InternalDriveFileId file, Guid newVersionTag, string content = null)
+        public async Task SaveLocalMetadataAsync(InternalDriveFileId file, LocalAppMetadata metadata)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            await _driveQuery.SaveLocalMetadataContentAsync(file.DriveId, file.FileId, newVersionTag, content);
+
+            var json = OdinSystemSerializer.Serialize(metadata);
+            await _driveQuery.SaveLocalMetadataAsync(file.DriveId, file.FileId, metadata.VersionTag, json);
         }
 
-        public async Task SaveLocalMetadataTagsAsync(InternalDriveFileId file, Guid newVersionTag, List<Guid> tags = null)
+        public async Task SaveLocalMetadataTagsAsync(InternalDriveFileId file, LocalAppMetadata metadata)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            await _driveQuery.SaveLocalMetadataTagsAsync(file.DriveId, file.FileId, newVersionTag, tags);
+            await _driveQuery.SaveLocalMetadataTagsAsync(file.DriveId, file.FileId, metadata);
         }
 
         public async Task SoftDeleteFileHeader(ServerFileHeader header)

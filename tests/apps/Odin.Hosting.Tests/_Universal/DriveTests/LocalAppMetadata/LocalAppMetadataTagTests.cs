@@ -9,7 +9,7 @@ using Odin.Services.Drives.FileSystem.Base.Update;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.LocalAppMetadata;
 
-public class LocalAppMetadataTagTests
+public class LocalAppMetadataTests
 {
     private WebScaffold _scaffold;
 
@@ -143,7 +143,7 @@ public class LocalAppMetadataTagTests
         var latestLocalVersionTag = updatedFileResponse1.Content.FileMetadata.LocalAppData.VersionTag;
 
         //
-        // Act - try to update the local metadata with a bad local version tag
+        // Act - try to update the local metadata tags
         //
         var tag1r2 = Guid.NewGuid();
         var tag2r2 = Guid.NewGuid();
@@ -166,6 +166,72 @@ public class LocalAppMetadataTagTests
         Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
         var theUpdatedFile = updatedFileResponse.Content;
         CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request2.Tags);
+        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
+    }
+
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    public async Task ContentDoesNotChangeWhenUpdatingTags(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        //
+        // Setup
+        //
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        var targetFile = prepareFileResponse.Content.File;
+
+        // first set some content
+        const string originalContent = "expected content";
+        var updateContentResponse = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataContent(new UpdateLocalMetadataContentRequest()
+        {
+            File = targetFile,
+            LocalVersionTag = Guid.Empty,
+            Content = originalContent
+        });
+        Assert.IsTrue(updateContentResponse.IsSuccessStatusCode);
+
+        // get the updated file and read the version tag from there; to ensure a test closer to what the FE would do
+        // validate the content is set
+        var updatedFileResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+        Assert.IsTrue(updatedFileResponse1.IsSuccessStatusCode);
+        Assert.IsTrue(updatedFileResponse1.Content!.FileMetadata.LocalAppData.Content == originalContent);
+
+        var latestLocalVersionTag = updatedFileResponse1.Content.FileMetadata.LocalAppData.VersionTag;
+
+        //
+        // Act - update the local metadata tags
+        //
+        var tag1 = Guid.NewGuid();
+        var tag2 = Guid.NewGuid();
+        var request2 = new UpdateLocalMetadataTagsRequest
+        {
+            File = targetFile,
+            LocalVersionTag = latestLocalVersionTag,
+            Tags = [tag1, tag2]
+        };
+
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        var result = response.Content;
+
+        // Get the file and see that it was updated
+        var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+        Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+        var theUpdatedFile = updatedFileResponse.Content;
+        CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request2.Tags);
+        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.Content == originalContent, "the original content should not have changed");
         Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
     }
 

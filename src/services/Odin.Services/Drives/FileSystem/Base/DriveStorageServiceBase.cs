@@ -1100,7 +1100,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, Guid targetVersionTag,
-            List<Guid> tags,
+            List<Guid> newTags,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
@@ -1112,10 +1112,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData.VersionTag, targetVersionTag);
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
 
             var newVersionTag = DriveFileUtility.CreateVersionTag();
-            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, newVersionTag, tags);
+
+            var mergedMetadata = new LocalAppMetadata
+            {
+                VersionTag = newVersionTag,
+                Content = header.FileMetadata.LocalAppData?.Content,
+                Tags = newTags,
+            };
+
+            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata);
 
             return new UpdateLocalMetadataResult()
             {
@@ -1124,12 +1132,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, Guid targetVersionTag,
-            string content,
+            string newContent,
             IOdinContext odinContext)
         {
             const int maxLength = 8 * 1024;
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            OdinValidationUtils.AssertMaxStringLength(content, maxLength, $"local app content is too long; max length is {maxLength}");
+            OdinValidationUtils.AssertMaxStringLength(newContent, maxLength, $"local app content is too long; max length is {maxLength}");
 
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
@@ -1138,10 +1146,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData.VersionTag, targetVersionTag);
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
 
             var newVersionTag = DriveFileUtility.CreateVersionTag();
-            await longTermStorageManager.SaveLocalMetadataContentAsync(file, newVersionTag, content);
+
+            var mergedMetadata = new LocalAppMetadata
+            {
+                VersionTag = newVersionTag,
+                Content = newContent,
+                Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
+            };
+
+            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata);
 
             return new UpdateLocalMetadataResult()
             {

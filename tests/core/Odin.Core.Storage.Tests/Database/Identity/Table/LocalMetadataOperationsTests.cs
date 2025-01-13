@@ -75,7 +75,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var localVersionTag1 = SequentialGuid.CreateGuid();
             var localMetadataContent = "this is some content";
             var affectedCount =
-                await localTagsDataOperations.UpdateLocalAppMetadataContentAsync(driveId, fileId, localVersionTag1, localMetadataContent);
+                await localTagsDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, localVersionTag1, localMetadataContent);
 
             // 
             // Assert
@@ -107,7 +107,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var driveId = Guid.NewGuid();
             var fileId = Guid.NewGuid();
-            var modifiedTime = UnixTimeUtcUnique.ZeroTime;
 
             //
             // Setup - Add a target record to drive main index
@@ -151,20 +150,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             //
             // Act 
             //
-            var localVersionTag1 = SequentialGuid.CreateGuid();
             List<Guid> tags = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
-            await localTagsDataOperations.UpdateLocalTagsAsync(driveId, fileId, localVersionTag1, tags);
+            await localTagsDataOperations.UpdateLocalTagsAsync(driveId, fileId, tags);
 
             // 
             // Assert
             //
-            var updatedRecord = await tblDriveMainIndex.GetAsync(driveId, fileId);
-
-            Assert.IsNull(updatedRecord.hdrLocalAppData, "local app metadata should not have been updated");
-            Assert.AreEqual(updatedRecord.hdrLocalVersionTag, localVersionTag1, "version tag not updated");
-            Assert.IsTrue(updatedRecord.modified.GetValueOrDefault().ToUnixTimeUtc() > modifiedTime.ToUnixTimeUtc(),
-                "modified time not updated");
-
             // check the tags
             var newTags = await tableDriveLocalTagIndex.GetAsync(driveId, fileId);
             CollectionAssert.AreEquivalent(newTags, tags, "Local tags not updated");

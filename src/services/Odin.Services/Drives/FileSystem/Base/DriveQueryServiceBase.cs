@@ -297,10 +297,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     FileId = record.fileId
                 };
 
-                //TODO: NEEDS OPTIMIZATION - This calls the db per-file; need to call in chunks or pre-cache
-                var localTags = await _db.DriveLocalTagIndex.GetAsync(driveId, file.FileId);
-                
-                var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record, localTags);
+                var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
                 if (null == serverFileHeader)
                 {
                     _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk", file.FileId,

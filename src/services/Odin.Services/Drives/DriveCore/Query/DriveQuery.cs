@@ -274,14 +274,23 @@ public class DriveQuery(
         }
     }
 
-    public async Task SaveLocalMetadataContentAsync(Guid driveId, Guid fileId, Guid newVersionTag, string content)
+    public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, Guid newVersionTag, string metadataJson)
     {
-        await db.LocalMetadataDataOperations.UpdateLocalAppMetadataContentAsync(driveId, fileId, newVersionTag, content);
+        await db.LocalMetadataDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, newVersionTag, metadataJson);
     }
 
-    public async Task SaveLocalMetadataTagsAsync(Guid driveId, Guid fileId, Guid newVersionTag, List<Guid> tags)
+    public async Task SaveLocalMetadataTagsAsync(Guid driveId, Guid fileId, LocalAppMetadata metadata)
     {
-        await db.LocalMetadataDataOperations.UpdateLocalTagsAsync(driveId, fileId, newVersionTag, tags);
+        await using var tx = await db.BeginStackedTransactionAsync();
+
+        // Update the tables used to query
+        await db.LocalMetadataDataOperations.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
+
+        // Update the official metadata field
+        var json = OdinSystemSerializer.Serialize(metadata);
+        await db.LocalMetadataDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, json);
+
+        tx.Commit();
     }
 
     public async Task SaveTransferHistoryAsync(StorageDrive drive, Guid fileId, RecipientTransferHistory history)
@@ -307,7 +316,7 @@ public class DriveQuery(
 
         var tags = await db.DriveLocalTagIndex.GetAsync(drive.Id, fileId);
 
-        return ServerFileHeader.FromDriveMainIndexRecord(record, tags);
+        return ServerFileHeader.FromDriveMainIndexRecord(record);
     }
 
     /// <summary>

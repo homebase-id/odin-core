@@ -79,7 +79,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public AppFileMetaData AppData { get; set; }
 
-        public LocalAppMetadataTag LocalAppData { get; set; }
+        public LocalAppMetadata LocalAppData { get; set; }
         
         public List<PayloadDescriptor> Payloads { get; set; }
 

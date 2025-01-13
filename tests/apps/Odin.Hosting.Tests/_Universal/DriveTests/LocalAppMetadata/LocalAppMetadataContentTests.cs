@@ -123,7 +123,7 @@ public class LocalAppMetadataContentTests
         var targetFile = prepareFileResponse.Content.File;
 
         const string content1 = "some local content here";
-        const string content2 = "other content here";
+        const string content2 = "other info here";
 
         var request1 = new UpdateLocalMetadataContentRequest()
         {
@@ -165,6 +165,77 @@ public class LocalAppMetadataContentTests
         var theUpdatedFile = updatedFileResponse.Content;
         Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
         Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.Content == content2, "the content should have changed");
+    }
+
+
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    public async Task TagsAreNotChangedWhenUpdatingLocalMetadataContent(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        //
+        // Setup
+        //
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        var targetFile = prepareFileResponse.Content.File;
+
+
+        // Set some tags
+
+        var tag1 = Guid.NewGuid();
+        var tag2 = Guid.NewGuid();
+        var prepareTagsRequest = new UpdateLocalMetadataTagsRequest()
+        {
+            File = targetFile,
+            LocalVersionTag = Guid.Empty,
+            Tags = [tag1, tag2]
+        };
+
+        var prepareTagsResponse = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(prepareTagsRequest);
+        Assert.IsTrue(prepareTagsResponse.IsSuccessStatusCode);
+        
+        // get the updated file and read the version tag from there; to ensure a test closer to what the FE would do
+        var updatedFileResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+        Assert.IsTrue(updatedFileResponse1.IsSuccessStatusCode);
+        CollectionAssert.AreEquivalent(updatedFileResponse1.Content!.FileMetadata.LocalAppData.Tags, prepareTagsRequest.Tags);
+        var latestLocalVersionTag = updatedFileResponse1.Content.FileMetadata.LocalAppData.VersionTag;
+
+        //
+        // Act - try to update the local metadata content only
+        //
+        const string expectedContent = "some content goes here";
+
+        var request2 = new UpdateLocalMetadataContentRequest()
+        {
+            File = targetFile,
+            LocalVersionTag = latestLocalVersionTag,
+            Content = expectedContent
+        };
+
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(request2);
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        var result = response.Content;
+
+        // Get the file and see that it was updated
+        var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+        Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+        var theUpdatedFile = updatedFileResponse.Content;
+        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
+        CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, prepareTagsRequest.Tags, "tags should not have changed");
+
+        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.Content == expectedContent, "the content should have changed");
     }
 
     [Test]
