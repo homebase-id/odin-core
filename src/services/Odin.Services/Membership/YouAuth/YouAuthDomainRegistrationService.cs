@@ -455,14 +455,10 @@ namespace Odin.Services.Membership.YouAuth
 
         private async Task SaveRegistrationAsync(YouAuthDomainRegistration registration, IOdinContext odinContext)
         {
-            
-
             var domain = new OdinId(registration.Domain);
-
-            // TODO CONNECTIONS (TODD:TODO)
-            // _db.KeyThreeValue.CreateCommitUnitOfWork(() => {
-            //Store the circles for this registration
-
+            
+            await using var tx = await _db.BeginStackedTransactionAsync();
+            
             //TODO: this is causing an issue where in the circles are also deleted for the ICR 
             // 
             await _circleMembershipService.DeleteMemberFromAllCirclesAsync(registration.Domain, DomainType.YouAuth);
@@ -489,7 +485,8 @@ namespace Odin.Services.Membership.YouAuth
 
             await DomainStorage.UpsertAsync(_db.KeyThreeValue, GetDomainKey(registration.Domain), GuidId.Empty, DomainRegistrationDataType,
                 registration);
-            // });
+            
+            tx.Commit();
         }
 
         private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomainAsync(
