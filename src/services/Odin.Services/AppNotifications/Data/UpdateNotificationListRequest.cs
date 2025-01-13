@@ -21,7 +21,7 @@ public class AppNotification
     public string SenderId { get; set; }
     public bool Unread { get; set; }
 
-    public UnixTimeUtc Created { get; set; }
+    public UnixTimeUtcUnique Created { get; set; }
 
     public AppNotificationOptions Options { get; set; }
 }

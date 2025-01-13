@@ -65,7 +65,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             Id = r.notificationId,
             SenderId = r.senderId,
             Unread = r.unread == 1,
-            Created = r.created.ToUnixTimeUtc(),
+            Created = r.created,
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 
