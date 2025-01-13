@@ -33,7 +33,8 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableKeyTwoValue),
         typeof(TableKeyUniqueThreeValue),
         typeof(TableKeyValue),
-        typeof(TableOutbox)
+        typeof(TableOutbox),
+        typeof(TableDriveTransferHistory)
     ];
 
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;

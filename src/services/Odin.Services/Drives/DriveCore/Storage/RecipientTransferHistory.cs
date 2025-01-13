@@ -38,6 +38,11 @@ public class RecipientTransferHistoryItem
 public enum LatestTransferStatus
 {
     /// <summary>
+    /// No value specified
+    /// </summary>
+    None = 0,
+
+    /// <summary>
     /// Item was delivered to the recipient server
     /// </summary>
     Delivered = 10,
@@ -51,7 +56,7 @@ public enum LatestTransferStatus
     /// The local file cannot be sent due to it's settings or recipient's permissions
     /// </summary>
     SourceFileDoesNotAllowDistribution = 50,
-    
+
     /// <summary>
     /// The item reached the max number of attempts to send it
     /// </summary>
@@ -76,5 +81,4 @@ public enum LatestTransferStatus
     /// Something bad happened on the server
     /// </summary>
     UnknownServerError = 9999,
-    
 }
