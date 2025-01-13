@@ -111,7 +111,7 @@ public class CircleNetworkVerificationService(
                 if (remoteHash == null)
                 {
                     logger.LogDebug("VerifyConnectionAsync - returned content was null, compensating...");
-                    
+
                     remoteHash = new VerifyConnectionResponse
                     {
                         IsConnected = false,
@@ -175,7 +175,7 @@ public class CircleNetworkVerificationService(
             return response;
         }
     }
-    
+
     public async Task SyncHashOnAllConnectedIdentities(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         var failedIdentities = new Dictionary<OdinId, PeerRequestIssueType>();
@@ -202,45 +202,42 @@ public class CircleNetworkVerificationService(
 
         var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
 
-        //TODO CONNECTIONS (TODD:TODO)
-        // await db.CreateCommitUnitOfWorkAsync(async () =>
+        //Note to future Todd and Seb: your past self said no transactions here because a network call is
+        //made.  I know, it's tempting but in the words of Seb "NO!" 
+        foreach (var identity in allIdentities.Results)
         {
-            foreach (var identity in allIdentities.Results)
+            cancellationToken.ThrowIfCancellationRequested();
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                try
+                if (identity.VerificationHash.IsNullOrEmpty())
                 {
-                    if (identity.VerificationHash.IsNullOrEmpty())
+                    await ForceSync(identity);
+                }
+                else
+                {
+                    var verifyResponse = await VerifyConnectionAsync(identity.OdinId, cancellationToken, odinContext);
+                    if (verifyResponse.IsValid)
                     {
-                        await ForceSync(identity);
+                        logger.LogDebug("{identity} has existing hash: status: valid", identity.OdinId);
                     }
                     else
                     {
-                        var verifyResponse = await VerifyConnectionAsync(identity.OdinId, cancellationToken, odinContext);
-                        if (verifyResponse.IsValid)
-                        {
-                            logger.LogDebug("{identity} has existing hash: status: valid", identity.OdinId);
-                        }
-                        else
-                        {
-                            logger.LogDebug("{identity} has existing hash: status: invalid; forcing update on remote", identity.OdinId);
-                            await ForceSync(identity);
-                        }
+                        logger.LogDebug("{identity} has existing hash: status: invalid; forcing update on remote", identity.OdinId);
+                        await ForceSync(identity);
                     }
                 }
-                catch (Exception e)
-                {
-                    logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
-                }
             }
-
-            if (failedIdentities.Any())
+            catch (Exception e)
             {
-                logger.LogInformation("Failed synchronizing verification hashes for identities:[{list}]",
-                    string.Join(",", failedIdentities.Select(kvp => kvp.Key + ":" + kvp.Value)));
+                logger.LogDebug(e, "EnsureVerificationHash for {odinId}.  Failed", identity.OdinId);
             }
         }
-        //);
+
+        if (failedIdentities.Any())
+        {
+            logger.LogInformation("Failed synchronizing verification hashes for identities:[{list}]",
+                string.Join(",", failedIdentities.Select(kvp => kvp.Key + ":" + kvp.Value)));
+        }
     }
 
     /// <summary>

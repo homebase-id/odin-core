@@ -77,10 +77,15 @@ public static class IdentityExtensions
                 .InstancePerLifetimeScope();
         }
 
+        // Table caches
+        foreach (var tableCacheType in IdentityDatabase.TableCacheTypes)
+        {
+            cb.RegisterType(tableCacheType).InstancePerLifetimeScope();
+        }
+
         // Abstractions
         cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
         cb.RegisterType<LocalMetadataDataOperations>().InstancePerLifetimeScope();
-        
         return cb;
     }
     
