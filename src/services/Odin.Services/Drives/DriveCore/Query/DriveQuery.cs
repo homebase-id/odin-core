@@ -314,8 +314,6 @@ public class DriveQuery(
             return null;
         }
 
-        var tags = await db.DriveLocalTagIndex.GetAsync(drive.Id, fileId);
-
         return ServerFileHeader.FromDriveMainIndexRecord(record);
     }
 
