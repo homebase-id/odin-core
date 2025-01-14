@@ -6,12 +6,12 @@ namespace Odin.Services;
 
 public static class Version
 {
+    public const string VersionText = "-.-.-"; // placeholder - DO NOT CHANGE
+    
     /// <summary>
     /// Indicates version information the current release (data structure version, code version, etc.)
     /// </summary>
     public const int DataVersionNumber = 3;
-    
-    public const string VersionText = "-.-.-"; // placeholder - DO NOT CHANGE
 }
 
 // DO NOT CHANGE OR MOVE THIS FILE
