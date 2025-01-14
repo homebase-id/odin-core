@@ -60,7 +60,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                     var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext);
                     return collection;
                 },
-                TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds));
+                Expiration.Relative(TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds)));
 
             return result!;
         }
