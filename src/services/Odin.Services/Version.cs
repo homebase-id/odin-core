@@ -1,4 +1,4 @@
-namespace Odin.Hosting.Extensions;
+namespace Odin.Services;
 
 // DO NOT CHANGE OR MOVE THIS FILE
 //
@@ -6,6 +6,11 @@ namespace Odin.Hosting.Extensions;
 
 public static class Version
 {
+    /// <summary>
+    /// Indicates version information the current release (data structure version, code version, etc.)
+    /// </summary>
+    public const int DataVersionNumber = 3;
+    
     public const string VersionText = "-.-.-"; // placeholder - DO NOT CHANGE
 }
 
