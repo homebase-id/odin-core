@@ -1,8 +1,6 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Cache;
-using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -12,24 +10,14 @@ public class TableKeyValueCache(
     IGenericMemoryCache<TableKeyValueCache> cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     TableKeyValue table)
+    : AbstractTableCache(cache, scopedConnectionFactory)
 {
-    public void Clear()
-    {
-        cache.Clear();
-    }
-
-    public void Clear(byte[] key)
-    {
-        cache.Remove(key);
-    }
-
     public async Task<KeyValueRecord?> GetAsync(byte[] key, MemoryCacheEntryOptions options)
     {
         NoTransactionCheck();
 
         if (cache.TryGet<KeyValueRecord?>(key, out var record))
         {
-            cache.Set(key, record, options);
             return record;
         }
 
@@ -80,20 +68,10 @@ public class TableKeyValueCache(
     {
         NoTransactionCheck();
 
-        var affectedRows = await table.DeleteAsync(key);
         cache.Remove(key);
+        var affectedRows = await table.DeleteAsync(key);
 
         return affectedRows;
-    }
-
-    //
-
-    private void NoTransactionCheck()
-    {
-        if (scopedConnectionFactory.HasTransaction)
-        {
-            throw new OdinSystemException("Must not access cache while in a transaction.");
-        }
     }
 
     //

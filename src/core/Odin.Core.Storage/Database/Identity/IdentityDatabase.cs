@@ -40,6 +40,16 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     // Don't forget to add the cache to the lazy properties as well.
     //
     public static readonly ImmutableList<Type> TableCacheTypes = [
+        typeof(TableAppGrantsCache),
+        typeof(TableAppNotificationsCache),
+        typeof(TableCircleCache),
+        typeof(TableCircleMemberCache),
+        typeof(TableConnectionsCache),
+        typeof(TableFollowsMeCache),
+        typeof(TableImFollowingCache),
+        typeof(TableKeyThreeValueCache),
+        typeof(TableKeyTwoValueCache),
+        typeof(TableKeyUniqueThreeValueCache),
         typeof(TableKeyValueCache),
     ];
 
@@ -86,11 +96,31 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     //
     // Table cache convenience properties
     //
+    private Lazy<TableAppGrantsCache> _appGrantsCache;
+    public TableAppGrantsCache AppGrantsCache => LazyResolve(ref _appGrantsCache);
+    private Lazy<TableAppNotificationsCache> _appNotificationsCache;
+    public TableAppNotificationsCache AppNotificationsCache => LazyResolve(ref _appNotificationsCache);
+    private Lazy<TableCircleCache> _circleCache;
+    public TableCircleCache CircleCache => LazyResolve(ref _circleCache);
+    private Lazy<TableCircleMemberCache> _circleMemberCache;
+    public TableCircleMemberCache CircleMemberCache => LazyResolve(ref _circleMemberCache);
+    private Lazy<TableConnectionsCache> _connectionsCache;
+    public TableConnectionsCache ConnectionsCache => LazyResolve(ref _connectionsCache);
+    private Lazy<TableFollowsMeCache> _followsMeCache;
+    public TableFollowsMeCache FollowsMeCache => LazyResolve(ref _followsMeCache);
+    private Lazy<TableImFollowingCache> _imFollowingCache;
+    public TableImFollowingCache ImFollowingCache => LazyResolve(ref _imFollowingCache);
+    private Lazy<TableKeyThreeValueCache> _keyThreeValueCache;
+    public TableKeyThreeValueCache KeyThreeValueCache => LazyResolve(ref _keyThreeValueCache);
+    private Lazy<TableKeyTwoValueCache> _keyTwoValueCache;
+    public TableKeyTwoValueCache KeyTwoValueCache => LazyResolve(ref _keyTwoValueCache);
+    private Lazy<TableKeyUniqueThreeValueCache> _keyUniqueThreeValueCache;
+    public TableKeyUniqueThreeValueCache KeyUniqueThreeValueCache => LazyResolve(ref _keyUniqueThreeValueCache);
     private Lazy<TableKeyValueCache> _keyValueCache;
     public TableKeyValueCache KeyValueCache => LazyResolve(ref _keyValueCache);
 
     //
-    // Abstraction convenience properties (resolved, not injected)
+    // Abstraction convenience properties
     //
     private Lazy<MainIndexMeta> _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
