@@ -9,7 +9,12 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 public class LocalAppMetadata
 {
     public Guid VersionTag { get; set; }
-        
+
+    /// <summary>
+    /// Initialization vector used when the target file is encrypted.  Note the AesKey will be that of the file's KeyHeader
+    /// </summary>
+    public byte[] Iv { get; init; }
+
     public string Content { get; init; }
 
     public List<Guid> Tags { get; init; }

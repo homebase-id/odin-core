@@ -24,6 +24,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -1094,7 +1095,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, Guid targetVersionTag,
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, 
+            Guid targetVersionTag,
             List<Guid> newTags,
             IOdinContext odinContext)
         {
@@ -1113,6 +1115,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var mergedMetadata = new LocalAppMetadata
             {
+                Iv = header.FileMetadata.LocalAppData?.Iv,
                 VersionTag = newVersionTag,
                 Content = header.FileMetadata.LocalAppData?.Content,
                 Tags = newTags,
@@ -1127,6 +1130,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, Guid targetVersionTag,
+            byte[] initVector,
             string newContent,
             IOdinContext odinContext)
         {
@@ -1143,11 +1147,18 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
 
+
+            if (header.FileMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(initVector))
+            {
+                throw new OdinClientException("A string IV is required when the target file is encrypted");
+            }
+
             var newVersionTag = DriveFileUtility.CreateVersionTag();
 
             var mergedMetadata = new LocalAppMetadata
             {
                 VersionTag = newVersionTag,
+                Iv = initVector,
                 Content = newContent,
                 Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
             };

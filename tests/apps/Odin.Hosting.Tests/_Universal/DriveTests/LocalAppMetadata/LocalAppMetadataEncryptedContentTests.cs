@@ -1,19 +1,13 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.LocalAppMetadata;
@@ -54,27 +48,23 @@ public class LocalAppMetadataEncryptedContentTests
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
-
-    public static IEnumerable AppReadWriteAllowed()
+    public static IEnumerable AppAllowed()
     {
-        yield return new object[] { new AppReadWriteAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-    }
-
-    public static IEnumerable AppWriteOnlyForbidden()
-    {
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
     public static IEnumerable GuestNotAllowed()
     {
         yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
     }
-    
-    public async Task CanUpdateLocalAppMetadataContent(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    public async Task CanUpdateLocalAppMetadataContentForEncryptedTargetFile(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
-        
-        Assert.Inconclusive("TODO: support encryption");
-        
         // Setup
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -82,9 +72,13 @@ public class LocalAppMetadataEncryptedContentTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AppData.Content = "data data data";
+       
+        var keyHeader = KeyHeader.NewRandom16();
 
         // Act
-        var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        var (prepareFileResponse, _) =
+            await ownerApiClient.DriveRedux.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, keyHeader);
         Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
@@ -92,10 +86,15 @@ public class LocalAppMetadataEncryptedContentTests
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
+        var localContentIv = ByteArrayUtil.GetRndByteArray(16);
+        var content = "some local content here";
+        var encryptedLocalMetadataContent = AesCbc.Encrypt(content.ToUtf8ByteArray(), keyHeader.AesKey, localContentIv);
+
         var request = new UpdateLocalMetadataContentRequest()
         {
+            Iv = localContentIv,
             File = targetFile,
-            Content = "some local content here"
+            Content = encryptedLocalMetadataContent.ToBase64()
         };
 
         var response = await callerDriveClient.UpdateLocalAppMetadataContent(request);
@@ -108,9 +107,52 @@ public class LocalAppMetadataEncryptedContentTests
         // Get the file and see that it's updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
         var theUpdatedFile = updatedFileResponse.Content;
-        // Assert.IsTrue(theUpdatedFile.);
+
+        var decryptedBytes = AesCbc.Decrypt(theUpdatedFile.FileMetadata.LocalAppData.Content.FromBase64(), keyHeader.AesKey, request.Iv);
+        Assert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == content);
     }
 
- 
-    // TODO
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    public async Task FailsWithBadRequestWhenMissingIvOnEncryptedTargetFile(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        
+        // Setup
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AppData.Content = "data data data";
+       
+        var keyHeader = KeyHeader.NewRandom16();
+
+        // Act
+        var (prepareFileResponse, _) =
+            await ownerApiClient.DriveRedux.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, keyHeader);
+        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        var targetFile = prepareFileResponse.Content.File;
+
+        // Act - update the local app metadata
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+
+        var localContentIv = ByteArrayUtil.GetRndByteArray(16);
+        var content = "some local content here";
+        var encryptedLocalMetadataContent = AesCbc.Encrypt(content.ToUtf8ByteArray(), keyHeader.AesKey, localContentIv);
+
+        var request = new UpdateLocalMetadataContentRequest()
+        {
+            Iv = Guid.Empty.ToByteArray(), //weak or no key
+            File = targetFile,
+            Content = encryptedLocalMetadataContent.ToBase64()
+        };
+
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(request);
+        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+    }
 }

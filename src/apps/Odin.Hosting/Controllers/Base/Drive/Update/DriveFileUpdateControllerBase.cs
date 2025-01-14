@@ -99,6 +99,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
             var result = await fs.Storage.UpdateLocalMetadataContent(
                 MapToInternalFile(request.File),
                 request.LocalVersionTag,
+                request.Iv,
                 request.Content,
                 WebOdinContext);
 
