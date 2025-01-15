@@ -28,6 +28,9 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ./odin-core.sln
 
+      - name: Check for Vulnerable Packages
+        run: dotnet list ./odin-core.sln package --vulnerable --include-transitive || exit 1
+
       - name: Build
         run: dotnet build --no-restore --configuration Debug --warnaserror ./odin-core.sln
 

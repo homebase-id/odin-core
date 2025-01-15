@@ -23,6 +23,9 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ./odin-core.sln
 
+      - name: Check for Vulnerable Packages
+        run: dotnet list ./odin-core.sln package --vulnerable --include-transitive || exit 1
+
       - name: Build
         # below: %3B is ASCII for semicolon
         run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX" ./odin-core.sln
