@@ -122,13 +122,15 @@ public class LinkMetaExtractorTests
 
 #if !CI_GITHUB
     [Test]
-    public async Task TestInsta()
+    public async Task TestInstagramStoryUrl()
     {
         var logStore = new LogEventMemoryStore();
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/stories/ashira_oure_bxg_club/3545246080284477588?utm_source=ig_story_item_share&igsh=c2FteGNlYmV1NXZs");
-        Assert.IsNotNull(ogp);
+        Assert.NotNull(ogp.Title);
+        Assert.NotNull(ogp.Description);
+        Assert.NotNull(ogp.ImageUrl);
     }
 #endif
 
