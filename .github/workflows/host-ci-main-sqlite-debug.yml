@@ -24,11 +24,11 @@ jobs:
         run: dotnet restore ./odin-core.sln
 
       - name: Check for Vulnerable Packages
-        run: dotnet list ./odin-core.sln package --vulnerable --include-transitive || exit 1
+        run: echo "No package analysis on Windows"
 
       - name: Build
       # below: %3B is ASCII for semicolon
-        run: dotnet build --no-restore --configuration Debug --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_WINDOWS" ./odin-core.sln
+        run: dotnet build --no-restore --configuration Debug --warnaserror --property:EnablePackageAnalysis=true --property:DefineConstants="CI_GITHUB%3BCI_WINDOWS" ./odin-core.sln
 
       - name: Test
         run: dotnet test --no-build --configuration Debug --verbosity normal ./odin-core.sln

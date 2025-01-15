@@ -24,7 +24,12 @@ jobs:
         run: dotnet restore ./odin-core.sln
 
       - name: Check for Vulnerable Packages
-        run: dotnet list ./odin-core.sln package --vulnerable --include-transitive || exit 1
+        run: |
+          dotnet list ./odin-core.sln package --vulnerable --include-transitive | tee packages_report.txt
+          if grep -q "vulnerable" packages_report.txt; then
+            echo "❌ Vulnerable packages detected! Failing the build."
+            exit 1
+          fi
 
       - name: Build
         # below: %3B is ASCII for semicolon
