@@ -18,7 +18,8 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
     /// <summary>
     /// List of sites that needs bot headers to be fetched CSR website
     /// </summary>
-    private static readonly List<string> SiteThatNeedsBotHeaders = ["twitter.com", "x.com"];
+    private static readonly List<string> SiteThatNeedsBotHeaders = ["x.com", "twitter.com"];
+    private static readonly List<string> SiteThatNeedsMozillaHeaders = [];
 
     public static bool IsUrlSafe(string url)
     {
@@ -131,24 +132,41 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
         var client = clientFactory.CreateClient<LinkMetaExtractor>();
         // Set headers
         client.DefaultRequestHeaders.Add("Accept", "text/html");
+
+
+        // Use specific User-Agent based on the URL
         if (SiteThatNeedsBotHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
         {
             client.DefaultRequestHeaders.Add("User-Agent", "grapeshot|googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
         }
+        else if (SiteThatNeedsMozillaHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
+        {
+            // Use a modern browser-like User-Agent for general requests
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
+        }
         else
         {
-            client.DefaultRequestHeaders.Add("User-Agent", "*");
+            // Use facebookexternalhit for Open Graph previews
+            client.DefaultRequestHeaders.Add("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)");
         }
+
         // Set a timeout
         client.Timeout = TimeSpan.FromSeconds(20);
         const long maxContentLength = 3 * 1024 * 1024;
+
         try
         {
             var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url,
-                    response.StatusCode);
+                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url, response.StatusCode);
+                return null;
+            }
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogDebug("LinkExtractor: Not OK {Url}. Status code: {StatusCode}", url, response.StatusCode);
                 return null;
             }
 
@@ -171,8 +189,6 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             }
 
             // Do NOT decode the HTML content. The chat client and stuff reliably handles unsafe "html".
-            // var decodedHtml = WebUtility.HtmlDecode(content);
-
             return content;
         }
         catch (OperationCanceledException)
@@ -193,6 +209,8 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             return null;
         }
     }
+
+
     private LinkMeta ProcessMetaData(string htmlContent, string url)
     {
         try
@@ -217,6 +235,8 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             return null;
         }
     }
+
+
     private async Task<string> ProcessImageAsync(string imageUrl, string originalUrl)
     {
         if (!IsUrlSafe(imageUrl))

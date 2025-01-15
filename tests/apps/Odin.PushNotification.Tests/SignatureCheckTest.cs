@@ -12,7 +12,7 @@ public class SignatureCheckTest
     {
         var logger = new Mock<ILogger<SignatureCheck>>();
         var signatureCheck = new SignatureCheck(logger.Object);
-        var certicate = await signatureCheck.DownloadCertificate("example.com");
+        var certicate = await signatureCheck.DownloadCertificate("www.google.com");
         Assert.NotNull(certicate);
         Assert.That(certicate?.NotAfter, Is.GreaterThan(DateTime.Now));
     }

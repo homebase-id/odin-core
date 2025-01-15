@@ -104,7 +104,7 @@ public class VersionUpgradeService(
         catch (Exception ex)
         {
             await tenantConfigService.SetVersionFailureInfoAsync(currentVersion + 1);
-            logger.LogError(ex, $"Upgrading from {currentVersion} failed.  Release Info: {ReleaseVersionInfo.BuildVersion}");
+            logger.LogError(ex, $"Upgrading from {currentVersion} failed.  Release Info: {Version.VersionText}");
         }
         finally
         {
