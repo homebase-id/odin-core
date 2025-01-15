@@ -56,7 +56,9 @@ public class DriveQuery(
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
+            localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
+            localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
         return (cursor.uniqueTime, results, moreRows);
     }
@@ -92,7 +94,9 @@ public class DriveQuery(
                 uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
                 tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
                 tagsAllOf: qp.TagsMatchAll?.ToList(),
-                archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
+                archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
+                localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
+                localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
             return (cursor, results, moreRows);
         }

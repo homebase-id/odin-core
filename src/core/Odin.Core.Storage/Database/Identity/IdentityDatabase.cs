@@ -62,8 +62,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     private Lazy<TableConnections> _connections;
     public TableConnections Connections => LazyResolve(ref _connections);
     private Lazy<TableDriveAclIndex> _driveAclIndex;
-    public TableDriveLocalTagIndex DriveLocalTagIndex => LazyResolve(ref _driveLocalTagIndex);
-    private Lazy<TableDriveLocalTagIndex> _driveLocalTagIndex;
+
     public TableDriveAclIndex DriveAclIndex => LazyResolve(ref _driveAclIndex);
     private Lazy<TableDriveMainIndex> _driveMainIndex;
     public TableDriveMainIndex DriveMainIndex => LazyResolve(ref _driveMainIndex);

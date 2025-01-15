@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -61,7 +62,7 @@ public class LocalAppMetadataTests
     {
         yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
-    
+
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
@@ -350,17 +351,19 @@ public class LocalAppMetadataTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1 = Guid.NewGuid();
         var tag2 = Guid.NewGuid();
+        var tag3 = Guid.NewGuid();
         var request = new UpdateLocalMetadataTagsRequest()
         {
             File = targetFile,
             LocalVersionTag = Guid.Empty,
-            Tags = [tag1, tag2]
+            Tags = [tag1, tag2, tag3]
         };
 
         var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
@@ -374,7 +377,8 @@ public class LocalAppMetadataTests
         {
             QueryParams = new FileQueryParams()
             {
-                LocalTagsMatchAtLeastOne = [tag1, tag2]
+                TargetDrive = targetDrive,
+                LocalTagsMatchAtLeastOne = [tag3]
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest
             {
@@ -411,17 +415,20 @@ public class LocalAppMetadataTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1 = Guid.NewGuid();
         var tag2 = Guid.NewGuid();
+        var tag3 = Guid.NewGuid();
+
         var request = new UpdateLocalMetadataTagsRequest()
         {
             File = targetFile,
             LocalVersionTag = Guid.Empty,
-            Tags = [tag1, tag2]
+            Tags = [tag1, tag2, tag3]
         };
 
         var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
@@ -435,6 +442,7 @@ public class LocalAppMetadataTests
         {
             QueryParams = new FileQueryParams()
             {
+                TargetDrive = targetDrive,
                 LocalTagsMatchAll = [tag1, tag2]
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest

@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
     {
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
         private static readonly string selectOutputFields;
-
+        public TableDriveLocalTagIndex _driveLocalTagIndex = driveLocalTagIndex;
         static MainIndexMeta()
         {
             // Initialize selectOutputFields statically
