@@ -116,9 +116,22 @@ public class LinkMetaExtractorTests
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://meet.google.com/kwr-dzwe-kvi?ijlm=1736499961915&hs=187&adhoc=1");
-        Assert.IsNull(ogp);
+        Assert.IsNotNull(ogp);
     }
 #endif
+
+#if !CI_GITHUB
+    [Test]
+    public async Task TestInsta()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/stories/ashira_oure_bxg_club/3545246080284477588?utm_source=ig_story_item_share&igsh=c2FteGNlYmV1NXZs");
+        Assert.IsNotNull(ogp);
+    }
+#endif
+
 
 #if !CI_GITHUB
     [Test]
