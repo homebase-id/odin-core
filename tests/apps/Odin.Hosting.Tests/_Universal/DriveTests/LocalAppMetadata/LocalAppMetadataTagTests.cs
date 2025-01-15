@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -453,6 +454,137 @@ public class LocalAppMetadataTests
         };
 
         var queryBatchResponse = await callerDriveClient.QueryBatch(qbr);
+        Assert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
+
+        if (expectedStatusCode == HttpStatusCode.OK) //continue testing
+        {
+            var result = response.Content;
+            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+            var searchResults = queryBatchResponse.Content.SearchResults.ToList();
+            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
+            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
+        }
+    }
+
+
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    public async Task CanQueryModifiedByLocalTagsMatchAtLeastOne(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
+        var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        var targetFile = prepareFileResponse.Content.File;
+
+        var tag1 = Guid.NewGuid();
+        var tag2 = Guid.NewGuid();
+        var tag3 = Guid.NewGuid();
+        var request = new UpdateLocalMetadataTagsRequest()
+        {
+            File = targetFile,
+            LocalVersionTag = Guid.Empty,
+            Tags = [tag1, tag2, tag3]
+        };
+
+        var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        // Act - update the local app metadata
+
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var qmr = new QueryModifiedRequest()
+        {
+            QueryParams = new FileQueryParams()
+            {
+                TargetDrive = targetDrive,
+                LocalTagsMatchAtLeastOne = [tag3]
+            },
+            ResultOptions = new QueryModifiedResultOptions()
+            {
+                MaxRecords = 10,
+                MaxDate = UnixTimeUtc.Now().AddHours(1).milliseconds,
+                IncludeHeaderContent = true
+            }
+        };
+
+        var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
+        Assert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
+
+        if (expectedStatusCode == HttpStatusCode.OK) //continue testing
+        {
+            var result = response.Content;
+            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+            var searchResults = queryBatchResponse.Content.SearchResults.ToList();
+            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
+            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
+        }
+    }
+
+
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    public async Task CanQueryModifiedByLocalTagsMatchAll(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
+        var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        var targetFile = prepareFileResponse.Content.File;
+
+        var tag1 = Guid.NewGuid();
+        var tag2 = Guid.NewGuid();
+        var tag3 = Guid.NewGuid();
+
+        var request = new UpdateLocalMetadataTagsRequest()
+        {
+            File = targetFile,
+            LocalVersionTag = Guid.Empty,
+            Tags = [tag1, tag2, tag3]
+        };
+
+        var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
+        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        // Act - update the local app metadata
+
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var qmr = new QueryModifiedRequest()
+        {
+            QueryParams = new FileQueryParams()
+            {
+                TargetDrive = targetDrive,
+                LocalTagsMatchAtLeastOne = [tag3]
+            },
+            ResultOptions = new QueryModifiedResultOptions()
+            {
+                MaxRecords = 10,
+                MaxDate = UnixTimeUtc.Now().AddHours(1).milliseconds,
+                IncludeHeaderContent = true
+            }
+        };
+
+        var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
         Assert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
