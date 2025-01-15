@@ -458,7 +458,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"hdrEncryptedKeyHeader TEXT NOT NULL, "
                    +"hdrVersionTag BYTEA NOT NULL UNIQUE, "
                    +"hdrAppData TEXT NOT NULL, "
-                   +"hdrLocalVersionTag BYTEA  UNIQUE, "
+                   +"hdrLocalVersionTag BYTEA , "
                    +"hdrLocalAppData TEXT , "
                    +"hdrReactionSummary TEXT , "
                    +"hdrServerData TEXT NOT NULL, "
