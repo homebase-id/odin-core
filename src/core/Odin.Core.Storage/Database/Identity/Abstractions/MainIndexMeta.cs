@@ -21,10 +21,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         IdentityKey identityKey,
         TableDriveAclIndex driveAclIndex,
         TableDriveTagIndex driveTagIndex,
+        TableDriveLocalTagIndex driveLocalTagIndex,
         TableDriveMainIndex driveMainIndex)
     {
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
         private static readonly string selectOutputFields;
+        public TableDriveLocalTagIndex _driveLocalTagIndex = driveLocalTagIndex;
 
         static MainIndexMeta()
         {
@@ -112,12 +114,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
-            List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
+            List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf, List<Guid> localTagsAnyOf,
             List<Int32> archivalStatusAnyOf,
             List<string> senderidAnyOf,
             List<Guid> groupIdAnyOf,
             UnixTimeUtcRange userdateSpan,
             List<Guid> tagsAllOf,
+            List<Guid> localTagsAllOf,
             Int32? fileSystemType,
             Guid driveId)
         {
@@ -173,6 +176,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE drivetagindex.identityId=driveMainIndex.identityId AND tagId IN ({HexList(tagsAnyOf)}))");
             }
 
+            if (IsSet(localTagsAnyOf))
+            {
+                listWhere.Add($"driveMainIndex.fileId IN (SELECT DISTINCT fileId FROM driveLocalTagIndex WHERE driveLocalTagIndex.identityId=driveMainIndex.identityId AND localTagId IN ({HexList(localTagsAnyOf)}))");
+            }
+
             if (IsSet(archivalStatusAnyOf))
             {
                 listWhere.Add($"archivalStatus IN ({IntList(archivalStatusAnyOf)})");
@@ -198,6 +206,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 // TODO: This will return 0 matches. Figure out the right query.
                 listWhere.Add($"{AndIntersectHexList(tagsAllOf)}");
+            }
+
+            if (IsSet(localTagsAllOf))
+            {
+                // TODO: This will return 0 matches. Figure out the right query.
+                listWhere.Add($"{AndIntersectHexList(localTagsAllOf)}");
             }
 
             return leftJoin;
@@ -245,7 +259,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
-            List<Guid> tagsAllOf = null)
+            List<Guid> tagsAllOf = null,
+            List<Guid> localTagsAnyOf = null,
+            List<Guid> localTagsAllOf = null)
         {
             if (null == fileSystemType)
             {
@@ -324,7 +340,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
-                uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
+                uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
                 fileSystemType, driveId);
             if (IsSet(fileStateAnyOf))
             {
@@ -423,7 +439,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
-            List<Guid> tagsAllOf = null)
+            List<Guid> tagsAllOf = null,
+            List<Guid> localTagsAnyOf = null,
+            List<Guid> localTagsAllOf = null)
         {
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
@@ -565,7 +583,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
-            List<Guid> tagsAllOf = null)
+            List<Guid> tagsAllOf = null,
+            List<Guid> localTagsAnyOf = null,
+            List<Guid> localTagsAllOf = null)
         {
             if (null == fileSystemType)
             {
@@ -592,7 +612,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
-                uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
+                uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
                 fileSystemType, driveId);
 
             // string selectOutputFields =  "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
