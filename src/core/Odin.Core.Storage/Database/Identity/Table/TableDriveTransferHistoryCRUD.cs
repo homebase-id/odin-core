@@ -57,6 +57,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _remoteIdentityId = value;
                }
         }
+        private Int32 _latestTransferStatus;
+        public Int32 latestTransferStatus
+        {
+           get {
+                   return _latestTransferStatus;
+               }
+           set {
+                  _latestTransferStatus = value;
+               }
+        }
         private Int32 _isInOutbox;
         public Int32 isInOutbox
         {
@@ -119,6 +129,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
                    +"remoteIdentityId TEXT NOT NULL, "
+                   +"latestTransferStatus BIGINT NOT NULL, "
                    +"isInOutbox BIGINT NOT NULL, "
                    +"latestSuccessfullyDeliveredVersionTag BYTEA , "
                    +"isReadByRecipient BIGINT NOT NULL "
@@ -139,8 +150,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveTransferHistory (identityId,driveId,fileId,remoteIdentityId,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)";
+                insertCommand.CommandText = "INSERT INTO driveTransferHistory (identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -154,21 +165,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.ParameterName = "@remoteIdentityId";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.ParameterName = "@isInOutbox";
+                insertParam5.ParameterName = "@latestTransferStatus";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
+                insertParam6.ParameterName = "@isInOutbox";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.ParameterName = "@isReadByRecipient";
+                insertParam7.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
                 insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@isReadByRecipient";
+                insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.remoteIdentityId.DomainName;
-                insertParam5.Value = item.isInOutbox;
-                insertParam6.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam7.Value = item.isReadByRecipient;
+                insertParam5.Value = item.latestTransferStatus;
+                insertParam6.Value = item.isInOutbox;
+                insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam8.Value = item.isReadByRecipient;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -186,8 +201,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveTransferHistory (identityId,driveId,fileId,remoteIdentityId,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient) " +
+                insertCommand.CommandText = "INSERT INTO driveTransferHistory (identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -202,21 +217,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.ParameterName = "@remoteIdentityId";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.ParameterName = "@isInOutbox";
+                insertParam5.ParameterName = "@latestTransferStatus";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
+                insertParam6.ParameterName = "@isInOutbox";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.ParameterName = "@isReadByRecipient";
+                insertParam7.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
                 insertCommand.Parameters.Add(insertParam7);
+                var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.ParameterName = "@isReadByRecipient";
+                insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.remoteIdentityId.DomainName;
-                insertParam5.Value = item.isInOutbox;
-                insertParam6.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam7.Value = item.isReadByRecipient;
+                insertParam5.Value = item.latestTransferStatus;
+                insertParam6.Value = item.isInOutbox;
+                insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam8.Value = item.isReadByRecipient;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -234,10 +253,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO driveTransferHistory (identityId,driveId,fileId,remoteIdentityId,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)"+
+                upsertCommand.CommandText = "INSERT INTO driveTransferHistory (identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)"+
                                              "ON CONFLICT (identityId,driveId,fileId,remoteIdentityId) DO UPDATE "+
-                                             "SET isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
+                                             "SET latestTransferStatus = @latestTransferStatus,isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
                                              ";";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -252,21 +271,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam4.ParameterName = "@remoteIdentityId";
                 upsertCommand.Parameters.Add(upsertParam4);
                 var upsertParam5 = upsertCommand.CreateParameter();
-                upsertParam5.ParameterName = "@isInOutbox";
+                upsertParam5.ParameterName = "@latestTransferStatus";
                 upsertCommand.Parameters.Add(upsertParam5);
                 var upsertParam6 = upsertCommand.CreateParameter();
-                upsertParam6.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
+                upsertParam6.ParameterName = "@isInOutbox";
                 upsertCommand.Parameters.Add(upsertParam6);
                 var upsertParam7 = upsertCommand.CreateParameter();
-                upsertParam7.ParameterName = "@isReadByRecipient";
+                upsertParam7.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
                 upsertCommand.Parameters.Add(upsertParam7);
+                var upsertParam8 = upsertCommand.CreateParameter();
+                upsertParam8.ParameterName = "@isReadByRecipient";
+                upsertCommand.Parameters.Add(upsertParam8);
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.driveId.ToByteArray();
                 upsertParam3.Value = item.fileId.ToByteArray();
                 upsertParam4.Value = item.remoteIdentityId.DomainName;
-                upsertParam5.Value = item.isInOutbox;
-                upsertParam6.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                upsertParam7.Value = item.isReadByRecipient;
+                upsertParam5.Value = item.latestTransferStatus;
+                upsertParam6.Value = item.isInOutbox;
+                upsertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam8.Value = item.isReadByRecipient;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
                 return count;
             }
@@ -281,7 +304,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE driveTransferHistory " +
-                                             "SET isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
+                                             "SET latestTransferStatus = @latestTransferStatus,isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
                                              "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId)";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
@@ -296,21 +319,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam4.ParameterName = "@remoteIdentityId";
                 updateCommand.Parameters.Add(updateParam4);
                 var updateParam5 = updateCommand.CreateParameter();
-                updateParam5.ParameterName = "@isInOutbox";
+                updateParam5.ParameterName = "@latestTransferStatus";
                 updateCommand.Parameters.Add(updateParam5);
                 var updateParam6 = updateCommand.CreateParameter();
-                updateParam6.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
+                updateParam6.ParameterName = "@isInOutbox";
                 updateCommand.Parameters.Add(updateParam6);
                 var updateParam7 = updateCommand.CreateParameter();
-                updateParam7.ParameterName = "@isReadByRecipient";
+                updateParam7.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
                 updateCommand.Parameters.Add(updateParam7);
+                var updateParam8 = updateCommand.CreateParameter();
+                updateParam8.ParameterName = "@isReadByRecipient";
+                updateCommand.Parameters.Add(updateParam8);
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.driveId.ToByteArray();
                 updateParam3.Value = item.fileId.ToByteArray();
                 updateParam4.Value = item.remoteIdentityId.DomainName;
-                updateParam5.Value = item.isInOutbox;
-                updateParam6.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-                updateParam7.Value = item.isReadByRecipient;
+                updateParam5.Value = item.latestTransferStatus;
+                updateParam6.Value = item.isInOutbox;
+                updateParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam8.Value = item.isReadByRecipient;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -341,6 +368,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("driveId");
             sl.Add("fileId");
             sl.Add("remoteIdentityId");
+            sl.Add("latestTransferStatus");
             sl.Add("isInOutbox");
             sl.Add("latestSuccessfullyDeliveredVersionTag");
             sl.Add("isReadByRecipient");
@@ -366,7 +394,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT identityId,driveId,fileId,remoteIdentityId,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient
+        // SELECT identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient
         protected DriveTransferHistoryRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTransferHistoryRecord>();
@@ -380,9 +408,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.fileId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.remoteIdentityId = rdr.IsDBNull(3) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[3]);
-            item.isInOutbox = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(5) ? null : new Guid((byte[])rdr[5]);
-            item.isReadByRecipient = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.latestTransferStatus = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.isInOutbox = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(6) ? null : new Guid((byte[])rdr[6]);
+            item.isReadByRecipient = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
             return item;
        }
 
@@ -453,9 +482,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.fileId = fileId;
             item.remoteIdentityId = remoteIdentityId;
-            item.isInOutbox = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(1) ? null : new Guid((byte[])rdr[1]);
-            item.isReadByRecipient = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.latestTransferStatus = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
+            item.isInOutbox = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(2) ? null : new Guid((byte[])rdr[2]);
+            item.isReadByRecipient = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             return item;
        }
 
@@ -464,7 +494,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
+                get0Command.CommandText = "SELECT latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
@@ -510,9 +540,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.fileId = fileId;
             item.remoteIdentityId = rdr.IsDBNull(0) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[0]);
-            item.isInOutbox = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(2) ? null : new Guid((byte[])rdr[2]);
-            item.isReadByRecipient = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.latestTransferStatus = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.isInOutbox = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]);
+            item.isReadByRecipient = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             return item;
        }
 
@@ -521,7 +552,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT remoteIdentityId,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
+                get1Command.CommandText = "SELECT remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
