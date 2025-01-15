@@ -30,6 +30,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                   _previousHash = value;
                }
         }
+        internal byte[] previousHashNoLengthCheck
+        {
+           get {
+                   return _previousHash;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                  _previousHash = value;
+               }
+        }
         private string _identity;
         public string identity
         {
@@ -40,6 +51,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 3) throw new Exception("Too short");
                     if (value?.Length > 256) throw new Exception("Too long");
+                  _identity = value;
+               }
+        }
+        internal string identityNoLengthCheck
+        {
+           get {
+                   return _identity;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 3) throw new Exception("Too short");
                   _identity = value;
                }
         }
@@ -66,6 +88,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                   _signedPreviousHash = value;
                }
         }
+        internal byte[] signedPreviousHashNoLengthCheck
+        {
+           get {
+                   return _signedPreviousHash;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                  _signedPreviousHash = value;
+               }
+        }
         private string _algorithm;
         public string algorithm
         {
@@ -76,6 +109,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 1) throw new Exception("Too short");
                     if (value?.Length > 40) throw new Exception("Too long");
+                  _algorithm = value;
+               }
+        }
+        internal string algorithmNoLengthCheck
+        {
+           get {
+                   return _algorithm;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 1) throw new Exception("Too short");
                   _algorithm = value;
                }
         }
@@ -92,6 +136,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                   _publicKeyJwkBase64Url = value;
                }
         }
+        internal string publicKeyJwkBase64UrlNoLengthCheck
+        {
+           get {
+                   return _publicKeyJwkBase64Url;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                  _publicKeyJwkBase64Url = value;
+               }
+        }
         private byte[] _notarySignature;
         public byte[] notarySignature
         {
@@ -105,6 +160,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                   _notarySignature = value;
                }
         }
+        internal byte[] notarySignatureNoLengthCheck
+        {
+           get {
+                   return _notarySignature;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                  _notarySignature = value;
+               }
+        }
         private byte[] _recordHash;
         public byte[] recordHash
         {
@@ -115,6 +181,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 16) throw new Exception("Too short");
                     if (value?.Length > 64) throw new Exception("Too long");
+                  _recordHash = value;
+               }
+        }
+        internal byte[] recordHashNoLengthCheck
+        {
+           get {
+                   return _recordHash;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
                   _recordHash = value;
                }
         }
@@ -360,7 +437,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("previousHash");
@@ -384,34 +461,26 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new NotaryChainRecord();
-            item.previousHash = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.previousHashNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.previousHash?.Length > 64)
                 throw new Exception("Too much data in previousHash...");
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-            item.identity = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.timestamp = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
-            item.signedPreviousHash = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            item.identityNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.timestamp = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
+            item.signedPreviousHashNoLengthCheck = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.signedPreviousHash?.Length > 200)
                 throw new Exception("Too much data in signedPreviousHash...");
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-            item.algorithm = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.publicKeyJwkBase64Url = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.notarySignature = rdr.IsDBNull(6) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
+            item.algorithmNoLengthCheck = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.publicKeyJwkBase64UrlNoLengthCheck = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.notarySignatureNoLengthCheck = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
             if (item.notarySignature?.Length > 200)
                 throw new Exception("Too much data in notarySignature...");
             if (item.notarySignature?.Length < 16)
                 throw new Exception("Too little data in notarySignature...");
-            item.recordHash = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
+            item.recordHashNoLengthCheck = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
             if (item.recordHash?.Length > 64)
                 throw new Exception("Too much data in recordHash...");
             if (item.recordHash?.Length < 16)
@@ -453,35 +522,21 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             var guid = new byte[16];
             var item = new NotaryChainRecord();
             item.notarySignature = notarySignature;
-
-            item.previousHash = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.previousHashNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.previousHash?.Length > 64)
                 throw new Exception("Too much data in previousHash...");
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-
-            item.identity = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-
-            item.timestamp = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
-
-            item.signedPreviousHash = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            item.identityNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.timestamp = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
+            item.signedPreviousHashNoLengthCheck = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.signedPreviousHash?.Length > 200)
                 throw new Exception("Too much data in signedPreviousHash...");
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-
-            item.algorithm = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-
-            item.publicKeyJwkBase64Url = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-
-            item.recordHash = rdr.IsDBNull(6) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
+            item.algorithmNoLengthCheck = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.publicKeyJwkBase64UrlNoLengthCheck = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.recordHashNoLengthCheck = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
             if (item.recordHash?.Length > 64)
                 throw new Exception("Too much data in recordHash...");
             if (item.recordHash?.Length < 16)

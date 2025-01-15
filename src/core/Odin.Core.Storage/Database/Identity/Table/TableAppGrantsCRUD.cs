@@ -69,6 +69,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _data = value;
                }
         }
+        internal byte[] dataNoLengthCheck
+        {
+           get {
+                   return _data;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _data = value;
+               }
+        }
     } // End of class AppGrantsRecord
 
     public abstract class TableAppGrantsCRUD
@@ -288,7 +298,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -309,16 +319,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AppGrantsRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.odinHashId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.appId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.circleId = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.data = rdr.IsDBNull(4) ? 
-                null : (byte[])(rdr[4]);
+            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.odinHashId = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.appId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.circleId = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.dataNoLengthCheck = rdr.IsDBNull(4) ? null : (byte[])(rdr[4]);
             if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
@@ -368,15 +373,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new AppGrantsRecord();
             item.identityId = identityId;
             item.odinHashId = odinHashId;
-
-            item.appId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.circleId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-
-            item.data = rdr.IsDBNull(2) ? 
-                null : (byte[])(rdr[2]);
+            item.appId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.circleId = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.dataNoLengthCheck = rdr.IsDBNull(2) ? null : (byte[])(rdr[2]);
             if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
@@ -434,9 +433,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.odinHashId = odinHashId;
             item.appId = appId;
             item.circleId = circleId;
-
-            item.data = rdr.IsDBNull(0) ? 
-                null : (byte[])(rdr[0]);
+            item.dataNoLengthCheck = rdr.IsDBNull(0) ? null : (byte[])(rdr[0]);
             if (item.data?.Length > 65535)
                 throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)

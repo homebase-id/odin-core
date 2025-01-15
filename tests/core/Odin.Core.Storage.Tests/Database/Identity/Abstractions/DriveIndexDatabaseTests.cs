@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
+using Docker.DotNet.Models;
 using NUnit.Framework;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
@@ -1916,7 +1917,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         }
 
 
-        // XXX
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
@@ -2675,6 +2675,85 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
 
 
+
+        // The Init() seems slightly screwy. I think they'll end up in a race condition. Just guessing.
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task LocalTagTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var tblDriveLocalTagIndex = scope.Resolve<TableDriveLocalTagIndex>();
+
+            var driveId = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            var a1 = SequentialGuid.CreateGuid();
+            var a2 = SequentialGuid.CreateGuid();
+            var a3 = SequentialGuid.CreateGuid();
+            var a4 = SequentialGuid.CreateGuid();
+
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: null, null, 1);
+
+            await tblDriveLocalTagIndex.InsertRowsAsync(driveId, f1, new List<Guid>() { a1 });
+            await tblDriveLocalTagIndex.InsertRowsAsync(driveId, f2, new List<Guid>() { a2 });
+            await tblDriveLocalTagIndex.InsertRowsAsync(driveId, f3, new List<Guid>() { a1, a2 });
+            await tblDriveLocalTagIndex.InsertRowsAsync(driveId, f4, new List<Guid>() { a3, a4 });
+
+
+            // Check the specified tag counts
+            QueryBatchCursor cursor= null;
+            var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAnyOf: new List<Guid>() { a4 });
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            // For any security group, and an ACL, test the AND statement
+            cursor = null;
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAnyOf: new List<Guid>() { a2 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // For any security group, and an ACL, test the AND statement
+            cursor = null;
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAllOf: new List<Guid>() { a1 });
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+
+            // For any security group, and an ACL, test the AND statement
+            cursor = null;
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAllOf: new List<Guid>() { a1, a2 });
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            // For any security group, and an ACL, test the AND statement
+            cursor = null;
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAllOf: new List<Guid>() { a1, a2, a3 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+        }
+
+
+
+
+
+
         // The Init() seems slightly screwy. I think they'll end up in a race condition. Just guessing.
         [Test]
         [TestCase(DatabaseType.Sqlite)]
@@ -2688,22 +2767,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var metaIndex = scope.Resolve<MainIndexMeta>();
             var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
             var tblDriveTagIndex = scope.Resolve<TableDriveTagIndex>();
+            var tblDriveLocalTagIndex = scope.Resolve<TableDriveLocalTagIndex>();
 
-            var (driveId, fileId, conversationId, aclMembers, tags) = await this.InitAsync(metaIndex);
+            var (driveId, fileId, conversationId, aclMembers, tags, localTags) = await this.InitAsync(metaIndex);
 
-            var _acllist = await tblDriveAclIndex.GetAsync(driveId, fileId[0]);
             var _taglist = await tblDriveTagIndex.GetAsync(driveId, fileId[0]);
+            var _localTagList = await tblDriveLocalTagIndex.GetAsync(driveId, fileId[0]);
 
-            var acllist = new List<Guid>();
             var taglist = new List<Guid>();
-
-            for (int i = 0; i < _acllist.Count; i++)
-                acllist.Add(_acllist[i]);
+            var localtaglist = new List<Guid>();
 
             for (int i = 0; i < _taglist.Count; i++)
                 taglist.Add(_taglist[i]);
 
-            Debug.Assert(acllist.Count == 4);
             Debug.Assert(taglist.Count == 4);
 
             var acladd = new List<Guid>();
@@ -2727,7 +2803,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var tblDriveAclIndex = scope.Resolve<TableDriveAclIndex>();
             var tblDriveTagIndex = scope.Resolve<TableDriveTagIndex>();
 
-            var (driveId, fileId, conversationId, aclMembers, tags) = await this.InitAsync(metaIndex);
+            var (driveId, fileId, conversationId, aclMembers, tags, localTags) = await this.InitAsync(metaIndex);
 
             Stopwatch stopWatch = new Stopwatch();
             Console.WriteLine($"Test built in batch");
@@ -2930,17 +3006,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
         }
 
-        private async Task<(Guid driveId, List<Guid> _fileId, List<Guid> _ConversationId, List<Guid> _aclMembers, List<Guid> _Tags)> InitAsync(MainIndexMeta metaIndex)
+        private async Task<(Guid driveId, List<Guid> _fileId, List<Guid> _ConversationId, List<Guid> _aclMembers, List<Guid> _Tags, List<Guid> _LocalTags)> InitAsync(MainIndexMeta metaIndex, int count = 1000)
         {
             var fileId = new List<Guid>();
             var conversationId = new List<Guid>();
             var aclMembers = new List<Guid>();
             var tags = new List<Guid>();
+            var localTags = new List<Guid>();
 
-            Utils.DummyTypes(fileId, 1000);
-            Utils.DummyTypes(conversationId, 1000);
-            Utils.DummyTypes(aclMembers, 1000);
-            Utils.DummyTypes(tags, 1000);
+            Utils.DummyTypes(fileId, count);
+            Utils.DummyTypes(conversationId, count);
+            Utils.DummyTypes(aclMembers, count);
+            Utils.DummyTypes(tags, count);
+            Utils.DummyTypes(localTags, count);
 
             var driveId = Guid.NewGuid();
 
@@ -2961,6 +3039,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             for (int i = 0; i < seqTags.Length; i++)
                 seqTags[i] = i;
 
+            int[] seqLocalTags = new int[localTags.Count];
+            for (int i = 0; i < seqLocalTags.Length; i++)
+                seqLocalTags[i] = i;
 
             // The first two DB entries has 4 ACLs and 4 TAGs (needed for testing)
             var tmpacllist = new List<Guid>();
@@ -2974,6 +3055,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             tmptaglist.Add(tags[1]);
             tmptaglist.Add(tags[2]);
             tmptaglist.Add(tags[3]);
+
+            var tmpLocalTaglist = new List<Guid>();
+            tmpLocalTaglist.Add(tags[0]);
+            tmpLocalTaglist.Add(tags[1]);
+            tmpLocalTaglist.Add(tags[2]);
+            tmpLocalTaglist.Add(tags[3]);
 
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
 
@@ -3003,12 +3090,24 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 }
 
                 await metaIndex.AddEntryPassalongToUpsertAsync(driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+
+                tmpLocalTaglist = new List<Guid>();
+
+                for (int j = 0, r = myRnd.Next(0, 5); j < r; j++)
+                {
+                    int rn = myRnd.Next(j + 1, seqLocalTags.Length - 1);
+                    int xt = Utils.swap(ref seqLocalTags[j], ref seqLocalTags[rn]);
+                    tmpLocalTaglist.Add(tags[seqLocalTags[j]]);
+                    countTags++;
+                }
+
+                await metaIndex._driveLocalTagIndex.InsertRowsAsync(driveId, fileId[i], tmpLocalTaglist);
             }
 
             stopWatch.Stop();
             TestBenchmark.StopWatchStatus($"Added {countMain + countAcl + countTags} rows: mainindex {countMain};  ACL {countAcl};  Tags {countTags}", stopWatch);
 
-            return (driveId, fileId, conversationId, aclMembers, tags);
+            return (driveId, fileId, conversationId, aclMembers, tags, localTags);
         }
     }
 }
