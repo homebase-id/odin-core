@@ -153,6 +153,8 @@ public static class CommandLine
         //   Note: arg[1] is path to registrations root (i.e. /identity-host/data/tenants)
         //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --localapptags /identity-host/data/tenants  
         //
+        //    launchSettings.json :"commandLineArgs": "--localapptags /Users/taud/tmp/dotyou/tenants/"
+        //
         
         if (args.Length == 2 && args[0] == "--localapptags")
         {

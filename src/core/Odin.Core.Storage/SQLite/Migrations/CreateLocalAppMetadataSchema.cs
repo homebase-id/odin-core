@@ -56,52 +56,27 @@ public static class CreateLocalAppMetadataSchema
         {
             await using var cmd = cn.CreateCommand();
             cmd.CommandText = "CREATE TABLE IF NOT EXISTS driveLocalTagIndex("
-                              +"identityId BYTEA NOT NULL, "
-                              +"driveId BYTEA NOT NULL, "
-                              +"fileId BYTEA NOT NULL, "
-                              +"tagId BYTEA NOT NULL "
-                              +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
-                              +");"
-                              +"CREATE INDEX IF NOT EXISTS Idx0TableDriveLocalTagIndexCRUD ON driveLocalTagIndex(identityId,driveId,fileId);";
-            
+                              + "identityId BYTEA NOT NULL, "
+                              + "driveId BYTEA NOT NULL, "
+                              + "fileId BYTEA NOT NULL, "
+                              + "tagId BYTEA NOT NULL "
+                              + ", PRIMARY KEY (identityId,driveId,fileId,tagId)"
+                              + ");"
+                              + "CREATE INDEX IF NOT EXISTS Idx0TableDriveLocalTagIndexCRUD ON driveLocalTagIndex(identityId,driveId,fileId);";
+
             await cmd.ExecuteNonQueryAsync();
         }
 
         // Alter table
         {
             await using var cmd1 = cn.CreateCommand();
-            cmd1.CommandText = "ALTER TABLE driveMainIndex ADD COLUMN hdrLocalVersionTag BYTEA UNIQUE;";
-            await cmd1.ExecuteNonQueryAsync();
             
+            cmd1.CommandText = "ALTER TABLE driveMainIndex ADD COLUMN hdrLocalVersionTag BYTEA;";
+            await cmd1.ExecuteNonQueryAsync();
+
             await using var cmd2 = cn.CreateCommand();
             cmd2.CommandText = "ALTER TABLE driveMainIndex ADD COLUMN hdrLocalAppData TEXT;";
             await cmd2.ExecuteNonQueryAsync();
-        }
-
-        await using var tx = await cn.BeginTransactionAsync();
-
-        // Insert data
-        {
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "INSERT INTO test (name, age) VALUES ('Alice', 30);";
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        await tx.CommitAsync();
-
-        // Query data
-        {
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM test;";
-            var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync()) // Ensure you call ReadAsync before accessing data
-            {
-                var name = reader["name"].ToString();
-            }
-            else
-            {
-                // ...
-            }
         }
     }
 }

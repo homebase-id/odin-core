@@ -69,10 +69,6 @@
 //
 //         // Alter table
 //         {
-//             await using var cmd1 = cn.CreateCommand();
-//             cmd1.CommandText = "ALTER TABLE driveMainIndex ADD COLUMN hdrLocalVersionTag BYTEA UNIQUE;";
-//             await cmd1.ExecuteNonQueryAsync();
-//             
 //             await using var cmd2 = cn.CreateCommand();
 //             cmd2.CommandText = "ALTER TABLE driveMainIndex ADD COLUMN hdrLocalAppData TEXT;";
 //             await cmd2.ExecuteNonQueryAsync();
