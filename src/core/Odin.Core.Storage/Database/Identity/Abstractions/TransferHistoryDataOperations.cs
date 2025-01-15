@@ -82,5 +82,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             //TODO: do we need to clear the main index field in the table?
             return await driveTransferHistory.DeleteAllRowsAsync(driveId, fileId);
         }
+
+
+        private async Task CreateSummary()
+        {
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var tx = await cn.BeginStackedTransactionAsync();
+            await using var upsertCommand = cn.CreateCommand();
+        }
     }
 }

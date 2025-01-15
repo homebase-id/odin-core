@@ -92,7 +92,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     public TableKeyValueCache KeyValueCache => LazyResolve(ref _keyValueCache);
 
     private Lazy<TableDriveTransferHistory> _tableDriveTransferHistory;
-    public TableDriveTransferHistory TableDriveTransferHistory => GetTable(ref _tableDriveTransferHistory);
+    public TableDriveTransferHistory TableDriveTransferHistory => LazyResolve(ref _tableDriveTransferHistory);
 
     //
     // Abstraction convenience properties (resolved, not injected)
@@ -101,7 +101,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
 
     private Lazy<TransferHistoryDataOperations> _transferHistoryDataOperations;
-    public TransferHistoryDataOperations TransferHistoryDataOperations => GetTable(ref _transferHistoryDataOperations);
+    public TransferHistoryDataOperations TransferHistoryDataOperations => LazyResolve(ref _transferHistoryDataOperations);
 
     //
     // Connection
