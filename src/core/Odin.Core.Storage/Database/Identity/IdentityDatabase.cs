@@ -25,6 +25,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableDriveMainIndex),
         typeof(TableDriveReactions),
         typeof(TableDriveTagIndex),
+        typeof(TableDriveLocalTagIndex),
         typeof(TableFollowsMe),
         typeof(TableImFollowing),
         typeof(TableInbox),
@@ -56,8 +57,13 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     public TableDriveMainIndex DriveMainIndex => GetTable(ref _driveMainIndex);
     private Lazy<TableDriveReactions> _driveReactions;
     public TableDriveReactions DriveReactions => GetTable(ref _driveReactions);
+
     private Lazy<TableDriveTagIndex> _driveTagIndex;
     public TableDriveTagIndex DriveTagIndex => GetTable(ref _driveTagIndex);
+
+    private Lazy<TableDriveLocalTagIndex> _driveLocalTagIndex;
+    public TableDriveLocalTagIndex DriveLocalTagIndex => GetTable(ref _driveLocalTagIndex);
+
     private Lazy<TableFollowsMe> _followsMe;
     public TableFollowsMe FollowsMe => GetTable(ref _followsMe);
     private Lazy<TableImFollowing> _imFollowing;

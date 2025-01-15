@@ -178,7 +178,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (IsSet(localTagsAnyOf))
             {
-                listWhere.Add($"driveMainIndex.fileId IN (SELECT DISTINCT fileId FROM driveLocalTagIndex WHERE driveLocalTagIndex.identityId=driveMainIndex.identityId AND localTagId IN ({HexList(localTagsAnyOf)}))");
+                listWhere.Add($"driveMainIndex.fileId IN (SELECT DISTINCT fileId FROM driveLocalTagIndex WHERE driveLocalTagIndex.identityId=driveMainIndex.identityId AND TagId IN ({HexList(localTagsAnyOf)}))");
             }
 
             if (IsSet(archivalStatusAnyOf))
@@ -205,13 +205,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (IsSet(tagsAllOf))
             {
                 // TODO: This will return 0 matches. Figure out the right query.
-                listWhere.Add($"{AndIntersectHexList(tagsAllOf)}");
+                listWhere.Add($"{AndIntersectHexList(tagsAllOf, "driveTagIndex")}");
             }
 
             if (IsSet(localTagsAllOf))
             {
                 // TODO: This will return 0 matches. Figure out the right query.
-                listWhere.Add($"{AndIntersectHexList(localTagsAllOf)}");
+                listWhere.Add($"{AndIntersectHexList(localTagsAllOf, "driveLocalTagIndex")}");
             }
 
             return leftJoin;
@@ -463,7 +463,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     userdateSpan,
                     aclAnyOf,
                     tagsAnyOf,
-                    tagsAllOf);
+                    tagsAllOf,
+                    localTagsAnyOf,
+                    localTagsAllOf);
 
             //
             // OldToNew:
@@ -517,7 +519,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         userdateSpan,
                         aclAnyOf,
                         tagsAnyOf,
-                        tagsAllOf);
+                        tagsAllOf,
+                        localTagsAnyOf,
+                        localTagsAllOf);
 
                     // There was more data
                     if (r2.Count > 0)
@@ -547,7 +551,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         uniqueIdAnyOf,
                         archivalStatusAnyOf,
                         userdateSpan,
-                        aclAnyOf, tagsAnyOf, tagsAllOf);
+                        aclAnyOf,
+                        tagsAnyOf, tagsAllOf,
+                        localTagsAnyOf, localTagsAllOf);
                 }
                 else
                 {
@@ -729,7 +735,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return list?.Count > 0;
         }
 
-        private string AndIntersectHexList(List<Guid> list)
+        private string AndIntersectHexList(List<Guid> list, string tableName)
         {
             int len = list.Count;
             string s = "";
@@ -747,11 +753,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE fileid IN(SELECT DISTINCT fileid FROM tagindex WHERE tagid = x'189820F6018C218FA0F0F18E86139565') AND tagid = x'189820F6018B51349CC07ED86B02C8F6') and tagid = x'189820F6018C7F083F50CFCD32AF2B7F';
             //
 
-            s = $"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid = {list[0].BytesToSql(_databaseType)} ";
+            s = $"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM {tableName} WHERE tagid = {list[0].BytesToSql(_databaseType)} ";
 
             for (int i = 0 + 1; i < len; i++)
             {
-                s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid = {list[i].BytesToSql(_databaseType)} ";
+                s += $"INTERSECT SELECT DISTINCT fileid FROM {tableName} WHERE tagid = {list[i].BytesToSql(_databaseType)} ";
             }
 
             s += ") ";
