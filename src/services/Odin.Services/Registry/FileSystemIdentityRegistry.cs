@@ -22,6 +22,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
+using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
@@ -458,6 +459,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
                 var identityDatabase = scope.Resolve<IdentityDatabase>();
                 await identityDatabase.CreateDatabaseAsync(false);
+
+                var (requiresUpgrade, tenantVersion) = await scope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
+                if (requiresUpgrade)
+                {
+                    _logger.LogError("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
+                        registration.PrimaryDomainName,
+                        tenantVersion,
+                        Version.DataVersionNumber);
+                } 
 
                 _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
                 await CacheIdentity(registration);

@@ -1,4 +1,4 @@
-﻿# here's what to do when we upgrade to dotnet 8:
+# here's what to do when we upgrade to dotnet 8:
 # https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/
 # https://github.com/dotnet/dotnet-docker/issues/4388
 
@@ -36,7 +36,7 @@ COPY src/apps/Odin.Hosting/                      src/apps/Odin.Hosting/
 COPY src/apps/Odin.Cli/                          src/apps/Odin.Cli/
 
 # Update version text in Version.cs
-RUN sed -i "s/-\.-\.-/$VERSION_TEXT/g" src/apps/Odin.Hosting/Extensions/Version.cs
+RUN sed -i "s/-\.-\.-/$VERSION_TEXT/g" src/services/Odin.Services/Version.cs
 
 # Build release
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web

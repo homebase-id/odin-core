@@ -24,7 +24,7 @@ public sealed class VersionUpgradeScheduler(
         ClientAuthenticationToken token,
         IOdinContext odinContext)
     {
-        if (!odinContext.Caller.HasMasterKey || await RequiresUpgradeAsync() == false)
+        if (!odinContext.Caller.HasMasterKey)
         {
             return;
         }
@@ -33,7 +33,13 @@ public sealed class VersionUpgradeScheduler(
         {
             return;
         }
-
+        
+        var (upgradeRequired, _) = await RequiresUpgradeAsync();
+        if (!upgradeRequired)
+        {
+            return;
+        }
+        
         var job = _jobManager.NewJob<VersionUpgradeJob>();
 
         var (iv, encryptedToken) = AesCbc.Encrypt(token.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
@@ -56,20 +62,20 @@ public sealed class VersionUpgradeScheduler(
         });
     }
 
-    public async Task<bool> RequiresUpgradeAsync()
+    public async Task<(bool requiresUpgrade, int tenantVersion)> RequiresUpgradeAsync()
     {
         var currentVersion = (await configService.GetVersionInfoAsync()).DataVersionNumber;
         var failure = await configService.GetVersionFailureInfoAsync();
 
         bool upgradeRequired;
-        var versionTooLow = currentVersion < ReleaseVersionInfo.DataVersionNumber;
+        var versionTooLow = currentVersion < Version.DataVersionNumber;
         if (failure == null)
         {
             upgradeRequired = versionTooLow;
         }
         else
         {
-            upgradeRequired = versionTooLow && failure.BuildVersion != ReleaseVersionInfo.BuildVersion;
+            upgradeRequired = versionTooLow && failure.BuildVersion != Version.VersionText;
         }
 
         if (upgradeRequired)
@@ -78,11 +84,11 @@ public sealed class VersionUpgradeScheduler(
                             "Current Version: v{cv}, release version: v{rv} " +
                             "(previously failed build version: {failure})",
                 currentVersion,
-                ReleaseVersionInfo.DataVersionNumber,
+                Version.DataVersionNumber,
                 failure?.BuildVersion ?? "none");
         }
-        
-        return upgradeRequired;
+
+        return (upgradeRequired, currentVersion);
     }
 
     public static void SetRequiresUpgradeResponse(HttpContext context)
