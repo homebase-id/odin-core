@@ -17,7 +17,7 @@ namespace Odin.Hosting._dev;
 
 public class AutofacDiagnostics(IContainer root, ILogger logger)
 {
-    // The types below (interface and implementations) are verified to not have any (problematic) non-singleton dependencies
+    // The singleton registered types below are verified to not have any (problematic) non-singleton dependencies
     private readonly Dictionary<Type, string> _manualCheckSingletonWhitelist = new()
     {
         {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
@@ -41,6 +41,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Certificate.CertificateServiceFactory), "8a3e1c27"},
         {typeof(Odin.Core.Storage.Database.Identity.Abstractions.IdentityKey), "cfcb55a8"},
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
+        {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "80cf458d"},
         {typeof(Odin.Services.Registry.IIdentityRegistry), "5b004123"},
         {typeof(Odin.Services.Base.SharedOdinContextCache<FollowerAuthenticationService>), "822f02f2"},
