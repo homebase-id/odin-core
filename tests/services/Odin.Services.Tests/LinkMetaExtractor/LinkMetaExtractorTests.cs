@@ -133,6 +133,22 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.ImageUrl);
     }
 #endif
+    
+#if !CI_GITHUB
+    [Test]
+    public async Task TestFacebookUrl()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await linkMetaExtractor.ExtractAsync("https://www.facebook.com/share/p/14txkE59vN4/");
+        Assert.NotNull(ogp.Title);
+        Assert.NotNull(ogp.Description);
+        Assert.NotNull(ogp.ImageUrl);
+    }
+#endif
+    
+    
 
 
 #if !CI_GITHUB
