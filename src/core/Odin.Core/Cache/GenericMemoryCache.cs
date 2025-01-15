@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
+using Odin.Core.Exceptions;
 using Odin.Core.Threading;
 
 namespace Odin.Core.Cache;
@@ -115,6 +116,7 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
     public void Set(string key, object? value, MemoryCacheEntryOptions options)
     {
+        Check(options);
         _cache.Set(key, value ?? NullValue, options);
     }
 
@@ -129,6 +131,8 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
     public T? GetOrCreate<T>(string key, Func<T?> factory, MemoryCacheEntryOptions options)
     {
+        Check(options);
+
         if (TryGet<T?>(key, out var existingValue))
         {
             return existingValue;
@@ -160,6 +164,8 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
     public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, MemoryCacheEntryOptions options)
     {
+        Check(options);
+
         if (TryGet<T?>(key, out var existingValue))
         {
             return existingValue;
@@ -258,6 +264,20 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
         }
 
         return GenerateKey(prefix, strings);
+    }
+
+    //
+
+    private static void Check(MemoryCacheEntryOptions options)
+    {
+        var badOptions =
+            options.AbsoluteExpiration == null &&
+            options.AbsoluteExpirationRelativeToNow == null &&
+            options.SlidingExpiration == null;
+        if (badOptions)
+        {
+            throw new OdinSystemException("MemoryCacheEntryOptions: missing expiration");
+        }
     }
 }
 
