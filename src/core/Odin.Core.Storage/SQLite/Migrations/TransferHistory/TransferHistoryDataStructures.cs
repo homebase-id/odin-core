@@ -5,6 +5,11 @@ using Odin.Core.Time;
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
 
 
+internal class TransferHistorySummary
+{
+    public Dictionary<int, int> Items { get; init; } = new();
+}
+
 internal class RecipientTransferHistoryForMigration
 {
     public Dictionary<string, RecipientTransferHistoryItemForMigration> Recipients { get; set; } =
@@ -18,7 +23,7 @@ internal class RecipientTransferHistoryItemForMigration
     /// <summary>
     /// Indicates the latest known status of a transfer as of the LastUpdated timestmp.  If null
     /// </summary>
-    public LatestTransferStatus LatestTransferStatus { get; set; }
+    public LatestTransferStatusForMigration LatestTransferStatus { get; set; }
 
     /// <summary>
     /// Indicates if the item is still in the outbox and attempting to be sent
@@ -36,7 +41,7 @@ internal class RecipientTransferHistoryItemForMigration
     public bool IsReadByRecipient { get; set; }
 }
 
-public enum LatestTransferStatus
+public enum LatestTransferStatusForMigration
 {
     /// <summary>
     /// No value specified
