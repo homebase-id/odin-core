@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory.Sqlite;
 
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
@@ -109,9 +108,9 @@ public static class TransferHistoryMigration
             {
                 var driveId = new Guid((byte[])rdr[0]);
                 var fileId = new Guid((byte[])rdr[1]);
-                var transferHistory = OdinSystemSerializer.Deserialize<RecipientTransferHistory>((string)rdr[2]);
+                var transferHistory = OdinSystemSerializer.Deserialize<RecipientTransferHistoryForMigration>((string)rdr[2]);
 
-                //write record to new table
+                // Write record to new table
                 await InsertDriveTransferHistory(cn, tenantId, driveId, fileId, transferHistory);
                 
                 //TODO need to create the summary and update the driveMainIndex with the summary
@@ -122,9 +121,9 @@ public static class TransferHistoryMigration
     }
 
     private static async Task InsertDriveTransferHistory(DbConnection cn, Guid identityId, Guid driveId, Guid fileId,
-        RecipientTransferHistory transferHistory)
+        RecipientTransferHistoryForMigration transferHistoryForMigration)
     {
-        foreach (var recipient in transferHistory.Recipients)
+        foreach (var recipient in transferHistoryForMigration.Recipients)
         {
             var remoteIdentity = recipient.Key;
             var item = recipient.Value;

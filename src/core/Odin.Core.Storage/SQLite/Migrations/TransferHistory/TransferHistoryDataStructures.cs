@@ -5,13 +5,13 @@ using Odin.Core.Time;
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
 
 
-internal class RecipientTransferHistory
+internal class RecipientTransferHistoryForMigration
 {
-    public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; } =
+    public Dictionary<string, RecipientTransferHistoryItemForMigration> Recipients { get; set; } =
         new(StringComparer.InvariantCultureIgnoreCase);
 }
 
-internal class RecipientTransferHistoryItem
+internal class RecipientTransferHistoryItemForMigration
 {
     public UnixTimeUtc LastUpdated { get; set; }
 

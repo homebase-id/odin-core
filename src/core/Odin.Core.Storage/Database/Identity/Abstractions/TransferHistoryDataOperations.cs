@@ -88,7 +88,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
-            await using var upsertCommand = cn.CreateCommand();
+            await using var cmd = cn.CreateCommand();
+
+            cmd.CommandText = "";
+            
+            
+
         }
     }
 }
