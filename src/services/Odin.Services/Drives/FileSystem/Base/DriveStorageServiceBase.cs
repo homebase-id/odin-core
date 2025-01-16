@@ -1123,6 +1123,17 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata);
 
+            var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+            if (await ShouldRaiseDriveEventAsync(file))
+            {
+                await mediator.Publish(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = updatedHeader,
+                    OdinContext = odinContext,
+                });
+            }
+            
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
@@ -1165,6 +1176,17 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata);
 
+            var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+            if (await ShouldRaiseDriveEventAsync(file))
+            {
+                await mediator.Publish(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = updatedHeader,
+                    OdinContext = odinContext,
+                });
+            }
+            
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
