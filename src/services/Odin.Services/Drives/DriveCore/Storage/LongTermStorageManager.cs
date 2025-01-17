@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using AngleSharp.Dom;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -216,6 +217,23 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 throw;
             }
         }
+
+        public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)
+        {
+            var list = await _transferHistoryDataOperations.GetTransferHistoryAsync(driveId, fileId);
+            return list.Select(item =>
+                new RecipientTransferHistoryItem
+                {
+                    Recipient = item.remoteIdentityId,
+                    LastUpdated = default,
+                    LatestTransferStatus = (LatestTransferStatus)item.latestTransferStatus,
+                    IsInOutbox = item.isInOutbox == 1,
+                    LatestSuccessfullyDeliveredVersionTag = item.latestSuccessfullyDeliveredVersionTag,
+                    IsReadByRecipient = item.isReadByRecipient == 1
+                }
+            ).ToList();
+        }
+
 
         /// <summary>
         /// Checks if the header file exists on disk.  Does not check the validity of the header

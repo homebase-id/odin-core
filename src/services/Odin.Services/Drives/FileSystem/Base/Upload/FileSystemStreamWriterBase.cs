@@ -386,10 +386,14 @@ public abstract class FileSystemStreamWriterBase
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
 
-        var serverMetadata = new ServerMetadata()
+        var serverMetadata = new ServerMetadata
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
-            AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution
+            AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution,
+            TransferHistory = new RecipientTransferHistory()
+            {
+                OriginalRecipientCount = package.InstructionSet.TransitOptions?.Recipients?.Count ?? 0,
+            }
         };
 
         return (keyHeader, metadata, serverMetadata);

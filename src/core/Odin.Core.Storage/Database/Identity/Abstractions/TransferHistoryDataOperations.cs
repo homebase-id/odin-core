@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -83,6 +84,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return await driveTransferHistory.DeleteAllRowsAsync(driveId, fileId);
         }
 
+        public async Task<List<DriveTransferHistoryRecord>> GetTransferHistoryAsync(Guid driveId, Guid fileId)
+        {
+            return await driveTransferHistory.GetAsync(driveId, fileId);
+        }
 
         private async Task CreateSummary()
         {

@@ -94,6 +94,21 @@ namespace Odin.Services.Drives.FileSystem.Base
             return Task.FromResult(df);
         }
 
+        public async Task<(int originalRecipientCount, PagedResult<RecipientTransferHistoryItem> results)> GetTransferHistory(
+            InternalDriveFileId file, IOdinContext odinContext)
+        {
+            var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
+            if (serverFileHeader == null)
+            {
+                return (0, null);
+            }
+
+            var results = await longTermStorageManager.GetTransferHistory(file.DriveId, file.FileId);
+
+            var pagedResults = new PagedResult<RecipientTransferHistoryItem>(PageOptions.All, 1, results);
+            return (serverFileHeader.ServerMetadata.TransferHistory.OriginalRecipientCount, pagedResults);
+        }
+
         private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
             IOdinContext odinContext,
             bool raiseEvent = false, bool ignoreFeedDistribution = false)
@@ -956,7 +971,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, raiseEvent);
         }
 
-public async Task UpdateBatchAsync(InternalDriveFileId tempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
+        public async Task UpdateBatchAsync(InternalDriveFileId tempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));

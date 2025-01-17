@@ -54,6 +54,21 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                 });
         }
 
+        [HttpGet("files/transfer-history")]
+        public async Task<IActionResult> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            return await base.GetFileTransferHistory(new ExternalFileIdentifier()
+            {
+                FileId = fileId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            });
+        }
+
         /// <summary>
         /// Retrieves a file's header and metadata by globalTransitId
         /// </summary>
@@ -61,8 +76,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] Guid globalTransitId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
-            
-
             return await base.GetFileHeaderByGlobalTransitId(
                 new GlobalTransitIdFileIdentifier()
                 {
@@ -84,7 +97,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/payload")]
         public new async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
-            
             return await base.GetPayloadStream(request);
         }
 
@@ -95,7 +107,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
-            
+
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -120,7 +132,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/thumb")]
         public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            
             return await base.GetThumbnail(request);
         }
 
@@ -155,7 +166,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/delete")]
         public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
-            
             return await base.DeleteFile(request);
         }
 
@@ -163,7 +173,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/deletefileidbatch")]
         public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
         {
-            
             return await base.DeleteFileIdBatch(request);
         }
 
@@ -171,7 +180,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/deletegroupidbatch")]
         public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
         {
-            
             return await base.DeleteFilesByGroupIdBatch(request);
         }
 
@@ -179,7 +187,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
         {
-            
             return await base.DeletePayload(request);
         }
 
@@ -190,7 +197,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/harddelete")]
         public async Task<IActionResult> HardDeleteFileC([FromBody] DeleteFileRequest request)
         {
-            
             return await base.HardDeleteFile(request);
         }
 
@@ -198,7 +204,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/send-read-receipt")]
         public new async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {
-            
             var result = await base.SendReadReceipt(request);
             return new JsonResult(result);
         }

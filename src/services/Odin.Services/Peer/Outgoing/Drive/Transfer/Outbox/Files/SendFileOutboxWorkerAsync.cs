@@ -68,7 +68,6 @@ public class SendFileOutboxWorkerAsync(
     }
 
     private async Task<(Guid versionTag, Guid globalTransitId)> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext,
-        
         CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -91,6 +90,8 @@ public class SendFileOutboxWorkerAsync(
                 File = file
             };
         }
+
+        instructionSet.OriginalRecipientCount = options.Recipients.Count;
 
         if (options.UseAppNotification)
         {

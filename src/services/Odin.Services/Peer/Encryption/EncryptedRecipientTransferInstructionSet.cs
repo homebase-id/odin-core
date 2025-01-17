@@ -30,6 +30,8 @@ namespace Odin.Services.Peer.Encryption
         public AppNotificationOptions AppNotificationOptions { get; set; }
 
         public AccessControlList OriginalAcl { get; set; }
+        
+        public int OriginalRecipientCount { get; set; }
 
         public bool IsValid()
         {

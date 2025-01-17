@@ -33,7 +33,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("header")]
         public new async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            
             return await base.GetFileHeader(request);
         }
 
@@ -43,7 +42,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
-            
             return await base.GetFileHeader(
                 new ExternalFileIdentifier()
                 {
@@ -56,6 +54,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 });
         }
 
+        [HttpGet("files/transfer-history")]
+        public async Task<IActionResult> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            return await base.GetFileTransferHistory(new ExternalFileIdentifier()
+            {
+                FileId = fileId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            });
+        }
+
         /// <summary>
         /// Retrieves a file's header and metadata by globalTransitId
         /// </summary>
@@ -63,8 +76,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] Guid globalTransitId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
-            
-
             return await base.GetFileHeaderByGlobalTransitId(
                 new GlobalTransitIdFileIdentifier()
                 {
@@ -84,7 +95,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("payload")]
         public new async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
-            
             return await base.GetPayloadStream(request);
         }
 
@@ -94,10 +104,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] string key)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] string key)
         {
             FileChunk chunk = this.GetChunk(null, null);
-            
+
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -124,7 +135,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("thumb")]
         public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            
             return await base.GetThumbnail(request);
         }
 
@@ -134,11 +144,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// See GET files/header
         /// </summary>
         [HttpGet("thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] string payloadKey, [FromQuery] Guid alias,
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] string payloadKey,
+            [FromQuery] Guid alias,
             [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)
         {
-            
             return await base.GetThumbnail(new GetThumbnailRequest()
             {
                 File = new ExternalFileIdentifier()
@@ -164,7 +174,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("delete")]
         public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
-            
             return await base.DeleteFile(request);
         }
 
@@ -172,7 +181,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("deletefileidbatch")]
         public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
         {
-            
             return await base.DeleteFileIdBatch(request);
         }
 
@@ -180,7 +188,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("deletegroupidbatch")]
         public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
         {
-            
             return await base.DeleteFilesByGroupIdBatch(request);
         }
 
@@ -188,7 +195,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
         {
-            
             return await base.DeletePayload(request);
         }
 
@@ -199,14 +205,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("harddelete")]
         public async Task<IActionResult> HardDeleteFileC([FromBody] DeleteFileRequest request)
         {
-            
             return await base.HardDeleteFile(request);
         }
 
         [HttpPost("send-read-receipt")]
         public new async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {
-            
             var result = await base.SendReadReceipt(request);
             return new JsonResult(result);
         }
