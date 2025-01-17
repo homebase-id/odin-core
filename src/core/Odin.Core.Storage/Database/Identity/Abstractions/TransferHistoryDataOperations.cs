@@ -10,12 +10,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
     public class TransferHistoryDataOperations(
         ScopedIdentityConnectionFactory scopedConnectionFactory,
         IdentityKey identityKey,
-        TableDriveTransferHistory driveTransferHistory)
+        TableDriveTransferHistory driveTransferHistory,
+        TableDriveMainIndex driveMainIndex)
     {
         /// <summary>
         /// Upserts transfer history records
         /// </summary>
-        public async Task<int> UpsertTransferHistory(Guid driveId, Guid fileId, OdinId recipient,
+        public async Task<int> UpsertTransferHistoryRecord(Guid driveId, Guid fileId, OdinId recipient,
             int? latestTransferStatus,
             Guid? latestSuccessfullyDeliveredVersionTag,
             bool? isInOutbox,
@@ -89,16 +90,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return await driveTransferHistory.GetAsync(driveId, fileId);
         }
 
-        private async Task CreateSummary()
+        public async Task UpdateCache(Guid driveId, Guid fileId, string json)
         {
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var tx = await cn.BeginStackedTransactionAsync();
-            await using var cmd = cn.CreateCommand();
-
-            cmd.CommandText = "";
-            
-            
-
+            await driveMainIndex.UpdateTransferHistoryAsync(driveId, fileId, json);
         }
     }
 }

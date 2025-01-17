@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Factory.Sqlite;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
 
@@ -119,13 +123,10 @@ public static class TransferHistoryMigration
 
     private static async Task CreateSummary(DbConnection cn, Guid tenantId, Guid driveId, Guid fileId)
     {
-        var summary = new TransferHistorySummary();
-
         var cmd = cn.CreateCommand();
-        cmd.CommandText = "SELECT latestTransferStatus, count(*) FROM driveTransferHistory " +
-                          "WHERE identityId = @identityId " +
-                          "AND driveId = @driveId " +
-                          "AND fileId = @fileId";
+        cmd.CommandText = "SELECT remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag," +
+                          "isReadByRecipient FROM driveTransferHistory " +
+                          "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
 
         var identityParam = cmd.CreateParameter();
         identityParam.ParameterName = "@identityId";
@@ -140,16 +141,34 @@ public static class TransferHistoryMigration
         fileIdParam.Value = fileId.ToByteArray();
 
         var rdr = await cmd.ExecuteReaderAsync();
+        var fileTransferHistory = new List<RecipientTransferHistoryItemForMigration>();
+
         while (await rdr.ReadAsync())
         {
-            // LatestTransferStatusForMigration status = (LatestTransferStatusForMigration)(int)rdr[0];
-            int status = (int)rdr[0];
-            var count = (int)rdr[1];
-            summary.Items[status] = count;
+            var item = new RecipientTransferHistoryItemForMigration()
+            {
+                Recipient = new OdinId((string)rdr[0]),
+                LastUpdated = default,
+                LatestTransferStatus = (LatestTransferStatusForMigration)(int)(long)rdr[1],
+                IsInOutbox = (int)(long)rdr[2] == 1,
+                LatestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]),
+                IsReadByRecipient = (int)(long)rdr[4] == 1
+            };
 
-            // var name = Enum.GetName(typeof(LatestTransferStatusForMigration), status);
-            // summary.Items[name] = count;
+            fileTransferHistory.Add(item);
         }
+
+        // now summarize using code from long term storage manager
+        var summary = new TransferHistorySummaryForMigration()
+        {
+            TotalIsInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
+            TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatusForMigration.Delivered &&
+                                                         h.LatestTransferStatus != LatestTransferStatusForMigration.None),
+            TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatusForMigration.Delivered),
+            TotalIsReadyByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
+        };
+
+        await UpdateTransferHistoryCache(cn, tenantId, driveId, fileId, OdinSystemSerializer.Serialize(summary));
     }
 
     private static async Task InsertDriveTransferHistory(DbConnection cn, Guid identityId, Guid driveId, Guid fileId,
@@ -205,5 +224,40 @@ public static class TransferHistoryMigration
         upsertParam7.Value = item.LatestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
         upsertParam8.Value = item.IsReadByRecipient;
         var count = await upsertCommand.ExecuteNonQueryAsync();
+    }
+
+    public static async Task<int> UpdateTransferHistoryCache(DbConnection cn, Guid tenantId, Guid driveId, Guid fileId,
+        string transferHistory)
+    {
+        await using var updateCommand = cn.CreateCommand();
+
+        updateCommand.CommandText =
+            $"UPDATE driveMainIndex SET modified=@modified,hdrTransferHistory=@hdrTransferHistory WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+
+        var sparam1 = updateCommand.CreateParameter();
+        var sparam2 = updateCommand.CreateParameter();
+        var sparam3 = updateCommand.CreateParameter();
+        var sparam4 = updateCommand.CreateParameter();
+        var sparam5 = updateCommand.CreateParameter();
+
+        sparam1.ParameterName = "@identityId";
+        sparam2.ParameterName = "@driveId";
+        sparam3.ParameterName = "@fileId";
+        sparam4.ParameterName = "@hdrTransferHistory";
+        sparam5.ParameterName = "@modified";
+
+        updateCommand.Parameters.Add(sparam1);
+        updateCommand.Parameters.Add(sparam2);
+        updateCommand.Parameters.Add(sparam3);
+        updateCommand.Parameters.Add(sparam4);
+        updateCommand.Parameters.Add(sparam5);
+
+        sparam1.Value = tenantId.ToByteArray();
+        sparam2.Value = driveId.ToByteArray();
+        sparam3.Value = fileId.ToByteArray();
+        sparam4.Value = transferHistory;
+        sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+
+        return await updateCommand.ExecuteNonQueryAsync();
     }
 }

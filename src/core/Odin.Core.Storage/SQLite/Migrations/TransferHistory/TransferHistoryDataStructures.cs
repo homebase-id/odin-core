@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Identity;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
 
 
-internal class TransferHistorySummary
+public class TransferHistorySummaryForMigration
 {
-    public Dictionary<int, int> Items { get; init; } = new();
+    public int TotalIsInOutbox { get; set; }
+    public int TotalFailed { get; set; }
+    public int TotalDelivered { get; set; }
+    public int TotalIsReadyByRecipient { get; set; }
 }
 
 internal class RecipientTransferHistoryForMigration
@@ -18,6 +22,8 @@ internal class RecipientTransferHistoryForMigration
 
 internal class RecipientTransferHistoryItemForMigration
 {
+    public OdinId Recipient { get; init; }
+
     public UnixTimeUtc LastUpdated { get; set; }
 
     /// <summary>

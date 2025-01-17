@@ -16,7 +16,6 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -42,6 +41,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
+        private const int MaxRecipientCount = 1000;
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         /// <summary>
@@ -54,6 +54,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             var sfo = new FileTransferOptions()
             {
@@ -100,6 +101,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+            OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+            OdinValidationUtils.AssertIsTrue(recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             var request = new UpdateRemoteFileRequest()
             {
@@ -177,7 +180,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends a notification to the original sender indicating the file was read
         /// </summary>
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
-            
             FileSystemType fileSystemType)
         {
             // This is all ugly mapping code but 🤷
@@ -220,6 +222,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task SendPeerPushNotification(AppNotificationOptions options, Guid driveId, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, false);
+            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             //ISSUE: this is running as the identity uploading the file, which cannot read the ICR key to decrypt the CAT
             // var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
@@ -228,7 +231,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //     logger.LogDebug("Attempt to distribute to recipient ({r}) who is not connected", recipient);
             //     return;
             // }
-            
+
             foreach (var recipient in options.Recipients.Without(odinContext.Tenant))
             {
                 try
@@ -281,7 +284,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceiptAsync(InternalDriveFileId fileId,
             IOdinContext odinContext,
-            
             FileSystemType fileSystemType)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
