@@ -1101,7 +1101,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-
+            OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
+            
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
@@ -1145,7 +1146,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             string newContent,
             IOdinContext odinContext)
         {
-            const int maxLength = 8 * 1024;
+            const int maxLength = 2 * 1024;
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             OdinValidationUtils.AssertMaxStringLength(newContent, maxLength, $"local app content is too long; max length is {maxLength}");
 
