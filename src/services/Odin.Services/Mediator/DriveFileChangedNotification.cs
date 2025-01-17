@@ -6,6 +6,10 @@ namespace Odin.Services.Mediator
 {
     public class DriveFileChangedNotification : MediatorNotificationBase, IDriveNotification
     {
+        public DriveFileChangedNotification()
+        {
+            
+        }
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileModified;
 
         public DriveNotificationType DriveNotificationType { get; } = DriveNotificationType.FileModified;

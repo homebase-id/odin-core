@@ -136,6 +136,8 @@ public static class DriveFileUtility
             TransitUpdated = fileMetadata.TransitUpdated,
 
             AppData = fileMetadata.AppData,
+            LocalAppData = fileMetadata.LocalAppData,
+            
             GlobalTransitId = fileMetadata.GlobalTransitId,
             IsEncrypted = fileMetadata.IsEncrypted,
             SenderOdinId = fileMetadata.SenderOdinId,

@@ -27,7 +27,11 @@ public class FileQueryParams
     public IEnumerable<Guid> TagsMatchAtLeastOne { get; set; } = null;
 
     public IEnumerable<Guid> TagsMatchAll { get; set; } = null;
+    
+    public IEnumerable<Guid> LocalTagsMatchAtLeastOne { get; set; } = null;
 
+    public IEnumerable<Guid> LocalTagsMatchAll { get; set; } = null;
+    
     public IEnumerable<Guid> GlobalTransitId { get; set; }
 
     public void AssertIsValid()
@@ -48,3 +52,4 @@ public class FileQueryParams
         };
     }
 }
+

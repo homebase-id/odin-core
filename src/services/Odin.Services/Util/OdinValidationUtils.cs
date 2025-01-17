@@ -40,7 +40,7 @@ public static class OdinExtensions
 
         return list;
     }
-    
+
     public static List<Guid> EnsureItem(this List<Guid> list, Guid item)
     {
         if (!list.Contains(item))
@@ -145,5 +145,10 @@ public static class OdinValidationUtils
         {
             throw new OdinClientException(message, OdinClientErrorCode.ArgumentError);
         }
+    }
+
+    public static void AssertMaxStringLength(string content, int maxLength, string message)
+    {
+        AssertIsTrue(content?.Length < maxLength, message);
     }
 }

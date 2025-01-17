@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -37,6 +38,10 @@ public class GetQueryBatchRequest
     public Guid[] TagsMatchAtLeastOne { get; set; } = null;
 
     public Guid[] TagsMatchAll { get; set; } = null;
+
+    public Guid[] LocalTagsMatchAll { get; set; } = null;
+
+    public Guid[] LocalTagsMatchAtLeastOne { get; set; } = null;
 
     public Guid[] GlobalTransitId { get; set; } = null;
 
@@ -81,6 +86,8 @@ public class GetQueryBatchRequest
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
                 TagsMatchAll = this.TagsMatchAll,
+                LocalTagsMatchAtLeastOne = this.LocalTagsMatchAtLeastOne,
+                LocalTagsMatchAll = this.LocalTagsMatchAll,
                 GlobalTransitId = this.GlobalTransitId
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest()
