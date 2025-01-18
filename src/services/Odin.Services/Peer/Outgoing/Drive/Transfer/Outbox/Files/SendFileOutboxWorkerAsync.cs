@@ -91,8 +91,6 @@ public class SendFileOutboxWorkerAsync(
             };
         }
 
-        instructionSet.OriginalRecipientCount = options.Recipients.Count;
-
         if (options.UseAppNotification)
         {
             instructionSet.AppNotificationOptions = options.AppNotificationOptions;

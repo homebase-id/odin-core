@@ -31,8 +31,6 @@ namespace Odin.Services.Peer.Encryption
 
         public AccessControlList OriginalAcl { get; set; }
         
-        public int OriginalRecipientCount { get; set; }
-
         public bool IsValid()
         {
             if (null == this.SharedSecretEncryptedKeyHeader)

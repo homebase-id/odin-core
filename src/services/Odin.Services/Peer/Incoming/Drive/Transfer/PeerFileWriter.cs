@@ -302,12 +302,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (header == null)
             {
-                //Only write the original recipient count on new files; it is never updated
-                serverMetadata.TransferHistory = new RecipientTransferHistory()
-                {
-                    OriginalRecipientCount = encryptedRecipientTransferInstructionSet.OriginalRecipientCount
-                };
-
                 // Neither gtid not uid points to an exiting file, so it's a new file
                 await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext);
                 return;
