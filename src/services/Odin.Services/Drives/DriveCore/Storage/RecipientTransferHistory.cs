@@ -7,8 +7,6 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 public class RecipientTransferHistory
 {
-    public int OriginalRecipientCount { get; init; }
-
     public TransferHistorySummary Summary { get; init; }
     
     public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; } =
@@ -17,10 +15,10 @@ public class RecipientTransferHistory
 
 public class TransferHistorySummary
 {
-    public int TotalIsInOutbox { get; set; }
+    public int TotalInOutbox { get; set; }
     public int TotalFailed { get; set; }
     public int TotalDelivered { get; set; }
-    public int TotalIsReadyByRecipient { get; set; }
+    public int TotalReadyByRecipient { get; set; }
 }
 
 public class RecipientTransferHistoryItem

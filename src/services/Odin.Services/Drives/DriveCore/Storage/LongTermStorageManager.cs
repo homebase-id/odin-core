@@ -75,27 +75,30 @@ namespace Odin.Services.Drives.DriveCore.Storage
             UpdateTransferHistoryData updateData)
         {
             //TODO: add transactions
-            
+
             OdinValidationUtils.AssertNotNull(updateData, nameof(updateData));
-            await _transferHistoryDataOperations.UpsertTransferHistoryRecord(driveId, fileId, recipient,
+            await _transferHistoryDataOperations.UpsertTransferHistoryRecordAsync(driveId, fileId, recipient,
                 (int?)updateData.LatestTransferStatus,
                 updateData.VersionTag,
                 updateData.IsInOutbox,
                 updateData.IsReadByRecipient);
 
             var fileTransferHistory = await GetTransferHistory(driveId, fileId);
-
-            var summary = new TransferHistorySummary()
+            
+            var history = new RecipientTransferHistory()
             {
-                TotalIsInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
-                TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatus.Delivered &&
-                                                             h.LatestTransferStatus != LatestTransferStatus.None),
-                TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatus.Delivered),
-                TotalIsReadyByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
+                Summary = new TransferHistorySummary()
+                {
+                    TotalInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
+                    TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatus.Delivered &&
+                                                                 h.LatestTransferStatus != LatestTransferStatus.None),
+                    TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatus.Delivered),
+                    TotalReadyByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
+                }
             };
 
-            var json = OdinSystemSerializer.Serialize(summary);
-            await _transferHistoryDataOperations.UpdateCache(driveId, fileId, json);
+            var json = OdinSystemSerializer.Serialize(history);
+            await _transferHistoryDataOperations.UpdateTransferSummaryCacheAsync(driveId, fileId, json);
         }
 
         public async Task DeleteTransferHistoryAsync(StorageDrive drive, Guid fileId)

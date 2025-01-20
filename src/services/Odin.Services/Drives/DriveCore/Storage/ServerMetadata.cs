@@ -26,6 +26,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Int64 FileByteCount { get; set; }
         
+        public int OriginalRecipientCount { get; init; }
+
         public RecipientTransferHistory TransferHistory { get; set; }
 
     }

@@ -106,7 +106,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var results = await longTermStorageManager.GetTransferHistory(file.DriveId, file.FileId);
 
             var pagedResults = new PagedResult<RecipientTransferHistoryItem>(PageOptions.All, 1, results);
-            return (serverFileHeader.ServerMetadata.TransferHistory.OriginalRecipientCount, pagedResults);
+            return (serverFileHeader.ServerMetadata.OriginalRecipientCount, pagedResults);
         }
 
         private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,

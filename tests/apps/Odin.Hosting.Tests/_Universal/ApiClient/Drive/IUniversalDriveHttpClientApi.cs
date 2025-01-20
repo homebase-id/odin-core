@@ -75,7 +75,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Post(RootQueryEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] QueryBatchRequest request);
         
-        [Post(RootStorageEndpoint + "/transfer-history")]
+        [Get(RootStorageEndpoint + "/transfer-history")]
         Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(Guid fileId, Guid alias, Guid type);
             
         [Post(RootQueryEndpoint + "/batchcollection")]

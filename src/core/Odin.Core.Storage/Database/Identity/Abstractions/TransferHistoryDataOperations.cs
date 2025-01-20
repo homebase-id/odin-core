@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -16,7 +17,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <summary>
         /// Upserts transfer history records
         /// </summary>
-        public async Task<int> UpsertTransferHistoryRecord(Guid driveId, Guid fileId, OdinId recipient,
+        public async Task<int> UpsertTransferHistoryRecordAsync(Guid driveId, Guid fileId, OdinId recipient,
             int? latestTransferStatus,
             Guid? latestSuccessfullyDeliveredVersionTag,
             bool? isInOutbox,
@@ -28,8 +29,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var upsertCommand = cn.CreateCommand();
 
             upsertCommand.CommandText =
-                "INSERT INTO driveTransferHistory (identityId, driveId, fileId, remoteIdentityId, isInOutbox, latestSuccessfullyDeliveredVersionTag, isReadByRecipient) " +
-                "VALUES (@identityId, @driveId, @fileId, @remoteIdentityId, @isInOutbox, @latestSuccessfullyDeliveredVersionTag, @isReadByRecipient) " +
+                "INSERT INTO driveTransferHistory (identityId, driveId, fileId, remoteIdentityId, isInOutbox, latestSuccessfullyDeliveredVersionTag, isReadByRecipient, latestTransferStatus) " +
+                "VALUES (@identityId, @driveId, @fileId, @remoteIdentityId, @isInOutbox, @latestSuccessfullyDeliveredVersionTag, @isReadByRecipient, @latestTransferStatus) " +
                 "ON CONFLICT (identityId, driveId, fileId, remoteIdentityId) " +
                 "DO UPDATE " +
                 "SET isInOutbox = COALESCE(@isInOutbox, driveTransferHistory.isInOutbox), " +
@@ -85,14 +86,68 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return await driveTransferHistory.DeleteAllRowsAsync(driveId, fileId);
         }
 
+
         public async Task<List<DriveTransferHistoryRecord>> GetTransferHistoryAsync(Guid driveId, Guid fileId)
         {
-            return await driveTransferHistory.GetAsync(driveId, fileId);
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCommand = cn.CreateCommand();
+
+            getCommand.CommandText =
+                "SELECT remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient " +
+                "FROM driveTransferHistory " +
+                "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+
+            var get1Param1 = getCommand.CreateParameter();
+            get1Param1.ParameterName = "@identityId";
+            getCommand.Parameters.Add(get1Param1);
+            var get1Param2 = getCommand.CreateParameter();
+            get1Param2.ParameterName = "@driveId";
+            getCommand.Parameters.Add(get1Param2);
+            var get1Param3 = getCommand.CreateParameter();
+            get1Param3.ParameterName = "@fileId";
+            getCommand.Parameters.Add(get1Param3);
+
+            get1Param1.Value = identityKey.ToByteArray();
+            get1Param2.Value = driveId.ToByteArray();
+            get1Param3.Value = fileId.ToByteArray();
+            {
+                using (var rdr = await getCommand.ExecuteReaderAsync())
+                {
+                    if (await rdr.ReadAsync() == false)
+                    {
+                        return new List<DriveTransferHistoryRecord>();
+                    }
+
+                    var result = new List<DriveTransferHistoryRecord>();
+                    while (true)
+                    {
+                        var item = new DriveTransferHistoryRecord
+                        {
+                            identityId = identityKey,
+                            driveId = driveId,
+                            fileId = fileId,
+                            remoteIdentityId = new OdinId((string)rdr[0]),
+                            latestTransferStatus = rdr.IsDBNull(1) ? 0 : (int)(long)rdr[1],
+                            isInOutbox = rdr.IsDBNull(2) ? 0 : (int)(long)rdr[2],
+                            latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]),
+                            isReadByRecipient = rdr.IsDBNull(4) ? 0 : (int)(long)rdr[4]
+                        };
+                        result.Add(item);
+
+                        if (!await rdr.ReadAsync())
+                        {
+                            break;
+                        }
+                    }
+
+                    return result;
+                }
+            }
         }
 
-        public async Task UpdateCache(Guid driveId, Guid fileId, string json)
+        public async Task UpdateTransferSummaryCacheAsync(Guid driveId, Guid fileId, string json)
         {
-            await driveMainIndex.UpdateTransferHistoryAsync(driveId, fileId, json);
+            await driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json);
         }
     }
 }

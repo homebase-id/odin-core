@@ -252,13 +252,13 @@ public class TableDriveMainIndex(
         return await updateCommand.ExecuteNonQueryAsync();
     }
 
-    public async Task<int> UpdateTransferHistoryAsync(Guid driveId, Guid fileId, string transferHistory)
+    public async Task<int> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
-        updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified=@modified,hdrTransferHistory=@hdrTransferHistory WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified=@modified, hdrTransferHistory=@hdrTransferHistory " +
+                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();

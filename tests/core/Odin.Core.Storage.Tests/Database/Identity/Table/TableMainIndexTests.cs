@@ -71,7 +71,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Debug.Assert(m == null);
 
             var s2 = "a new transfer status";
-            await tblDriveMainIndex.UpdateTransferHistoryAsync(driveId, f1, s2);
+            await tblDriveMainIndex.UpdateTransferSummaryAsync(driveId, f1, s2);
             var r2 = await tblDriveMainIndex.GetAsync(driveId, f1);
             var m2 = r2.modified;
             Debug.Assert(r2.hdrTransferHistory == s2);

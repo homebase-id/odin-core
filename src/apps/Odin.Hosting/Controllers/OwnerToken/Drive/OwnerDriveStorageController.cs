@@ -54,7 +54,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 });
         }
 
-        [HttpGet("files/transfer-history")]
+        [HttpGet("transfer-history")]
         public async Task<IActionResult> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {

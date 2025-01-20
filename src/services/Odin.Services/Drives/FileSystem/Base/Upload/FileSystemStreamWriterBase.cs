@@ -211,7 +211,8 @@ public abstract class FileSystemStreamWriterBase
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
-                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
+                    var existingFile =
+                        await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
                         throw new OdinClientException(
@@ -229,7 +230,8 @@ public abstract class FileSystemStreamWriterBase
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
+                var existingFile =
+                    await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
                 if (null != existingFile && existingFile.FileState != FileState.Deleted)
                 {
                     throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
@@ -271,20 +273,23 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Called when the incoming file does not exist on disk.  This is called after core validations are complete
     /// </summary>
-    protected abstract Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+    protected abstract Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
+        ServerMetadata serverMetadata,
         IOdinContext odinContext);
 
     /// <summary>
     /// Called when then uploaded file exists on disk.  This is called after core validations are complete
     /// </summary>
-    protected abstract Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+    protected abstract Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
+        ServerMetadata serverMetadata,
         IOdinContext odinContext);
 
     /// <summary>
     /// Called after the file is uploaded to process how transit will deal w/ the instructions
     /// </summary>
     /// <returns></returns>
-    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext);
+    protected abstract Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package,
+        IOdinContext odinContext);
 
     /// <summary>
     /// Maps the uploaded file to the <see cref="FileMetadata"/> which will be stored on disk,
@@ -293,12 +298,15 @@ public abstract class FileSystemStreamWriterBase
     protected abstract Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor,
         IOdinContext odinContext);
 
-    protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(FileUploadPackage package,
+    protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(
+        FileUploadPackage package,
         IOdinContext odinContext)
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), odinContext);
+        var metadataBytes =
+            await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(),
+                odinContext);
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
@@ -390,10 +398,7 @@ public abstract class FileSystemStreamWriterBase
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
             AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution,
-            TransferHistory = new RecipientTransferHistory()
-            {
-                OriginalRecipientCount = package.InstructionSet.TransitOptions?.Recipients?.Count ?? 0,
-            }
+            OriginalRecipientCount = package.InstructionSet.TransitOptions?.Recipients?.Count ?? 0
         };
 
         return (keyHeader, metadata, serverMetadata);
@@ -455,7 +460,8 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCoreAsync(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    private async Task ValidateUploadCoreAsync(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
+        ServerMetadata serverMetadata)
     {
         if (null == serverMetadata.AccessControlList)
         {
