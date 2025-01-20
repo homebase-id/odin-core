@@ -13,6 +13,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
@@ -71,7 +72,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             yield return new object[]
             {
                 new AppSpecifyDriveAccess(
-                    TargetDrive.NewTargetDrive(), 
+                    TargetDrive.NewTargetDrive(),
                     DrivePermission.ReadWrite,
                     new TestPermissionKeyList(PermissionKeys.All.ToArray())),
                 HttpStatusCode.OK
@@ -145,6 +146,193 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var uploadedFileResponse1 = await driveClient.GetFileHeader(uploadResult.File);
             Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content;
+
+            var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
+            Assert.IsNotNull(summary, "missing transfer summary");
+            Assert.IsTrue(summary.TotalDelivered == 1);
+            Assert.IsTrue(summary.TotalReadyByRecipient == 1);
+            Assert.IsTrue(summary.TotalFailed == 0);
+            Assert.IsTrue(summary.TotalInOutbox == 0);
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(OwnerAllowed))]
+        [TestCaseSource(nameof(AppAllowed))]
+        public async Task CanReadTransferSummaryFromQueryBatch(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            //
+            // Setup
+            //
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            //
+            // Act transfer file, then send read receipt
+            //
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+
+            // send a read receipt
+            foreach (var recipientFile in recipientFiles)
+            {
+                var recipient = recipientFile.Key;
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+
+                //
+                // Send the read receipt
+                //
+                var fileForReadReceipt = new ExternalFileIdentifier()
+                {
+                    FileId = recipientFile.Value.FileId,
+                    TargetDrive = recipientFile.Value.TargetDrive
+                };
+
+                var sendReadReceiptResponse = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
+                Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+                var sendReadReceiptResult = sendReadReceiptResponse.Content;
+                Assert.IsNotNull(sendReadReceiptResult);
+                var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
+                Assert.IsNotNull(item, "no record for file");
+                var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
+                Assert.IsNotNull(statusItem);
+                Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
+
+                await client.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
+            }
+
+            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive); // process all read receipts
+
+            //
+            // Assert: the sender has the transfer history updated
+            //
+
+            await callerContext.Initialize(senderOwnerClient);
+            var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var q = new QueryBatchRequest
+            {
+                QueryParams = new()
+                {
+                    TargetDrive = targetDrive,
+                    FileState = [FileState.Active]
+                },
+                ResultOptionsRequest = new()
+                {
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true,
+                    IncludeTransferHistory = true
+                }
+            };
+
+            var uploadedFileResponse1 = await driveClient.QueryBatch(q);
+            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            var uploadedFile1 = uploadedFileResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(uploadedFile1);
+
+            var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
+            Assert.IsNotNull(summary, "missing transfer summary");
+            Assert.IsTrue(summary.TotalDelivered == 1);
+            Assert.IsTrue(summary.TotalReadyByRecipient == 1);
+            Assert.IsTrue(summary.TotalFailed == 0);
+            Assert.IsTrue(summary.TotalInOutbox == 0);
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(OwnerAllowed))]
+        [TestCaseSource(nameof(AppAllowed))]
+        public async Task CanReadTransferSummaryFromQueryModified(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            //
+            // Setup
+            //
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            //
+            // Act transfer file, then send read receipt
+            //
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+
+            // send a read receipt
+            foreach (var recipientFile in recipientFiles)
+            {
+                var recipient = recipientFile.Key;
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+
+                //
+                // Send the read receipt
+                //
+                var fileForReadReceipt = new ExternalFileIdentifier()
+                {
+                    FileId = recipientFile.Value.FileId,
+                    TargetDrive = recipientFile.Value.TargetDrive
+                };
+
+                var sendReadReceiptResponse = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
+                Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+                var sendReadReceiptResult = sendReadReceiptResponse.Content;
+                Assert.IsNotNull(sendReadReceiptResult);
+                var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
+                Assert.IsNotNull(item, "no record for file");
+                var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
+                Assert.IsNotNull(statusItem);
+                Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
+
+                await client.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
+            }
+
+            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive); // process all read receipts
+
+            //
+            // Assert: the sender has the transfer history updated
+            //
+
+            await callerContext.Initialize(senderOwnerClient);
+            var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var q = new QueryModifiedRequest()
+            {
+                QueryParams = new()
+                {
+                    TargetDrive = targetDrive,
+                    FileState = [FileState.Active]
+                },
+                ResultOptions = new()
+                {
+                    MaxRecords = 10,
+                    IncludeTransferHistory = true
+                }
+            };
+
+            var uploadedFileResponse1 = await driveClient.QueryModified(q);
+            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            var uploadedFile1 = uploadedFileResponse1.Content.SearchResults.FirstOrDefault();
+            Assert.IsNotNull(uploadedFile1);
 
             var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
             Assert.IsNotNull(summary, "missing transfer summary");
