@@ -644,7 +644,7 @@ public class DriveApiClientRedux
             }
 
             var history = response.Content;
-            var status = history.GetHistory(recipient);
+            var status = history.GetHistoryItem(recipient);
             if (status != null && status.LatestTransferStatus == expectedStatus)
             {
                 return status;

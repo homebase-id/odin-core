@@ -71,7 +71,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await _driveQuery.SoftDeleteFileHeader(header);
         }
 
-        public async Task SaveTransferHistoryAsync(Guid driveId, Guid fileId, OdinId recipient,
+        public async Task<RecipientTransferHistory> SaveTransferHistoryAsync(Guid driveId, Guid fileId, OdinId recipient,
             UpdateTransferHistoryData updateData)
         {
             //TODO: add transactions
@@ -84,7 +84,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 updateData.IsReadByRecipient);
 
             var fileTransferHistory = await GetTransferHistory(driveId, fileId);
-            
+
             var history = new RecipientTransferHistory()
             {
                 Summary = new TransferHistorySummary()
@@ -99,6 +99,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var json = OdinSystemSerializer.Serialize(history);
             await _transferHistoryDataOperations.UpdateTransferSummaryCacheAsync(driveId, fileId, json);
+
+            return history;
         }
 
         public async Task DeleteTransferHistoryAsync(StorageDrive drive, Guid fileId)

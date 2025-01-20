@@ -10,7 +10,7 @@ public class FileTransferHistoryResponse
     public int OriginalRecipientCount { get; set; }
     public PagedResult<RecipientTransferHistoryItem> History { get; set; }
 
-    public RecipientTransferHistoryItem GetHistory(OdinId recipient)
+    public RecipientTransferHistoryItem GetHistoryItem(OdinId recipient)
     {
         return this.History?.Results.SingleOrDefault(h => h.Recipient == recipient);
     }

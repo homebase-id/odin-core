@@ -8,8 +8,6 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 public class RecipientTransferHistory
 {
     public TransferHistorySummary Summary { get; init; }
-    
-    public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; }
 }
 
 public class TransferHistorySummary

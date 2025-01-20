@@ -813,7 +813,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 updateData.IsInOutbox,
                 updateData.IsReadByRecipient);
 
-            await longTermStorageManager.SaveTransferHistoryAsync(drive.Id, file.FileId, recipient, updateData);
+            var updatedHistory = await longTermStorageManager.SaveTransferHistoryAsync(drive.Id, file.FileId, recipient, updateData);
+
+            header.ServerMetadata.TransferHistory = updatedHistory;
 
             if (await ShouldRaiseDriveEventAsync(file))
             {
