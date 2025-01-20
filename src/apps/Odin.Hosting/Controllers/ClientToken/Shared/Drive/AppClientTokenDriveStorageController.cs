@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -55,10 +56,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         }
 
         [HttpGet("files/transfer-history")]
-        public async Task<IActionResult> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid alias,
+        public async Task<FileTransferHistoryResponse> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
-            return await base.GetFileTransferHistory(new ExternalFileIdentifier()
+            var result = await base.GetFileTransferHistory(new ExternalFileIdentifier()
             {
                 FileId = fileId,
                 TargetDrive = new TargetDrive()
@@ -67,6 +68,14 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     Type = type
                 }
             });
+            
+            if (null == result)
+            {
+                Response.StatusCode = (int)HttpStatusCode.NotFound;
+                return null;
+            }
+
+            return result;
         }
 
         /// <summary>

@@ -83,7 +83,6 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         [Test]
         [TestCaseSource(nameof(OwnerAllowed))]
         [TestCaseSource(nameof(AppAllowed))]
-        [Ignore("wip")]
         public async Task CanReadTransferSummaryFromFileMixResults(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
@@ -176,7 +175,6 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         [Test]
         [TestCaseSource(nameof(OwnerAllowed))]
         [TestCaseSource(nameof(AppAllowed))]
-        [Ignore("wip")]
         public async Task CanReadTransferHistoryForFileMixResults(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {

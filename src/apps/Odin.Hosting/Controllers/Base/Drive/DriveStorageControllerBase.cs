@@ -83,20 +83,20 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return new JsonResult(result);
         }
 
-        protected async Task<IActionResult> GetFileTransferHistory(ExternalFileIdentifier file)
+        protected async Task<FileTransferHistoryResponse> GetFileTransferHistory(ExternalFileIdentifier file)
         {
             var storage = GetHttpFileSystemResolver().ResolveFileSystem().Storage;
             var (count, history) = await storage.GetTransferHistory(this.MapToInternalFile(file), WebOdinContext);
             if (history == null)
             {
-                return NotFound();
+                return null;
             }
 
-            return new JsonResult(new FileTransferHistoryResponse()
+            return new FileTransferHistoryResponse()
             {
                 OriginalRecipientCount = count,
                 History = history
-            });
+            };
         }
 
         /// <summary>
