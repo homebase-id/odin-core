@@ -116,7 +116,7 @@ public class TenantConfigService
         var info = new FailedUpgradeVersionInfo
         {
             FailedDataVersionNumber = dataVersionNumber,
-            BuildVersion = ReleaseVersionInfo.BuildVersion,
+            BuildVersion = Version.VersionText,
             LastAttempted = UnixTimeUtc.Now().milliseconds
         };
 

@@ -49,34 +49,34 @@ public class HttpProbe(IHttpClientFactory httpClientFactory, IGenericMemoryCache
                 {
                     
                     result = new HttpProbeResult(true, $"Successfully probed {scheme}://{domainName}:{port}");
-                    cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+                    cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
                     return result;
 
                 }
                 result = new HttpProbeResult(false, $"Successfully probed {scheme}://{domainName}:{port}, but received unexpected response");
-                cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+                cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
                 return result;
             }
             result = new HttpProbeResult(false, $"Failed to probe {scheme}://{domainName}:{port}, {domainName} says: {response.ReasonPhrase}");
-            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+            cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
             return result;
         }
         catch (HttpRequestException e)
         {
             result = new HttpProbeResult(false, $"Failed to probe {scheme}://{domainName}:{port}: {e.Message}");
-            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+            cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
             return result;
         }
         catch (TaskCanceledException)
         {
             result = new HttpProbeResult(false, $"Failed to probe {scheme}://{domainName}:{port}: time out");
-            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+            cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
             return result;
         }
         catch (Exception)
         {
             result = new HttpProbeResult(false, $"Failed to probe {scheme}://{domainName}:{port}: unknown server error");
-            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+            cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
             return result;
         }
         

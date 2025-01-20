@@ -19,14 +19,14 @@ public class GenericMemoryCacheTest
         // Arrange
         var cache = new GenericMemoryCache();
 
-        cache.Set("foo", "bar", TimeSpan.FromSeconds(10));
+        cache.Set("foo", "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet("foo", out var value);
             Assert.IsTrue(hit);
             Assert.AreEqual("bar", value);
         }
 
-        cache.Set("foo", new SampleValue(), TimeSpan.FromSeconds(10));
+        cache.Set("foo", new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
             Assert.IsTrue(hit);
@@ -34,14 +34,14 @@ public class GenericMemoryCacheTest
         }
 
         var key = RandomNumberGenerator.GetBytes(16);
-        cache.Set(key, "bar", TimeSpan.FromSeconds(10));
+        cache.Set(key, "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet(key, out var value);
             Assert.IsTrue(hit);
             Assert.AreEqual("bar", value);
         }
 
-        cache.Set(key, new SampleValue(), TimeSpan.FromSeconds(10));
+        cache.Set(key, new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet<SampleValue>(key, out var value);
             Assert.IsTrue(hit);
@@ -65,7 +65,7 @@ public class GenericMemoryCacheTest
             {
                 factoryCallCount++;
                 return "bar";
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.AreEqual("bar", value);
             Assert.AreEqual(1, factoryCallCount);
         }
@@ -75,7 +75,7 @@ public class GenericMemoryCacheTest
             {
                 factoryCallCount++;
                 return "bar";
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.AreEqual("bar", value);
             Assert.AreEqual(0, factoryCallCount);
         }
@@ -88,7 +88,7 @@ public class GenericMemoryCacheTest
         {
             var exception = Assert.Throws<InvalidCastException>(() =>
             {
-                cache.GetOrCreate("foo", () => new SampleValue(), TimeSpan.FromSeconds(10));
+                cache.GetOrCreate("foo", () => new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
             });
             Assert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
         }
@@ -96,7 +96,7 @@ public class GenericMemoryCacheTest
         cache.Remove("foo");
 
         {
-            var value = cache.GetOrCreate("foo", () => new SampleValue(), TimeSpan.FromSeconds(10));
+            var value = cache.GetOrCreate("foo", () => new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.AreEqual("bar", value!.Name);
         }
         {
@@ -123,7 +123,7 @@ public class GenericMemoryCacheTest
                 await Task.Delay(1);
                 factoryCallCount++;
                 return "bar";
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.AreEqual("bar", value);
             Assert.AreEqual(1, factoryCallCount);
         }
@@ -134,7 +134,7 @@ public class GenericMemoryCacheTest
                 await Task.Delay(1);
                 factoryCallCount++;
                 return "bar";
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.AreEqual("bar", value);
             Assert.AreEqual(0, factoryCallCount);
         }
@@ -151,7 +151,7 @@ public class GenericMemoryCacheTest
                 {
                     await Task.Delay(1);
                     return new SampleValue();
-                }, TimeSpan.FromSeconds(10));
+                }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             });
             Assert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
         }
@@ -163,7 +163,7 @@ public class GenericMemoryCacheTest
             {
                 await Task.Delay(1);
                 return new SampleValue();
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.AreEqual("bar", value!.Name);
         }
         {
@@ -189,7 +189,7 @@ public class GenericMemoryCacheTest
             {
                 factoryCallCount++;
                 return null;
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.IsNull(value);
             Assert.AreEqual(1, factoryCallCount);
         }
@@ -199,7 +199,7 @@ public class GenericMemoryCacheTest
             {
                 factoryCallCount++;
                 return null;
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.IsNull(value);
             Assert.AreEqual(0, factoryCallCount);
         }
@@ -227,7 +227,7 @@ public class GenericMemoryCacheTest
                 await Task.Delay(1);
                 factoryCallCount++;
                 return null;
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.IsNull(value);
             Assert.AreEqual(1, factoryCallCount);
         }
@@ -238,7 +238,7 @@ public class GenericMemoryCacheTest
                 await Task.Delay(1);
                 factoryCallCount++;
                 return null;
-            }, TimeSpan.FromSeconds(10));
+            }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             Assert.IsNull(value);
             Assert.AreEqual(0, factoryCallCount);
         }
@@ -258,14 +258,14 @@ public class GenericMemoryCacheTest
     {
         var cache = new GenericMemoryCache();
 
-        cache.Set("foo", null, TimeSpan.FromSeconds(10));
+        cache.Set("foo", null, Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet("foo", out var value);
             Assert.IsTrue(hit);
             Assert.IsNull(value);
         }
 
-        cache.Set("foo", null, TimeSpan.FromSeconds(10));
+        cache.Set("foo", null, Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
             Assert.IsTrue(hit);
@@ -306,7 +306,7 @@ public class GenericMemoryCacheTest
         // Arrange
         var cache = new GenericMemoryCache();
 
-        cache.Set("foo", new SampleValue(), TimeSpan.FromMilliseconds(10));
+        cache.Set("foo", new SampleValue(), Expiration.Relative(TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
             Assert.IsTrue(hit);
@@ -314,14 +314,14 @@ public class GenericMemoryCacheTest
         }
 
         var key = RandomNumberGenerator.GetBytes(16);
-        cache.Set(key, new SampleValue(), TimeSpan.FromMilliseconds(10));
+        cache.Set(key, new SampleValue(), Expiration.Relative(TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>(key, out var value);
             Assert.IsTrue(hit);
             Assert.AreEqual("bar", value!.Name);
         }
 
-        cache.Set("zig", new SampleValue(), DateTimeOffset.Now + TimeSpan.FromMilliseconds(10));
+        cache.Set("zig", new SampleValue(), Expiration.Absolute(DateTimeOffset.Now + TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("zig", out var value);
             Assert.IsTrue(hit);
@@ -329,14 +329,14 @@ public class GenericMemoryCacheTest
         }
 
         var key2 = RandomNumberGenerator.GetBytes(16);
-        cache.Set(key2, new SampleValue(), DateTimeOffset.Now + TimeSpan.FromMilliseconds(10));
+        cache.Set(key2, new SampleValue(), Expiration.Absolute(DateTimeOffset.Now + TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>(key2, out var value);
             Assert.IsTrue(hit);
             Assert.AreEqual("bar", value!.Name);
         }
 
-        var darth = cache.GetOrCreate("darth", () => "bar", TimeSpan.FromMilliseconds(10));
+        var darth = cache.GetOrCreate("darth", () => "bar", Expiration.Relative(TimeSpan.FromMilliseconds(10)));
         Assert.AreEqual("bar", darth);
 
         Thread.Sleep(200);
@@ -384,7 +384,7 @@ public class GenericMemoryCacheTest
         var cache = new GenericMemoryCache();
 
         {
-            cache.Set("foo", new SampleValue(), TimeSpan.FromMilliseconds(100));
+            cache.Set("foo", new SampleValue(), Expiration.Relative(TimeSpan.FromMilliseconds(100)));
 
             var exception = Assert.Throws<InvalidCastException>(() =>
             {
@@ -395,7 +395,7 @@ public class GenericMemoryCacheTest
 
         {
             var key = RandomNumberGenerator.GetBytes(16);
-            cache.Set(key, new SampleValue(), TimeSpan.FromMilliseconds(100));
+            cache.Set(key, new SampleValue(), Expiration.Relative(TimeSpan.FromMilliseconds(100)));
 
             var exception = Assert.Throws<InvalidCastException>(() =>
             {
@@ -416,7 +416,7 @@ public class GenericMemoryCacheTest
         var cache = new GenericMemoryCache();
 
         var key = RandomNumberGenerator.GetBytes(16);
-        cache.Set(key, new SomeConcreteClass(), TimeSpan.FromMilliseconds(100));
+        cache.Set(key, new SomeConcreteClass(), Expiration.Relative(TimeSpan.FromMilliseconds(100)));
 
         {
             var hit = cache.TryGet<ISomeInterface>(key, out var value);
@@ -442,7 +442,7 @@ public class GenericMemoryCacheTest
         var cache = new GenericMemoryCache();
 
         var key = RandomNumberGenerator.GetBytes(16);
-        cache.Set(key, new SomeConcreteClass(), TimeSpan.FromMilliseconds(100));
+        cache.Set(key, new SomeConcreteClass(), Expiration.Relative(TimeSpan.FromMilliseconds(100)));
 
         {
             var hit = cache.TryGet<SomeAbstractClass>(key, out var value);
@@ -468,7 +468,7 @@ public class GenericMemoryCacheTest
         var cache = new GenericMemoryCache();
 
         var key = RandomNumberGenerator.GetBytes(16);
-        cache.Set(key, "bar", TimeSpan.FromSeconds(10));
+        cache.Set(key, "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         var hit = cache.TryGet(key, out var value);
         Assert.IsTrue(hit);
         Assert.AreEqual("bar", value);
@@ -494,7 +494,7 @@ public class GenericMemoryCacheTest
         var cache = new GenericMemoryCache();
 
         var key = RandomNumberGenerator.GetBytes(16);
-        cache.Set(key, "bar", TimeSpan.FromSeconds(10));
+        cache.Set(key, "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         var hit = cache.TryGet(key, out var value);
         Assert.IsTrue(hit);
         Assert.AreEqual("bar", value);
@@ -568,12 +568,12 @@ public class GenericMemoryCacheTest
 
         {
             var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<GenericMemoryCacheTest>>();
-            cache.Set("aaa", "aaa", TimeSpan.FromSeconds(10));
+            cache.Set("aaa", "aaa", Expiration.Relative(TimeSpan.FromSeconds(10)));
         }
 
         {
             var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<SampleValue>>();
-            cache.Set("111", "111", TimeSpan.FromSeconds(10));
+            cache.Set("111", "111", Expiration.Relative(TimeSpan.FromSeconds(10)));
         }
 
         {
@@ -671,7 +671,7 @@ public class GenericMemoryCacheTest
 
         public void Store(string key, string value)
         {
-            cache.Set(key, value, TimeSpan.FromSeconds(10));
+            cache.Set(key, value, Expiration.Relative(TimeSpan.FromSeconds(10)));
         }
     }
 
@@ -685,7 +685,7 @@ public class GenericMemoryCacheTest
 
         public void Store(string key, string value)
         {
-            cache.Set(key, value, TimeSpan.FromSeconds(10));
+            cache.Set(key, value, Expiration.Relative(TimeSpan.FromSeconds(10)));
         }
     }
 

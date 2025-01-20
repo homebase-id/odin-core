@@ -26,13 +26,13 @@ public class TableKeyValueCacheTests : IocTestBase
         var k1 = Guid.NewGuid().ToByteArray();
         var v1 = Guid.NewGuid().ToByteArray();
 
-        var record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
+        var record = await tblKeyValueCache.GetAsync(k1, Expiration.Sliding(TimeSpan.FromSeconds(1)));
         Assert.IsNull(record);
 
         record = new KeyValueRecord { key = k1, data = v1 };
-        await tblKeyValueCache.InsertAsync(record, TimeSpan.FromSeconds(1));
+        await tblKeyValueCache.InsertAsync(record, Expiration.Sliding(TimeSpan.FromSeconds(1)));
 
-        record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
+        record = await tblKeyValueCache.GetAsync(k1, Expiration.Sliding(TimeSpan.FromSeconds(1)));
         Assert.IsNotNull(record);
 
         var cache = scope.Resolve<IGenericMemoryCache<TableKeyValueCache>>();
@@ -41,11 +41,11 @@ public class TableKeyValueCacheTests : IocTestBase
         cache.Remove(k1);
         Assert.IsFalse(cache.Contains(k1));
 
-        record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
+        record = await tblKeyValueCache.GetAsync(k1, Expiration.Sliding(TimeSpan.FromSeconds(1)));
         Assert.IsNotNull(record);
 
         await tblKeyValueCache.DeleteAsync(k1);
-        record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
+        record = await tblKeyValueCache.GetAsync(k1, Expiration.Sliding(TimeSpan.FromSeconds(1)));
         Assert.IsNull(record);
     }
 

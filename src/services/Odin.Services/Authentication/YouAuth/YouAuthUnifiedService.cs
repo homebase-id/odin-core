@@ -26,7 +26,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly CircleNetworkService _circleNetwork;
-    private readonly IGenericMemoryCache<YouAuthUnifiedService> _encryptedTokens;
+    private readonly IGenericMemoryCache<YouAuthUnifiedService> _encryptedTokens; // SEB:TODO does not scale
     private readonly SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> _tempConsent;
 
     public YouAuthUnifiedService(
@@ -197,7 +197,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             clientAuthTokenCipher,
             clientAuthTokenIv);
 
-        _encryptedTokens.Set(exchangeSharedSecretDigest, encryptedTokenExchange, TimeSpan.FromMinutes(5));
+        _encryptedTokens.Set(exchangeSharedSecretDigest, encryptedTokenExchange, Expiration.Relative(TimeSpan.FromMinutes(5)));
 
         return (keyPair.PublicKeyJwkBase64Url(), Convert.ToBase64String(exchangeSalt));
     }
