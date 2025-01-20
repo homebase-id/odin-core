@@ -23,6 +23,7 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
@@ -136,8 +137,10 @@ public class DriveApiClientRedux
 
             List<StreamPart> parts = new()
             {
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata))
             };
 
             var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
@@ -150,7 +153,8 @@ public class DriveApiClientRedux
     }
 
 
-    public async Task<ApiResponse<UploadResult>> UpdateExistingMetadata(ExternalFileIdentifier file, Guid versionTag, UploadFileMetadata fileMetadata,
+    public async Task<ApiResponse<UploadResult>> UpdateExistingMetadata(ExternalFileIdentifier file, Guid versionTag,
+        UploadFileMetadata fileMetadata,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -184,8 +188,10 @@ public class DriveApiClientRedux
 
             List<StreamPart> parts = new()
             {
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata))
             };
 
             var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
@@ -198,7 +204,8 @@ public class DriveApiClientRedux
     /// <summary>
     /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
     /// </summary>
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(TargetDrive targetDrive,
+    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(
+        TargetDrive targetDrive,
         UploadFileMetadata fileMetadata,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -248,8 +255,10 @@ public class DriveApiClientRedux
 
             List<StreamPart> parts = new()
             {
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata)),
             };
 
             var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
@@ -311,15 +320,18 @@ public class DriveApiClientRedux
 
             List<StreamPart> parts = new()
             {
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata)),
             };
 
             // Encrypt and add payloads
             foreach (var payloadDefinition in payloads)
             {
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDefinition.Content);
-                parts.Add(new StreamPart(payloadCipher, payloadDefinition.Key, payloadDefinition.ContentType, Enum.GetName(MultipartUploadParts.Payload)));
+                parts.Add(new StreamPart(payloadCipher, payloadDefinition.Key, payloadDefinition.ContentType,
+                    Enum.GetName(MultipartUploadParts.Payload)));
                 uploadedPayloads.Add(new EncryptedAttachmentUploadResult()
                 {
                     Key = payloadDefinition.Key,
@@ -393,8 +405,10 @@ public class DriveApiClientRedux
 
             List<StreamPart> parts = new()
             {
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                    Enum.GetName(MultipartUploadParts.Metadata)),
             };
 
             foreach (var payloadDefinition in payloads)
@@ -404,7 +418,8 @@ public class DriveApiClientRedux
 
                 foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
                 {
-                    var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
+                    var thumbnailKey =
+                        $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
                     parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
@@ -461,7 +476,8 @@ public class DriveApiClientRedux
         }
     }
 
-    public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, string payloadKey,
+    public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag,
+        string payloadKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -572,7 +588,8 @@ public class DriveApiClientRedux
         }
     }
 
-    public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request, FileSystemType fileSystemType = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(QueryBatchRequest request,
+        FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
@@ -583,7 +600,8 @@ public class DriveApiClientRedux
         }
     }
 
-    public async Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request, FileSystemType fileSystemType = FileSystemType.Standard)
+    public async Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request,
+        FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
@@ -606,7 +624,8 @@ public class DriveApiClientRedux
         }
     }
 
-    public async Task<RecipientTransferHistoryItem> WaitForTransferStatus(ExternalFileIdentifier file, OdinId recipient, LatestTransferStatus expectedStatus,
+    public async Task<RecipientTransferHistoryItem> WaitForTransferStatus(ExternalFileIdentifier file, OdinId recipient,
+        LatestTransferStatus expectedStatus,
         FileSystemType fst = FileSystemType.Standard,
         TimeSpan? maxWaitTime = null)
     {
@@ -618,15 +637,15 @@ public class DriveApiClientRedux
         var sw = Stopwatch.StartNew();
         while (true)
         {
-            var response = await svc.GetFileHeaderAsPost(file);
+            var response = await svc.GetTransferHistory(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             if (!response.IsSuccessStatusCode)
             {
                 throw new Exception("Error occured while retrieving file to wait for transfer status");
             }
 
-            var header = response.Content;
-            if (header.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient, out var status)
-                && status.LatestTransferStatus == expectedStatus)
+            var history = response.Content;
+            var status = history.GetHistory(recipient);
+            if (status != null && status.LatestTransferStatus == expectedStatus)
             {
                 return status;
             }

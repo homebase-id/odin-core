@@ -93,7 +93,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatus.Delivered &&
                                                                  h.LatestTransferStatus != LatestTransferStatus.None),
                     TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatus.Delivered),
-                    TotalReadyByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
+                    TotalReadByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
                 }
             };
 

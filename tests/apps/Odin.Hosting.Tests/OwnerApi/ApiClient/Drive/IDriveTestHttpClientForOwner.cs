@@ -50,6 +50,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Post(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
+        [Get(RootStorageEndpoint + "/transfer-history")]
+        Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(Guid fileId, Guid alias, Guid type);
+        
         [Post(RootStorageEndpoint + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayloadPost(GetPayloadRequest request);
 

@@ -150,7 +150,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
             Assert.IsNotNull(summary, "missing transfer summary");
             Assert.IsTrue(summary.TotalDelivered == 1);
-            Assert.IsTrue(summary.TotalReadyByRecipient == 1);
+            Assert.IsTrue(summary.TotalReadByRecipient == 1);
             Assert.IsTrue(summary.TotalFailed == 0);
             Assert.IsTrue(summary.TotalInOutbox == 0);
 
@@ -244,7 +244,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
             Assert.IsNotNull(summary, "missing transfer summary");
             Assert.IsTrue(summary.TotalDelivered == 1);
-            Assert.IsTrue(summary.TotalReadyByRecipient == 1);
+            Assert.IsTrue(summary.TotalReadByRecipient == 1);
             Assert.IsTrue(summary.TotalFailed == 0);
             Assert.IsTrue(summary.TotalInOutbox == 0);
 
@@ -337,7 +337,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
             Assert.IsNotNull(summary, "missing transfer summary");
             Assert.IsTrue(summary.TotalDelivered == 1);
-            Assert.IsTrue(summary.TotalReadyByRecipient == 1);
+            Assert.IsTrue(summary.TotalReadByRecipient == 1);
             Assert.IsTrue(summary.TotalFailed == 0);
             Assert.IsTrue(summary.TotalInOutbox == 0);
 

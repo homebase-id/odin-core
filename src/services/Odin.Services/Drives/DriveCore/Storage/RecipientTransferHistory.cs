@@ -9,8 +9,7 @@ public class RecipientTransferHistory
 {
     public TransferHistorySummary Summary { get; init; }
     
-    public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; } =
-        new(StringComparer.InvariantCultureIgnoreCase);
+    public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; }
 }
 
 public class TransferHistorySummary
@@ -18,7 +17,7 @@ public class TransferHistorySummary
     public int TotalInOutbox { get; set; }
     public int TotalFailed { get; set; }
     public int TotalDelivered { get; set; }
-    public int TotalReadyByRecipient { get; set; }
+    public int TotalReadByRecipient { get; set; }
 }
 
 public class RecipientTransferHistoryItem
