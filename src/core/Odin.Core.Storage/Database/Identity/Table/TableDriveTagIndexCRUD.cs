@@ -286,7 +286,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTagIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTagIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -356,7 +355,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             var result = new List<DriveTagIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

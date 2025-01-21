@@ -262,7 +262,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyValueRecord>();
-            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -270,13 +269,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyValueRecord();
             item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
             item.keyNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
-            if (item.key?.Length > 48)
-                throw new Exception("Too much data in key...");
             if (item.key?.Length < 16)
                 throw new Exception("Too little data in key...");
             item.dataNoLengthCheck = rdr.IsDBNull(2) ? null : (byte[])(rdr[2]);
-            if (item.data?.Length > 1048576)
-                throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -314,7 +309,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key?.Length < 16) throw new Exception("Too short");
             if (key?.Length > 48) throw new Exception("Too long");
             var result = new List<KeyValueRecord>();
-            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -323,8 +317,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key = key;
             item.dataNoLengthCheck = rdr.IsDBNull(0) ? null : (byte[])(rdr[0]);
-            if (item.data?.Length > 1048576)
-                throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

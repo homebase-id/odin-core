@@ -129,10 +129,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
                    +"remoteIdentityId TEXT NOT NULL, "
-                   +"latestTransferStatus BIGINT , "
-                   +"isInOutbox BIGINT , "
+                   +"latestTransferStatus BIGINT NOT NULL, "
+                   +"isInOutbox BIGINT NOT NULL, "
                    +"latestSuccessfullyDeliveredVersionTag BYTEA , "
-                   +"isReadByRecipient BIGINT  "
+                   +"isReadByRecipient BIGINT NOT NULL "
                    + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
                    +");"
@@ -398,7 +398,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTransferHistoryRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTransferHistoryRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -472,7 +471,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTransferHistoryRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,OdinId remoteIdentityId)
         {
             var result = new List<DriveTransferHistoryRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -530,7 +528,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTransferHistoryRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveTransferHistoryRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

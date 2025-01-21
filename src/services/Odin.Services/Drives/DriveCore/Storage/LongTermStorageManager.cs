@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Caching;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
@@ -27,6 +29,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
         private readonly DriveManager _driveManager;
         private readonly DriveQuery _driveQuery;
+        private readonly ScopedIdentityTransactionFactory _scopedIdentityTransactionFactory;
         private readonly TransferHistoryDataOperations _transferHistoryDataOperations;
 
         private const string ThumbnailDelimiter = "_";
@@ -38,12 +41,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             DriveFileReaderWriter driveFileReaderWriter,
             DriveManager driveManager,
             DriveQuery driveQuery,
+            ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
             TransferHistoryDataOperations transferHistoryDataOperations)
         {
             _logger = logger;
             _driveFileReaderWriter = driveFileReaderWriter;
             _driveManager = driveManager;
             _driveQuery = driveQuery;
+            _scopedIdentityTransactionFactory = scopedIdentityTransactionFactory;
             _transferHistoryDataOperations = transferHistoryDataOperations;
         }
 
@@ -74,9 +79,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<RecipientTransferHistory> SaveTransferHistoryAsync(Guid driveId, Guid fileId, OdinId recipient,
             UpdateTransferHistoryData updateData)
         {
-            //TODO: add transactions
-
             OdinValidationUtils.AssertNotNull(updateData, nameof(updateData));
+
+            await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
+            
             await _transferHistoryDataOperations.UpsertTransferHistoryRecordAsync(driveId, fileId, recipient,
                 (int?)updateData.LatestTransferStatus,
                 updateData.VersionTag,
@@ -99,6 +105,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var json = OdinSystemSerializer.Serialize(history);
             await _transferHistoryDataOperations.UpdateTransferSummaryCacheAsync(driveId, fileId, json);
+
+            tx.Commit();
 
             return history;
         }

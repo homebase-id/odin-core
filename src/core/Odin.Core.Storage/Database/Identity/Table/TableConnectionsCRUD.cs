@@ -420,7 +420,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ConnectionsRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -432,8 +431,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.status = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             item.accessIsRevoked = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.dataNoLengthCheck = rdr.IsDBNull(5) ? null : (byte[])(rdr[5]);
-            if (item.data?.Length > 65535)
-                throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
@@ -467,7 +464,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ConnectionsRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -479,8 +475,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.status = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
             item.accessIsRevoked = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.dataNoLengthCheck = rdr.IsDBNull(3) ? null : (byte[])(rdr[3]);
-            if (item.data?.Length > 65535)
-                throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[4]);
