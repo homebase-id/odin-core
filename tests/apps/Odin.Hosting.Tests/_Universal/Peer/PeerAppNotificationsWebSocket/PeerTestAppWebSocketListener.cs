@@ -98,7 +98,11 @@ public sealed class PeerTestAppWebSocketListener
         try
         {
             await _cancellationTokenSource.CancelAsync();
-            await _receivingTask;
+            if (null != _receivingTask)
+            {
+                await _receivingTask;
+            }
+            
             _clientWebSocket.Dispose();
         }
         catch (TaskCanceledException)

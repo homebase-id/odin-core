@@ -79,6 +79,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _value = value;
                }
         }
+        internal byte[] valueNoLengthCheck
+        {
+           get {
+                   return _value;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _value = value;
+               }
+        }
         private Guid? _popStamp;
         public Guid? popStamp
         {
@@ -413,7 +423,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -438,28 +448,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new InboxRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.fileId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.boxId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.priority = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.timeStamp = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.value = rdr.IsDBNull(5) ? 
-                null : (byte[])(rdr[5]);
+            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.fileId = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.boxId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.priority = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.timeStamp = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.valueNoLengthCheck = rdr.IsDBNull(5) ? null : (byte[])(rdr[5]);
             if (item.value?.Length > 65535)
                 throw new Exception("Too much data in value...");
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
-            item.popStamp = rdr.IsDBNull(6) ? 
-                null : new Guid((byte[])rdr[6]);
-            item.created = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[7]);
-            item.modified = rdr.IsDBNull(8) ? 
-                null : new UnixTimeUtcUnique((long)rdr[8]);
+            item.popStamp = rdr.IsDBNull(6) ? null : new Guid((byte[])rdr[6]);
+            item.created = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[7]);
+            item.modified = rdr.IsDBNull(8) ? null : new UnixTimeUtcUnique((long)rdr[8]);
             return item;
        }
 
@@ -495,31 +496,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new InboxRecord();
             item.identityId = identityId;
             item.fileId = fileId;
-
-            item.boxId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.priority = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-
-            item.timeStamp = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-
-            item.value = rdr.IsDBNull(3) ? 
-                null : (byte[])(rdr[3]);
+            item.boxId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.priority = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.timeStamp = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.valueNoLengthCheck = rdr.IsDBNull(3) ? null : (byte[])(rdr[3]);
             if (item.value?.Length > 65535)
                 throw new Exception("Too much data in value...");
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
-
-            item.popStamp = rdr.IsDBNull(4) ? 
-                null : new Guid((byte[])rdr[4]);
-
-            item.created = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[5]);
-
-            item.modified = rdr.IsDBNull(6) ? 
-                null : new UnixTimeUtcUnique((long)rdr[6]);
+            item.popStamp = rdr.IsDBNull(4) ? null : new Guid((byte[])rdr[4]);
+            item.created = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[5]);
+            item.modified = rdr.IsDBNull(6) ? null : new UnixTimeUtcUnique((long)rdr[6]);
             return item;
        }
 

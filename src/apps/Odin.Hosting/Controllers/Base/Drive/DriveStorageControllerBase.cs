@@ -83,6 +83,22 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return new JsonResult(result);
         }
 
+        protected async Task<FileTransferHistoryResponse> GetFileTransferHistory(ExternalFileIdentifier file)
+        {
+            var storage = GetHttpFileSystemResolver().ResolveFileSystem().Storage;
+            var (count, history) = await storage.GetTransferHistory(this.MapToInternalFile(file), WebOdinContext);
+            if (history == null)
+            {
+                return null;
+            }
+
+            return new FileTransferHistoryResponse()
+            {
+                OriginalRecipientCount = count,
+                History = history
+            };
+        }
+
         /// <summary>
         /// Returns the payload for a given file
         /// </summary>
@@ -195,7 +211,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             var internalFiles = request.Files.Select(MapToInternalFile).ToList();
-            return await peerOutgoingTransferService.SendReadReceipt(internalFiles, WebOdinContext, this.GetHttpFileSystemResolver().GetFileSystemType());
+            return await peerOutgoingTransferService.SendReadReceipt(internalFiles, WebOdinContext,
+                this.GetHttpFileSystemResolver().GetFileSystemType());
         }
 
         /// <summary>

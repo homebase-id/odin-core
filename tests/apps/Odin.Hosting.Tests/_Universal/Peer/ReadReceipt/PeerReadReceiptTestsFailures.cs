@@ -126,12 +126,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+            
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
@@ -199,12 +199,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             await frodoOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await frodoOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(samOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await frodoOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(samOwnerClient.Identity.OdinId);
+            
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
@@ -281,12 +281,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+            
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
@@ -367,12 +367,11 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(senderUploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(senderUploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);

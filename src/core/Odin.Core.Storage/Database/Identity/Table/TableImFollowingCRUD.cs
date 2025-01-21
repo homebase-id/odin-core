@@ -295,7 +295,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -316,16 +316,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new ImFollowingRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.identity = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
-            item.driveId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.created = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[3]);
-            item.modified = rdr.IsDBNull(4) ? 
-                null : new UnixTimeUtcUnique((long)rdr[4]);
+            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.identity = rdr.IsDBNull(1) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
+            item.driveId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.created = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[3]);
+            item.modified = rdr.IsDBNull(4) ? null : new UnixTimeUtcUnique((long)rdr[4]);
             return item;
        }
 
@@ -368,12 +363,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.identity = identity;
             item.driveId = driveId;
-
-            item.created = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[0]);
-
-            item.modified = rdr.IsDBNull(1) ? 
-                null : new UnixTimeUtcUnique((long)rdr[1]);
+            item.created = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[0]);
+            item.modified = rdr.IsDBNull(1) ? null : new UnixTimeUtcUnique((long)rdr[1]);
             return item;
        }
 
@@ -427,15 +418,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new ImFollowingRecord();
             item.identityId = identityId;
             item.identity = identity;
-
-            item.driveId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.created = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[1]);
-
-            item.modified = rdr.IsDBNull(2) ? 
-                null : new UnixTimeUtcUnique((long)rdr[2]);
+            item.driveId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.created = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[1]);
+            item.modified = rdr.IsDBNull(2) ? null : new UnixTimeUtcUnique((long)rdr[2]);
             return item;
        }
 

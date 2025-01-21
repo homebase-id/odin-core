@@ -19,6 +19,11 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// </summary>
         public List<string> Recipients { get; set; }
 
+        /// <summary>
+        /// When true, transfer history will not be tracked for this file.
+        /// </summary>
+        public bool DisableTransferHistory { get; set; }
+
         public bool UseAppNotification { get; set; }
 
         public AppNotificationOptions AppNotificationOptions { get; set; }

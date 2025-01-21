@@ -15,7 +15,8 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     // Put all database tables alphabetically here.
     // Don't forget to add the table to the lazy properties as well.
     //
-    public static readonly ImmutableList<Type> TableTypes = [
+    public static readonly ImmutableList<Type> TableTypes =
+    [
         typeof(TableAppGrants),
         typeof(TableAppNotifications),
         typeof(TableCircle),
@@ -32,7 +33,8 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableKeyTwoValue),
         typeof(TableKeyUniqueThreeValue),
         typeof(TableKeyValue),
-        typeof(TableOutbox)
+        typeof(TableOutbox),
+        typeof(TableDriveTransferHistory)
     ];
 
     //
@@ -89,11 +91,17 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     private Lazy<TableKeyValueCache> _keyValueCache;
     public TableKeyValueCache KeyValueCache => LazyResolve(ref _keyValueCache);
 
+    private Lazy<TableDriveTransferHistory> _tableDriveTransferHistory;
+    public TableDriveTransferHistory TableDriveTransferHistory => LazyResolve(ref _tableDriveTransferHistory);
+
     //
     // Abstraction convenience properties (resolved, not injected)
     //
     private Lazy<MainIndexMeta> _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
+
+    private Lazy<TransferHistoryDataOperations> _transferHistoryDataOperations;
+    public TransferHistoryDataOperations TransferHistoryDataOperations => LazyResolve(ref _transferHistoryDataOperations);
 
     //
     // Connection
@@ -128,7 +136,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
             var table = (ITableMigrator)_lifetimeScope.Resolve(tableType);
             await table.EnsureTableExistsAsync(dropExistingTables);
         }
+
         tx.Commit();
     }
-
 }
