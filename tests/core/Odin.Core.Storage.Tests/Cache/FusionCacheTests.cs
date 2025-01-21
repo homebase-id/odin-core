@@ -12,7 +12,7 @@ using ZiggyCreatures.Caching.Fusion.Serialization.NeueccMessagePack;
 
 namespace Odin.Core.Storage.Tests.Cache;
 
-// #if RUN_REDIS_TESTS
+#if RUN_REDIS_TESTS
 
 #nullable enable
 
@@ -249,4 +249,4 @@ public static class TestServices
 
 #endregion
 
-// #endif
+#endif
