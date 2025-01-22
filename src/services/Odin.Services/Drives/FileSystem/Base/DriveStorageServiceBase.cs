@@ -1236,7 +1236,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
 
+            //fields we keep
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
+            newServerMetadata.OriginalRecipientCount = existingServerHeader.ServerMetadata.OriginalRecipientCount;
 
             //only change the IV if the file was encrypted
             if (existingServerHeader.FileMetadata.IsEncrypted)

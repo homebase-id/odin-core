@@ -20,19 +20,19 @@ public static class TransferHistoryMigration
         var tenantDirs = Directory.GetDirectories(Path.Combine(tenantDataRootPath, "registrations"));
         foreach (var tenantDir in tenantDirs)
         {
-            DoDatabase(tenantDir);
+            MigrateDatabase(tenantDir);
         }
     }
 
     //
 
-    private static void DoDatabase(string tenantDir)
+    private static void MigrateDatabase(string tenantDir)
     {
         Console.WriteLine(tenantDir);
         var tenantId = Guid.Parse(Path.GetFileName(tenantDir));
 
         var orgDbPath = Path.Combine(tenantDir, "headers", "identity.db");
-        var oldDbPath = Path.Combine(tenantDir, "headers", "oldidentity-pre-local-app-metadata.db");
+        var oldDbPath = Path.Combine(tenantDir, "headers", "oldidentity-pre-transfer-history-metadata.db");
         // var newDbPath = Path.Combine(tenantDir, "headers", "newidentity.db");
 
         if (!File.Exists(orgDbPath))
@@ -51,7 +51,6 @@ public static class TransferHistoryMigration
             Pooling = false
         }.ToString();
 
-
         PrepareSchema(connectionString).GetAwaiter().GetResult();
         MigrateData(tenantId, connectionString).GetAwaiter().GetResult();
     }
@@ -59,26 +58,24 @@ public static class TransferHistoryMigration
     private static async Task PrepareSchema(string connectionString)
     {
         await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
+        await using var tx = await cn.BeginTransactionAsync();
 
-        // Create table
-        {
-            await using var cmd = cn.CreateCommand();
-            cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveTransferHistory("
-                + "identityId BYTEA NOT NULL, "
-                + "driveId BYTEA NOT NULL, "
-                + "fileId BYTEA NOT NULL, "
-                + "remoteIdentityId TEXT NOT NULL, "
-                + "latestTransferStatus BIGINT , "
-                + "isInOutbox BIGINT , "
-                + "latestSuccessfullyDeliveredVersionTag BYTEA , "
-                + "isReadByRecipient BIGINT  "
-                + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
-                + ");"
-                + "CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);";
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            "CREATE TABLE IF NOT EXISTS driveTransferHistory("
+            + "identityId BYTEA NOT NULL, "
+            + "driveId BYTEA NOT NULL, "
+            + "fileId BYTEA NOT NULL, "
+            + "remoteIdentityId TEXT NOT NULL, "
+            + "latestTransferStatus BIGINT NOT NULL, "
+            + "isInOutbox BIGINT NOT NULL, "
+            + "latestSuccessfullyDeliveredVersionTag BYTEA , "
+            + "isReadByRecipient BIGINT NOT NULL "
+            + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
+            + ");"
+            + "CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);";
 
-            await cmd.ExecuteNonQueryAsync();
-        }
+        await cmd.ExecuteNonQueryAsync();
 
         // Alter table
         // {
@@ -92,8 +89,6 @@ public static class TransferHistoryMigration
     {
         // Migrate the data
         await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
-
-        // get the existing transfer history, if not null; parse and insert into transfer history table
 
         var getTransferHistoryCommand = cn.CreateCommand();
         getTransferHistoryCommand.CommandText = "SELECT driveId, fileId, hdrTransferHistory FROM driveMainIndex " +
@@ -161,11 +156,11 @@ public static class TransferHistoryMigration
         // now summarize using code from long term storage manager
         var summary = new TransferHistorySummaryForMigration()
         {
-            TotalIsInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
+            TotalInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
             TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatusForMigration.Delivered &&
                                                          h.LatestTransferStatus != LatestTransferStatusForMigration.None),
             TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatusForMigration.Delivered),
-            TotalIsReadyByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
+            TotalReadByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
         };
 
         await UpdateTransferHistoryCache(cn, tenantId, driveId, fileId, OdinSystemSerializer.Serialize(summary));
@@ -231,8 +226,8 @@ public static class TransferHistoryMigration
     {
         await using var updateCommand = cn.CreateCommand();
 
-        updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified=@modified,hdrTransferHistory=@hdrTransferHistory WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified=@modified, hdrTransferHistory=@hdrTransferHistory " +
+                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();

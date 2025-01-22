@@ -5,13 +5,12 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
 
-
-public class TransferHistorySummaryForMigration
+internal class TransferHistorySummaryForMigration
 {
-    public int TotalIsInOutbox { get; set; }
+    public int TotalInOutbox { get; set; }
     public int TotalFailed { get; set; }
     public int TotalDelivered { get; set; }
-    public int TotalIsReadyByRecipient { get; set; }
+    public int TotalReadByRecipient { get; set; }
 }
 
 internal class RecipientTransferHistoryForMigration

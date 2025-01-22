@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Apps;
@@ -13,10 +14,10 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
@@ -82,6 +83,102 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         [Test]
         [TestCaseSource(nameof(OwnerAllowed))]
         [TestCaseSource(nameof(AppAllowed))]
+        public async Task ResendingFileKeepsOriginalRecipientCount(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            //
+            // Setup
+            //
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            //
+            // Act transfer file, then send read receipt
+            //
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles, originalKeyHeader, orignalUploadFileMetadata) =
+                await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+
+            // send a read receipt
+            foreach (var recipientFile in recipientFiles)
+            {
+                var recipient = recipientFile.Key;
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+
+                //
+                // Send the read receipt
+                //
+                var fileForReadReceipt = new ExternalFileIdentifier()
+                {
+                    FileId = recipientFile.Value.FileId,
+                    TargetDrive = recipientFile.Value.TargetDrive
+                };
+
+                var sendReadReceiptResponse = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
+                Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+                var sendReadReceiptResult = sendReadReceiptResponse.Content;
+                Assert.IsNotNull(sendReadReceiptResult);
+                var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
+                Assert.IsNotNull(item, "no record for file");
+                var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
+                Assert.IsNotNull(statusItem);
+                Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
+
+                await client.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
+            }
+
+            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive); // process all read receipts
+
+            // Validate the original recipient is set on the first upload
+            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            var uploadedFile1 = uploadedFileResponse1.Content;
+
+            Assert.IsTrue(uploadedFile1.ServerMetadata.OriginalRecipientCount == transitOptions.Recipients.Count);
+
+            //
+            // now resend the file 
+            //
+            var newKeyHeader = new KeyHeader()
+            {
+                Iv = ByteArrayUtil.GetRndByteArray(16),
+                AesKey = new SensitiveByteArray(originalKeyHeader.AesKey.GetKey())
+            };
+
+            orignalUploadFileMetadata.VersionTag = uploadResult.NewVersionTag;
+            orignalUploadFileMetadata.IsEncrypted = true;
+
+            var (updateFileResponse, _) = await senderOwnerClient.DriveRedux.UpdateExistingEncryptedMetadata(uploadResult.File,
+                newKeyHeader,
+                orignalUploadFileMetadata);
+            Assert.IsTrue(updateFileResponse.IsSuccessStatusCode);
+
+            //
+            // Assert: recipient count is still set
+            //
+
+            await callerContext.Initialize(senderOwnerClient);
+            var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
+            var updatedFileResponse = await driveClient.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+            var updatedFile = updatedFileResponse.Content;
+            Assert.IsTrue(updatedFile.ServerMetadata.OriginalRecipientCount == transitOptions.Recipients.Count);
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(OwnerAllowed))]
+        [TestCaseSource(nameof(AppAllowed))]
         public async Task CanReadTransferSummaryFromFile(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
@@ -104,7 +201,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
-            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+            var (uploadResult, _, recipientFiles, _, _) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
             // send a read receipt
             foreach (var recipientFile in recipientFiles)
@@ -147,6 +244,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content;
 
+            Assert.IsTrue(uploadedFile1.ServerMetadata.OriginalRecipientCount == transitOptions.Recipients.Count);
+
             var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
             Assert.IsNotNull(summary, "missing transfer summary");
             Assert.IsTrue(summary.TotalDelivered == 1);
@@ -182,7 +281,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
-            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+            var (uploadResult, _, recipientFiles, _, _) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
             // send a read receipt
             foreach (var recipientFile in recipientFiles)
@@ -276,7 +375,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
-            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+            var (uploadResult, _, recipientFiles, _, _) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
             // send a read receipt
             foreach (var recipientFile in recipientFiles)
@@ -369,7 +468,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
-            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+            var (uploadResult, _, recipientFiles, _, _) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
             // send a read receipt
             foreach (var recipientFile in recipientFiles)
@@ -426,8 +525,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
-        private async Task<(UploadResult response, string encryptedJsonContent64, Dictionary<string, SharedSecretEncryptedFileHeader>
-                recipientFiles)>
+        private async Task<(
+                UploadResult response,
+                string encryptedJsonContent64,
+                Dictionary<string, SharedSecretEncryptedFileHeader> recipientFiles,
+                KeyHeader originalKeyHeader,
+                UploadFileMetadata uploadFileMetadata)>
             TransferEncryptedMetadata(
                 OwnerApiClientRedux senderOwnerClient,
                 TargetDrive targetDrive,
@@ -454,16 +557,18 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 Drive = targetDrive
             };
 
+            var keyHeader = KeyHeader.NewRandom16();
             var (uploadResponse, encryptedJsonContent64) = await senderOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
                 fileMetadata,
                 storageOptions,
-                transitOptions
+                transitOptions,
+                keyHeader
             );
 
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            Assert.IsTrue(uploadResult!.RecipientStatus.Count == 1);
             Assert.IsTrue(uploadResult.RecipientStatus[transitOptions.Recipients.Single()] == TransferStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(storageOptions.Drive);
@@ -485,7 +590,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 recipientFiles.Add(recipient, file);
             }
 
-            return (uploadResult1, encryptedJsonContent64, recipientFiles);
+            return (uploadResult1, encryptedJsonContent64, recipientFiles, keyHeader, fileMetadata);
         }
 
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient,

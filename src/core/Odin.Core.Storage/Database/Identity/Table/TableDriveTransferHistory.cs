@@ -30,15 +30,5 @@ public class TableDriveTransferHistory(
         return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
     }
 
-    public new async Task UpsertAsync(DriveTransferHistoryRecord r)
-    {
-        if (r == null)
-            return;
-
-        if (r.identityId != identityKey)
-            throw new ArgumentException($"The identity ID does not match the expected value. Expected: {r.identityId}, Actual: {identityKey}", nameof(r.identityId));
-
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await base.UpsertAsync(r);
-    }
+    
 }
