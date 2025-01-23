@@ -24,7 +24,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -1095,14 +1094,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, 
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
             List<Guid> newTags,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
-            
+
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
@@ -1134,7 +1133,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     OdinContext = odinContext,
                 });
             }
-            
+
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
@@ -1187,7 +1186,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     OdinContext = odinContext,
                 });
             }
-            
+
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
@@ -1196,6 +1195,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)
         {
+            const int maxJsonContentLength = 10 * 1024;
+            OdinValidationUtils.AssertMaxStringLength(
+                header.FileMetadata.AppData?.Content ?? "",
+                maxJsonContentLength, $"max content length is {maxJsonContentLength}");
+
             if (!keepSameVersionTag)
             {
                 header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
