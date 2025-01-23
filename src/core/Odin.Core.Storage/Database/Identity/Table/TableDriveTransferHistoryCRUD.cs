@@ -18,84 +18,67 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public class DriveTransferHistoryRecord
     {
         private Guid _identityId;
+
         public Guid identityId
         {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
+            get { return _identityId; }
+            set { _identityId = value; }
         }
+
         private Guid _driveId;
+
         public Guid driveId
         {
-           get {
-                   return _driveId;
-               }
-           set {
-                  _driveId = value;
-               }
+            get { return _driveId; }
+            set { _driveId = value; }
         }
+
         private Guid _fileId;
+
         public Guid fileId
         {
-           get {
-                   return _fileId;
-               }
-           set {
-                  _fileId = value;
-               }
+            get { return _fileId; }
+            set { _fileId = value; }
         }
+
         private OdinId _remoteIdentityId;
+
         public OdinId remoteIdentityId
         {
-           get {
-                   return _remoteIdentityId;
-               }
-           set {
-                  _remoteIdentityId = value;
-               }
+            get { return _remoteIdentityId; }
+            set { _remoteIdentityId = value; }
         }
+
         private Int32 _latestTransferStatus;
+
         public Int32 latestTransferStatus
         {
-           get {
-                   return _latestTransferStatus;
-               }
-           set {
-                  _latestTransferStatus = value;
-               }
+            get { return _latestTransferStatus; }
+            set { _latestTransferStatus = value; }
         }
+
         private Int32 _isInOutbox;
+
         public Int32 isInOutbox
         {
-           get {
-                   return _isInOutbox;
-               }
-           set {
-                  _isInOutbox = value;
-               }
+            get { return _isInOutbox; }
+            set { _isInOutbox = value; }
         }
+
         private Guid? _latestSuccessfullyDeliveredVersionTag;
+
         public Guid? latestSuccessfullyDeliveredVersionTag
         {
-           get {
-                   return _latestSuccessfullyDeliveredVersionTag;
-               }
-           set {
-                  _latestSuccessfullyDeliveredVersionTag = value;
-               }
+            get { return _latestSuccessfullyDeliveredVersionTag; }
+            set { _latestSuccessfullyDeliveredVersionTag = value; }
         }
+
         private Int32 _isReadByRecipient;
+
         public Int32 isReadByRecipient
         {
-           get {
-                   return _isReadByRecipient;
-               }
-           set {
-                  _isReadByRecipient = value;
-               }
+            get { return _isReadByRecipient; }
+            set { _isReadByRecipient = value; }
         }
     } // End of class DriveTransferHistoryRecord
 
@@ -118,26 +101,28 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS driveTransferHistory;";
                 await cmd.ExecuteNonQueryAsync();
             }
+
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
             {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+                rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
             }
+
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveTransferHistory("
-                   +"identityId BYTEA NOT NULL, "
-                   +"driveId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL, "
-                   +"remoteIdentityId TEXT NOT NULL, "
-                   +"latestTransferStatus BIGINT , "
-                   +"isInOutbox BIGINT , "
-                   +"latestSuccessfullyDeliveredVersionTag BYTEA , "
-                   +"isReadByRecipient BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);"
-                   ;
+                + "identityId BYTEA NOT NULL, "
+                + "driveId BYTEA NOT NULL, "
+                + "fileId BYTEA NOT NULL, "
+                + "remoteIdentityId TEXT NOT NULL, "
+                + "latestTransferStatus BIGINT , "
+                + "isInOutbox BIGINT , "
+                + "latestSuccessfullyDeliveredVersionTag BYTEA , "
+                + "isReadByRecipient BIGINT  "
+                + rowid
+                + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
+                + ");"
+                + "CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);"
+                ;
             await cmd.ExecuteNonQueryAsync();
         }
 
@@ -146,7 +131,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
-                 // TODO: this is SQLite specific
+                // TODO: this is SQLite specific
                 getCountCommand.CommandText = "SELECT COUNT(*) FROM driveTransferHistory;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
@@ -170,7 +155,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,OdinId remoteIdentityId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId, Guid driveId, Guid fileId, OdinId remoteIdentityId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
@@ -199,7 +184,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<int> DeleteAllRowsAsync(Guid identityId, Guid driveId, Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
@@ -224,7 +209,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected DriveTransferHistoryRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,OdinId remoteIdentityId)
+        protected DriveTransferHistoryRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId, Guid driveId, Guid fileId,
+            OdinId remoteIdentityId)
         {
             var result = new List<DriveTransferHistoryRecord>();
 #pragma warning disable CS0168
@@ -241,15 +227,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(2) ? null : new Guid((byte[])rdr[2]);
             item.isReadByRecipient = rdr.IsDBNull(3) ? 0 : (int)(long)rdr[3];
             return item;
-       }
+        }
 
-        protected virtual async Task<DriveTransferHistoryRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,OdinId remoteIdentityId)
+        protected virtual async Task<DriveTransferHistoryRecord> GetAsync(Guid identityId, Guid driveId, Guid fileId,
+            OdinId remoteIdentityId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1;";
+                get0Command.CommandText =
+                    "SELECT latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
+                    "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -274,7 +262,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,driveId,fileId,remoteIdentityId);
+
+                        var r = ReadRecordFromReader0(rdr, identityId, driveId, fileId, remoteIdentityId);
                         return r;
                     } // using
                 } //
@@ -298,15 +287,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]);
             item.isReadByRecipient = rdr.IsDBNull(4) ? 0 : (int)(long)rdr[4];
             return item;
-       }
+        }
 
-        protected virtual async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid identityId, Guid driveId, Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+                get1Command.CommandText =
+                    "SELECT remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
+                    "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -327,18 +317,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return new List<DriveTransferHistoryRecord>();
                         }
+
                         var result = new List<DriveTransferHistoryRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader1(rdr, identityId,driveId,fileId));
+                            result.Add(ReadRecordFromReader1(rdr, identityId, driveId, fileId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
+
                         return result;
                     } // using
                 } //
             } // using
         }
-
     }
 }

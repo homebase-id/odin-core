@@ -151,6 +151,27 @@ public static class CommandLine
         //
         //   dotnet run -- --header2database
         //
+        //   Note: arg[1] is path to registrations root (i.e. /identity-host/data/tenants)
+        //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --localapptags /identity-host/data/tenants  
+        //
+        //    launchSettings.json :"commandLineArgs": "--localapptags /Users/taud/tmp/dotyou/tenants/"
+        //
+        
+        if (args.Length == 2 && args[0] == "--localapptags")
+        {
+            
+            CreateLocalAppMetadataSchema.Execute(args[1]);
+            return (true, 0);
+        }
+        
+        
+        //
+        // Command line: convert header files to database
+        //
+        // examples:
+        //
+        //   dotnet run -- --header2database
+        //
         //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --header2database
         //
         //

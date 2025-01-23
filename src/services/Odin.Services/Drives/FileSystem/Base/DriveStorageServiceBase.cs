@@ -17,11 +17,13 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -973,6 +975,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, raiseEvent);
         }
 
+
         public async Task UpdateBatchAsync(InternalDriveFileId tempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
             IOdinContext odinContext)
         {
@@ -1078,6 +1081,105 @@ namespace Odin.Services.Drives.FileSystem.Base
                     IgnoreFeedDistribution = false
                 });
             }
+        }
+
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, 
+            Guid targetVersionTag,
+            List<Guid> newTags,
+            IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+            OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
+            
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
+            }
+
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
+
+            var newVersionTag = DriveFileUtility.CreateVersionTag();
+
+            var mergedMetadata = new LocalAppMetadata
+            {
+                Iv = header.FileMetadata.LocalAppData?.Iv,
+                VersionTag = newVersionTag,
+                Content = header.FileMetadata.LocalAppData?.Content,
+                Tags = newTags,
+            };
+
+            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata);
+
+            var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+            if (await ShouldRaiseDriveEventAsync(file))
+            {
+                await mediator.Publish(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = updatedHeader,
+                    OdinContext = odinContext,
+                });
+            }
+            
+            return new UpdateLocalMetadataResult()
+            {
+                NewLocalVersionTag = newVersionTag
+            };
+        }
+
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(InternalDriveFileId file, Guid targetVersionTag,
+            byte[] initVector,
+            string newContent,
+            IOdinContext odinContext)
+        {
+            const int maxLength = 2 * 1024;
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+            OdinValidationUtils.AssertMaxStringLength(newContent, maxLength, $"local app content is too long; max length is {maxLength}");
+
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
+            }
+
+            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
+
+
+            if (header.FileMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(initVector))
+            {
+                throw new OdinClientException("A string IV is required when the target file is encrypted");
+            }
+
+            var newVersionTag = DriveFileUtility.CreateVersionTag();
+
+            var mergedMetadata = new LocalAppMetadata
+            {
+                VersionTag = newVersionTag,
+                Iv = initVector,
+                Content = newContent,
+                Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
+            };
+
+            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata);
+
+            var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+            if (await ShouldRaiseDriveEventAsync(file))
+            {
+                await mediator.Publish(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = updatedHeader,
+                    OdinContext = odinContext,
+                });
+            }
+            
+            return new UpdateLocalMetadataResult()
+            {
+                NewLocalVersionTag = newVersionTag
+            };
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)

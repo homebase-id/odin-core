@@ -651,8 +651,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid(),
-                hdrLocalVersionTag = SequentialGuid.CreateGuid(),
-                hdrLocalAppData = "localAppData"
+                // hdrLocalVersionTag = SequentialGuid.CreateGuid(),
+                // hdrLocalAppData = "localAppData"
             };
 
             // Upsert the record
@@ -688,8 +688,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Assert.AreEqual(ndr.hdrFileMetaData, md.hdrFileMetaData, "HdrFileMetaData mismatch");
             Assert.AreEqual(ndr.hdrTmpDriveAlias, md.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch");
             Assert.AreEqual(ndr.hdrTmpDriveType, md.hdrTmpDriveType, "HdrTmpDriveType mismatch");
-            Assert.AreEqual(ndr.hdrLocalVersionTag, md.hdrLocalVersionTag, "HdrLocalVersionTag mismatch");
-            Assert.AreEqual(ndr.hdrLocalAppData, md.hdrLocalAppData, "HdrLocalAppData mismatch");
+           
+            //Note: local version info is not updated with the normal updates for drive main index; there are dedicated methods for this
+            // Assert.AreEqual(ndr.hdrLocalVersionTag, md.hdrLocalVersionTag, "HdrLocalVersionTag mismatch");
+            // Assert.AreEqual(ndr.hdrLocalAppData, md.hdrLocalAppData, "HdrLocalAppData mismatch");
 
             // Modify all fields except driveId and fileId
             md.fileType = 8;
@@ -711,8 +713,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             md.hdrFileMetaData = """{"2fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""";
             md.hdrTmpDriveAlias = SequentialGuid.CreateGuid();
             md.hdrTmpDriveType = SequentialGuid.CreateGuid();
-            md.hdrLocalVersionTag = SequentialGuid.CreateGuid();
-            md.hdrLocalAppData = "2localAppData";
+            // md.hdrLocalVersionTag = SequentialGuid.CreateGuid();
+            // md.hdrLocalAppData = "2localAppData";
 
             // Upsert the modified record
             var n2 = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(md);
@@ -743,8 +745,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Assert.AreEqual(md.hdrFileMetaData, md2.hdrFileMetaData, "HdrFileMetaData mismatch after modification");
             Assert.AreEqual(md.hdrTmpDriveAlias, md2.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch after modification");
             Assert.AreEqual(md.hdrTmpDriveType, md2.hdrTmpDriveType, "HdrTmpDriveType mismatch after modification");
-            Assert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
-            Assert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
+            
+            //Note: local version info is not updated with the normal updates for drive main index; there are dedicated methods for this
+            
+            // Assert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
+            // Assert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
         }
     }
 }

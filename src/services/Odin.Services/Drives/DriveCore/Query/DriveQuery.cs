@@ -8,6 +8,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
@@ -21,7 +22,9 @@ public class DriveQuery(
     ILogger<DriveQuery> logger,
     MainIndexMeta metaIndex,
     TableDriveMainIndex tblDriveMainIndex,
-    TableDriveReactions tblDriveReactions) : IDriveDatabaseManager
+    TableDriveReactions tblDriveReactions,
+    IdentityDatabase db
+) : IDriveDatabaseManager
 {
     public async Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
         StorageDrive drive,
@@ -53,7 +56,9 @@ public class DriveQuery(
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
+            localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
+            localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
         return (cursor.uniqueTime, results, moreRows);
     }
@@ -89,7 +94,9 @@ public class DriveQuery(
                 uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
                 tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
                 tagsAllOf: qp.TagsMatchAll?.ToList(),
-                archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
+                archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
+                localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
+                localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
             return (cursor, results, moreRows);
         }
@@ -197,6 +204,10 @@ public class DriveQuery(
 
             hdrServerData = OdinSystemSerializer.Serialize(strippedServerMetadata),
 
+            // local data is updated by a specific method
+            // hdrLocalVersionTag =  ...
+            // hdrLocalAppData = ...
+
             //this is updated by the SaveReactionSummary method
             // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
             // this is handled by the SaveTransferHistory method
@@ -267,6 +278,25 @@ public class DriveQuery(
         }
     }
 
+    public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, Guid newVersionTag, string metadataJson)
+    {
+        await db.LocalMetadataDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, newVersionTag, metadataJson);
+    }
+
+    public async Task SaveLocalMetadataTagsAsync(Guid driveId, Guid fileId, LocalAppMetadata metadata)
+    {
+        await using var tx = await db.BeginStackedTransactionAsync();
+
+        // Update the tables used to query
+        await db.LocalMetadataDataOperations.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
+
+        // Update the official metadata field
+        var json = OdinSystemSerializer.Serialize(metadata);
+        await db.LocalMetadataDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, json);
+
+        tx.Commit();
+    }
+    
     public async Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
     {
         var json = summary == null ? "" : OdinSystemSerializer.Serialize(summary);

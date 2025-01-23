@@ -30,5 +30,4 @@ public class TableDriveTransferHistory(
         return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
     }
 
-    
 }
