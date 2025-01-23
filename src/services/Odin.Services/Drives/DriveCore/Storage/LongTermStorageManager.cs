@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Caching;
 using System.Threading.Tasks;
-using AngleSharp.Dom;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -16,8 +14,6 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
-using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -27,7 +23,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         private readonly ILogger<LongTermStorageManager> _logger;
 
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
-        private readonly DriveManager _driveManager;
         private readonly DriveQuery _driveQuery;
         private readonly ScopedIdentityTransactionFactory _scopedIdentityTransactionFactory;
         private readonly TransferHistoryDataOperations _transferHistoryDataOperations;
@@ -39,14 +34,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public LongTermStorageManager(
             ILogger<LongTermStorageManager> logger,
             DriveFileReaderWriter driveFileReaderWriter,
-            DriveManager driveManager,
             DriveQuery driveQuery,
             ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
             TransferHistoryDataOperations transferHistoryDataOperations)
         {
             _logger = logger;
             _driveFileReaderWriter = driveFileReaderWriter;
-            _driveManager = driveManager;
             _driveQuery = driveQuery;
             _scopedIdentityTransactionFactory = scopedIdentityTransactionFactory;
             _transferHistoryDataOperations = transferHistoryDataOperations;

@@ -4,20 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
-using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
@@ -83,56 +81,122 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         [Test]
         [TestCaseSource(nameof(OwnerAllowed))]
         [TestCaseSource(nameof(AppAllowed))]
-        public async Task CanReadTransferSummaryFromFileMixResults(IApiClientContext callerContext,
+        public async Task CanReadTransferSummaryFromFileMixResultsWhenSourceFileDoesNotAllowDistribution(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 
-            List<TestIdentity> successRecipients =
+            List<TestIdentity> connectedRecipients =
             [
                 TestIdentities.TomBombadil,
                 TestIdentities.Samwise
             ];
 
-            List<TestIdentity> failureRecipients =
+            //
+            // Setup
+            //
+            var targetDrive = callerContext.TargetDrive;
+            var senderCircleId = await PrepareSender(senderOwnerClient, targetDrive, DrivePermission.Write);
+            await ConnectRecipientsToSender(senderOwnerClient, connectedRecipients, targetDrive, DrivePermission.Write, senderCircleId);
+
+            //
+            // Act: transfer the file then 
+            //
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = connectedRecipients.Select(t => t.OdinId.DomainName).ToList()
+            };
+
+            var (uploadResult, _) = await TransferEncryptedMetadata(
+                senderOwnerClient, targetDrive, transitOptions, allowDistribution: false);
+
+            //
+            // Assert: the sender has the transfer history updated
+            //
+
+            await callerContext.Initialize(senderOwnerClient);
+            var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var uploadedFileResponse1 = await driveClient.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            var uploadedFile1 = uploadedFileResponse1.Content;
+
+            var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
+            Assert.IsNotNull(summary, "missing transfer summary");
+            Assert.IsTrue(summary.TotalDelivered == 0);
+            Assert.IsTrue(summary.TotalReadByRecipient == 0);
+            Assert.IsTrue(summary.TotalFailed == connectedRecipients.Count);
+            Assert.IsTrue(summary.TotalInOutbox == connectedRecipients.Count);
+
+            await this.DeleteScenario(senderOwnerClient, connectedRecipients);
+            // await this.DeleteScenario(senderOwnerClient, disconnectedRecipients);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(OwnerAllowed))]
+        [TestCaseSource(nameof(AppAllowed))]
+        public async Task CanReadTransferSummaryFromFileMixResultsWhenRecipientReturnsAccessDenied(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+
+            List<TestIdentity> connectedRecipients =
+            [
+                TestIdentities.TomBombadil,
+                TestIdentities.Samwise
+            ];
+
+            List<TestIdentity> disconnectedRecipients =
             [
                 TestIdentities.Collab,
                 TestIdentities.Merry,
                 TestIdentities.Pippin
             ];
 
-            const DrivePermission drivePermissions = DrivePermission.Write;
+            var allRecipients = connectedRecipients.ToList();
+            allRecipients.AddRange(disconnectedRecipients.ToList());
 
             //
             // Setup
             //
             var targetDrive = callerContext.TargetDrive;
-            await PrepareScenario(senderOwnerClient, successRecipients, targetDrive, drivePermissions);
-            await PrepareScenario(senderOwnerClient, failureRecipients, targetDrive, drivePermissions);
+            var senderCircleId = await PrepareSender(senderOwnerClient, targetDrive, DrivePermission.Write);
+            await ConnectRecipientsToSender(senderOwnerClient, allRecipients, targetDrive, DrivePermission.Write, senderCircleId);
+            await RecipientsToDisconnectFromSender(disconnectedRecipients, senderOwnerClient.OdinId);
 
             //
-            // Act transfer file, then send read receipt
+            // Act: transfer the file then 
             //
             var transitOptions = new TransitOptions()
             {
-                Recipients = successRecipients.Select(r => r.OdinId.DomainName).ToList()
+                Recipients = allRecipients.Select(r => r.OdinId.DomainName).ToList()
             };
 
-            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+            var (uploadResult, _) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
             // send a read receipt
-            foreach (var recipientFile in recipientFiles)
+            foreach (var recipient in connectedRecipients)
             {
-                var recipient = recipientFile.Key;
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+                await client.DriveRedux.ProcessInbox(targetDrive);
+
+                // get the file for the recipient
+                var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
+                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+
+                var recipientFile = recipientFileResponse.Content.SearchResults.SingleOrDefault();
+                Assert.IsNotNull(recipientFile);
 
                 //
                 // Send the read receipt
                 //
                 var fileForReadReceipt = new ExternalFileIdentifier()
                 {
-                    FileId = recipientFile.Value.FileId,
-                    TargetDrive = recipientFile.Value.TargetDrive
+                    FileId = recipientFile.FileId,
+                    TargetDrive = recipientFile.TargetDrive
                 };
 
                 var sendReadReceiptResponse = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
@@ -163,13 +227,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
 
             var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
             Assert.IsNotNull(summary, "missing transfer summary");
-            Assert.IsTrue(summary.TotalDelivered == 1);
-            Assert.IsTrue(summary.TotalReadByRecipient == 1);
-            Assert.IsTrue(summary.TotalFailed == 0);
+            Assert.IsTrue(summary.TotalDelivered == connectedRecipients.Count);
+            Assert.IsTrue(summary.TotalReadByRecipient == connectedRecipients.Count);
+            Assert.IsTrue(summary.TotalFailed == disconnectedRecipients.Count);
             Assert.IsTrue(summary.TotalInOutbox == 0);
 
-            await this.DeleteScenario(senderOwnerClient, successRecipients);
-            await this.DeleteScenario(senderOwnerClient, failureRecipients);
+            await this.DeleteScenario(senderOwnerClient, connectedRecipients);
+            // await this.DeleteScenario(senderOwnerClient, disconnectedRecipients);
         }
 
         [Test]
@@ -179,52 +243,63 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             HttpStatusCode expectedStatusCode)
         {
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 
-            List<TestIdentity> successRecipients =
+            List<TestIdentity> connectedRecipients =
             [
                 TestIdentities.TomBombadil,
                 TestIdentities.Samwise
             ];
 
-            List<TestIdentity> failureRecipients =
+            List<TestIdentity> disconnectedRecipients =
             [
                 TestIdentities.Collab,
                 TestIdentities.Merry,
                 TestIdentities.Pippin
             ];
 
-
-            const DrivePermission circleDrivePermissions = DrivePermission.Write;
+            var allRecipients = connectedRecipients.ToList();
+            allRecipients.AddRange(disconnectedRecipients);
 
             //
             // Setup
             //
             var targetDrive = callerContext.TargetDrive;
-            await PrepareScenario(senderOwnerClient, [TestIdentities.Samwise], targetDrive, circleDrivePermissions);
+            var senderCircleId = await PrepareSender(senderOwnerClient, targetDrive, DrivePermission.Write);
+            await ConnectRecipientsToSender(senderOwnerClient, allRecipients, targetDrive, DrivePermission.Write, senderCircleId);
+            await RecipientsToDisconnectFromSender(disconnectedRecipients, senderOwnerClient.OdinId);
 
             //
             // Act transfer file, then send read receipt
             //
             var transitOptions = new TransitOptions()
             {
-                Recipients = successRecipients.Select(r => r.OdinId.DomainName).ToList()
+                Recipients = allRecipients.Select(t => t.OdinId.DomainName).ToList()
             };
 
-            var (uploadResult, _, recipientFiles) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+            var (uploadResult, _) = await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
             // send a read receipt
-            foreach (var recipientFile in recipientFiles)
+            foreach (var recipient in connectedRecipients)
             {
-                var recipient = recipientFile.Key;
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+                await client.DriveRedux.ProcessInbox(targetDrive);
+
+                // get the file for the recipient
+                var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
+                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+
+                var recipientFile = recipientFileResponse.Content.SearchResults.SingleOrDefault();
+                Assert.IsNotNull(recipientFile);
 
                 //
                 // Send the read receipt
                 //
                 var fileForReadReceipt = new ExternalFileIdentifier()
                 {
-                    FileId = recipientFile.Value.FileId,
-                    TargetDrive = recipientFile.Value.TargetDrive
+                    FileId = recipientFile.FileId,
+                    TargetDrive = recipientFile.TargetDrive
                 };
 
                 var sendReadReceiptResponse = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
@@ -252,34 +327,44 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var historyResponse = await driveClient.GetTransferHistory(uploadResult.File);
             Assert.IsTrue(historyResponse.IsSuccessStatusCode, $"status code was {historyResponse.StatusCode}");
 
-            foreach (var recipient in transitOptions.Recipients)
+            var theHistory = historyResponse.Content;
+            Assert.IsTrue(theHistory.OriginalRecipientCount == transitOptions.Recipients.Count);
+            Assert.IsTrue(theHistory.History.Results.Count == transitOptions.Recipients.Count);
+
+            foreach (var recipient in connectedRecipients)
             {
-                var theHistory = historyResponse.Content;
-                Assert.IsTrue(theHistory.OriginalRecipientCount == transitOptions.Recipients.Count);
-                Assert.IsTrue(theHistory.History.Results.Count == 1);
-                var recipientStatus = theHistory.History.Results.SingleOrDefault(r => r.Recipient == recipient);
+                var recipientStatus = theHistory.History.Results.SingleOrDefault(r => r.Recipient == recipient.OdinId);
                 Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
                 Assert.IsTrue(recipientStatus.IsReadByRecipient);
                 Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
                 Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
             }
 
-            await this.DeleteScenario(senderOwnerClient, successRecipients);
-            await this.DeleteScenario(senderOwnerClient, failureRecipients);
+            foreach (var recipient in disconnectedRecipients)
+            {
+                var recipientStatus = theHistory.History.Results.SingleOrDefault(r => r.Recipient == recipient.OdinId);
+                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                Assert.IsTrue(recipientStatus.IsReadByRecipient == false);
+                Assert.IsTrue(recipientStatus.IsInOutbox == false);
+                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
+                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
+            }
+
+            await this.DeleteScenario(senderOwnerClient, connectedRecipients);
         }
 
-        private async Task<(UploadResult response, string encryptedJsonContent64, Dictionary<string, SharedSecretEncryptedFileHeader>
-                recipientFiles)>
+        private async Task<(UploadResult response, string encryptedJsonContent64)>
             TransferEncryptedMetadata(
                 OwnerApiClientRedux senderOwnerClient,
                 TargetDrive targetDrive,
-                TransitOptions transitOptions)
+                TransitOptions transitOptions,
+                bool allowDistribution = true)
         {
             const string uploadedContent = "pie";
 
             var fileMetadata = new UploadFileMetadata()
             {
-                AllowDistribution = true,
+                AllowDistribution = allowDistribution,
                 IsEncrypted = true,
                 AppData = new()
                 {
@@ -305,50 +390,84 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
             Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[transitOptions.Recipients.Single()] == TransferStatus.Enqueued);
+            Assert.IsTrue(uploadResult!.RecipientStatus.Count == transitOptions.Recipients.Count);
 
-            await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(storageOptions.Drive);
-
-            // validate recipient got the file
+            if (allowDistribution) //we will only have a chance to get an empty outbox if the file is distributed
+            {
+                await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(storageOptions.Drive);
+            }
 
             var uploadResult1 = uploadResponse.Content;
             Assert.IsNotNull(uploadResult1);
 
-            var recipientFiles = new Dictionary<string, SharedSecretEncryptedFileHeader>();
-            foreach (var recipient in transitOptions.Recipients)
-            {
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
-                await client.DriveRedux.ProcessInbox(storageOptions.Drive);
-                var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult1.GlobalTransitIdFileIdentifier);
-                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
-                var file = recipientFileResponse.Content.SearchResults.SingleOrDefault();
-                Assert.IsNotNull(file);
-                recipientFiles.Add(recipient, file);
-            }
-
-            return (uploadResult1, encryptedJsonContent64, recipientFiles);
+            return (uploadResult1, encryptedJsonContent64);
         }
 
-        private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, List<TestIdentity> recipients,
+        private async Task RecipientsToDisconnectFromSender(List<TestIdentity> recipients, OdinId sender)
+        {
+            foreach (var recipient in recipients)
+            {
+                var client = _scaffold.CreateOwnerApiClientRedux(recipient);
+                await client.Connections.DisconnectFrom(sender);
+            }
+        }
+
+        private async Task ConnectRecipientsToSender(OwnerApiClientRedux senderOwnerClient, List<TestIdentity> recipients,
+            TargetDrive targetDrive,
+            DrivePermission drivePermission,
+            Guid senderCircleId)
+        {
+            foreach (var recipient in recipients)
+            {
+                // setup the recipients
+                var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipient);
+                await recipientOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
+
+                //
+                // Recipient creates a target drive
+                //
+                var recipientDriveResponse = await recipientOwnerClient.DriveManager.CreateDrive(
+                    targetDrive: targetDrive,
+                    name: "Target drive on recipient",
+                    metadata: "",
+                    allowAnonymousReads: false,
+                    allowSubscriptions: false,
+                    ownerOnly: false);
+
+                Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+
+                var recipientCircleId = Guid.NewGuid();
+                var createCircleOnRecipientResponse = await recipientOwnerClient.Network.CreateCircle(recipientCircleId,
+                    "Circle with drive access",
+                    new PermissionSetGrantRequest()
+                    {
+                        Drives = new List<DriveGrantRequest>()
+                        {
+                            new()
+                            {
+                                PermissionedDrive = new()
+                                {
+                                    Drive = targetDrive,
+                                    Permission = drivePermission
+                                }
+                            }
+                        }
+                    });
+
+                Assert.IsTrue(createCircleOnRecipientResponse.IsSuccessStatusCode);
+
+                // get connected
+                await recipientOwnerClient.Connections.SendConnectionRequest(senderOwnerClient.Identity.OdinId, [recipientCircleId]);
+                var acceptResponse =
+                    await senderOwnerClient.Connections.AcceptConnectionRequest(recipientOwnerClient.Identity.OdinId, [senderCircleId]);
+                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Status code was {acceptResponse.StatusCode}");
+            }
+        }
+
+        private async Task<Guid> PrepareSender(OwnerApiClientRedux senderOwnerClient,
             TargetDrive targetDrive,
             DrivePermission drivePermissions)
         {
-            // setup the recipients
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipients.FirstOrDefault());
-            //
-            // Recipient creates a target drive
-            //
-            var recipientDriveResponse = await recipientOwnerClient.DriveManager.CreateDrive(
-                targetDrive: targetDrive,
-                name: "Target drive on recipient",
-                metadata: "",
-                allowAnonymousReads: false,
-                allowSubscriptions: false,
-                ownerOnly: false);
-
-            Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
-
             //
             // Sender needs this same drive in order to send across files
             //
@@ -385,45 +504,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 });
 
             Assert.IsTrue(createCircleOnSenderResponse.IsSuccessStatusCode);
-
-
-            var recipientCircleId = Guid.NewGuid();
-            var createCircleOnRecipientResponse = await recipientOwnerClient.Network.CreateCircle(recipientCircleId,
-                "Circle with drive access",
-                new PermissionSetGrantRequest()
-                {
-                    Drives = new List<DriveGrantRequest>()
-                    {
-                        new()
-                        {
-                            PermissionedDrive = expectedPermissionedDrive
-                        }
-                    }
-                });
-
-            Assert.IsTrue(createCircleOnRecipientResponse.IsSuccessStatusCode);
-
-            //
-            // Sender sends connection request
-            //
-            await senderOwnerClient.Connections.SendConnectionRequest(recipientOwnerClient.Identity.OdinId, [senderCircleId]);
-
-            //
-            // Recipient accepts; grants access to circle
-            //
-            await recipientOwnerClient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, [recipientCircleId]);
-
-            // 
-            // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
-            // 
-
-            var getConnectionInfoResponse = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
-
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
-            var senderConnectionInfo = getConnectionInfoResponse.Content;
-
-            Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
-                cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
+            return senderCircleId;
         }
 
         private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, List<TestIdentity> identities)
