@@ -35,7 +35,7 @@ public class DriveQuery(
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(odinContext);
-        var cursor = new UnixTimeUtcUnique(options.Cursor);
+        var cursor = new UnixTimeUtcUnique(string.IsNullOrEmpty(options.Cursor) ? 0 : Int64.Parse(options.Cursor));
 
         // TODO TODD - use moreRows
         (var results, var moreRows, cursor) = await metaIndex.QueryModifiedAsync(
@@ -263,7 +263,8 @@ public class DriveQuery(
                 GuidOneOrTwo(metadata.File.FileId, r.fileId),
                 drive.Name);
 
-            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.", OdinClientErrorCode.ExistingFileWithUniqueId);
+            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.",
+                OdinClientErrorCode.ExistingFileWithUniqueId);
         }
     }
 
@@ -369,7 +370,8 @@ public class DriveQuery(
 
     public async Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(StorageDrive drive, int maxCount, int cursor, Guid fileId)
     {
-        var (items, nextCursor) = await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id, postIdFilter: fileId);
+        var (items, nextCursor) =
+            await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id, postIdFilter: fileId);
 
         var results = items.Select(item =>
             new Reaction()

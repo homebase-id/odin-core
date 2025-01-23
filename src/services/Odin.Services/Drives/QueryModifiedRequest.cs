@@ -37,7 +37,7 @@ public class GetQueryModifiedRequest
 
     // QueryModifiedResultOptions
     public long MaxDate { get; set; }
-    public long Cursor { get; set; }
+    public string Cursor { get; set; }
 
     /// <summary>
     /// Max number of records to return
@@ -65,7 +65,9 @@ public class GetQueryModifiedRequest
                 ArchivalStatus = this.ArchivalStatus,
                 Sender = this.Sender,
                 GroupId = this.GroupId,
-                UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange((UnixTimeUtc)this.UserDateStart.Value, (UnixTimeUtc)this.UserDateEnd.Value) : null,
+                UserDate = this.UserDateStart != null && this.UserDateEnd != null
+                    ? new UnixTimeUtcRange((UnixTimeUtc)this.UserDateStart.Value, (UnixTimeUtc)this.UserDateEnd.Value)
+                    : null,
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
                 TagsMatchAll = this.TagsMatchAll,
