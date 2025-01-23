@@ -83,12 +83,16 @@ public static class TransferHistoryMigration
         //     cmd1.CommandText = "ALTER TABLE ...";
         //     await cmd1.ExecuteNonQueryAsync();
         // }
+        
+        await tx.CommitAsync();
+
     }
 
     private static async Task MigrateData(Guid tenantId, string connectionString)
     {
         // Migrate the data
         await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
+        await using var tx = await cn.BeginTransactionAsync();
 
         var getTransferHistoryCommand = cn.CreateCommand();
         getTransferHistoryCommand.CommandText = "SELECT driveId, fileId, hdrTransferHistory FROM driveMainIndex " +
@@ -98,8 +102,6 @@ public static class TransferHistoryMigration
         var identityParam = getTransferHistoryCommand.CreateParameter();
         identityParam.ParameterName = "@identityId";
         identityParam.Value = tenantId.ToByteArray();
-
-        //TODO: need a transaction here
 
         using (var rdr = await getTransferHistoryCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -114,6 +116,9 @@ public static class TransferHistoryMigration
                 await CreateSummary(cn, tenantId, driveId, fileId);
             }
         }
+
+        await tx.CommitAsync();
+
     }
 
     private static async Task CreateSummary(DbConnection cn, Guid tenantId, Guid driveId, Guid fileId)
