@@ -1,8 +1,6 @@
 ﻿using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Peer.Encryption;
-using System;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -45,8 +43,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 ? null
                 : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferHistory);
 
+            header.FileMetadata.LocalAppData = string.IsNullOrEmpty(record.hdrLocalAppData)
+                ? null
+                : OdinSystemSerializer.Deserialize<LocalAppMetadata>(record.hdrLocalAppData);
+
+            if (null != header.FileMetadata.LocalAppData)
+            {
+                header.FileMetadata.LocalAppData.VersionTag = record.hdrLocalVersionTag.GetValueOrDefault();
+            }
+
             return header;
         }
     }
-
 }

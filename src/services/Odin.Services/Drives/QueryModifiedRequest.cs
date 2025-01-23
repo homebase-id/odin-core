@@ -33,6 +33,10 @@ public class GetQueryModifiedRequest
 
     public Guid[] TagsMatchAll { get; set; } = null;
 
+    public Guid[] LocalTagsMatchAll { get; set; } = null;
+
+    public Guid[] LocalTagsMatchAtLeastOne { get; set; } = null;
+
     public Guid[] GlobalTransitId { get; set; } = null;
 
     // QueryModifiedResultOptions
@@ -71,6 +75,8 @@ public class GetQueryModifiedRequest
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
                 TagsMatchAll = this.TagsMatchAll,
+                LocalTagsMatchAtLeastOne = this.LocalTagsMatchAtLeastOne,
+                LocalTagsMatchAll = this.LocalTagsMatchAll,
                 GlobalTransitId = this.GlobalTransitId,
             },
             ResultOptions = new QueryModifiedResultOptions()
