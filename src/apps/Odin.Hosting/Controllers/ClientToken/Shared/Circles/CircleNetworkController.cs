@@ -24,7 +24,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
         public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, string cursor,
             bool omitContactData = false)
         {
-            var result = await cn.GetConnectedIdentitiesAsync(count, Int64.Parse(cursor), WebOdinContext);
+            Int64.TryParse(cursor, out long c);
+            var result = await cn.GetConnectedIdentitiesAsync(count, c, WebOdinContext);
             return new CursoredResult<RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,

@@ -35,7 +35,9 @@ public class DriveQuery(
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(odinContext);
-        var cursor = new UnixTimeUtcUnique(string.IsNullOrEmpty(options.Cursor) ? 0 : Int64.Parse(options.Cursor));
+        Int64.TryParse(options.Cursor, out long c);
+
+        var cursor = new UnixTimeUtcUnique(c);
 
         // TODO TODD - use moreRows
         (var results, var moreRows, cursor) = await metaIndex.QueryModifiedAsync(
