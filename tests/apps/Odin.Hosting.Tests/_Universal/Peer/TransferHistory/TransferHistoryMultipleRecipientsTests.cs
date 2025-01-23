@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -233,7 +232,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             Assert.IsTrue(summary.TotalInOutbox == 0);
 
             await this.DeleteScenario(senderOwnerClient, connectedRecipients);
-            // await this.DeleteScenario(senderOwnerClient, disconnectedRecipients);
+            await this.DeleteScenario(senderOwnerClient, disconnectedRecipients);
         }
 
         [Test]
@@ -511,7 +510,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         {
             foreach (var testIdentity in identities)
             {
-                await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, testIdentity.OdinId);
+                var otherClient = _scaffold.CreateOwnerApiClientRedux(testIdentity);
+
+                await senderOwnerClient.Connections.DisconnectFrom(testIdentity.OdinId);
+                await otherClient.Connections.DisconnectFrom(senderOwnerClient.OdinId);
             }
         }
     }
