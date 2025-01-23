@@ -30,6 +30,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _attestationId = value;
                }
         }
+        internal string attestationIdNoLengthCheck
+        {
+           get {
+                   return _attestationId;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _attestationId = value;
+               }
+        }
         private string _requestEnvelope;
         public string requestEnvelope
         {
@@ -40,6 +51,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 65535) throw new Exception("Too long");
+                  _requestEnvelope = value;
+               }
+        }
+        internal string requestEnvelopeNoLengthCheck
+        {
+           get {
+                   return _requestEnvelope;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _requestEnvelope = value;
                }
         }
@@ -210,7 +232,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("attestationId");
@@ -229,12 +251,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AttestationRequestRecord();
-            item.attestationId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
-            item.requestEnvelope = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.timestamp = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.attestationIdNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
+            item.requestEnvelopeNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.timestamp = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 
@@ -272,12 +291,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             var guid = new byte[16];
             var item = new AttestationRequestRecord();
             item.attestationId = attestationId;
-
-            item.requestEnvelope = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
-
-            item.timestamp = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
+            item.requestEnvelopeNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
+            item.timestamp = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
             return item;
        }
 

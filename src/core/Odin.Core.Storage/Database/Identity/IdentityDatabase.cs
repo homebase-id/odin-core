@@ -15,16 +15,19 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     // Put all database tables alphabetically here.
     // Don't forget to add the table to the lazy properties as well.
     //
-    public static readonly ImmutableList<Type> TableTypes = [
+    public static readonly ImmutableList<Type> TableTypes =
+    [
         typeof(TableAppGrants),
         typeof(TableAppNotifications),
         typeof(TableCircle),
         typeof(TableCircleMember),
         typeof(TableConnections),
         typeof(TableDriveAclIndex),
+        typeof(TableDriveLocalTagIndex),
         typeof(TableDriveMainIndex),
         typeof(TableDriveReactions),
         typeof(TableDriveTagIndex),
+        typeof(TableDriveLocalTagIndex),
         typeof(TableFollowsMe),
         typeof(TableImFollowing),
         typeof(TableInbox),
@@ -59,13 +62,19 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     private Lazy<TableConnections> _connections;
     public TableConnections Connections => LazyResolve(ref _connections);
     private Lazy<TableDriveAclIndex> _driveAclIndex;
+
     public TableDriveAclIndex DriveAclIndex => LazyResolve(ref _driveAclIndex);
     private Lazy<TableDriveMainIndex> _driveMainIndex;
     public TableDriveMainIndex DriveMainIndex => LazyResolve(ref _driveMainIndex);
     private Lazy<TableDriveReactions> _driveReactions;
-    public TableDriveReactions DriveReactions => LazyResolve(ref _driveReactions);
+
     private Lazy<TableDriveTagIndex> _driveTagIndex;
     public TableDriveTagIndex DriveTagIndex => LazyResolve(ref _driveTagIndex);
+
+    private Lazy<TableDriveLocalTagIndex> _driveLocalTagIndex;
+    public TableDriveLocalTagIndex DriveLocalTagIndex => LazyResolve(ref _driveLocalTagIndex);
+
+    public TableDriveReactions DriveReactions => LazyResolve(ref _driveReactions);
     private Lazy<TableFollowsMe> _followsMe;
     public TableFollowsMe FollowsMe => LazyResolve(ref _followsMe);
     private Lazy<TableImFollowing> _imFollowing;
@@ -94,6 +103,9 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     //
     private Lazy<MainIndexMeta> _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
+
+    private Lazy<LocalMetadataDataOperations> _localTags;
+    public LocalMetadataDataOperations LocalMetadataDataOperations => LazyResolve(ref _localTags);
 
     //
     // Connection
@@ -128,7 +140,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
             var table = (ITableMigrator)_lifetimeScope.Resolve(tableType);
             await table.EnsureTableExistsAsync(dropExistingTables);
         }
+
         tx.Commit();
     }
-
 }
