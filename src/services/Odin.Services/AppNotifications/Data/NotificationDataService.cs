@@ -25,7 +25,8 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         return await AddNotificationInternal(senderId, request, odinContext);
     }
 
-    internal async Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
+    internal async Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request,
+        IOdinContext odinContext)
     {
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
@@ -84,7 +85,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var nr = new NotificationsListResult()
         {
-            Cursor = cursor,
+            Cursor = cursor.ToString(),
             Results = list.ToList()
         };
 
