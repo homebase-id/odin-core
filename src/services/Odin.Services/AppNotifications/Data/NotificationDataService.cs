@@ -7,6 +7,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
@@ -59,7 +60,8 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, request.Cursor);
+        Int64.TryParse(request.Cursor, out var c);
+        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, new UnixTimeUtcUnique(c));
 
         var list = results.Select(r => new AppNotification()
         {
@@ -85,7 +87,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var nr = new NotificationsListResult()
         {
-            Cursor = cursor.ToString(),
+            Cursor = cursor.HasValue ? cursor.Value.uniqueTime.ToString() : "",
             Results = list.ToList()
         };
 
