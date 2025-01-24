@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
@@ -117,8 +118,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var (uploadResult, _) = await TransferEncryptedMetadata(
                 senderOwnerClient, targetDrive, transitOptions, allowDistribution: false);
 
-            await senderOwnerClient.DriveRedux.WaitForEmptyInbox(targetDrive);
-
+            // this delay is required to let the outbox process in the background since we cannot use WaitForEmptyOutbox
+            // we cannot use WaitForEmptyOutbox because items will always be stuck in there, intentionally
+            await Task.Delay(1 * 1000);
             //
             // Assert: the sender has the transfer history updated
             //
