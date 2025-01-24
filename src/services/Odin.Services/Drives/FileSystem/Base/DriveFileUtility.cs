@@ -26,8 +26,8 @@ public static class DriveFileUtility
     public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
     public const string TransitThumbnailKeyDelimiter = "|";
 
-    const int MaxAppDataContentLength = 10 * 1024;
-    const int MaxTinyThumbLength = 10 * 1024;
+    public const int MaxAppDataContentLength = 10 * 1024;
+    public const int MaxTinyThumbLength = 10 * 1024;
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -299,7 +299,7 @@ public static class DriveFileUtility
 
     public static void AssertValidPreviewThumbnail(ThumbnailContent thumbnail)
     {
-        OdinValidationUtils.AssertIsTrue(thumbnail?.Content?.Length <= MaxTinyThumbLength,
+        OdinValidationUtils.AssertIsTrue((thumbnail?.Content?.Length ?? 0) <= MaxTinyThumbLength,
             $"max preview thumb size is {MaxTinyThumbLength}");
     }
 }
