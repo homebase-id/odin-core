@@ -14,6 +14,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base;
 
@@ -24,6 +25,9 @@ public static class DriveFileUtility
     public const string FileNameSectionDelimiter = "-";
     public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
     public const string TransitThumbnailKeyDelimiter = "|";
+
+    const int MaxAppDataContentLength = 10 * 1024;
+    const int MaxTinyThumbLength = 10 * 1024;
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -137,7 +141,7 @@ public static class DriveFileUtility
 
             AppData = fileMetadata.AppData,
             LocalAppData = fileMetadata.LocalAppData,
-            
+
             GlobalTransitId = fileMetadata.GlobalTransitId,
             IsEncrypted = fileMetadata.IsEncrypted,
             SenderOdinId = fileMetadata.SenderOdinId,
@@ -285,5 +289,17 @@ public static class DriveFileUtility
     public static Guid CreateVersionTag()
     {
         return SequentialGuid.CreateGuid();
+    }
+
+    public static void AssertValidAppContentLength(string content)
+    {
+        OdinValidationUtils.AssertMaxStringLength(content, MaxAppDataContentLength,
+            $"local app content is too long; max length is {MaxAppDataContentLength}");
+    }
+
+    public static void AssertValidPreviewThumbnail(ThumbnailContent thumbnail)
+    {
+        OdinValidationUtils.AssertIsTrue(thumbnail?.Content?.Length <= MaxTinyThumbLength,
+            $"max preview thumb size is {MaxTinyThumbLength}");
     }
 }
