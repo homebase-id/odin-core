@@ -61,6 +61,7 @@ public class OdinConfiguration
         CertificateRenewal = new CertificateRenewalSection(config);
         PushNotification = new PushNotificationSection(config);
         Database = new DatabaseSection(config);
+        Cache = new CacheSection(config);
     }
 
     //
@@ -460,7 +461,7 @@ public class OdinConfiguration
     public class CacheSection
     {
         public Level2CacheType Level2CacheType { get; init; }
-        public string ConnectionString { get; init; } = "";
+        public string Level2Configuration { get; init; } = "";
 
         public CacheSection()
         {
@@ -472,7 +473,7 @@ public class OdinConfiguration
             Level2CacheType = config.GetOrDefault("Cache:Level2CacheType", Level2CacheType.None);
             if (Level2CacheType != Level2CacheType.None)
             {
-                ConnectionString = config.Required<string>("Cache:ConnectionString");
+                Level2Configuration = config.Required<string>("Cache:Level2Configuration");
             }
         }
     }

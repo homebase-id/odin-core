@@ -21,6 +21,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
@@ -237,6 +238,12 @@ namespace Odin.Hosting
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
             services.AddIpRateLimiter(_config.Host.IpRateLimitRequestsPerSecond);
+
+            services.AddCoreCacheServices(new OdinCacheOptions
+            {
+                Level2CacheType = _config.Cache.Level2CacheType,
+                Level2Configuration = _config.Cache.Level2Configuration
+            });
         }
 
         // ConfigureContainer is where you can register things directly
@@ -267,6 +274,9 @@ namespace Odin.Hosting
                 default:
                     throw new OdinSystemException("Unsupported database type");
             }
+
+            // System cache services
+            builder.AddOdinCache("system");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -512,6 +522,10 @@ namespace Odin.Hosting
                     var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
                     new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
                 }
+
+                // Sanity ping cache
+                var cache = services.GetRequiredService<IOdinCache>();
+
 
                 // Start system background services
                 if (config.Job.SystemJobsEnabled)
