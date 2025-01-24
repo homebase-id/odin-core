@@ -1,8 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic.FileIO;
+using System.Xml;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -16,9 +21,23 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         IdentityKey identityKey,
         TableDriveAclIndex driveAclIndex,
         TableDriveTagIndex driveTagIndex,
+        TableDriveLocalTagIndex driveLocalTagIndex,
         TableDriveMainIndex driveMainIndex)
     {
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
+        private static readonly string selectOutputFields;
+        public TableDriveLocalTagIndex _driveLocalTagIndex = driveLocalTagIndex;
+        static MainIndexMeta()
+        {
+            // Initialize selectOutputFields statically
+            selectOutputFields = string.Join(",",
+                TableDriveMainIndex.GetColumnNames()
+                    .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
+                                && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
+                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase)
+                                    ? "driveMainIndex.fileId"
+                                    : name));
+        }
 
         public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
         {
@@ -94,12 +113,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
-            List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf,
+            List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf, List<Guid> localTagsAnyOf,
             List<Int32> archivalStatusAnyOf,
             List<string> senderidAnyOf,
             List<Guid> groupIdAnyOf,
             UnixTimeUtcRange userdateSpan,
             List<Guid> tagsAllOf,
+            List<Guid> localTagsAllOf,
             Int32? fileSystemType,
             Guid driveId)
         {
@@ -155,6 +175,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 listWhere.Add($"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE drivetagindex.identityId=driveMainIndex.identityId AND tagId IN ({HexList(tagsAnyOf)}))");
             }
 
+            if (IsSet(localTagsAnyOf))
+            {
+                listWhere.Add($"driveMainIndex.fileId IN (SELECT DISTINCT fileId FROM driveLocalTagIndex WHERE driveLocalTagIndex.identityId=driveMainIndex.identityId AND TagId IN ({HexList(localTagsAnyOf)}))");
+            }
+
             if (IsSet(archivalStatusAnyOf))
             {
                 listWhere.Add($"archivalStatus IN ({IntList(archivalStatusAnyOf)})");
@@ -179,7 +204,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (IsSet(tagsAllOf))
             {
                 // TODO: This will return 0 matches. Figure out the right query.
-                listWhere.Add($"{AndIntersectHexList(tagsAllOf)}");
+                listWhere.Add($"{AndIntersectHexList(tagsAllOf, "driveTagIndex")}");
+            }
+
+            if (IsSet(localTagsAllOf))
+            {
+                // TODO: This will return 0 matches. Figure out the right query.
+                listWhere.Add($"{AndIntersectHexList(localTagsAllOf, "driveLocalTagIndex")}");
             }
 
             return leftJoin;
@@ -227,7 +258,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
-            List<Guid> tagsAllOf = null)
+            List<Guid> tagsAllOf = null,
+            List<Guid> localTagsAnyOf = null,
+            List<Guid> localTagsAllOf = null)
         {
             if (null == fileSystemType)
             {
@@ -306,15 +339,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
-                uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
+                uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
                 fileSystemType, driveId);
-
             if (IsSet(fileStateAnyOf))
             {
                 listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
             }
 
-            string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            // string selectOutputFields    = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            // string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData,                                    hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
             /*if (fileIdSort)
                 selectOutputFields = "driveMainIndex.fileId";
             else
@@ -332,7 +365,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
-
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
 
@@ -406,7 +438,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
-            List<Guid> tagsAllOf = null)
+            List<Guid> tagsAllOf = null,
+            List<Guid> localTagsAnyOf = null,
+            List<Guid> localTagsAllOf = null)
         {
             bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
 
@@ -428,7 +462,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     userdateSpan,
                     aclAnyOf,
                     tagsAnyOf,
-                    tagsAllOf);
+                    tagsAllOf,
+                    localTagsAnyOf,
+                    localTagsAllOf);
 
             //
             // OldToNew:
@@ -482,7 +518,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         userdateSpan,
                         aclAnyOf,
                         tagsAnyOf,
-                        tagsAllOf);
+                        tagsAllOf,
+                        localTagsAnyOf,
+                        localTagsAllOf);
 
                     // There was more data
                     if (r2.Count > 0)
@@ -512,7 +550,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         uniqueIdAnyOf,
                         archivalStatusAnyOf,
                         userdateSpan,
-                        aclAnyOf, tagsAnyOf, tagsAllOf);
+                        aclAnyOf,
+                        tagsAnyOf, tagsAllOf,
+                        localTagsAnyOf, localTagsAllOf);
                 }
                 else
                 {
@@ -548,7 +588,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
-            List<Guid> tagsAllOf = null)
+            List<Guid> tagsAllOf = null,
+            List<Guid> localTagsAnyOf = null,
+            List<Guid> localTagsAllOf = null)
         {
             if (null == fileSystemType)
             {
@@ -575,10 +617,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
-                uniqueIdAnyOf, tagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf,
+                uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
                 fileSystemType, driveId);
 
-            string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
+            // string selectOutputFields =  "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
             // string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
 
@@ -692,7 +734,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return list?.Count > 0;
         }
 
-        private string AndIntersectHexList(List<Guid> list)
+        private string AndIntersectHexList(List<Guid> list, string tableName)
         {
             int len = list.Count;
             string s = "";
@@ -710,11 +752,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             //   SELECT DISTINCT HEX(fileid) FROM tagindex WHERE fileid in (SELECT DISTINCT fileid FROM tagindex WHERE fileid IN(SELECT DISTINCT fileid FROM tagindex WHERE tagid = x'189820F6018C218FA0F0F18E86139565') AND tagid = x'189820F6018B51349CC07ED86B02C8F6') and tagid = x'189820F6018C7F083F50CFCD32AF2B7F';
             //
 
-            s = $"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM drivetagindex WHERE tagid = {list[0].BytesToSql(_databaseType)} ";
+            s = $"driveMainIndex.fileid IN (SELECT DISTINCT fileid FROM {tableName} WHERE tagid = {list[0].BytesToSql(_databaseType)} ";
 
             for (int i = 0 + 1; i < len; i++)
             {
-                s += $"INTERSECT SELECT DISTINCT fileid FROM drivetagindex WHERE tagid = {list[i].BytesToSql(_databaseType)} ";
+                s += $"INTERSECT SELECT DISTINCT fileid FROM {tableName} WHERE tagid = {list[i].BytesToSql(_databaseType)} ";
             }
 
             s += ") ";

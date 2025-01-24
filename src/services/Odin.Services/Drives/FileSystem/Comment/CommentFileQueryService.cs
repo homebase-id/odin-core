@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
@@ -16,8 +17,8 @@ namespace Odin.Services.Drives.FileSystem.Comment
             ILogger<CommentFileQueryService> logger,
             DriveManager driveManager,
             DriveQuery driveQuery,
-            CommentFileStorageService commentStorage) :
-            base(logger, driveManager, driveQuery, commentStorage)
+            CommentFileStorageService commentStorage, IdentityDatabase db) :
+            base(logger, driveManager, driveQuery, commentStorage, db)
         {
         }
 
