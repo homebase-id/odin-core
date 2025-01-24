@@ -24,7 +24,6 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         [HttpGet("list")]
         public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] string cursor, [FromQuery] Guid? appId)
         {
-            Int64.TryParse(cursor, out var c);
             return await notificationService.GetList(new GetNotificationListRequest()
             {
                 AppId = appId,

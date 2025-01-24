@@ -61,7 +61,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         Int64.TryParse(request.Cursor, out var c);
-        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, new UnixTimeUtcUnique(c));
+        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, c == 0 ? null : new UnixTimeUtcUnique(c));
 
         var list = results.Select(r => new AppNotification()
         {
