@@ -21,20 +21,23 @@ public class FusionCacheTests
     private RedisContainer? _redisContainer;
     private ILifetimeScope? _services;
 
-    [SetUp]
-    public void Setup()
+    [OneTimeSetUp]
+    public async Task SetUp()
     {
         _redisContainer = new RedisBuilder()
             .WithImage("redis:latest")
             .Build();
-        _redisContainer.StartAsync().Wait();
+        await _redisContainer.StartAsync();
     }
 
-    [TearDown]
-    public void TearDown()
+    [OneTimeTearDown]
+    public async Task TearDown()
     {
-        _redisContainer?.StopAsync().Wait();
-        _redisContainer?.DisposeAsync().AsTask().Wait();
+        if (_redisContainer != null)
+        {
+            await _redisContainer.StopAsync();
+            await _redisContainer.DisposeAsync();
+        }
     }
 
     [Test]

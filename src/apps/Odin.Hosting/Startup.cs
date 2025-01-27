@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -525,7 +524,12 @@ namespace Odin.Hosting
 
                 // Sanity ping cache
                 var cache = services.GetRequiredService<IOdinCache>();
-
+                cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
+                var pong = cache.TryGet<string>("ping");
+                if (pong != "pong")
+                {
+                    throw new OdinSystemException("Cache sanity check failed");
+                }
 
                 // Start system background services
                 if (config.Job.SystemJobsEnabled)
