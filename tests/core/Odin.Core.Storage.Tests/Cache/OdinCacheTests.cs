@@ -1,10 +1,15 @@
 using System;
 using System.Threading.Tasks;
 using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Storage.Cache;
 using Testcontainers.Redis;
 using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Serialization.NeueccMessagePack;
 
 namespace Odin.Core.Storage.Tests.Cache;
 
@@ -16,12 +21,8 @@ public class OdinCacheTests
     private ILifetimeScope? _services;
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
-        _redisContainer = new RedisBuilder()
-            .WithImage("redis:latest")
-            .Build();
-        await _redisContainer.StartAsync();
     }
 
     //
@@ -33,20 +34,86 @@ public class OdinCacheTests
         {
             await _redisContainer.StopAsync();
             await _redisContainer.DisposeAsync();
+            _redisContainer = null;
         }
+        _services?.Dispose();
+        _services = null;
     }
 
     //
 
-    [Test]
-    public async Task ItShouldSetAndGetLevel1()
+    private async Task RegisterServicesAsync(Level2CacheType level2CacheType)
     {
-        _services = new ServiceCollection()
-            .AddServices()
-            .AddLevel1Cache()
-            .BuildContainer();
+        if (level2CacheType == Level2CacheType.Redis)
+        {
+            _redisContainer = new RedisBuilder()
+                .WithImage("redis:latest")
+                .Build();
+            await _redisContainer.StartAsync();
+        }
 
-        var cache = _services!.Resolve<IFusionCache>();
+        var services = new ServiceCollection();
+
+        services.AddLogging();
+
+        services.AddSingleton(new OdinCacheKeyPrefix("some-prefix"));
+        services.AddSingleton<IOdinCache, OdinCache>();
+
+        var fusionBuilder = services.AddFusionCache()
+            .WithOptions(options =>
+            {
+                options.DistributedCacheCircuitBreakerDuration = TimeSpan.FromSeconds(2);
+
+                // CUSTOM LOG LEVELS
+                options.FailSafeActivationLogLevel = LogLevel.Debug;
+                options.SerializationErrorsLogLevel = LogLevel.Warning;
+                options.DistributedCacheSyntheticTimeoutsLogLevel = LogLevel.Debug;
+                options.DistributedCacheErrorsLogLevel = LogLevel.Error;
+                options.FactorySyntheticTimeoutsLogLevel = LogLevel.Debug;
+                options.FactoryErrorsLogLevel = LogLevel.Error;
+            })
+            .WithDefaultEntryOptions(new FusionCacheEntryOptions
+            {
+                Duration = TimeSpan.FromSeconds(30),
+
+                IsFailSafeEnabled = true,
+                FailSafeMaxDuration = TimeSpan.FromHours(2),
+                FailSafeThrottleDuration = TimeSpan.FromSeconds(30),
+
+                FactorySoftTimeout = TimeSpan.FromMilliseconds(100),
+                FactoryHardTimeout = TimeSpan.FromMilliseconds(1500),
+
+                DistributedCacheSoftTimeout = TimeSpan.FromSeconds(1),
+                DistributedCacheHardTimeout = TimeSpan.FromSeconds(2),
+                AllowBackgroundDistributedCacheOperations = true,
+
+                JitterMaxDuration = TimeSpan.FromSeconds(2)
+            })
+            .WithSerializer(
+                new FusionCacheNeueccMessagePackSerializer()
+            );
+
+        if (level2CacheType == Level2CacheType.Redis)
+        {
+            fusionBuilder.WithDistributedCache(
+                new RedisCache(new RedisCacheOptions { Configuration = _redisContainer!.GetConnectionString() }));
+        }
+
+        var builder = new ContainerBuilder();
+        builder.Populate(services);
+        _services = builder.Build();
+    }
+
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task ItShouldGetAndSet(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<IOdinCache>();
 
         var id = Guid.NewGuid();
 
@@ -68,6 +135,8 @@ public class OdinCacheTests
     }
 
     //
+
+    #region POCO
 
     private Task<PocoA?> GetProductFromDbAsync(Guid id)
     {
@@ -91,4 +160,7 @@ public class OdinCacheTests
         public Guid Uuid { get; set; }
     }
 
+    #endregion
+
 }
+

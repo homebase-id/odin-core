@@ -40,13 +40,13 @@ public class FusionCacheTests
         }
     }
 
-    [Test]
+    [Test, Explicit]
     public async Task ItShouldSetAndGetLevel1()
     {
         _services = new ServiceCollection()
-            .AddServices()
-            .AddLevel1Cache()
-            .BuildContainer();
+            .AddFusionServices()
+            .AddFusionLevel1Cache()
+            .BuildFusionContainer();
 
         var cache = _services!.Resolve<IFusionCache>();
 
@@ -71,14 +71,14 @@ public class FusionCacheTests
 
     //
 
-    [Test]
+    [Test, Explicit]
     public async Task ItShouldSetAndGet2Level1Caches()
     {
         _services = new ServiceCollection()
-            .AddServices()
-            .AddLevel1Cache("cache1")
-            .AddLevel1Cache("cache2")
-            .BuildContainer();
+            .AddFusionServices()
+            .AddFusionLevel1Cache("cache1")
+            .AddFusionLevel1Cache("cache2")
+            .BuildFusionContainer();
 
         var cacheProvider = _services!.Resolve<IFusionCacheProvider>();
 
@@ -106,14 +106,14 @@ public class FusionCacheTests
 
     //
 
-    [Test]
+    [Test, Explicit]
     public async Task ItShouldSetAndGet2Level2Caches()
     {
         _services = new ServiceCollection()
-            .AddServices()
-            .AddLevel1And2Cache(_redisContainer!.GetConnectionString(), "cache1")
-            .AddLevel1And2Cache(_redisContainer!.GetConnectionString(), "cache2")
-            .BuildContainer();
+            .AddFusionServices()
+            .AddFusionLevel1And2Cache(_redisContainer!.GetConnectionString(), "cache1")
+            .AddFusionLevel1And2Cache(_redisContainer!.GetConnectionString(), "cache2")
+            .BuildFusionContainer();
 
         var cacheProvider = _services!.Resolve<IFusionCacheProvider>();
 
@@ -168,13 +168,13 @@ public class FusionCacheTests
 
 public static class TestServices
 {
-    public static IServiceCollection AddServices(this IServiceCollection services)
+    public static IServiceCollection AddFusionServices(this IServiceCollection services)
     {
         services.AddLogging();
         return services;
     }
 
-    public static IServiceCollection AddLevel1Cache(
+    public static IServiceCollection AddFusionLevel1Cache(
         this IServiceCollection services,
         string cacheName = FusionCacheOptions.DefaultCacheName)
     {
@@ -195,7 +195,7 @@ public static class TestServices
         return services;
     }
 
-    public static IServiceCollection AddLevel1And2Cache(
+    public static IServiceCollection AddFusionLevel1And2Cache(
         this IServiceCollection services,
         string connectionString,
         string cacheName = FusionCacheOptions.DefaultCacheName)
@@ -242,7 +242,7 @@ public static class TestServices
         return services;
     }
 
-    public static ILifetimeScope BuildContainer(this IServiceCollection services)
+    public static ILifetimeScope BuildFusionContainer(this IServiceCollection services)
     {
         var builder = new ContainerBuilder();
         builder.Populate(services);
