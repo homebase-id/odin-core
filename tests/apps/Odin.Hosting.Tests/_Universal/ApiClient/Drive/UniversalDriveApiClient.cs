@@ -20,7 +20,6 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
-using Odin.Hosting.Controllers.Base.Drive.Update;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives.FileSystem.Base.Update;
