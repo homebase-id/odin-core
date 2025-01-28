@@ -68,9 +68,9 @@ public static class TransferHistoryMigration
             + "fileId BYTEA NOT NULL, "
             + "remoteIdentityId TEXT NOT NULL, "
             + "latestTransferStatus BIGINT , "
-            + "isInOutbox BIGINT , "
+            + "isInOutbox BOOLEAN , "
             + "latestSuccessfullyDeliveredVersionTag BYTEA , "
-            + "isReadByRecipient BIGINT  "
+            + "isReadByRecipient BOOLEAN  "
             + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
             + ");"
             + "CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);";
