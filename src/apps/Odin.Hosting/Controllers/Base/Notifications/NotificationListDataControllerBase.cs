@@ -22,13 +22,13 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         }
 
         [HttpGet("list")]
-        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64? cursor, [FromQuery] Guid? appId)
+        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] string cursor, [FromQuery] Guid? appId)
         {
             return await notificationService.GetList(new GetNotificationListRequest()
             {
                 AppId = appId,
                 Count = count,
-                Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
+                Cursor = cursor
             }, WebOdinContext);
         }
 
@@ -56,7 +56,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
             await notificationService.MarkReadByApp(appId, WebOdinContext);
             return Ok();
         }
-        
+
         [HttpPost("list/mark-read-by-appid-and-typeid")]
         public async Task<IActionResult> UpdateNotificationByTypeId([FromBody] MarkNotificationsAsReadRequest request)
         {

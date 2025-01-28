@@ -16,7 +16,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Notifications
         Task<ApiResponse<AddNotificationResult>> AddNotification([Body] AddNotificationRequest request);
 
         [Get(RootPath)]
-        Task<ApiResponse<NotificationsListResult>> GetList([Query] int count, [Query] Int64? cursor);
+        Task<ApiResponse<NotificationsListResult>> GetList([Query] int count, [Query] string cursor);
 
         [Get(RootPath + "/counts-by-appid")]
         Task<ApiResponse<NotificationsCountResult>> GetUnreadCounts();

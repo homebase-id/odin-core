@@ -38,7 +38,7 @@ public class NotificationsCountResult
 
 public class NotificationsListResult
 {
-    public UnixTimeUtcUnique? Cursor { get; set; }
+    public string Cursor { get; set; }
     public List<AppNotification> Results { get; set; }
 }
 
@@ -49,7 +49,7 @@ public class GetNotificationListRequest
 
     public int Count { get; set; }
 
-    public UnixTimeUtcUnique? Cursor { get; set; }
+    public string Cursor { get; set; }
 }
 
 public class MarkNotificationsAsReadRequest
