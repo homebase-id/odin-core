@@ -111,9 +111,9 @@ public static class TransferHistoryMigration
             while (await rdr.ReadAsync())
             {
                 list.Add(
-                    (rdr.GetGuid(0), 
-                    rdr.GetGuid(1), 
-                    rdr.GetString(2)));
+                    (rdr.GetGuid(0),
+                        rdr.GetGuid(1),
+                        rdr.GetString(2)));
             }
         }
 
@@ -122,7 +122,7 @@ public static class TransferHistoryMigration
             var driveId = item.driveId;
             var fileId = item.fileId;
             var json = item.json;
-            var transferHistory = OdinSystemSerializer.Deserialize<RecipientTransferHistoryForMigration>(json);
+            var transferHistory = OdinSystemSerializer.Deserialize<RecipientTransferHistoryForMigrationOld>(json);
             await InsertDriveTransferHistory(cn, tenantId, driveId, fileId, transferHistory);
             await CreateSummary(cn, tenantId, driveId, fileId);
         }
@@ -182,20 +182,23 @@ public static class TransferHistoryMigration
         }
 
         // now summarize using code from long term storage manager
-        var summary = new TransferHistorySummaryForMigration()
+        var history = new RecipientTransferHistoryForMigration()
         {
-            TotalInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
-            TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatusForMigration.Delivered &&
-                                                         h.LatestTransferStatus != LatestTransferStatusForMigration.None),
-            TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatusForMigration.Delivered),
-            TotalReadByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
+            Summary = new TransferHistorySummaryForMigration()
+            {
+                TotalInOutbox = fileTransferHistory.Count(h => h.IsInOutbox),
+                TotalFailed = fileTransferHistory.Count(h => h.LatestTransferStatus != LatestTransferStatusForMigration.Delivered &&
+                                                             h.LatestTransferStatus != LatestTransferStatusForMigration.None),
+                TotalDelivered = fileTransferHistory.Count(h => h.LatestTransferStatus == LatestTransferStatusForMigration.Delivered),
+                TotalReadByRecipient = fileTransferHistory.Count(h => h.IsReadByRecipient)
+            }
         };
 
-        await UpdateTransferHistoryCache(cn, tenantId, driveId, fileId, OdinSystemSerializer.Serialize(summary));
+        await UpdateTransferHistoryCache(cn, tenantId, driveId, fileId, OdinSystemSerializer.Serialize(history));
     }
 
     private static async Task InsertDriveTransferHistory(DbConnection cn, Guid identityId, Guid driveId, Guid fileId,
-        RecipientTransferHistoryForMigration transferHistoryForMigration)
+        RecipientTransferHistoryForMigrationOld transferHistoryForMigration)
     {
         foreach (var recipient in transferHistoryForMigration?.Recipients ?? [])
         {

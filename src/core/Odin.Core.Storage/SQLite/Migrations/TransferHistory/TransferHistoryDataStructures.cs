@@ -5,6 +5,12 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
 
+internal class RecipientTransferHistoryForMigration
+{
+    public TransferHistorySummaryForMigration Summary { get; init; }
+}
+
+
 internal class TransferHistorySummaryForMigration
 {
     public int TotalInOutbox { get; set; }
@@ -13,7 +19,7 @@ internal class TransferHistorySummaryForMigration
     public int TotalReadByRecipient { get; set; }
 }
 
-internal class RecipientTransferHistoryForMigration
+internal class RecipientTransferHistoryForMigrationOld
 {
     public Dictionary<string, RecipientTransferHistoryItemForMigration> Recipients { get; set; } =
         new(StringComparer.InvariantCultureIgnoreCase);
