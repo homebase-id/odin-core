@@ -67,10 +67,10 @@ public static class TransferHistoryMigration
             + "driveId BYTEA NOT NULL, "
             + "fileId BYTEA NOT NULL, "
             + "remoteIdentityId TEXT NOT NULL, "
-            + "latestTransferStatus BIGINT NOT NULL, "
-            + "isInOutbox BIGINT NOT NULL, "
+            + "latestTransferStatus BIGINT , "
+            + "isInOutbox BIGINT , "
             + "latestSuccessfullyDeliveredVersionTag BYTEA , "
-            + "isReadByRecipient BIGINT NOT NULL "
+            + "isReadByRecipient BIGINT  "
             + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
             + ");"
             + "CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);";
@@ -83,9 +83,8 @@ public static class TransferHistoryMigration
         //     cmd1.CommandText = "ALTER TABLE ...";
         //     await cmd1.ExecuteNonQueryAsync();
         // }
-        
-        await tx.CommitAsync();
 
+        await tx.CommitAsync();
     }
 
     private static async Task MigrateData(Guid tenantId, string connectionString)
@@ -93,6 +92,8 @@ public static class TransferHistoryMigration
         // Migrate the data
         await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
         await using var tx = await cn.BeginTransactionAsync();
+
+        await FixNullStringValueInDb(cn);
 
         var getTransferHistoryCommand = cn.CreateCommand();
         getTransferHistoryCommand.CommandText = "SELECT driveId, fileId, hdrTransferHistory FROM driveMainIndex " +
@@ -102,23 +103,42 @@ public static class TransferHistoryMigration
         var identityParam = getTransferHistoryCommand.CreateParameter();
         identityParam.ParameterName = "@identityId";
         identityParam.Value = tenantId.ToByteArray();
+        getTransferHistoryCommand.Parameters.Add(identityParam);
 
+        var list = new List<(Guid driveId, Guid fileId, string json)>();
         using (var rdr = await getTransferHistoryCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
             while (await rdr.ReadAsync())
             {
-                var driveId = new Guid((byte[])rdr[0]);
-                var fileId = new Guid((byte[])rdr[1]);
-                var transferHistory = OdinSystemSerializer.Deserialize<RecipientTransferHistoryForMigration>((string)rdr[2]);
-
-                await InsertDriveTransferHistory(cn, tenantId, driveId, fileId, transferHistory);
-
-                await CreateSummary(cn, tenantId, driveId, fileId);
+                list.Add(
+                    (rdr.GetGuid(0), 
+                    rdr.GetGuid(1), 
+                    rdr.GetString(2)));
             }
         }
 
-        await tx.CommitAsync();
+        foreach (var item in list)
+        {
+            var driveId = item.driveId;
+            var fileId = item.fileId;
+            var json = item.json;
+            var transferHistory = OdinSystemSerializer.Deserialize<RecipientTransferHistoryForMigration>(json);
+            await InsertDriveTransferHistory(cn, tenantId, driveId, fileId, transferHistory);
+            await CreateSummary(cn, tenantId, driveId, fileId);
+        }
 
+        await tx.CommitAsync();
+    }
+
+
+    private static async Task FixNullStringValueInDb(DbConnection cn)
+    {
+        var getTransferHistoryCommand = cn.CreateCommand();
+        getTransferHistoryCommand.CommandText = """
+                                                UPDATE driveMainIndex SET hdrTransferHistory = NULL WHERE  hdrTransferHistory = 'null';
+                                                """;
+
+        await getTransferHistoryCommand.ExecuteNonQueryAsync();
     }
 
     private static async Task CreateSummary(DbConnection cn, Guid tenantId, Guid driveId, Guid fileId)
@@ -131,14 +151,17 @@ public static class TransferHistoryMigration
         var identityParam = cmd.CreateParameter();
         identityParam.ParameterName = "@identityId";
         identityParam.Value = tenantId.ToByteArray();
+        cmd.Parameters.Add(identityParam);
 
         var driveIdParam = cmd.CreateParameter();
         driveIdParam.ParameterName = "@driveId";
         driveIdParam.Value = driveId.ToByteArray();
+        cmd.Parameters.Add(driveIdParam);
 
         var fileIdParam = cmd.CreateParameter();
         fileIdParam.ParameterName = "@fileId";
         fileIdParam.Value = fileId.ToByteArray();
+        cmd.Parameters.Add(fileIdParam);
 
         var rdr = await cmd.ExecuteReaderAsync();
         var fileTransferHistory = new List<RecipientTransferHistoryItemForMigration>();
@@ -174,7 +197,7 @@ public static class TransferHistoryMigration
     private static async Task InsertDriveTransferHistory(DbConnection cn, Guid identityId, Guid driveId, Guid fileId,
         RecipientTransferHistoryForMigration transferHistoryForMigration)
     {
-        foreach (var recipient in transferHistoryForMigration.Recipients)
+        foreach (var recipient in transferHistoryForMigration?.Recipients ?? [])
         {
             var remoteIdentity = recipient.Key;
             var item = recipient.Value;
@@ -187,34 +210,34 @@ public static class TransferHistoryMigration
         string remoteIdentity,
         RecipientTransferHistoryItemForMigration item)
     {
-        await using var upsertCommand = cn.CreateCommand();
-        upsertCommand.CommandText =
+        await using var insertCommand = cn.CreateCommand();
+        insertCommand.CommandText =
             "INSERT INTO driveTransferHistory (identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient);";
-        var upsertParam1 = upsertCommand.CreateParameter();
+        var upsertParam1 = insertCommand.CreateParameter();
         upsertParam1.ParameterName = "@identityId";
-        upsertCommand.Parameters.Add(upsertParam1);
-        var upsertParam2 = upsertCommand.CreateParameter();
+        insertCommand.Parameters.Add(upsertParam1);
+        var upsertParam2 = insertCommand.CreateParameter();
         upsertParam2.ParameterName = "@driveId";
-        upsertCommand.Parameters.Add(upsertParam2);
-        var upsertParam3 = upsertCommand.CreateParameter();
+        insertCommand.Parameters.Add(upsertParam2);
+        var upsertParam3 = insertCommand.CreateParameter();
         upsertParam3.ParameterName = "@fileId";
-        upsertCommand.Parameters.Add(upsertParam3);
-        var upsertParam4 = upsertCommand.CreateParameter();
+        insertCommand.Parameters.Add(upsertParam3);
+        var upsertParam4 = insertCommand.CreateParameter();
         upsertParam4.ParameterName = "@remoteIdentityId";
-        upsertCommand.Parameters.Add(upsertParam4);
-        var upsertParam5 = upsertCommand.CreateParameter();
+        insertCommand.Parameters.Add(upsertParam4);
+        var upsertParam5 = insertCommand.CreateParameter();
         upsertParam5.ParameterName = "@latestTransferStatus";
-        upsertCommand.Parameters.Add(upsertParam5);
-        var upsertParam6 = upsertCommand.CreateParameter();
+        insertCommand.Parameters.Add(upsertParam5);
+        var upsertParam6 = insertCommand.CreateParameter();
         upsertParam6.ParameterName = "@isInOutbox";
-        upsertCommand.Parameters.Add(upsertParam6);
-        var upsertParam7 = upsertCommand.CreateParameter();
+        insertCommand.Parameters.Add(upsertParam6);
+        var upsertParam7 = insertCommand.CreateParameter();
         upsertParam7.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
-        upsertCommand.Parameters.Add(upsertParam7);
-        var upsertParam8 = upsertCommand.CreateParameter();
+        insertCommand.Parameters.Add(upsertParam7);
+        var upsertParam8 = insertCommand.CreateParameter();
         upsertParam8.ParameterName = "@isReadByRecipient";
-        upsertCommand.Parameters.Add(upsertParam8);
+        insertCommand.Parameters.Add(upsertParam8);
         upsertParam1.Value = identityId.ToByteArray();
         upsertParam2.Value = driveId.ToByteArray();
         upsertParam3.Value = fileId.ToByteArray();
@@ -223,7 +246,7 @@ public static class TransferHistoryMigration
         upsertParam6.Value = item.IsInOutbox;
         upsertParam7.Value = item.LatestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
         upsertParam8.Value = item.IsReadByRecipient;
-        var count = await upsertCommand.ExecuteNonQueryAsync();
+        var count = await insertCommand.ExecuteNonQueryAsync();
     }
 
     public static async Task<int> UpdateTransferHistoryCache(DbConnection cn, Guid tenantId, Guid driveId, Guid fileId,
