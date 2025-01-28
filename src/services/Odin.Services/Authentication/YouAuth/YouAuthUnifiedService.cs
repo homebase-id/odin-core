@@ -27,22 +27,19 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly CircleNetworkService _circleNetwork;
-    private readonly IOdinCache _encryptedTokens;
-    private readonly SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> _tempConsent;
+    private readonly IOdinCache _odinCache;
 
     public YouAuthUnifiedService(
         IAppRegistrationService appRegistrationService,
         YouAuthDomainRegistrationService domainRegistrationService,
         CircleNetworkService circleNetwork,
-        IOdinCache encryptedTokens,
-        SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> tempConsent)
+        IOdinCache odinCache)
     {
         _appRegistrationService = appRegistrationService;
 
         _domainRegistrationService = domainRegistrationService;
         _circleNetwork = circleNetwork;
-        _encryptedTokens = encryptedTokens;
-        _tempConsent = tempConsent;
+        _odinCache = odinCache;
     }
 
     //
@@ -63,9 +60,10 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
 
         //TODO: need to talk with Seb about the redirecting loop issue here
-        if (_tempConsent.ContainsKey(clientIdOrDomain))
+        var tempConsent = await _odinCache.GetOrDefaultAsync(TempConsentCacheKey(clientIdOrDomain), false);
+        if (tempConsent)
         {
-            _tempConsent.Remove(clientIdOrDomain, out _);
+            await _odinCache.RemoveAsync(TempConsentCacheKey(clientIdOrDomain));
             return false;
         }
 
@@ -96,7 +94,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         if (clientType == ClientType.app)
         {
             //so for now i'll just use this dictionary
-            _tempConsent[clientIdOrDomain] = true;
+            await _odinCache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
 
         if (clientType == ClientType.domain)
@@ -123,7 +121,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             }
 
             //so for now i'll just use this dictionary
-            _tempConsent[clientIdOrDomain] = true;
+            await _odinCache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
     }
 
@@ -198,7 +196,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             clientAuthTokenCipher,
             clientAuthTokenIv);
 
-        await _encryptedTokens.SetAsync(exchangeSharedSecretDigest, encryptedTokenExchange, TimeSpan.FromMinutes(5));
+        await _odinCache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 
         return (keyPair.PublicKeyJwkBase64Url(), Convert.ToBase64String(exchangeSalt));
     }
@@ -207,11 +205,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
     {
-        var ec = await _encryptedTokens.TryGetAsync<EncryptedTokenExchange?>(exchangeSharedSecretDigest);
+        var ec = await _odinCache.TryGetAsync<EncryptedTokenExchange?>(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
 
         if (ec != null)
         {
-            await _encryptedTokens.RemoveAsync(exchangeSharedSecretDigest);
+            await _odinCache.RemoveAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
         }
 
         return ec;
@@ -254,5 +252,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     }
 
     //
+
+    private static string TempConsentCacheKey(string clientIdOrDomain) =>
+        $"{nameof(YouAuthUnifiedService)}:TempConsent:{clientIdOrDomain}";
+
+    private static string EncryptedTokenCacheKey(string exchangeSharedSecretDigest) =>
+        $"{nameof(YouAuthUnifiedService)}:EncryptedToken:{exchangeSharedSecretDigest}";
 }
 //
