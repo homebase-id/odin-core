@@ -20,16 +20,13 @@ public static class OdinCacheExtensions
         var builder = services.AddFusionCache()
             .WithOptions(options =>
             {
-                options.DistributedCacheCircuitBreakerDuration = TimeSpan.FromSeconds(2);
-
                 // CUSTOM LOG LEVELS
-                // SEB:TODO check if these are the correct log levels
-                options.FailSafeActivationLogLevel = LogLevel.Debug;
-                options.SerializationErrorsLogLevel = LogLevel.Warning;
-                options.DistributedCacheSyntheticTimeoutsLogLevel = LogLevel.Debug;
-                options.DistributedCacheErrorsLogLevel = LogLevel.Error;
-                options.FactorySyntheticTimeoutsLogLevel = LogLevel.Debug;
-                options.FactoryErrorsLogLevel = LogLevel.Error;
+                // options.FailSafeActivationLogLevel = LogLevel.Debug;
+                // options.SerializationErrorsLogLevel = LogLevel.Warning;
+                // options.DistributedCacheSyntheticTimeoutsLogLevel = LogLevel.Debug;
+                // options.DistributedCacheErrorsLogLevel = LogLevel.Error;
+                // options.FactorySyntheticTimeoutsLogLevel = LogLevel.Debug;
+                // options.FactoryErrorsLogLevel = LogLevel.Error;
             })
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
