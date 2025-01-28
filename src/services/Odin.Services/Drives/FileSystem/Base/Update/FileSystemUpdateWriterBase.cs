@@ -256,12 +256,18 @@ public abstract class FileSystemUpdateWriterBase
         var manifest = new BatchUpdateManifest()
         {
             NewVersionTag = Package.NewVersionTag,
-            PayloadInstruction = package.Payloads.Select(p => new PayloadInstruction()
+            // PayloadInstruction = package.Payloads.Select(p => new PayloadInstruction()
+            // {
+            //     Key = p.PayloadKey,
+            //     OperationType = p.UpdateOperationType
+            // }).ToList(),
+
+            PayloadInstruction = package.InstructionSet.Manifest.PayloadDescriptors.Select(p => new PayloadInstruction()
             {
                 Key = p.PayloadKey,
-                OperationType = p.UpdateOperationType
+                OperationType = p.PayloadUpdateOperationType
             }).ToList(),
-
+            
             KeyHeaderIv = keyHeaderIv,
             FileMetadata = metadata,
             ServerMetadata = serverMetadata

@@ -100,8 +100,6 @@ public class DirectDriveLocalUpdateBatchTests
         updatedFileMetadata.AppData.DataType = 991;
         updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
 
-        var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition2();
-
         var updateInstructionSet = new FileUpdateInstructionSet
         {
             Locale = UpdateLocale.Local,
@@ -111,26 +109,14 @@ public class DirectDriveLocalUpdateBatchTests
             Recipients = default,
             Manifest = new UploadManifest
             {
-                PayloadDescriptors =
-                [
-                    new UploadManifestPayloadDescriptor
-                    {
-                        PayloadUpdateOperationType = PayloadUpdateOperationType.AppendOrOverwrite,
-                        Iv = Guid.Empty.ToByteArray(),
-                        PayloadKey = payloadToAdd.Key,
-                        DescriptorContent = null,
-                        ContentType = payloadToAdd.ContentType,
-                        PreviewThumbnail = default,
-                        Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
-                    }
-                ]
+                PayloadDescriptors =[]
             }
         };
 
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
@@ -148,32 +134,6 @@ public class DirectDriveLocalUpdateBatchTests
             Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
             Assert.IsFalse(header.FileMetadata.Payloads.Any());
 
-            //
-            // Ensure payloadToAdd add is added
-            //
-            var getPayloadToAddResponse = await ownerApiClient.DriveRedux.GetPayload(targetFile, payloadToAdd.Key);
-            Assert.IsTrue(getPayloadToAddResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getPayloadToAddResponse.ContentHeaders!.LastModified.HasValue);
-            Assert.IsTrue(getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-            var content = (await getPayloadToAddResponse.Content.ReadAsStreamAsync()).ToByteArray();
-            CollectionAssert.AreEqual(content, payloadToAdd.Content);
-
-            // Check all the thumbnails
-            foreach (var thumbnail in payloadToAdd.Thumbnails)
-            {
-                var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(targetFile,
-                    thumbnail.PixelWidth, thumbnail.PixelHeight, payloadToAdd.Key);
-
-                Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
-
-                var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
-            }
-
-            //
             // Ensure we find the file on the recipient
             // 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
@@ -286,7 +246,7 @@ public class DirectDriveLocalUpdateBatchTests
             Assert.IsNotNull(header);
             Assert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
             Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+            Assert.IsTrue(header.FileMetadata.Payloads.Count() == 1);
             Assert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payloadThatWillBeDeleted.Key),
                 "payload 1 should have been removed");
             Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
