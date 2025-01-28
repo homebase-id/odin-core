@@ -214,7 +214,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             await _encryptedTokens.RemoveAsync(exchangeSharedSecretDigest);
         }
 
-        return null;
+        return ec;
     }
 
     //
