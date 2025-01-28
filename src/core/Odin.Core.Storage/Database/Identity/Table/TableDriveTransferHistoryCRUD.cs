@@ -115,9 +115,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 + "fileId BYTEA NOT NULL, "
                 + "remoteIdentityId TEXT NOT NULL, "
                 + "latestTransferStatus BIGINT , "
-                + "isInOutbox BIGINT , "
+                + "isInOutbox BOOLEAN , "
                 + "latestSuccessfullyDeliveredVersionTag BYTEA , "
-                + "isReadByRecipient BIGINT  "
+                + "isReadByRecipient BOOLEAN  "
                 + rowid
                 + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
                 + ");"
