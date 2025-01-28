@@ -33,22 +33,12 @@ public static class OdinCacheExtensions
             })
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
-                // SEB:TODO check if these are the correct defaults
-
                 Duration = TimeSpan.FromMinutes(1),
 
-                IsFailSafeEnabled = true,
-                FailSafeMaxDuration = TimeSpan.FromHours(2),
-                FailSafeThrottleDuration = TimeSpan.FromSeconds(30),
-
-                FactorySoftTimeout = TimeSpan.FromMilliseconds(100),
-                FactoryHardTimeout = TimeSpan.FromMilliseconds(1500),
-
-                DistributedCacheSoftTimeout = TimeSpan.FromSeconds(1),
-                DistributedCacheHardTimeout = TimeSpan.FromSeconds(2),
-                AllowBackgroundDistributedCacheOperations = true,
-
-                JitterMaxDuration = TimeSpan.FromSeconds(2)
+                // SEB:NOTE be careful setting this to true, since it can result in factories
+                // being called in the background, which need to be handled carefully when the
+                // factory needs to use a scoped db connection.
+                IsFailSafeEnabled = false,
             })
             .WithSerializer(
                 new FusionCacheNeueccMessagePackSerializer()
