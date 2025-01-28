@@ -38,7 +38,8 @@ public abstract class DriveReactionContentControllerBase : OdinControllerBase
     /// <summary />
     protected async Task<GetReactionsResponse> GetReactions(GetReactionsRequest request)
     {
-        return await _reactionContentService.GetReactionsAsync(MapToInternalFile(request.File), cursor: request.Cursor,
+        int.TryParse(request.Cursor, out var c);
+        return await _reactionContentService.GetReactionsAsync(MapToInternalFile(request.File), cursor: c,
             maxCount: request.MaxRecords, WebOdinContext);
     }
 

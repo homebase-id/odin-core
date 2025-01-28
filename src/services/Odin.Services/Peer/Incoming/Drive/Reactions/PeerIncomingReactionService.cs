@@ -66,7 +66,8 @@ public class PeerIncomingReactionService(
 
         var fileId = await ResolveInternalFile(request.File, odinContext, failIfNull: true);
         
-        var list = await reactionContentService.GetReactionsAsync(fileId!.Value, request.Cursor, request.MaxRecords, odinContext);
+        int.TryParse(request.Cursor, out var c);
+        var list = await reactionContentService.GetReactionsAsync(fileId!.Value, c, request.MaxRecords, odinContext);
 
         return new GetReactionsPerimeterResponse()
         {

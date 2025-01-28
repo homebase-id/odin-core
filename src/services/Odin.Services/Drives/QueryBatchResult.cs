@@ -19,8 +19,7 @@ public class QueryBatchResult
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
     
-    public UInt64 CursorUpdatedTimestamp { get; set; }
-    
+   
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
     public bool HasMoreRows { get; set; }
