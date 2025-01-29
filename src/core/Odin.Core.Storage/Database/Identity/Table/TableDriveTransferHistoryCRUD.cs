@@ -57,9 +57,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             set { _latestTransferStatus = value; }
         }
 
-        private Int32 _isInOutbox;
+        private bool _isInOutbox;
 
-        public Int32 isInOutbox
+        public bool isInOutbox
         {
             get { return _isInOutbox; }
             set { _isInOutbox = value; }
@@ -73,9 +73,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             set { _latestSuccessfullyDeliveredVersionTag = value; }
         }
 
-        private Int32 _isReadByRecipient;
+        private bool _isReadByRecipient;
 
-        public Int32 isReadByRecipient
+        public bool isReadByRecipient
         {
             get { return _isReadByRecipient; }
             set { _isReadByRecipient = value; }
@@ -208,128 +208,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 return count;
             }
         }
-
-        protected DriveTransferHistoryRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId, Guid driveId, Guid fileId,
-            OdinId remoteIdentityId)
-        {
-            var result = new List<DriveTransferHistoryRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new DriveTransferHistoryRecord();
-            item.identityId = identityId;
-            item.driveId = driveId;
-            item.fileId = fileId;
-            item.remoteIdentityId = remoteIdentityId;
-            item.latestTransferStatus = rdr.IsDBNull(0) ? 0 : (int)(long)rdr[0];
-            item.isInOutbox = rdr.IsDBNull(1) ? 0 : (int)(long)rdr[1];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(2) ? null : new Guid((byte[])rdr[2]);
-            item.isReadByRecipient = rdr.IsDBNull(3) ? 0 : (int)(long)rdr[3];
-            return item;
-        }
-
-        protected virtual async Task<DriveTransferHistoryRecord> GetAsync(Guid identityId, Guid driveId, Guid fileId,
-            OdinId remoteIdentityId)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
-            {
-                get0Command.CommandText =
-                    "SELECT latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
-                    "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@driveId";
-                get0Command.Parameters.Add(get0Param2);
-                var get0Param3 = get0Command.CreateParameter();
-                get0Param3.ParameterName = "@fileId";
-                get0Command.Parameters.Add(get0Param3);
-                var get0Param4 = get0Command.CreateParameter();
-                get0Param4.ParameterName = "@remoteIdentityId";
-                get0Command.Parameters.Add(get0Param4);
-
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = driveId.ToByteArray();
-                get0Param3.Value = fileId.ToByteArray();
-                get0Param4.Value = remoteIdentityId.DomainName;
-                {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            return null;
-                        }
-
-                        var r = ReadRecordFromReader0(rdr, identityId, driveId, fileId, remoteIdentityId);
-                        return r;
-                    } // using
-                } //
-            } // using
-        }
-
-        protected DriveTransferHistoryRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
-        {
-            var result = new List<DriveTransferHistoryRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new DriveTransferHistoryRecord();
-            item.identityId = identityId;
-            item.driveId = driveId;
-            item.fileId = fileId;
-            item.remoteIdentityId = rdr.IsDBNull(0) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[0]);
-            item.latestTransferStatus = rdr.IsDBNull(1) ? 0 : (int)(long)rdr[1];
-            item.isInOutbox = rdr.IsDBNull(2) ? 0 : (int)(long)rdr[2];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]);
-            item.isReadByRecipient = rdr.IsDBNull(4) ? 0 : (int)(long)rdr[4];
-            return item;
-        }
-
-        protected virtual async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid identityId, Guid driveId, Guid fileId)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
-            {
-                get1Command.CommandText =
-                    "SELECT remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
-                    "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.ParameterName = "@fileId";
-                get1Command.Parameters.Add(get1Param3);
-
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
-                {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            return new List<DriveTransferHistoryRecord>();
-                        }
-
-                        var result = new List<DriveTransferHistoryRecord>();
-                        while (true)
-                        {
-                            result.Add(ReadRecordFromReader1(rdr, identityId, driveId, fileId));
-                            if (!await rdr.ReadAsync())
-                                break;
-                        }
-
-                        return result;
-                    } // using
-                } //
-            } // using
-        }
+        
+        
     }
 }

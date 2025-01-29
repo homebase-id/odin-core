@@ -173,9 +173,9 @@ public static class TransferHistoryMigration
                 Recipient = new OdinId((string)rdr[0]),
                 LastUpdated = default,
                 LatestTransferStatus = (LatestTransferStatusForMigration)(int)(long)rdr[1],
-                IsInOutbox = (int)(long)rdr[2] == 1,
+                IsInOutbox = rdr.IsDBNull(2) ? false : (bool)rdr[2],
                 LatestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]),
-                IsReadByRecipient = (int)(long)rdr[4] == 1
+                IsReadByRecipient = rdr.IsDBNull(4) ? false : (bool)rdr[4]
             };
 
             fileTransferHistory.Add(item);

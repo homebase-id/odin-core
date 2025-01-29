@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -50,12 +49,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var upsertParam4 = upsertCommand.CreateParameter();
             upsertParam4.ParameterName = "@remoteIdentityId";
             upsertCommand.Parameters.Add(upsertParam4);
+
             var upsertParam5 = upsertCommand.CreateParameter();
             upsertParam5.ParameterName = "@isInOutbox";
             upsertCommand.Parameters.Add(upsertParam5);
+
             var upsertParam6 = upsertCommand.CreateParameter();
             upsertParam6.ParameterName = "@latestSuccessfullyDeliveredVersionTag";
             upsertCommand.Parameters.Add(upsertParam6);
+
             var upsertParam7 = upsertCommand.CreateParameter();
             upsertParam7.ParameterName = "@isReadByRecipient";
             upsertCommand.Parameters.Add(upsertParam7);
@@ -128,9 +130,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                             fileId = fileId,
                             remoteIdentityId = new OdinId((string)rdr[0]),
                             latestTransferStatus = rdr.IsDBNull(1) ? 0 : (int)(long)rdr[1],
-                            isInOutbox = rdr.IsDBNull(2) ? 0 : (int)(long)rdr[2],
+                            isInOutbox = rdr.IsDBNull(2) ? false : (bool)rdr[2],
                             latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]),
-                            isReadByRecipient = rdr.IsDBNull(4) ? 0 : (int)(long)rdr[4]
+                            isReadByRecipient = rdr.IsDBNull(4) ? false : (bool)rdr[4]
                         };
                         result.Add(item);
 

@@ -14,16 +14,7 @@ public class TableDriveTransferHistory(
     : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-
-    public async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid driveId, Guid fileId)
-    {
-        return await base.GetAsync(identityKey, driveId, fileId);
-    }
-
-    public async Task<DriveTransferHistoryRecord> GetAsync(Guid driveId, Guid fileId, OdinId remoteIdentityId)
-    {
-        return await base.GetAsync(identityKey, driveId, fileId, remoteIdentityId);
-    }
+    
 
     public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {

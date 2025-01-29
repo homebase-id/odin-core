@@ -265,9 +265,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     Recipient = item.remoteIdentityId,
                     LastUpdated = default,
                     LatestTransferStatus = (LatestTransferStatus)item.latestTransferStatus,
-                    IsInOutbox = item.isInOutbox == 1,
+                    IsInOutbox = item.isInOutbox,
                     LatestSuccessfullyDeliveredVersionTag = item.latestSuccessfullyDeliveredVersionTag,
-                    IsReadByRecipient = item.isReadByRecipient == 1
+                    IsReadByRecipient = item.isReadByRecipient
                 }
             ).ToList();
         }
