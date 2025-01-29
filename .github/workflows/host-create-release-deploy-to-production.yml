@@ -1,0 +1,107 @@
+name: "Host: Create release, deploy to production"
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_choice:
+        type: choice
+        description: "Start container"
+        options:
+        - 'true'
+        - 'false'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NEW_VERSION_TAG: "overwritten-below"
+  IMAGE_VERSION_TAG: "overwritten-below"
+  IMAGE_TAGS: "overwritten-below"
+
+
+jobs:
+  tag-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history so we can see all tags
+          path: odin-core
+
+      #
+      # Create new release tag
+      #
+
+      - name: Execute versioning script
+        working-directory: odin-core
+        run: |
+          output=$(./.github/scripts/increment-version-tag-on-git-tip.sh)
+          echo "Tagging output: $output"
+          echo "NEW_VERSION_TAG=${output}" >> $GITHUB_ENV
+
+      #
+      # Build Frontend
+      #
+
+      - name: Build frontend
+        uses: ./odin-core/.github/actions/host/build-frontend
+        with:
+          odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      #
+      # Build Docker image
+      #
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.3.0
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5.5.1
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Combine Docker tags
+        run: |
+          lowercases_image_version_tag=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_VERSION_TAG=$lowercases_image_version_tag" >> $GITHUB_ENV
+          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_TAGS=$lowercase_image_tags" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5.3.0
+        with:
+          context: ./odin-core
+          file: ./odin-core/docker/Dockerfile-identity-host
+          push: true
+          tags: ${{ env.IMAGE_TAGS }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          provenance: false
+          build-args: |
+            VERSION_TEXT=${{ env.NEW_VERSION_TAG }}
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
+
+      #
+      # Deploy docker image
+      #
+
+      - name: Deploy Docker Image    
+        uses: ./odin-core/.github/actions/host/deploy-image-to-environment
+        with:
+          image_name: ${{ env.IMAGE_VERSION_TAG }}
+          env_name: 'production'
+          force_update: 'true'
+          start_container: ${{ github.event.inputs.start_choice }}
+          ansible_host: ${{ secrets.ANSIBLE_HOST }}
+          ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
+          ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}

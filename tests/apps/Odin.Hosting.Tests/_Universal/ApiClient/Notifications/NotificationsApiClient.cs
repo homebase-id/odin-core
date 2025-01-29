@@ -48,7 +48,7 @@ public class AppNotificationsApiClient
             return response;
         }
     }
-    public async Task<ApiResponse<NotificationsListResult>> GetList(int count, Int64? cursor = null)
+    public async Task<ApiResponse<NotificationsListResult>> GetList(int count, string cursor = null)
     {
         var client = _factory.CreateHttpClient(_identity, out var sharedSecret);
         {
