@@ -70,9 +70,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             upsertParam2.Value = driveId.ToByteArray();
             upsertParam3.Value = fileId.ToByteArray();
             upsertParam4.Value = recipient.DomainName;
-            upsertParam5.Value = isInOutbox ?? (object)DBNull.Value;
+            upsertParam5.Value = isInOutbox.HasValue ? isInOutbox.Value.ToString() : (object)DBNull.Value;
             upsertParam6.Value = latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-            upsertParam7.Value = isReadByRecipient ?? (object)DBNull.Value;
+            upsertParam7.Value = isReadByRecipient.HasValue ? isReadByRecipient.Value.ToString() : (object)DBNull.Value;
             upsertParam8.Value = latestTransferStatus ?? (object)DBNull.Value;
 
             var count = await upsertCommand.ExecuteNonQueryAsync();
