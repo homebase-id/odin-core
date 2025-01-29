@@ -254,7 +254,7 @@ public class TableDriveMainIndex(
         return await updateCommand.ExecuteNonQueryAsync();
     }
 
-    public async Task<int> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory)
+    public async Task<int> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory, UnixTimeUtcUnique modifiedTime)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
@@ -284,7 +284,7 @@ public class TableDriveMainIndex(
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
-        sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+        sparam5.Value = modifiedTime;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }

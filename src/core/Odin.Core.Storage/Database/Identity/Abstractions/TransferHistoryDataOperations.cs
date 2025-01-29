@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
 {
@@ -147,9 +148,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
         }
 
-        public async Task UpdateTransferSummaryCacheAsync(Guid driveId, Guid fileId, string json)
+        public async Task<UnixTimeUtcUnique> UpdateTransferSummaryCacheAsync(Guid driveId, Guid fileId, string json)
         {
-            await driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json);
+            var modified = UnixTimeUtcUnique.Now();
+            await driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified);
+            return modified;
         }
     }
 }
