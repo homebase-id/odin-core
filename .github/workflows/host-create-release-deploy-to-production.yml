@@ -1,4 +1,4 @@
-name: "Host: create release, deploy to production"
+name: "Host: Create release, deploy to production"
 
 on:
   workflow_dispatch:
