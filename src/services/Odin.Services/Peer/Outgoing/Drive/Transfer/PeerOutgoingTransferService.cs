@@ -111,8 +111,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var priority = 100;
 
-            var (outboxStatus, outboxItems) =
-                await CreateUpdateOutboxItemsAsync(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext);
+            var (outboxStatus, outboxItems) = await CreateUpdateOutboxItemsAsync(
+                sourceFile,
+                keyHeaderIv,
+                request,
+                recipients,
+                priority,
+                fileSystemType,
+                updateLocale,
+                odinContext);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -176,7 +183,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends a notification to the original sender indicating the file was read
         /// </summary>
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
-            
             FileSystemType fileSystemType)
         {
             // This is all ugly mapping code but 🤷
@@ -227,7 +233,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //     logger.LogDebug("Attempt to distribute to recipient ({r}) who is not connected", recipient);
             //     return;
             // }
-            
+
             foreach (var recipient in options.Recipients.Without(odinContext.Tenant))
             {
                 try
@@ -280,7 +286,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceiptAsync(InternalDriveFileId fileId,
             IOdinContext odinContext,
-            
             FileSystemType fileSystemType)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
@@ -520,6 +525,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 List<OdinId> recipients,
                 int priority,
                 FileSystemType fileSystemType,
+                UpdateLocale updateLocale,
                 IOdinContext odinContext)
         {
             var status = new Dictionary<string, TransferStatus>();
@@ -560,7 +566,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         State = new OutboxItemState
                         {
                             Recipient = null,
-                            IsTransientFile = true,
+                            IsTransientFile = updateLocale == UpdateLocale.Peer,
                             EncryptedClientAuthToken = encryptedClientAccessToken,
                             TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
                             {

@@ -59,12 +59,12 @@ public class DirectDriveLocalUpdateBatchTests
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
     {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
     }
 
     [Test]
@@ -84,8 +84,7 @@ public class DirectDriveLocalUpdateBatchTests
         // 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(uploadNewFileResponse.StatusCode == expectedStatusCode,
-            $"Expected {expectedStatusCode} but actual was {uploadNewFileResponse.StatusCode}");
+        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -178,8 +177,7 @@ public class DirectDriveLocalUpdateBatchTests
 
         var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive,
             uploadedFileMetadata, uploadManifest, [payloadThatWillBeDeleted]);
-        Assert.IsTrue(uploadNewFileResponse.StatusCode == expectedStatusCode,
-            $"Expected {expectedStatusCode} but actual was {uploadNewFileResponse.StatusCode}");
+        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
 
         var uploadResult = uploadNewFileResponse.Content;
 

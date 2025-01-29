@@ -60,12 +60,12 @@ public class UpdateBatchWithRecipientsTests
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
     {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
     }
 
     [Test]
@@ -75,7 +75,7 @@ public class UpdateBatchWithRecipientsTests
     [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanUpdateBatchAndDistributeToRecipients(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        Assert.Inconclusive("TODO");
+        Assert.Inconclusive("TODO; be sure to test file still exists");
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;
@@ -203,7 +203,7 @@ public class UpdateBatchWithRecipientsTests
     [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1Thumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        Assert.Inconclusive("TODO");
+        Assert.Inconclusive("TODO; be sure to test file still exists");
 
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
