@@ -10,6 +10,7 @@
 
     <PropertyGroup Condition="'$(USER)' == 'seb'">
         <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>
+        <DefineConstants>RUN_REDIS_TESTS</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup>
