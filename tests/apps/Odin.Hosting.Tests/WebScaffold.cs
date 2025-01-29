@@ -421,6 +421,26 @@ namespace Odin.Hosting.Tests
             return logEvents;
         }
 
+        public void DumpLogEventsToConsole()
+        {
+            Console.WriteLine("--------======== Log Events Begin ========--------");
+
+            var logEvents = new List<LogEvent>();
+            var keyedLogEvents = GetLogEvents();
+            foreach (var (level, events) in keyedLogEvents)
+            {
+                logEvents.AddRange(events);
+            }
+
+            logEvents.Sort((a,b) => a.Timestamp < b.Timestamp ? -1 : 1);
+            foreach (var logEvent in logEvents)
+            {
+                Console.WriteLine($"{logEvent.Timestamp.ToUnixTimeMilliseconds()} {logEvent.RenderMessage()}");
+            }
+
+            Console.WriteLine("--------======== Log Events End ========--------");
+        }
+
         public void ClearLogEvents()
         {
             Services.GetRequiredService<ILogEventMemoryStore>().Clear();

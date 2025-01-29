@@ -54,8 +54,8 @@ public abstract class DriveGroupReactionControllerBase : OdinControllerBase
     [HttpGet]
     public async Task<GetReactionsResponse> GetAllReactions([FromQuery] GetReactionsRequestRedux request)
     {
-        
-        return await _groupReactionService.GetReactionsAsync(request.File, request.Cursor, request.MaxRecords, WebOdinContext,
+        int.TryParse(request.Cursor, out var c);
+        return await _groupReactionService.GetReactionsAsync(request.File, c, request.MaxRecords, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
 
