@@ -17,10 +17,10 @@ public class TableDriveTransferHistory(
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
     public async Task<int> UpdateTransferHistoryRecordAsync(Guid driveId, Guid fileId, OdinId recipient,
-                                                        int? latestTransferStatus,
-                                                        Guid? latestSuccessfullyDeliveredVersionTag,
-                                                        bool? isInOutbox,
-                                                        bool? isReadByRecipient)
+        int? latestTransferStatus,
+        Guid? latestSuccessfullyDeliveredVersionTag,
+        bool? isInOutbox,
+        bool? isReadByRecipient)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
@@ -102,7 +102,7 @@ public class TableDriveTransferHistory(
     }
 
 
-    public async Task<List<DriveTransferHistoryRecord>> GetAsync( Guid driveId, Guid fileId)
+    public async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid driveId, Guid fileId)
     {
         return await base.GetAsync(identityKey, driveId, fileId);
     }
@@ -113,4 +113,20 @@ public class TableDriveTransferHistory(
         return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
     }
 
+    public Task<int> AddInitialRecordAsync(Guid driveId, Guid fileId, OdinId recipient)
+    {
+        var item = new DriveTransferHistoryRecord
+        {
+            identityId = identityKey,
+            driveId = driveId,
+            fileId = fileId,
+            remoteIdentityId = recipient,
+            latestTransferStatus = 0,
+            isInOutbox = true,
+            latestSuccessfullyDeliveredVersionTag = null,
+            isReadByRecipient = false
+        };
+
+        return base.UpsertAsync(item);
+    }
 }

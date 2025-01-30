@@ -75,8 +75,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in outboxItems)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true },
-                    odinContext);
+                await fs.Storage.InitiateTransferHistoryAsync(internalFile, item.Recipient, odinContext);
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
@@ -124,8 +123,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 if (!item.State.IsTransientFile)
                 {
                     var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient,
-                        new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext);
+                    await fs.Storage.InitiateTransferHistoryAsync(sourceFile, item.Recipient, odinContext);
                 }
 
                 await peerOutbox.AddItemAsync(item, useUpsert: true);

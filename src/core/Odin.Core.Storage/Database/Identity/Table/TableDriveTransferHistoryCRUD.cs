@@ -77,8 +77,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _isInOutbox = value;
                }
         }
-        private Guid _latestSuccessfullyDeliveredVersionTag;
-        public Guid latestSuccessfullyDeliveredVersionTag
+        private Guid? _latestSuccessfullyDeliveredVersionTag;
+        public Guid? latestSuccessfullyDeliveredVersionTag
         {
            get {
                    return _latestSuccessfullyDeliveredVersionTag;
@@ -131,7 +131,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"remoteIdentityId TEXT NOT NULL, "
                    +"latestTransferStatus BIGINT NOT NULL, "
                    +"isInOutbox BOOLEAN NOT NULL, "
-                   +"latestSuccessfullyDeliveredVersionTag BYTEA NOT NULL, "
+                   +"latestSuccessfullyDeliveredVersionTag BYTEA , "
                    +"isReadByRecipient BOOLEAN NOT NULL "
                    + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
@@ -182,7 +182,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.Value = item.remoteIdentityId.DomainName;
                 insertParam5.Value = item.latestTransferStatus;
                 insertParam6.Value = item.isInOutbox;
-                insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag.ToByteArray();
+                insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 insertParam8.Value = item.isReadByRecipient;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -234,7 +234,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.Value = item.remoteIdentityId.DomainName;
                 insertParam5.Value = item.latestTransferStatus;
                 insertParam6.Value = item.isInOutbox;
-                insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag.ToByteArray();
+                insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 insertParam8.Value = item.isReadByRecipient;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -288,7 +288,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam4.Value = item.remoteIdentityId.DomainName;
                 upsertParam5.Value = item.latestTransferStatus;
                 upsertParam6.Value = item.isInOutbox;
-                upsertParam7.Value = item.latestSuccessfullyDeliveredVersionTag.ToByteArray();
+                upsertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 upsertParam8.Value = item.isReadByRecipient;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
                 return count;
@@ -336,7 +336,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam4.Value = item.remoteIdentityId.DomainName;
                 updateParam5.Value = item.latestTransferStatus;
                 updateParam6.Value = item.isInOutbox;
-                updateParam7.Value = item.latestSuccessfullyDeliveredVersionTag.ToByteArray();
+                updateParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 updateParam8.Value = item.isReadByRecipient;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -408,9 +408,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.remoteIdentityId = rdr.IsDBNull(3) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[3]);
             item.latestTransferStatus = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.isInOutbox = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (bool)rdr[5];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[6]);
-            item.isReadByRecipient = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (bool)rdr[7];
+            item.isInOutbox = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[5]);
+            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(6) ? null : new Guid((byte[])rdr[6]);
+            item.isReadByRecipient = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[7]);
             return item;
        }
 
@@ -481,9 +481,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
             item.remoteIdentityId = remoteIdentityId;
             item.latestTransferStatus = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
-            item.isInOutbox = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (bool)rdr[1];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.isReadByRecipient = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (bool)rdr[3];
+            item.isInOutbox = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[1]);
+            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(2) ? null : new Guid((byte[])rdr[2]);
+            item.isReadByRecipient = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[3]);
             return item;
        }
 
@@ -538,9 +538,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
             item.remoteIdentityId = rdr.IsDBNull(0) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[0]);
             item.latestTransferStatus = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.isInOutbox = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (bool)rdr[2];
-            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.isReadByRecipient = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (bool)rdr[4];
+            item.isInOutbox = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[2]);
+            item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]);
+            item.isReadByRecipient = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[4]);
             return item;
        }
 

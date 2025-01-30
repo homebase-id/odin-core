@@ -9,7 +9,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
@@ -87,6 +86,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await _driveQuery.SoftDeleteFileHeader(header);
         }
 
+        public async Task<(RecipientTransferHistory updatedHistory, UnixTimeUtcUnique modifiedTime)> InitiateTransferHistoryAsync(
+            Guid driveId,
+            Guid fileId, 
+            OdinId recipient)
+        {
+            await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
+            await _tableDriveTransferHistory.AddInitialRecordAsync(driveId, fileId, recipient);
+            var (history, modified) = await UpdateTransferHistorySummary(driveId, fileId);
+
+            tx.Commit();
+
+            return (history, modified);
+        }
+        
         public async Task<(RecipientTransferHistory updatedHistory, UnixTimeUtcUnique modifiedTime)> SaveTransferHistoryAsync(Guid driveId,
             Guid fileId, OdinId recipient,
             UpdateTransferHistoryData updateData)
@@ -95,12 +108,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
 
-            await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
+           await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
                 (int?)updateData.LatestTransferStatus,
                 updateData.VersionTag,
                 updateData.IsInOutbox,
                 updateData.IsReadByRecipient);
             
+            var (history, modified) = await UpdateTransferHistorySummary(driveId, fileId);
+
+            tx.Commit();
+
+            return (history, modified);
+        }
+
+        private async Task<(RecipientTransferHistory history, UnixTimeUtcUnique modified)> UpdateTransferHistorySummary(Guid driveId, Guid fileId)
+        {
             var fileTransferHistory = await GetTransferHistory(driveId, fileId);
 
             var history = new RecipientTransferHistory()
@@ -119,9 +141,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var modified = UnixTimeUtcUnique.Now();
             await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified);
-
-            tx.Commit();
-
             return (history, modified);
         }
 

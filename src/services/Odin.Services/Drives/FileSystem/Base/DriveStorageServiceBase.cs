@@ -792,6 +792,38 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        public async Task InitiateTransferHistoryAsync(InternalDriveFileId file, OdinId recipient, IOdinContext odinContext)
+        {
+            ServerFileHeader header = null;
+
+            await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
+
+            //
+            // Get and validate the header
+            //
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            AssertValidFileSystemType(header.ServerMetadata);
+
+            var (updatedHistory, modifiedTime) = await longTermStorageManager.InitiateTransferHistoryAsync(drive.Id, file.FileId, recipient);
+
+            // note: I'm just avoiding re-reading the file.
+            header.ServerMetadata.TransferHistory = updatedHistory;
+            header.FileMetadata.Updated = modifiedTime.uniqueTime;
+
+            if (await ShouldRaiseDriveEventAsync(file))
+            {
+                await mediator.Publish(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = header,
+                    OdinContext = odinContext,
+                    IgnoreFeedDistribution = true,
+                    IgnoreReactionPreviewCalculation = true
+                });
+            }
+        }
+        
         public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext)
         {
