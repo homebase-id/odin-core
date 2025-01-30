@@ -109,7 +109,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var response = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
         {
             File = uploadResult.GlobalTransitIdFileIdentifier,
-            Cursor = 0,
+            Cursor = "",
             MaxRecords = 100
         });
 

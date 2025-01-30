@@ -227,7 +227,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
         /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfilesAsync(int count, long cursor,
+        public async Task<CursoredResult<IdentityConnectionRegistration>> GetBlockedProfilesAsync(int count, long cursor,
             IOdinContext odinContext)
         {
             return await GetConnectionsInternalAsync(count, cursor, ConnectionStatus.Blocked, odinContext);
@@ -236,7 +236,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Returns a list of identities which are connected to this DI
         /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentitiesAsync(int count, long cursor,
+        public async Task<CursoredResult<IdentityConnectionRegistration>> GetConnectedIdentitiesAsync(int count, long cursor,
             IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
@@ -1146,14 +1146,14 @@ namespace Odin.Services.Membership.Connections
         }
 
 
-        private async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectionsInternalAsync(int count, long cursor,
+        private async Task<CursoredResult<IdentityConnectionRegistration>> GetConnectionsInternalAsync(int count, long cursor,
             ConnectionStatus status,
             IOdinContext odinContext)
         {
             var (list, nextCursor) = await circleNetworkStorage.GetListAsync(count, new UnixTimeUtcUnique(cursor), status);
-            return new CursoredResult<long, IdentityConnectionRegistration>()
+            return new CursoredResult<IdentityConnectionRegistration>()
             {
-                Cursor = nextCursor.GetValueOrDefault().uniqueTime,
+                Cursor = nextCursor.GetValueOrDefault().uniqueTime.ToString(),
                 Results = list
             };
         }
