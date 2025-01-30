@@ -89,6 +89,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return await driveTransferHistory.DeleteAllRowsAsync(driveId, fileId);
         }
 
+        /* It's in the CRUD file 
+            call the: public new async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid identityId, Guid driveId, Guid fileId)
+
 
         public async Task<List<DriveTransferHistoryRecord>> GetTransferHistoryAsync(Guid driveId, Guid fileId)
         {
@@ -147,6 +150,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
             }
         }
+        */
 
         public async Task<UnixTimeUtcUnique> UpdateTransferSummaryCacheAsync(Guid driveId, Guid fileId, string json)
         {

@@ -232,7 +232,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65536) throw new Exception("Too long");
+                    if (value?.Length > 21504) throw new Exception("Too long");
                   _hdrAppData = value;
                }
         }
@@ -287,7 +287,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 16384) throw new Exception("Too long");
+                    if (value?.Length > 4096) throw new Exception("Too long");
                   _hdrReactionSummary = value;
                }
         }
