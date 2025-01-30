@@ -324,7 +324,7 @@ public abstract class FileSystemUpdateWriterBase
     }
 
     protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package,
-        FileIdentifier file,
+        FileIdentifier targetFile,
         byte[] keyHeaderIv,
         IOdinContext odinContext)
     {
@@ -333,14 +333,14 @@ public abstract class FileSystemUpdateWriterBase
 
         OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
 
-        file.AssertIsValid(FileIdentifierType.GlobalTransitId);
+        targetFile.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
         if (recipients?.Any() ?? false)
         {
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
                 package.InternalFile,
                 keyHeaderIv,
-                file,
+                targetFile,
                 package.InstructionSet.Manifest,
                 package.InstructionSet.Recipients,
                 package.NewVersionTag,

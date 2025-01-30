@@ -24,7 +24,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// </summary>
     public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
     {
-        public async Task UpdateFileAsync(InternalDriveFileId tempFile,
+        public async Task UpsertFileAsync(InternalDriveFileId tempFile,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
@@ -36,12 +36,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             // Validations
             var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext);
-            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(tempFile, instructionSet, fileSystemType, incomingMetadata, odinContext);
-            
-            if (!isCollaborationChannel)
-            {
-                existingHeader.AssertOriginalSender((OdinId)existingHeader.FileMetadata.SenderOdinId);
-            }
+            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(tempFile,
+                instructionSet,
+                fileSystemType,
+                incomingMetadata,
+                odinContext);
+
+            incomingMetadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
+            incomingMetadata!.SenderOdinId = sender;
 
             var serverMetadata = new ServerMetadata()
             {
@@ -50,16 +52,38 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 AccessControlList = targetAcl
             };
 
-            incomingMetadata!.SenderOdinId = sender;
-            incomingMetadata.VersionTag = existingHeader.FileMetadata.VersionTag;
+            if (null == existingHeader)
+            {
+                //
+                // we must create a new file
+                //
+                incomingMetadata.VersionTag = instructionSet.Request.NewVersionTag;
+                await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter WriteNewFile",
+                    async () =>
+                    {
+                        await fs.Storage.CommitNewFile(tempFile,
+                            decryptedKeyHeader,
+                            incomingMetadata,
+                            serverMetadata,
+                            ignorePayload: false,
+                            odinContext,
+                            keepSameVersionTag: true);
+                    });
+
+                return;
+            }
 
             //Update existing file
-
             await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter UpdateExistingFile", async () =>
             {
-                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
-                //one is written any time you save a header)
-                incomingMetadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
+                if (!isCollaborationChannel)
+                {
+                    existingHeader.AssertOriginalSender((OdinId)existingHeader.FileMetadata.SenderOdinId);
+                }
+
+                //Use the version tag from the recipient's server because it won't match the sender
+                //(this is due to the fact a new one is written any time you save a header)
+                incomingMetadata.VersionTag = existingHeader.FileMetadata.VersionTag;
 
                 var request = instructionSet.Request;
                 var manifest = new BatchUpdateManifest()
@@ -76,7 +100,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatchAsync(tempFile, targetFile, manifest, odinContext);
+                await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext);
             });
         }
 
@@ -88,12 +112,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             FileMetadata incomingMetadata = default;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(),
+                    odinContext);
 
                 if (bytes == null)
                 {
                     // this is bad error.
-                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId, tempFile.DriveId);
+                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId,
+                        tempFile.DriveId);
                     throw new OdinFileWriteException("Missing temp file while processing inbox");
                 }
 
@@ -102,7 +128,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 incomingMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
                 if (null == incomingMetadata)
                 {
-                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId, tempFile.DriveId);
+                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId,
+                        tempFile.DriveId);
                     throw new OdinFileWriteException("Metadata could not be deserialized");
                 }
             });
@@ -155,7 +182,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return (targetAcl, isCollaborationChannel);
         }
 
-        private async Task<(InternalDriveFileId targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(FileIdentifier file,
+        private async Task<(InternalDriveFileId? targetFile, SharedSecretEncryptedFileHeader targetHeader)> GetTargetFileHeader(
+            FileIdentifier file,
             IDriveFileSystem fs,
             IOdinContext odinContext)
         {
@@ -166,7 +194,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             if (header == null)
             {
-                throw new OdinClientException("File does not exist", OdinClientErrorCode.InvalidFile);
+                return (null, null);
+                // throw new OdinClientException("File does not exist", OdinClientErrorCode.InvalidFile);
             }
 
             header.AssertFileIsActive();

@@ -76,7 +76,6 @@ public class UpdateRemoteFileOutboxWorker(
 
     private async Task<(Guid versionTag, Guid globalTransitId)> SendUpdatedFileItemAsync(OutboxFileItem outboxFileItem,
         IOdinContext odinContext,
-        
         CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -171,11 +170,20 @@ public class UpdateRemoteFileOutboxWorker(
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         return Task.FromResult(nextRunTime);
     }
-
-    protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    
+    protected override async Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext)
     {
         logger.LogDebug(e, "Unrecoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
-        return Task.CompletedTask;
+
+        var update = new UpdateTransferHistoryData()
+        {
+            IsInOutbox = false,
+            LatestTransferStatus = e.TransferStatus,
+            VersionTag = null
+        };
+
+        var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
     }
 }

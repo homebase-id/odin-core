@@ -161,7 +161,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Writes a new file header w/o checking for an existing one
         /// </summary>
         public async Task WriteNewFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            bool raiseEvent = false)
+            bool raiseEvent = false, bool keepSameVersionTag = false)
         {
             if (!header.IsValid())
             {
@@ -178,7 +178,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.Created = header.FileMetadata.Created != 0 ? header.FileMetadata.Created : UnixTimeUtc.Now().milliseconds;
             metadata.FileState = FileState.Active;
 
-            await WriteFileHeaderInternal(header);
+            await WriteFileHeaderInternal(header, keepSameVersionTag: keepSameVersionTag);
 
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
 
@@ -504,7 +504,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
             ServerMetadata serverMetadata,
-            bool? ignorePayload, IOdinContext odinContext)
+            bool? ignorePayload, IOdinContext odinContext, bool keepSameVersionTag = false)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
@@ -541,7 +541,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, metadata, serverMetadata, odinContext);
 
-            await WriteNewFileHeader(targetFile, serverHeader, odinContext);
+            await WriteNewFileHeader(targetFile, serverHeader, odinContext, keepSameVersionTag: keepSameVersionTag);
 
             //clean up temp storage
             await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
@@ -1094,14 +1094,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, 
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
             List<Guid> newTags,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
-            
+
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
@@ -1133,7 +1133,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     OdinContext = odinContext,
                 });
             }
-            
+
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
@@ -1186,7 +1186,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     OdinContext = odinContext,
                 });
             }
-            
+
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
