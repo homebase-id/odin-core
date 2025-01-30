@@ -30,8 +30,7 @@ public abstract class FileSystemUpdateWriterBase
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
-    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, DriveManager driveManager,
-        PeerOutgoingTransferService peerOutgoingTransferService)
+    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, DriveManager driveManager, PeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;
         _driveManager = driveManager;
@@ -42,34 +41,33 @@ public abstract class FileSystemUpdateWriterBase
 
     internal FileUpdatePackage Package { get; private set; }
 
-    public virtual async Task StartFileUpdateAsync(FileUpdateInstructionSet updateInstructions, FileSystemType fileSystemType,
-        IOdinContext odinContext)
+    public virtual async Task StartFileUpdateAsync(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType, IOdinContext odinContext)
     {
-        OdinValidationUtils.AssertNotNull(updateInstructions, nameof(updateInstructions));
-        updateInstructions.AssertIsValid();
-        OdinValidationUtils.AssertValidRecipientList(updateInstructions.Recipients, allowEmpty: true, odinContext.Tenant);
+        OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
+        instructionSet.AssertIsValid();
+        OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, allowEmpty: true, odinContext.Tenant);
 
-        updateInstructions.Manifest.ResetPayloadUiDs();
+        instructionSet.Manifest.ResetPayloadUiDs();
 
-        if (updateInstructions.Locale == UpdateLocale.Local)
+        if (instructionSet.Locale == UpdateLocale.Local)
         {
-            updateInstructions.File.AssertIsValid(expectedType: FileIdentifierType.File);
+            instructionSet.File.AssertIsValid(expectedType: FileIdentifierType.File);
 
             //  There must be a local file that will be updated - then sent out to recipients
             //  the outbox is used, and we can write the result to the local file in the transfer history
 
-            var driveId = odinContext.PermissionsContext.GetDriveId(updateInstructions.File.TargetDrive);
+            var driveId = odinContext.PermissionsContext.GetDriveId(instructionSet.File.TargetDrive);
 
             // File to overwrite
             InternalDriveFileId file = new InternalDriveFileId()
             {
                 DriveId = driveId,
-                FileId = updateInstructions.File.FileId.GetValueOrDefault()
+                FileId = instructionSet.File.FileId.GetValueOrDefault()
             };
 
             this.Package = new FileUpdatePackage(file)
             {
-                InstructionSet = updateInstructions,
+                InstructionSet = instructionSet,
                 FileSystemType = fileSystemType
             };
 
@@ -77,21 +75,21 @@ public abstract class FileSystemUpdateWriterBase
             return;
         }
 
-        if (updateInstructions.Locale == UpdateLocale.Peer)
+        if (instructionSet.Locale == UpdateLocale.Peer)
         {
             //Note: there is no local file.  everything is enqueued to the transient temp drive
-            OdinValidationUtils.AssertValidRecipientList(updateInstructions.Recipients, false, odinContext.Tenant);
-            updateInstructions.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
+            OdinValidationUtils.AssertValidRecipientList(instructionSet.Recipients, false, odinContext.Tenant);
+            instructionSet.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
             InternalDriveFileId file = new InternalDriveFileId()
             {
-                DriveId = (await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive, true)).GetValueOrDefault(),
-                FileId = Guid.NewGuid() // Note: in the case of peer, there is no local file so we just put a random value in here that will never be used
+                DriveId = (await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive,  true)).GetValueOrDefault(),
+                FileId =  Guid.NewGuid() // Note: in the case of peer, there is no local file so we just put a random value in here that will never be used
             };
 
             this.Package = new FileUpdatePackage(file)
             {
-                InstructionSet = updateInstructions,
+                InstructionSet = instructionSet,
                 FileSystemType = fileSystemType
             };
             return;
@@ -121,8 +119,12 @@ public abstract class FileSystemUpdateWriterBase
         }
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
+
+        throw new Exception("TODO: why is one used over the other?");
+        
         // var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, extension, data, odinContext);
+        
         if (bytesWritten > 0)
         {
             Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
@@ -297,9 +299,10 @@ public abstract class FileSystemUpdateWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes =
-            await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(),
-                odinContext);
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, 
+            MultipartUploadParts.Metadata.ToString(), 
+            odinContext);
+        
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
