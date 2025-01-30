@@ -71,9 +71,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             upsertParam2.Value = driveId.ToByteArray();
             upsertParam3.Value = fileId.ToByteArray();
             upsertParam4.Value = recipient.DomainName;
-            upsertParam5.Value = isInOutbox.HasValue ? isInOutbox.Value.ToString() : (object)DBNull.Value;
+            upsertParam5.Value = isInOutbox ?? (object)DBNull.Value;
             upsertParam6.Value = latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-            upsertParam7.Value = isReadByRecipient.HasValue ? isReadByRecipient.Value.ToString() : (object)DBNull.Value;
+            upsertParam7.Value = isReadByRecipient ?? (object)DBNull.Value;
             upsertParam8.Value = latestTransferStatus ?? (object)DBNull.Value;
 
             var count = await upsertCommand.ExecuteNonQueryAsync();
@@ -131,9 +131,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                             fileId = fileId,
                             remoteIdentityId = new OdinId((string)rdr[0]),
                             latestTransferStatus = rdr.IsDBNull(1) ? 0 : (int)(long)rdr[1],
-                            isInOutbox = rdr.IsDBNull(2) ? false : (bool)rdr[2],
+                            isInOutbox = rdr.IsDBNull(2) ? false : Convert.ToBoolean(rdr[2]),
                             latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]),
-                            isReadByRecipient = rdr.IsDBNull(4) ? false : (bool)rdr[4]
+                            isReadByRecipient = rdr.IsDBNull(4) ? false : Convert.ToBoolean(rdr[4]),
                         };
                         result.Add(item);
 

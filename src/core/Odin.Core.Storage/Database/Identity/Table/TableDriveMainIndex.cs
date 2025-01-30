@@ -284,7 +284,7 @@ public class TableDriveMainIndex(
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
-        sparam5.Value = modifiedTime;
+        sparam5.Value = modifiedTime.uniqueTime;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }
