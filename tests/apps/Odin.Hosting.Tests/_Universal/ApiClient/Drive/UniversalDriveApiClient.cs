@@ -395,6 +395,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         UploadFileMetadata fileMetadata,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
+        TransitOptions transitOptions = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -407,7 +408,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             {
                 Drive = targetDrive,
             },
-            TransitOptions = new TransitOptions()
+            TransitOptions = transitOptions ?? new TransitOptions()
             {
             },
             Manifest = uploadManifest

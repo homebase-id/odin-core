@@ -59,20 +59,20 @@ public abstract class FileSystemUpdateWriterBase
             //  the outbox is used, and we can write the result to the local file in the transfer history
 
             var driveId = odinContext.PermissionsContext.GetDriveId(updateInstructions.File.TargetDrive);
-            
+
             // File to overwrite
             InternalDriveFileId file = new InternalDriveFileId()
             {
                 DriveId = driveId,
                 FileId = updateInstructions.File.FileId.GetValueOrDefault()
             };
-            
+
             this.Package = new FileUpdatePackage(file)
             {
                 InstructionSet = updateInstructions,
                 FileSystemType = fileSystemType
             };
-            
+
             await Task.CompletedTask;
             return;
         }
@@ -197,7 +197,15 @@ public abstract class FileSystemUpdateWriterBase
 
             await ProcessExistingFileUploadAsync(Package, keyHeaderIv, metadata, serverMetadata, odinContext);
 
-            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext);
+            var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
+
+            var recipientStatus = await ProcessTransitInstructions(Package,
+                new FileIdentifier()
+                {
+                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
+                    TargetDrive = Package.InstructionSet.File.TargetDrive
+                },
+                keyHeaderIv, odinContext);
 
             return new FileUpdateResult()
             {
@@ -215,6 +223,11 @@ public abstract class FileSystemUpdateWriterBase
             // the local caller since currently, there is no method to get back info from
             // the outbox when sending transient files.
 
+            if (!serverMetadata.AllowDistribution)
+            {
+                throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
+            }
+
             var keyHeader = new KeyHeader()
             {
                 Iv = keyHeaderIv,
@@ -223,12 +236,7 @@ public abstract class FileSystemUpdateWriterBase
 
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
 
-            if (!serverMetadata.AllowDistribution)
-            {
-                throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
-            }
-
-            var recipientStatus = await ProcessTransitInstructions(Package, keyHeaderIv, odinContext);
+            var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeaderIv, odinContext);
             return new FileUpdateResult()
             {
                 NewVersionTag = Package.NewVersionTag,
@@ -267,7 +275,7 @@ public abstract class FileSystemUpdateWriterBase
                 Key = p.PayloadKey,
                 OperationType = p.PayloadUpdateOperationType
             }).ToList(),
-            
+
             KeyHeaderIv = keyHeaderIv,
             FileMetadata = metadata,
             ServerMetadata = serverMetadata
@@ -316,6 +324,7 @@ public abstract class FileSystemUpdateWriterBase
     }
 
     protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package,
+        FileIdentifier file,
         byte[] keyHeaderIv,
         IOdinContext odinContext)
     {
@@ -324,12 +333,14 @@ public abstract class FileSystemUpdateWriterBase
 
         OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
 
+        file.AssertIsValid(FileIdentifierType.GlobalTransitId);
+
         if (recipients?.Any() ?? false)
         {
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
                 package.InternalFile,
                 keyHeaderIv,
-                package.InstructionSet.File,
+                file,
                 package.InstructionSet.Manifest,
                 package.InstructionSet.Recipients,
                 package.NewVersionTag,
