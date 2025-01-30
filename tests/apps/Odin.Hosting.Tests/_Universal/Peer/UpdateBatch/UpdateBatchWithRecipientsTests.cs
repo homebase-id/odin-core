@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Castle.Components.DictionaryAdapter.Xml;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography;
@@ -324,7 +325,9 @@ public class UpdateBatchWithRecipientsTests
             Recipients = recipients.Select(r => r.OdinId).ToList(),
             Manifest = new UploadManifest
             {
-                PayloadDescriptors = [new UploadManifestPayloadDescriptor
+                PayloadDescriptors =
+                [
+                    new UploadManifestPayloadDescriptor
                     {
                         PayloadUpdateOperationType = PayloadUpdateOperationType.DeletePayload,
                         PayloadKey = testPayloads.Single().Key,
@@ -388,6 +391,14 @@ public class UpdateBatchWithRecipientsTests
                 Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
                 Assert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
                 Assert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
+
+                var getPayloadResponse = await client.DriveRedux.GetPayload(new ExternalFileIdentifier()
+                {
+                    FileId = remoteFileHeader.FileId,
+                    TargetDrive = targetGlobalTransitIdFileIdentifier.TargetDrive
+                }, testPayloads.Single().Key);
+
+                Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
             }
         }
 
