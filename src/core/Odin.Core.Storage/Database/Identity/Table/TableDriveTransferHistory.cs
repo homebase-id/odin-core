@@ -102,6 +102,12 @@ public class TableDriveTransferHistory(
     }
 
 
+    public new async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid identityId, Guid driveId, Guid fileId)
+    {
+        return await base.GetAsync(identityId, driveId, fileId);
+    }
+
+
     public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {
         return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
