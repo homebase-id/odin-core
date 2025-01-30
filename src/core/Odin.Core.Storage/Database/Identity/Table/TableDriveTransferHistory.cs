@@ -102,7 +102,7 @@ public class TableDriveTransferHistory(
     }
 
 
-    public new async Task<List<DriveTransferHistoryRecord>> GetAsync( Guid driveId, Guid fileId)
+    public async Task<List<DriveTransferHistoryRecord>> GetAsync( Guid driveId, Guid fileId)
     {
         return await base.GetAsync(identityKey, driveId, fileId);
     }
