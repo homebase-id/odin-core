@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
@@ -14,7 +15,87 @@ public class TableDriveTransferHistory(
     : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-    
+
+    public async Task<int> UpdateTransferHistoryRecordAsync(Guid driveId, Guid fileId, OdinId recipient,
+                                                        int? latestTransferStatus,
+                                                        Guid? latestSuccessfullyDeliveredVersionTag,
+                                                        bool? isInOutbox,
+                                                        bool? isReadByRecipient)
+    {
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var tx = await cn.BeginStackedTransactionAsync();
+
+        await using var updateCommand = cn.CreateCommand();
+
+        // Start building the SQL query
+        var sql = new StringBuilder(@"UPDATE driveTransferHistory SET ");
+
+        // Dynamic UPDATE statement
+        var updateFields = new List<string>();
+        var parameters = new Dictionary<string, object>();
+
+        if (isInOutbox.HasValue)
+        {
+            updateFields.Add("isInOutbox = @isInOutbox");
+            parameters["@isInOutbox"] = isInOutbox.Value;
+        }
+
+        if (latestSuccessfullyDeliveredVersionTag.HasValue)
+        {
+            updateFields.Add("latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag");
+            parameters["@latestSuccessfullyDeliveredVersionTag"] = latestSuccessfullyDeliveredVersionTag.Value.ToByteArray();
+        }
+
+        if (isReadByRecipient.HasValue)
+        {
+            updateFields.Add("isReadByRecipient = @isReadByRecipient");
+            parameters["@isReadByRecipient"] = isReadByRecipient.Value;
+        }
+
+        if (latestTransferStatus.HasValue)
+        {
+            updateFields.Add("latestTransferStatus = @latestTransferStatus");
+            parameters["@latestTransferStatus"] = latestTransferStatus.Value;
+        }
+
+        // Ensure there is at least one field to update
+        if (updateFields.Count == 0)
+        {
+            throw new InvalidOperationException("No updatable fields were provided.");
+        }
+
+        sql.Append(string.Join(", ", updateFields));
+
+        // Add WHERE condition to target specific record
+        sql.Append(@"
+        WHERE identityId = @identityId 
+          AND driveId = @driveId 
+          AND fileId = @fileId 
+          AND remoteIdentityId = @remoteIdentityId");
+
+        updateCommand.CommandText = sql.ToString();
+
+        // Add required WHERE clause parameters
+        parameters["@identityId"] = identityKey.ToByteArray();
+        parameters["@driveId"] = driveId.ToByteArray();
+        parameters["@fileId"] = fileId.ToByteArray();
+        parameters["@remoteIdentityId"] = recipient.DomainName;
+
+        // Add parameters to the command
+        foreach (var param in parameters)
+        {
+            var sqlParam = updateCommand.CreateParameter();
+            sqlParam.ParameterName = param.Key;
+            sqlParam.Value = param.Value;
+            updateCommand.Parameters.Add(sqlParam);
+        }
+
+        var count = await updateCommand.ExecuteNonQueryAsync();
+        tx.Commit();
+
+        return count;
+    }
+
 
     public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {
