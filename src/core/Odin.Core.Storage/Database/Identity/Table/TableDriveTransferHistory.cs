@@ -93,6 +93,11 @@ public class TableDriveTransferHistory(
         var count = await updateCommand.ExecuteNonQueryAsync();
         tx.Commit();
 
+        //
+        // WE SHOULD PROBABLY TOUCH THE MAINDRIVE RECORD HERE
+        // I'LL IMPLEMENT A GENERATOR TOUCH FUNCTION FOR ALL TABLES IF YOU AGREE.
+        //
+
         return count;
     }
 
