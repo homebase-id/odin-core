@@ -238,7 +238,7 @@ namespace Odin.Hosting
 
             services.AddIpRateLimiter(_config.Host.IpRateLimitRequestsPerSecond);
 
-            services.AddCoreCacheServices(new OdinCacheOptions
+            services.AddCoreCacheServices(new CacheConfiguration
             {
                 Level2CacheType = _config.Cache.Level2CacheType,
                 Level2Configuration = _config.Cache.Level2Configuration
@@ -275,7 +275,7 @@ namespace Odin.Hosting
             }
 
             // System cache services
-            builder.AddOdinCache("system");
+            builder.AddCacheLevels("system");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -523,7 +523,7 @@ namespace Odin.Hosting
                 }
 
                 // Sanity ping cache
-                var cache = services.GetRequiredService<IOdinCache>();
+                var cache = services.GetRequiredService<ILevel2Cache>();
                 cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
                 var pong = cache.TryGet<string>("ping");
                 if (pong != "pong")

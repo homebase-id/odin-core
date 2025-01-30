@@ -2,7 +2,6 @@ using System;
 using Autofac;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.NeueccMessagePack;
@@ -11,11 +10,11 @@ namespace Odin.Core.Storage.Cache;
 
 #nullable enable
 
-public static class OdinCacheExtensions
+public static class FusionCacheWrapperExtensions
 {
     public static IServiceCollection AddCoreCacheServices(
         this IServiceCollection services,
-        OdinCacheOptions odinCacheOptions)
+        CacheConfiguration cacheConfiguration)
     {
         var builder = services.AddFusionCache()
             .WithOptions(options =>
@@ -41,19 +40,19 @@ public static class OdinCacheExtensions
                 new FusionCacheNeueccMessagePackSerializer()
             );
 
-        if (odinCacheOptions.Level2CacheType == Level2CacheType.Redis)
+        if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)
         {
             ArgumentException.ThrowIfNullOrEmpty(
-                odinCacheOptions.Level2Configuration,
-                nameof(odinCacheOptions.Level2Configuration));
+                cacheConfiguration.Level2Configuration,
+                nameof(cacheConfiguration.Level2Configuration));
 
             builder
                 .WithDistributedCache(
-                    new RedisCache(new RedisCacheOptions { Configuration = odinCacheOptions.Level2Configuration })
+                    new RedisCache(new RedisCacheOptions { Configuration = cacheConfiguration.Level2Configuration })
                 )
                 .WithBackplane(
                     new RedisBackplane(new RedisBackplaneOptions
-                        { Configuration = odinCacheOptions.Level2Configuration })
+                        { Configuration = cacheConfiguration.Level2Configuration })
                 );
         }
 
@@ -62,12 +61,13 @@ public static class OdinCacheExtensions
 
     //
 
-    public static ContainerBuilder AddOdinCache(this ContainerBuilder cb, string odinCacheKeyPrefix)
+    public static ContainerBuilder AddCacheLevels(this ContainerBuilder cb, string odinCacheKeyPrefix)
     {
         ArgumentException.ThrowIfNullOrEmpty(odinCacheKeyPrefix, nameof(odinCacheKeyPrefix));
 
-        cb.RegisterInstance(new OdinCacheKeyPrefix(odinCacheKeyPrefix)).SingleInstance();
-        cb.RegisterType<OdinCache>().As<IOdinCache>().SingleInstance();
+        cb.RegisterInstance(new CacheKeyPrefix(odinCacheKeyPrefix)).SingleInstance();
+        cb.RegisterType<Level1Cache>().As<ILevel1Cache>().SingleInstance();
+        cb.RegisterType<Level2Cache>().As<ILevel2Cache>().SingleInstance();
 
         return cb;
     }

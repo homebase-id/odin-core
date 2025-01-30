@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.Tests.Cache;
 
 #nullable enable
 
-public class OdinCacheTests
+public class Level2CacheTests
 {
     private RedisContainer? _redisContainer;
     private ILifetimeScope? _services;
@@ -52,9 +52,7 @@ public class OdinCacheTests
 
         services.AddLogging();
 
-        services.AddSingleton(new OdinCacheKeyPrefix("some-prefix"));
-        services.AddSingleton<IOdinCache, OdinCache>();
-        services.AddCoreCacheServices(new OdinCacheOptions
+        services.AddCoreCacheServices(new CacheConfiguration
         {
             Level2CacheType = level2CacheType,
             Level2Configuration = _redisContainer?.GetConnectionString() ?? ""
@@ -62,6 +60,8 @@ public class OdinCacheTests
 
         var builder = new ContainerBuilder();
         builder.Populate(services);
+        builder.AddCacheLevels("some-prefix");
+
         _services = builder.Build();
     }
 
@@ -76,7 +76,7 @@ public class OdinCacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<IOdinCache>();
+        var cache = _services!.Resolve<ILevel2Cache>();
 
         var id = Guid.NewGuid();
 
@@ -108,7 +108,7 @@ public class OdinCacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<IOdinCache>();
+        var cache = _services!.Resolve<ILevel2Cache>();
 
         var id = Guid.NewGuid();
 
@@ -138,7 +138,7 @@ public class OdinCacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<IOdinCache>();
+        var cache = _services!.Resolve<ILevel2Cache>();
 
         var id = Guid.NewGuid();
 
@@ -164,6 +164,97 @@ public class OdinCacheTests
 
     }
 
+    //
+
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task ItShouldSetAndRetrieveValues(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<ILevel2Cache>();
+
+        var id = Guid.NewGuid();
+        var key = $"poco:{id}";
+        var expectedRecord = new PocoA { Id = id, Uuid = Guid.NewGuid() };
+
+        // Set the value in cache
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMinutes(10));
+
+        // Retrieve the value
+        var actualRecord = cache.GetOrDefault<PocoA?>(key);
+
+        Assert.That(actualRecord, Is.Not.Null);
+        Assert.That(actualRecord!.Id, Is.EqualTo(expectedRecord.Id));
+        Assert.That(actualRecord.Uuid, Is.EqualTo(expectedRecord.Uuid));
+    }
+
+    //
+
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task ItShouldRemoveValues(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<ILevel2Cache>();
+
+        var id = Guid.NewGuid();
+        var key = $"poco:{id}";
+        var expectedRecord = new PocoA { Id = id, Uuid = Guid.NewGuid() };
+
+        // Set the value in cache
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMinutes(10));
+
+        // Ensure it's retrievable
+        var record1 = cache.GetOrDefault<PocoA?>(key);
+        Assert.That(record1, Is.Not.Null);
+
+        // Remove the value
+        await cache.RemoveAsync(key);
+
+        // Ensure it is gone
+        var record2 = cache.GetOrDefault<PocoA?>(key);
+        Assert.That(record2, Is.Null);
+    }
+
+    //
+
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task ItShouldRespectExpiration(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<ILevel2Cache>();
+
+        var id = Guid.NewGuid();
+        var key = $"poco:{id}";
+        var expectedRecord = new PocoA { Id = id, Uuid = Guid.NewGuid() };
+
+        // Set the value with a short expiration
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMilliseconds(500));
+
+        // Ensure it's retrievable
+        var record1 = cache.GetOrDefault<PocoA?>(key);
+        Assert.That(record1, Is.Not.Null);
+
+        // Wait for expiration
+        await Task.Delay(1000);
+
+        // Ensure it's gone
+        var record2 = cache.GetOrDefault<PocoA?>(key);
+        Assert.That(record2, Is.Null);
+    }
 
     //
 
@@ -185,10 +276,11 @@ public class OdinCacheTests
         return Task.FromResult(record)!;
     }
 
+    // SEB:NOTE this must be public for the message pack serializer to work
     public class PocoA
     {
-        public Guid Id { get; set; }
-        public Guid Uuid { get; set; }
+        public Guid Id { get; init; }
+        public Guid Uuid { get; init; }
     }
 
     #endregion

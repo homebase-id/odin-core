@@ -316,7 +316,7 @@ public static class TenantServices
         cb.ConfigureDatabaseServices(registration, storageConfig, odinConfig);
 
         // Tenant cache services
-        cb.AddOdinCache(registration.Id.ToString());
+        cb.AddCacheLevels(registration.Id.ToString());
     }
 
     //

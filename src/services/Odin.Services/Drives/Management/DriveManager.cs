@@ -33,6 +33,8 @@ public class DriveManager
 
     private readonly ILogger<DriveManager> _logger;
     private readonly IMediator _mediator;
+
+    // SEB:TODO distributed cache instead?
     private readonly SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> _driveCache;
     private readonly SharedAsyncLock<DriveManager> _createDriveLock;
 

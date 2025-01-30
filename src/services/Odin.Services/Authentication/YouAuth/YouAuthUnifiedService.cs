@@ -27,19 +27,19 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly CircleNetworkService _circleNetwork;
-    private readonly IOdinCache _odinCache;
+    private readonly ILevel2Cache _level2Cache;
 
     public YouAuthUnifiedService(
         IAppRegistrationService appRegistrationService,
         YouAuthDomainRegistrationService domainRegistrationService,
         CircleNetworkService circleNetwork,
-        IOdinCache odinCache)
+        ILevel2Cache level2Cache)
     {
         _appRegistrationService = appRegistrationService;
 
         _domainRegistrationService = domainRegistrationService;
         _circleNetwork = circleNetwork;
-        _odinCache = odinCache;
+        _level2Cache = level2Cache;
     }
 
     //
@@ -60,10 +60,10 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
 
         //TODO: need to talk with Seb about the redirecting loop issue here
-        var tempConsent = await _odinCache.GetOrDefaultAsync(TempConsentCacheKey(clientIdOrDomain), false);
+        var tempConsent = await _level2Cache.GetOrDefaultAsync(TempConsentCacheKey(clientIdOrDomain), false);
         if (tempConsent)
         {
-            await _odinCache.RemoveAsync(TempConsentCacheKey(clientIdOrDomain));
+            await _level2Cache.RemoveAsync(TempConsentCacheKey(clientIdOrDomain));
             return false;
         }
 
@@ -94,7 +94,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         if (clientType == ClientType.app)
         {
             //so for now i'll just use this dictionary
-            await _odinCache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
+            await _level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
 
         if (clientType == ClientType.domain)
@@ -121,7 +121,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             }
 
             //so for now i'll just use this dictionary
-            await _odinCache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
+            await _level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
     }
 
@@ -196,7 +196,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             clientAuthTokenCipher,
             clientAuthTokenIv);
 
-        await _odinCache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
+        await _level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 
         return (keyPair.PublicKeyJwkBase64Url(), Convert.ToBase64String(exchangeSalt));
     }
@@ -205,11 +205,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
     {
-        var ec = await _odinCache.TryGetAsync<EncryptedTokenExchange?>(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
+        var ec = await _level2Cache.TryGetAsync<EncryptedTokenExchange?>(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
 
         if (ec != null)
         {
-            await _odinCache.RemoveAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
+            await _level2Cache.RemoveAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
         }
 
         return ec;

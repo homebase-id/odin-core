@@ -68,6 +68,8 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
+
+        // SEB:TODO distributed cache instead?
         private readonly SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> _outgoingIntroductionRequests;
 
         public CircleNetworkRequestService(

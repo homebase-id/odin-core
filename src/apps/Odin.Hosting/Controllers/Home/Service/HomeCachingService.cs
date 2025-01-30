@@ -30,6 +30,8 @@ namespace Odin.Hosting.Controllers.Home.Service
         public const int ChannelFileType = 103;
 
         private readonly int[] _fileTypesCausingCacheReset = { PostFileType, ChannelFileType };
+
+        // SEB:TODO distributed cache instead?
         private readonly IGenericMemoryCache<HomeCachingService> _cache;
 
         public HomeCachingService(
