@@ -107,9 +107,6 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     private Lazy<MainIndexMeta> _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
 
-    private Lazy<TransferHistoryDataOperations> _transferHistoryDataOperations;
-    public TransferHistoryDataOperations TransferHistoryDataOperations => LazyResolve(ref _transferHistoryDataOperations);
-    
     private Lazy<LocalMetadataDataOperations> _localTags;
     public LocalMetadataDataOperations LocalMetadataDataOperations => LazyResolve(ref _localTags);
 

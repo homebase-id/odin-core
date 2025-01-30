@@ -61,19 +61,21 @@ public static class TransferHistoryMigration
         await using var tx = await cn.BeginTransactionAsync();
 
         await using var cmd = cn.CreateCommand();
+
         cmd.CommandText =
             "CREATE TABLE IF NOT EXISTS driveTransferHistory("
             + "identityId BYTEA NOT NULL, "
             + "driveId BYTEA NOT NULL, "
             + "fileId BYTEA NOT NULL, "
             + "remoteIdentityId TEXT NOT NULL, "
-            + "latestTransferStatus BIGINT , "
-            + "isInOutbox BOOLEAN , "
-            + "latestSuccessfullyDeliveredVersionTag BYTEA , "
-            + "isReadByRecipient BOOLEAN  "
+            + "latestTransferStatus BIGINT NOT NULL, "
+            + "isInOutbox BOOLEAN NOT NULL, "
+            + "latestSuccessfullyDeliveredVersionTag BYTEA NOT NULL, "
+            + "isReadByRecipient BOOLEAN NOT NULL "
             + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
             + ");"
-            + "CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);";
+            + "CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);"
+            ;
 
         await cmd.ExecuteNonQueryAsync();
 

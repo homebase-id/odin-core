@@ -12,7 +12,7 @@ public class TableDriveTransferHistory(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     IdentityKey identityKey)
-    : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory: scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -22,7 +22,7 @@ public class TableDriveTransferHistory(
                                                         bool? isInOutbox,
                                                         bool? isReadByRecipient)
     {
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
         await using var updateCommand = cn.CreateCommand();
@@ -102,9 +102,9 @@ public class TableDriveTransferHistory(
     }
 
 
-    public new async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid identityId, Guid driveId, Guid fileId)
+    public new async Task<List<DriveTransferHistoryRecord>> GetAsync( Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(identityId, driveId, fileId);
+        return await base.GetAsync(identityKey, driveId, fileId);
     }
 
 

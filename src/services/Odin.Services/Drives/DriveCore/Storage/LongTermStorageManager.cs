@@ -11,6 +11,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
@@ -25,7 +26,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         private readonly DriveFileReaderWriter _driveFileReaderWriter;
         private readonly DriveQuery _driveQuery;
         private readonly ScopedIdentityTransactionFactory _scopedIdentityTransactionFactory;
-        private readonly TransferHistoryDataOperations _transferHistoryDataOperations;
+        private readonly TableDriveTransferHistory _tableDriveTransferHistory;
+        private readonly TableDriveMainIndex _driveMainIndex;
 
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
@@ -36,13 +38,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             DriveFileReaderWriter driveFileReaderWriter,
             DriveQuery driveQuery,
             ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
-            TransferHistoryDataOperations transferHistoryDataOperations)
+            TableDriveTransferHistory tableDriveTransferHistory,
+            TableDriveMainIndex driveMainIndex)
         {
             _logger = logger;
             _driveFileReaderWriter = driveFileReaderWriter;
             _driveQuery = driveQuery;
             _scopedIdentityTransactionFactory = scopedIdentityTransactionFactory;
-            _transferHistoryDataOperations = transferHistoryDataOperations;
+            _tableDriveTransferHistory = tableDriveTransferHistory;
+            _driveMainIndex = driveMainIndex;
         }
 
         /// <summary>
@@ -91,12 +95,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
 
-            await _transferHistoryDataOperations.UpsertTransferHistoryRecordAsync(driveId, fileId, recipient,
+            await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
                 (int?)updateData.LatestTransferStatus,
                 updateData.VersionTag,
                 updateData.IsInOutbox,
                 updateData.IsReadByRecipient);
-
+            
             var fileTransferHistory = await GetTransferHistory(driveId, fileId);
 
             var history = new RecipientTransferHistory()
@@ -112,16 +116,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
             };
 
             var json = OdinSystemSerializer.Serialize(history);
-            var modifiedtime = await _transferHistoryDataOperations.UpdateTransferSummaryCacheAsync(driveId, fileId, json);
+
+            var modified = UnixTimeUtcUnique.Now();
+            await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified);
 
             tx.Commit();
 
-            return (history, modifiedtime);
+            return (history, modified);
         }
 
         public async Task DeleteTransferHistoryAsync(StorageDrive drive, Guid fileId)
         {
-            await _transferHistoryDataOperations.DeleteTransferHistoryAsync(drive.Id, fileId);
+            await _tableDriveTransferHistory.DeleteAllRowsAsync(drive.Id, fileId);
         }
 
         public async Task SaveReactionHistory(StorageDrive drive, Guid fileId, ReactionSummary summary)
@@ -259,7 +265,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)
         {
-            var list = await _transferHistoryDataOperations.GetTransferHistoryAsync(driveId, fileId);
+            var list = await _tableDriveTransferHistory.GetAsync(driveId, fileId);
             return list.Select(item =>
                 new RecipientTransferHistoryItem
                 {
