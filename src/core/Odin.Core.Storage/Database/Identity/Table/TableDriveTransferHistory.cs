@@ -113,7 +113,7 @@ public class TableDriveTransferHistory(
         return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
     }
 
-    public Task<int> AddInitialRecordAsync(Guid driveId, Guid fileId, OdinId recipient)
+    public Task<bool> TryAddInitialRecordAsync(Guid driveId, Guid fileId, OdinId recipient)
     {
         var item = new DriveTransferHistoryRecord
         {
@@ -127,6 +127,6 @@ public class TableDriveTransferHistory(
             isReadByRecipient = false
         };
 
-        return base.UpsertAsync(item);
+        return base.TryInsertAsync(item);
     }
 }
