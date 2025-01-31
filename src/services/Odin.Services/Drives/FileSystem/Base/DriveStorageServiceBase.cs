@@ -23,7 +23,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -1025,6 +1024,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             DriveFileUtility.AssertVersionTagMatch(manifest.FileMetadata.VersionTag, existingHeader.FileMetadata.VersionTag);
+            var metadata = manifest.FileMetadata;
+            DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
+            DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
 
             //
             // For the payloads, we have two sources and one set of operations
@@ -1117,14 +1119,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file, 
+        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
             List<Guid> newTags,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
-            
+
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
@@ -1156,7 +1158,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     OdinContext = odinContext,
                 });
             }
-            
+
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
@@ -1168,9 +1170,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             string newContent,
             IOdinContext odinContext)
         {
-            const int maxLength = 2 * 1024;
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            OdinValidationUtils.AssertMaxStringLength(newContent, maxLength, $"local app content is too long; max length is {maxLength}");
+            DriveFileUtility.AssertValidAppContentLength(newContent);
 
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
@@ -1209,7 +1210,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     OdinContext = odinContext,
                 });
             }
-            
+
             return new UpdateLocalMetadataResult()
             {
                 NewLocalVersionTag = newVersionTag
@@ -1218,6 +1219,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)
         {
+            // Note: these validations here are just-in-case checks; however at this point many
+            // other operations will have occured, so these checks also exist in the upload validation
+            DriveFileUtility.AssertValidAppContentLength(header.FileMetadata.AppData?.Content ?? "");
+            DriveFileUtility.AssertValidPreviewThumbnail(header.FileMetadata.AppData?.PreviewThumbnail);
+            
             if (!keepSameVersionTag)
             {
                 header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();

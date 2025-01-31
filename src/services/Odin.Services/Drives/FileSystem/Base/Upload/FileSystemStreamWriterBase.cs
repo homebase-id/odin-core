@@ -530,6 +530,9 @@ public abstract class FileSystemStreamWriterBase
                 }
             }
         }
+        
+        DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
+        DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
     }
 
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
