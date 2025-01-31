@@ -15,7 +15,6 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// </summary>
 public sealed class DriveFileReaderWriter(
     OdinConfiguration odinConfiguration,
-    ConcurrentFileManager concurrentFileManager,
     ILogger<DriveFileReaderWriter> logger)
 {
     public async Task WriteString(string filePath, string data)
@@ -26,17 +25,7 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
-                {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
-                    {
-                        await concurrentFileManager.WriteFile(filePath, path => File.WriteAllText(path, data));
-                    }
-                    else
-                    {
-                        await File.WriteAllTextAsync(filePath, data);
-                    }
-                });
+                async () => { await File.WriteAllTextAsync(filePath, data); });
         }
         catch (TryRetryException e)
         {
@@ -52,17 +41,7 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
-                {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
-                    {
-                        await concurrentFileManager.WriteFile(filePath, path => File.WriteAllBytes(path, bytes));
-                    }
-                    else
-                    {
-                        await File.WriteAllBytesAsync(filePath, bytes);
-                    }
-                });
+                async () => { await File.WriteAllBytesAsync(filePath, bytes); });
         }
         catch (TryRetryException e)
         {
@@ -80,20 +59,7 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
-                {
-                    if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
-                    {
-                        logger.LogDebug("WriteStream - using CFM locking");
-                        await concurrentFileManager.WriteFileAsync(filePath,
-                            async path => bytesWritten = await WriteStreamInternalAsync(path, stream));
-                    }
-                    else
-                    {
-                        logger.LogDebug("WriteStream - using OS locking");
-                        bytesWritten = await WriteStreamInternalAsync(filePath, stream);
-                    }
-                });
+                async () => { bytesWritten = await WriteStreamInternalAsync(filePath, stream); });
         }
         catch (TryRetryException e)
         {
@@ -102,7 +68,8 @@ public sealed class DriveFileReaderWriter(
 
         if (bytesWritten != stream.Length)
         {
-            throw new OdinSystemException($"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {stream.Length}");
+            throw new OdinSystemException(
+                $"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {stream.Length}");
         }
 
         return bytesWritten;
@@ -118,19 +85,7 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
-                {
-                    if (odinConfiguration.Host.UseConcurrentFileManager && !byPassInternalFileLocking)
-                    {
-                        logger.LogDebug("GetAllFileBytes - using CFM locking");
-                        await concurrentFileManager.ReadFile(filePath, path => bytes = File.ReadAllBytes(path));
-                    }
-                    else
-                    {
-                        logger.LogDebug("GetAllFileBytes - using OS locking");
-                        bytes = await File.ReadAllBytesAsync(filePath);
-                    }
-                });
+                async () => { bytes = await File.ReadAllBytesAsync(filePath); });
         }
         catch (TryRetryException e)
         {
@@ -153,17 +108,7 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
-                {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
-                    {
-                        await concurrentFileManager.MoveFile(sourceFilePath, destinationFilePath, (s, d) => File.Move(s, d, true));
-                    }
-                    else
-                    {
-                        File.Move(sourceFilePath, destinationFilePath, true);
-                    }
-                });
+                async () => { File.Move(sourceFilePath, destinationFilePath, true); });
         }
         catch (TryRetryException e)
         {
@@ -190,18 +135,7 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
-                {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
-                    {
-                        // MS: The CFM opens in ReadOnly mode. 
-                        fileStream = await concurrentFileManager.ReadStream(filePath);
-                    }
-                    else
-                    {
-                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    }
-                });
+                async () => { fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read); });
         }
         catch (TryRetryException e)
         {
@@ -242,17 +176,7 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
-                {
-                    if (odinConfiguration.Host.UseConcurrentFileManager)
-                    {
-                        await concurrentFileManager.DeleteFile(path);
-                    }
-                    else
-                    {
-                        File.Delete(path);
-                    }
-                });
+                async () => { File.Delete(path); });
         }
         catch (TryRetryException e)
         {
