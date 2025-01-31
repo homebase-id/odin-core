@@ -26,8 +26,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var f1 = Guid.NewGuid();
             var frodoId = new OdinId("frodobaggins.me");
 
-            var n = await tbl.AddInitialRecordAsync(d1, f1, frodoId);
-            Debug.Assert(n == 1);
+            var n = await tbl.TryAddInitialRecordAsync(d1, f1, frodoId);
+            Debug.Assert(n == true);
 
             var r = await tbl.GetAsync(d1, f1);
             Debug.Assert(r.Count == 1);
@@ -48,10 +48,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var f1 = Guid.NewGuid();
             var frodoId = new OdinId("frodobaggins.me");
 
-            var n = await tbl.AddInitialRecordAsync(d1, f1, frodoId);
+            var b = await tbl.TryAddInitialRecordAsync(d1, f1, frodoId);
 
             // IsInOutbox
-            n = await tbl.UpdateTransferHistoryRecordAsync(d1, f1, frodoId,  null, null, isInOutbox: true,  null);
+            var n = await tbl.UpdateTransferHistoryRecordAsync(d1, f1, frodoId,  null, null, isInOutbox: true,  null);
             Debug.Assert(n == 1);
             var r = await tbl.GetAsync(d1, f1);
             Debug.Assert(r[0].isInOutbox == true);
