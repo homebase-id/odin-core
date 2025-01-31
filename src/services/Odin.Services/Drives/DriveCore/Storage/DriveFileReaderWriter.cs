@@ -108,7 +108,11 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { File.Move(sourceFilePath, destinationFilePath, true); });
+                async () =>
+                {
+                    await Task.CompletedTask;
+                    File.Move(sourceFilePath, destinationFilePath, true);
+                });
         }
         catch (TryRetryException e)
         {
@@ -135,7 +139,11 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read); });
+                async () =>
+                {
+                    await Task.CompletedTask;
+                    fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                });
         }
         catch (TryRetryException e)
         {
@@ -176,7 +184,11 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { File.Delete(path); });
+                async () =>
+                {
+                    await Task.CompletedTask;
+                    File.Delete(path);
+                });
         }
         catch (TryRetryException e)
         {
