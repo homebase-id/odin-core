@@ -46,13 +46,6 @@ namespace Odin.Hosting.Middleware
                 return;
             }
 
-            // Removed since the UpgradeRequired Header is not used by anyone and this is making log noise
-            // var (upgradeRequired, _) = await scheduler.RequiresUpgradeAsync();
-            // if (upgradeRequired)
-            // {
-            //     VersionUpgradeScheduler.SetRequiresUpgradeResponse(context);
-            // }
-
             await next(context);
         }
     }
