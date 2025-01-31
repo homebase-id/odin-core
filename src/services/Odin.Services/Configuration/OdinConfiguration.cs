@@ -213,7 +213,7 @@ namespace Odin.Services.Configuration
 
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
 
-                UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", true);
+                UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", false);
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
                 PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
 
