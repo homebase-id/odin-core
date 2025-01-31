@@ -95,11 +95,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var added = await _tableDriveTransferHistory.TryAddInitialRecordAsync(driveId, fileId, recipient);
             if (!added)
             {
-                await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
+                var affectedRows = await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
                     latestTransferStatus: null,
                     latestSuccessfullyDeliveredVersionTag: null,
                     isInOutbox: true,
                     isReadByRecipient: null);
+
+                if (affectedRows != 1)
+                {
+                    throw new OdinSystemException($"Failed to initiate transfer history for recipient:{recipient}.  " +
+                                                  $"Could not add or update transfer record");
+                }
             }
 
             var (history, modified) = await UpdateTransferHistorySummary(driveId, fileId);
