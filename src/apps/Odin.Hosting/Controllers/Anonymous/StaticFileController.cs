@@ -82,8 +82,8 @@ namespace Odin.Hosting.Controllers.Anonymous
             }
 
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(config.LastModified);
-            this.Response.Headers.TryAdd("Cache-Control", "max-age=31536000");
-            
+            this.Response.Headers.TryAdd("Cache-Control", "max-age=3600, stale-while-revalidate=31536000");
+
             return new FileStreamResult(stream, config.ContentType);
         }
 
