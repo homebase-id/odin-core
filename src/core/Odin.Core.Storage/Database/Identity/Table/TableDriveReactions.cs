@@ -73,11 +73,11 @@ public class TableDriveReactions(
                 // Only return the first five reactions (?)
                 if (n < 5)
                 {
-                    string s = rdr.GetString(0);
+                    string s = (string) rdr[0];
                     result.Add(s);
                 }
 
-                int count = rdr.GetInt32(1);
+                int count = (int)(long) rdr[1];
                 totalCount += count;
                 n++;
             }
@@ -92,7 +92,7 @@ public class TableDriveReactions(
     /// <param name="identity"></param>
     /// <param name="postId"></param>
     /// <returns></returns>
-    public async Task<int> GetIdentityPostReactionsAsync(OdinId identity, Guid driveId, Guid postId)
+    public async Task<long> GetIdentityPostReactionsAsync(OdinId identity, Guid driveId, Guid postId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -123,7 +123,7 @@ public class TableDriveReactions(
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
             if (await rdr.ReadAsync())
-                return rdr.GetInt32(0);
+                return (long) rdr[0];
             else
                 return 0;
         }
@@ -170,7 +170,7 @@ public class TableDriveReactions(
 
             while (await rdr.ReadAsync())
             {
-                string s = rdr.GetString(0);
+                string s = (string) rdr[0];
                 rs.Add(s);
             }
 
@@ -211,10 +211,10 @@ public class TableDriveReactions(
 
             while (rdr.Read())
             {
-                string s = rdr.GetString(0);
+                string s = (string) rdr[0];
                 result.Add(s);
 
-                int count = rdr.GetInt32(1);
+                int count = (int)(Int64) rdr[1];
                 iresult.Add(count);
 
                 totalCount += count;
@@ -275,36 +275,34 @@ public class TableDriveReactions(
                 n++;
                 var item = new DriveReactionsRecord();
                 byte[] _tmpbuf = new byte[65535 + 1];
-                long bytesRead;
-                var _guid = new byte[16];
 
                 item.identityId = identityKey;
 
-                rowid = rdr.GetInt32(0);
+                rowid = (int)(Int64) rdr[0];
 
-                if (rdr.IsDBNull(1))
+                if ((rdr[1] == DBNull.Value))
                     throw new Exception("Impossible, item is null in but set as NOT NULL");
                 else
                 {
-                    var s = rdr.GetString(1);
+                    var s = (string) rdr[1];
                     item.identity = new OdinId(s);
                 }
 
-                if (rdr.IsDBNull(2))
+                if ((rdr[2] == DBNull.Value))
                     throw new Exception("Impossible, item is null in but set as NOT NULL");
                 else
                 {
-                    bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
-                    if (bytesRead != 16)
+                    var _guid = (byte[])rdr[2];
+                    if (_guid.Length != 16)
                         throw new Exception("Not a GUID in postId...");
                     item.postId = new Guid(_guid);
                 }
 
-                if (rdr.IsDBNull(3))
+                if ((rdr[3] == DBNull.Value))
                     throw new Exception("Impossible, item is null in but set as NOT NULL");
                 else
                 {
-                    item.singleReaction = rdr.GetString(3);
+                    item.singleReaction = (string) rdr[3];
                 }
 
                 result.Add(item);

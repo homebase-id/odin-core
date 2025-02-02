@@ -393,7 +393,7 @@ public class DriveQuery(
         return await tblDriveReactions.GetIdentityPostReactionDetailsAsync(identity, drive.Id, fileId);
     }
 
-    public async Task<int> GetReactionCountByIdentityAsync(StorageDrive drive, OdinId odinId, Guid fileId)
+    public async Task<long> GetReactionCountByIdentityAsync(StorageDrive drive, OdinId odinId, Guid fileId)
     {
         return await tblDriveReactions.GetIdentityPostReactionsAsync(odinId, drive.Id, fileId);
     }

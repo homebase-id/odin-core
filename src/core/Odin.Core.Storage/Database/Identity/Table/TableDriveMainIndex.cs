@@ -205,8 +205,8 @@ public class TableDriveMainIndex(
         {
             if (await rdr.ReadAsync())
             {
-                long created = rdr.GetInt64(0);
-                long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                long created = (Int64) rdr[0];
+                long? modified = (rdr[1] == DBNull.Value) ? null : (Int64) rdr[1];
                 item.created = new UnixTimeUtcUnique(created);
                 if (modified != null)
                     item.modified = new UnixTimeUtcUnique((long)modified);
@@ -313,8 +313,8 @@ public class TableDriveMainIndex(
         {
             if (await rdr.ReadAsync())
             {
-                var count = rdr.IsDBNull(0) ? 0 : rdr.GetInt64(0);
-                var size = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
+                var count = (rdr[0] == DBNull.Value) ? 0 : (Int64) rdr[0];
+                var size = (rdr[1] == DBNull.Value) ? 0 : (Int64) rdr[1];
                 return (count, size);
             }
         }
