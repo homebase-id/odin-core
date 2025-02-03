@@ -149,6 +149,6 @@ public static class OdinValidationUtils
 
     public static void AssertMaxStringLength(string content, int maxLength, string message)
     {
-        AssertIsTrue(content?.Length < maxLength, message);
+        AssertIsTrue((content?.Length ?? 0) < maxLength, message);
     }
 }

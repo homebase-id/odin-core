@@ -421,5 +421,8 @@ public abstract class FileSystemUpdateWriterBase
                     code: OdinClientErrorCode.InvalidKeyHeader);
             }
         }
+        
+        DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
+        DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
     }
 }
