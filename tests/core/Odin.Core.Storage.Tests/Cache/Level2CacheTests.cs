@@ -224,6 +224,9 @@ public class Level2CacheTests
         // Remove the value
         await cache.RemoveAsync(key);
 
+        // Let redis catch up
+        await Task.Delay(100);
+
         // Ensure it is gone
         var record2 = cache.GetOrDefault<PocoA?>(key);
         Assert.That(record2, Is.Null);
