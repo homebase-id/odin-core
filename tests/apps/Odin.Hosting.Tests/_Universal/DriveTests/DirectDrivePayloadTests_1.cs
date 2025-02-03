@@ -3,11 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
-using Odin.Core.Serialization;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -130,87 +128,6 @@ public class DirectDrivePayloadTests_1
         }
     }
     
-    [Test]
-    [TestCaseSource(nameof(TestCases))]
-    public async Task CanModifyPayloadOnExistingFileAndMetadataIsAutomaticallyUpdated(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    {
-        var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-
-        // upload metadata
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-
-        var uploadNewMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-
-        Assert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
-        var uploadResult = uploadNewMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
-
-        var targetFile = uploadResult.File;
-        var targetVersionTag = uploadResult.NewVersionTag;
-
-        //
-        // Get the header before we make changes so we have a baseline
-        //
-        var getHeaderBeforeUploadResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
-        var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
-        Assert.IsNotNull(headerBeforeUpload);
-
-        //
-        // Now add a payload
-        //
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinition1();
-        var testPayloads = new List<TestPayloadDefinition>()
-        {
-            uploadedPayloadDefinition
-        };
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        await callerContext.Initialize(ownerApiClient);
-        var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-
-        var uploadPayloadResponse = await uniDriveClient.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
-        Assert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode);
-
-        if (expectedStatusCode == HttpStatusCode.OK) //test more
-        {
-            Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
-
-            // Get the latest file header
-            var getHeaderAfterPayloadUploadedResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderAfterPayloadUploadedResponse.IsSuccessStatusCode);
-            var headerAfterPayloadWasUploaded = getHeaderAfterPayloadUploadedResponse.Content;
-            Assert.IsNotNull(headerAfterPayloadWasUploaded);
-
-            Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.VersionTag == uploadPayloadResponse.Content.NewVersionTag,
-                "Version tag should match the one set by uploading the new payload");
-
-            // Payload should be listed 
-            Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Count() == 1);
-            var thePayloadDescriptor = headerAfterPayloadWasUploaded.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
-            Assert.IsNotNull(thePayloadDescriptor);
-            Assert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
-            CollectionAssert.AreEquivalent(thePayloadDescriptor.Thumbnails, uploadedPayloadDefinition.Thumbnails);
-            Assert.IsTrue(thePayloadDescriptor.BytesWritten == uploadedPayloadDefinition.Content.Length);
-
-            // Last modified should be changed
-            Assert.IsTrue(thePayloadDescriptor.LastModified > headerBeforeUpload.FileMetadata.Updated);
-
-            // Get the payload
-            var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(targetFile, uploadedPayloadDefinition.Key);
-            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-            var payloadBytes = await getPayloadResponse.Content.ReadAsByteArrayAsync();
-            Assert.IsTrue(payloadBytes.Length == thePayloadDescriptor.BytesWritten);
-        }
-    }
 
     [Test]
     [TestCaseSource(nameof(TestCases))]

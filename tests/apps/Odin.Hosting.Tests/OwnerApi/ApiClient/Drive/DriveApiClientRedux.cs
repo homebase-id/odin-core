@@ -419,48 +419,6 @@ public class DriveApiClientRedux
         }
     }
 
-    public async Task<ApiResponse<UploadPayloadResult>> UploadPayloads(
-        ExternalFileIdentifier targetFile,
-        Guid targetVersionTag,
-        UploadManifest uploadManifest,
-        List<TestPayloadDefinition> payloads,
-        FileSystemType fileSystemType = FileSystemType.Standard)
-    {
-        var instructionSet = new UploadPayloadInstructionSet()
-        {
-            TargetFile = targetFile,
-            Manifest = uploadManifest,
-            VersionTag = targetVersionTag,
-            Recipients = default
-        };
-
-        var instructionSetBytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
-
-        List<StreamPart> parts = new();
-        parts.Add(new StreamPart(new MemoryStream(instructionSetBytes), "instructionSet", "application/json",
-            Enum.GetName(MultipartUploadParts.PayloadUploadInstructions)));
-
-        foreach (var payloadDefinition in payloads)
-        {
-            parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
-                Enum.GetName(MultipartUploadParts.Payload)));
-
-            foreach (var thumbnail in payloadDefinition.Thumbnails)
-            {
-                var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
-                parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,
-                    Enum.GetName(MultipartUploadParts.Thumbnail)));
-            }
-        }
-
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
-        {
-            var svc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            var response = await svc.UploadPayload(parts.ToArray());
-            return response;
-        }
-    }
-
     public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, string payloadKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {

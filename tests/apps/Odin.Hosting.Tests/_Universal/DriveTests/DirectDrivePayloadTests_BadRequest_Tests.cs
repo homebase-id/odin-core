@@ -144,49 +144,6 @@ public class DirectDrivePayloadTests_BadRequest_Tests
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAndAppBadRequest))]
-    [TestCaseSource(nameof(GuestForbidden))]
-    public async Task FailWhenModifyingPayloadOnExistingFileAndInvalidVersionTagIsSpecified(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
-    {
-        var identity = TestIdentities.Pippin;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-
-        var uploadNewMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-
-        Assert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
-        var uploadResult = uploadNewMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
-
-        var targetFile = uploadResult.File;
-        var targetVersionTag = Guid.Parse("00000000-0000-0000-0000-928d8b157c80"); // an invalid version tag
-
-        //
-        // Now add a payload
-        //
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinition1();
-        var testPayloads = new List<TestPayloadDefinition>()
-        {
-            uploadedPayloadDefinition
-        };
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        await callerContext.Initialize(ownerApiClient);
-        var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-
-        var uploadPayloadResponse = await uniDriveClient.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
-        Assert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode, $"Actual status code: {uploadPayloadResponse.StatusCode}");
-    }
-
-    [Test]
     [TestCaseSource(nameof(TestCases))]
     public async Task FailWhenDuplicatePayloadKeys(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {

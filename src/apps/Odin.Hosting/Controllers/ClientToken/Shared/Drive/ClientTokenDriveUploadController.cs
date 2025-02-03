@@ -30,15 +30,5 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             return await base.ReceiveFileStream();
         }
         
-        /// <summary>
-        /// Adds an attachment (thumbnail or payload) to an existing file
-        /// </summary>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("files/uploadpayload")]
-        public async Task<UploadPayloadResult> UploadPayloadOnly()
-        {
-            
-            return await base.ReceivePayloadStream();
-        }
     }
 }

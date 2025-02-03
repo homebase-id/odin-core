@@ -5,11 +5,8 @@ using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Services.Drives.FileSystem.Comment;
-using Odin.Services.Drives.FileSystem.Comment.Attachments;
 using Odin.Services.Drives.FileSystem.Standard;
-using Odin.Services.Drives.FileSystem.Standard.Attachments;
 using Odin.Core.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Comment.Update;
@@ -31,25 +28,6 @@ public class FileSystemHttpRequestResolver
         _contextAccessor = contextAccessor;
     }
 
-    public PayloadStreamWriterBase ResolvePayloadStreamWriter()
-    {
-        var ctx = _contextAccessor.HttpContext;
-
-        var fst = GetFileSystemType();
-
-        if (fst == FileSystemType.Standard)
-        {
-            return ctx!.RequestServices.GetRequiredService<StandardFilePayloadStreamWriter>();
-        }
-
-        if (fst == FileSystemType.Comment)
-        {
-            return ctx!.RequestServices.GetRequiredService<CommentPayloadStreamWriter>();
-        }
-
-        throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
-    }
-    
     /// <summary />
     public FileSystemStreamWriterBase ResolveFileSystemWriter()
     {
