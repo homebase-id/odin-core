@@ -30,7 +30,8 @@ public abstract class FileSystemUpdateWriterBase
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
-    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, DriveManager driveManager, PeerOutgoingTransferService peerOutgoingTransferService)
+    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, DriveManager driveManager,
+        PeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;
         _driveManager = driveManager;
@@ -41,7 +42,8 @@ public abstract class FileSystemUpdateWriterBase
 
     internal FileUpdatePackage Package { get; private set; }
 
-    public virtual async Task StartFileUpdateAsync(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType, IOdinContext odinContext)
+    public virtual async Task StartFileUpdateAsync(FileUpdateInstructionSet instructionSet, FileSystemType fileSystemType,
+        IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet.AssertIsValid();
@@ -83,8 +85,8 @@ public abstract class FileSystemUpdateWriterBase
 
             InternalDriveFileId file = new InternalDriveFileId()
             {
-                DriveId = (await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive,  true)).GetValueOrDefault(),
-                FileId =  Guid.NewGuid() // Note: in the case of peer, there is no local file so we just put a random value in here that will never be used
+                DriveId = (await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive, true)).GetValueOrDefault(),
+                FileId = Guid.NewGuid() // Note: in the case of peer, there is no local file so we just put a random value in here that will never be used
             };
 
             this.Package = new FileUpdatePackage(file)
@@ -120,11 +122,8 @@ public abstract class FileSystemUpdateWriterBase
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
 
-        throw new Exception("TODO: why is one used over the other?");
-        
-        // var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, extension, data, odinContext);
-        
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
+
         if (bytesWritten > 0)
         {
             Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
@@ -169,8 +168,7 @@ public abstract class FileSystemUpdateWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, extenstion, data, odinContext);
-        // var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext);
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -266,12 +264,6 @@ public abstract class FileSystemUpdateWriterBase
         var manifest = new BatchUpdateManifest()
         {
             NewVersionTag = Package.NewVersionTag,
-            // PayloadInstruction = package.Payloads.Select(p => new PayloadInstruction()
-            // {
-            //     Key = p.PayloadKey,
-            //     OperationType = p.UpdateOperationType
-            // }).ToList(),
-
             PayloadInstruction = package.InstructionSet.Manifest.PayloadDescriptors.Select(p => new PayloadInstruction()
             {
                 Key = p.PayloadKey,
@@ -283,7 +275,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatchAsync(package.TempMetadataFile, package.InternalFile, manifest, odinContext);
+        await FileSystem.Storage.UpdateBatchAsync(sourceTempFile: package.InternalFile, package.InternalFile, manifest, odinContext);
     }
 
     /// <summary>
@@ -299,10 +291,10 @@ public abstract class FileSystemUpdateWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, 
-            MultipartUploadParts.Metadata.ToString(), 
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile,
+            MultipartUploadParts.Metadata.ToString(),
             odinContext);
-        
+
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 

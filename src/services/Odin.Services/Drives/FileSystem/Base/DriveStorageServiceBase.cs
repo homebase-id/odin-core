@@ -987,7 +987,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        public async Task UpdateBatchAsync(InternalDriveFileId tempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
+        public async Task UpdateBatchAsync(InternalDriveFileId sourceTempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
@@ -1032,7 +1032,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 // Move the payload from the temp folder to the long term folder
                 var payloadExtension = DriveFileUtility.GetPayloadFileExtension(newDescriptor.Key, newDescriptor.Uid);
-                var sourceFile = await tempStorageManager.GetPath(drive, tempFile.FileId, payloadExtension);
+                var sourceFile = await tempStorageManager.GetPath(drive, sourceTempFile.FileId, payloadExtension);
                 await longTermStorageManager.MovePayloadToLongTerm(drive, targetFile.FileId, newDescriptor, sourceFile);
 
                 // Process thumbnails
@@ -1043,7 +1043,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     var extension = DriveFileUtility.GetThumbnailFileExtension(newDescriptor.Key, newDescriptor.Uid, thumb.PixelWidth,
                         thumb.PixelHeight);
-                    var sourceThumbnail = await tempStorageManager.GetPath(drive, tempFile.FileId, extension);
+                    var sourceThumbnail = await tempStorageManager.GetPath(drive, sourceTempFile.FileId, extension);
                     await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, newDescriptor,
                         thumb);
                 }
