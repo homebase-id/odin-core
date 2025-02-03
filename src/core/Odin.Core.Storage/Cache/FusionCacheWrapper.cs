@@ -194,4 +194,38 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
 
     //
 
+    public void Clear(CancellationToken cancellationToken = default)
+    {
+        var options = DefaultOptions.Duplicate();
+
+        cache.Clear(false, options, cancellationToken);
+    }
+
+    //
+
+    public ValueTask ClearAsync(CancellationToken cancellationToken = default)
+    {
+        var options = DefaultOptions.Duplicate();
+
+        return cache.ClearAsync(false, options, cancellationToken);
+    }
+
+    //
+
+    public bool Contains(string key, CancellationToken cancellationToken = default)
+    {
+        var value = TryGet<object>(key, cancellationToken);
+        return value.HasValue;
+    }
+
+    //
+
+    public async ValueTask<bool> ContainsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var value = await TryGetAsync<object>(key, cancellationToken);
+        return value.HasValue;
+    }
+
+    //
+
 }

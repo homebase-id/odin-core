@@ -239,6 +239,39 @@ public class Level2CacheTests
 #if RUN_REDIS_TESTS
     [TestCase(Level2CacheType.Redis)]
 #endif
+    public async Task ItShouldCheckKeyExistence(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<ILevel2Cache>();
+
+        var id = Guid.NewGuid();
+        var key = $"poco:{id}";
+        var expectedRecord = new PocoA { Id = id, Uuid = Guid.NewGuid() };
+
+        // Set the value in cache
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMinutes(10));
+
+        // Ensure it exists
+        var contains = await cache.ContainsAsync(key);
+        Assert.That(contains, Is.True);
+
+        // Remove the value
+        await cache.RemoveAsync(key);
+
+        // Ensure it does not exist
+        contains = await cache.ContainsAsync(key);
+        Assert.That(contains, Is.False);
+    }
+
+
+    //
+
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
     public async Task ItShouldRespectExpiration(Level2CacheType level2CacheType)
     {
         await RegisterServicesAsync(level2CacheType);

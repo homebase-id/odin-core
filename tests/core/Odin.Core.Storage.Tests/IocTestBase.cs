@@ -2,9 +2,12 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Cache;
 using Odin.Core.Logging.Statistics.Serilog;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -70,7 +73,14 @@ public abstract class IocTestBase
             await PostgresContainer.StartAsync();
         }
 
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddCoreCacheServices(new CacheConfiguration
+        {
+            Level2CacheType = Level2CacheType.None,
+        });
+
         var builder = new ContainerBuilder();
+        builder.Populate(serviceCollection);
 
         builder
             .RegisterInstance(TestLogFactory.CreateConsoleLogger<DbConnectionPool>(LogEventMemoryStore, logEventLevel))
@@ -99,6 +109,8 @@ public abstract class IocTestBase
             default:
                 throw new Exception("Unsupported database type");
         }
+
+        builder.AddCacheLevels(IdentityId.ToString());
 
         Services = builder.Build();
 

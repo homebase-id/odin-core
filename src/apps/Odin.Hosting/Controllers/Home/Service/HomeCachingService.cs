@@ -31,7 +31,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private readonly int[] _fileTypesCausingCacheReset = { PostFileType, ChannelFileType };
 
-        // SEB:TODO distributed cache instead?
+        // SEB:TODO fusion cache L1 or L2 ?
         private readonly IGenericMemoryCache<HomeCachingService> _cache;
 
         public HomeCachingService(

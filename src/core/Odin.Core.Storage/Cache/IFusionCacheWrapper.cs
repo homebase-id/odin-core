@@ -87,4 +87,16 @@ public interface IFusionCacheWrapper
         string key,
         CancellationToken cancellationToken = default);
 
+    //
+    // Clearers
+    //
+
+    void Clear(CancellationToken cancellationToken = default);
+    ValueTask ClearAsync(CancellationToken cancellationToken = default);
+
+    //
+    // Checkers
+    //
+    bool Contains(string key, CancellationToken cancellationToken = default);
+    ValueTask<bool> ContainsAsync(string key, CancellationToken cancellationToken = default);
 }

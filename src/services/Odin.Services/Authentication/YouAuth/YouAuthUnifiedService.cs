@@ -253,10 +253,10 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    private static string TempConsentCacheKey(string clientIdOrDomain) =>
-        $"{nameof(YouAuthUnifiedService)}:TempConsent:{clientIdOrDomain}";
+    private string TempConsentCacheKey(string clientIdOrDomain) =>
+        $"{GetType().Name}:TempConsent:{clientIdOrDomain}";
 
-    private static string EncryptedTokenCacheKey(string exchangeSharedSecretDigest) =>
-        $"{nameof(YouAuthUnifiedService)}:EncryptedToken:{exchangeSharedSecretDigest}";
+    private string EncryptedTokenCacheKey(string exchangeSharedSecretDigest) =>
+        $"{GetType().Name}:EncryptedToken:{exchangeSharedSecretDigest}";
 }
 //

@@ -69,7 +69,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
 
-        // SEB:TODO distributed cache instead?
+        // SEB:TODO fusion cache L1 or L2 ?
         private readonly SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> _outgoingIntroductionRequests;
 
         public CircleNetworkRequestService(
