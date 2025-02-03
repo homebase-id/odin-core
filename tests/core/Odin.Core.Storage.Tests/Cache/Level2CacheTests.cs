@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Storage.Cache;
 using Testcontainers.Redis;
@@ -50,7 +51,11 @@ public class Level2CacheTests
 
         var services = new ServiceCollection();
 
-        services.AddLogging();
+        services.AddLogging(logging =>
+        {
+            logging.AddConsole();
+            logging.SetMinimumLevel(LogLevel.Debug);
+        });
 
         services.AddCoreCacheServices(new CacheConfiguration
         {
