@@ -70,7 +70,7 @@ public static class TransferHistoryMigration
             + "remoteIdentityId TEXT NOT NULL, "
             + "latestTransferStatus BIGINT NOT NULL, "
             + "isInOutbox BOOLEAN NOT NULL, "
-            + "latestSuccessfullyDeliveredVersionTag BYTEA NOT NULL, "
+            + "latestSuccessfullyDeliveredVersionTag BYTEA , "
             + "isReadByRecipient BOOLEAN NOT NULL "
             + ", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
             + ");"
