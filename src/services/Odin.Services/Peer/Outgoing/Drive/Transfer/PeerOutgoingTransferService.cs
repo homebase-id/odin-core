@@ -88,7 +88,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Updates a remote file
         /// </summary>
         public async Task<Dictionary<string, TransferStatus>> UpdateFile(InternalDriveFileId sourceFile,
-            byte[] keyHeaderIv,
+            KeyHeader keyHeader,
             FileIdentifier file,
             UploadManifest manifest,
             List<OdinId> recipients,
@@ -113,7 +113,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var (outboxStatus, outboxItems) = await CreateUpdateOutboxItemsAsync(
                 sourceFile,
-                keyHeaderIv,
+                keyHeader,
                 request,
                 recipients,
                 priority,
@@ -520,7 +520,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)>
             CreateUpdateOutboxItemsAsync(
                 InternalDriveFileId sourceFile,
-                byte[] keyHeaderIv,
+                KeyHeader keyHeader,
                 UpdateRemoteFileRequest request,
                 List<OdinId> recipients,
                 int priority,
@@ -544,15 +544,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     var updateInstructionSet = new EncryptedRecipientFileUpdateInstructionSet()
                     {
                         FileSystemType = fileSystemType,
-                        EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(new KeyHeader()
-                            {
-                                Iv = keyHeaderIv ?? Guid.Empty.ToByteArray(),
-                                AesKey = Guid.Empty.ToByteArray()
-                                    .ToSensitiveByteArray()
-                            },
-                            iv,
-                            ref ss),
-
+                        EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, iv, ref ss),
                         Request = request
                     };
 

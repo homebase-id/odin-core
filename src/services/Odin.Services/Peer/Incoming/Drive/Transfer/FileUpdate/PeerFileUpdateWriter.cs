@@ -95,7 +95,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                         OperationType = p.PayloadUpdateOperationType
                     }).ToList(),
 
-                    KeyHeaderIv = decryptedKeyHeader.Iv,
+                    KeyHeader = decryptedKeyHeader,
                     FileMetadata = incomingMetadata,
                     ServerMetadata = serverMetadata
                 };
