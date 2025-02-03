@@ -389,7 +389,7 @@ public class PeerUpdateFileTests
             }
         };
 
-        var (updateFileResponse, updatedEncryptedMetadataContent64) =
+        var (updateFileResponse, updatedEncryptedMetadataContent64, _, _) =
             await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
@@ -434,7 +434,7 @@ public class PeerUpdateFileTests
         Assert.IsTrue((await collabChannelOwnerClient.Connections.DisconnectFrom(member1)).IsSuccessStatusCode);
         Assert.IsTrue((await collabChannelOwnerClient.Connections.DisconnectFrom(member2)).IsSuccessStatusCode);
 
-        Assert.IsTrue(( await member1_OwnerClient.Follower.UnfollowIdentity(collabChannel)).IsSuccessStatusCode);
+        Assert.IsTrue((await member1_OwnerClient.Follower.UnfollowIdentity(collabChannel)).IsSuccessStatusCode);
         Assert.IsTrue((await member2_OwnerClient.Follower.UnfollowIdentity(collabChannel)).IsSuccessStatusCode);
     }
 

@@ -368,7 +368,7 @@ public class CollaborationChannelTests
 
         await callerContext.Initialize(sender);
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
-        var (updateFileResponse, updatedEncryptedMetadataContent64) = await callerDriveClient.UpdateEncryptedFile(
+        var (updateFileResponse, updatedEncryptedMetadataContent64, uploadedPayloads, uploadedThumbnails) = await callerDriveClient.UpdateEncryptedFile(
             updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
 
         if (updateFileResponse.IsSuccessStatusCode)

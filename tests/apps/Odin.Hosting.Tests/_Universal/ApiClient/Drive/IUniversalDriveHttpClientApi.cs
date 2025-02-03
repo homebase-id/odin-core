@@ -34,10 +34,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] streamdata);
 
         [Multipart]
-        [Post(RootStorageEndpoint + "/uploadpayload")]
-        Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
-
-        [Multipart]
         [Patch(RootStorageEndpoint + "/update")]
         Task<ApiResponse<UploadPayloadResult>> UpdateFile(StreamPart[] streamdata);
 

@@ -1149,7 +1149,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            DriveFileUtility.AssertValidAppContentLength(newContent);
+            DriveFileUtility.AssertValidLocalAppContentLength(newContent);
 
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);

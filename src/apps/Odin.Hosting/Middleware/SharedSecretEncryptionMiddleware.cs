@@ -58,12 +58,10 @@ namespace Odin.Hosting.Middleware
                 OwnerApiPathConstants.YouAuthV1,
                 OwnerApiPathConstants.AuthV1,
                 $"{OwnerApiPathConstants.DriveV1}/files/upload",
-                $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.PeerSenderV1}/files/send",
                 $"{OwnerApiPathConstants.DriveV1}/files/update",
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
-                $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{GuestApiPathConstants.PeerSenderV1}/files/send",
                 $"{GuestApiPathConstants.DriveV1}/files/update",
 
@@ -71,7 +69,6 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.PeerSenderV1}/files/send",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
-                $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{AppApiPathConstants.DriveV1}/files/update",
                 $"{AppApiPathConstants.AuthV1}/logout",
                 $"{AppApiPathConstants.NotificationsV1}/preauth",
