@@ -25,7 +25,18 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { await File.WriteAllTextAsync(filePath, data); });
+                async () =>
+                {
+                    try
+                    {
+                        await File.WriteAllTextAsync(filePath, data);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "ERR WriteString (TryRetry) {message}", e.Message);
+                        throw;
+                    }
+                });
         }
         catch (TryRetryException e)
         {
@@ -41,7 +52,18 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { await File.WriteAllBytesAsync(filePath, bytes); });
+                async () =>
+                {
+                    try
+                    {
+                        await File.WriteAllBytesAsync(filePath, bytes);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "ERR WriteAllBytes (TryRetry) {message}", e.Message);
+                        throw;
+                    }
+                });
         }
         catch (TryRetryException e)
         {
@@ -59,7 +81,18 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { bytesWritten = await WriteStreamInternalAsync(filePath, stream); });
+                async () =>
+                {
+                    try
+                    {
+                        bytesWritten = await WriteStreamInternalAsync(filePath, stream);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "ERR WriteStream (TryRetry) {message}", e.Message);
+                        throw;
+                    }
+                });
         }
         catch (TryRetryException e)
         {
@@ -85,7 +118,18 @@ public sealed class DriveFileReaderWriter(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () => { bytes = await File.ReadAllBytesAsync(filePath); });
+                async () =>
+                {
+                    try
+                    {
+                        bytes = await File.ReadAllBytesAsync(filePath);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "ERR GetAllFileBytes (TryRetry) {message}", e.Message);
+                        throw;
+                    }
+                });
         }
         catch (TryRetryException e)
         {
@@ -100,18 +144,25 @@ public sealed class DriveFileReaderWriter(
         return bytes;
     }
 
-    public async Task MoveFile(string sourceFilePath, string destinationFilePath)
+    public Task MoveFile(string sourceFilePath, string destinationFilePath)
     {
         try
         {
-            await TryRetry.WithDelayAsync(
+            TryRetry.WithDelay(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
+                () =>
                 {
-                    await Task.CompletedTask;
-                    File.Move(sourceFilePath, destinationFilePath, true);
+                    try
+                    {
+                        File.Move(sourceFilePath, destinationFilePath, true);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "ERR MoveFile (TryRetry) {message}", e.Message);
+                        throw;
+                    }
                 });
         }
         catch (TryRetryException e)
@@ -124,25 +175,34 @@ public sealed class DriveFileReaderWriter(
             throw new OdinSystemException(
                 $"Error during file move operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
-    public async Task<Stream> OpenStreamForReading(string filePath)
+    public Task<Stream> OpenStreamForReading(string filePath)
     {
         Stream fileStream = Stream.Null;
 
         try
         {
-            await TryRetry.WithDelayAsync(
+            TryRetry.WithDelay(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
+                () =>
                 {
-                    await Task.CompletedTask;
-                    fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    try
+                    {
+                        fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "ERR OpenStreamForReading (TryRetry) {message}", e.Message);
+                        throw;
+                    }
                 });
         }
         catch (TryRetryException e)
@@ -150,7 +210,7 @@ public sealed class DriveFileReaderWriter(
             throw e.InnerException!;
         }
 
-        return fileStream;
+        return Task.FromResult(fileStream);
     }
 
     private async Task<uint> WriteStreamInternalAsync(string filePath, Stream stream)
@@ -175,25 +235,34 @@ public sealed class DriveFileReaderWriter(
         return bytesWritten;
     }
 
-    public async Task DeleteFileAsync(string path)
+    public Task DeleteFileAsync(string path)
     {
         try
         {
             //TODO: Consider if we need to do file.exists before deleting?
-            await TryRetry.WithDelayAsync(
+            TryRetry.WithDelay(
                 odinConfiguration.Host.FileOperationRetryAttempts,
                 odinConfiguration.Host.FileOperationRetryDelayMs,
                 CancellationToken.None,
-                async () =>
+                () =>
                 {
-                    await Task.CompletedTask;
-                    File.Delete(path);
+                    try
+                    {
+                        File.Delete(path);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "ERR DeleteFileAsync (TryRetry) {message}", e.Message);
+                        throw;
+                    }
                 });
         }
         catch (TryRetryException e)
         {
             throw e.InnerException!;
         }
+
+        return Task.CompletedTask;
     }
 
     public async Task DeleteFilesAsync(string[] paths)
