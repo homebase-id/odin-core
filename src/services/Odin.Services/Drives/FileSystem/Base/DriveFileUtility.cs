@@ -27,7 +27,7 @@ public static class DriveFileUtility
     public const string TransitThumbnailKeyDelimiter = "|";
 
     public const int MaxAppDataContentLength = 10 * 1024;
-    public const int MaxTinyThumbLength = 10 * 1024;
+    public const int MaxTinyThumbLength = 1 * 1024;
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
