@@ -470,7 +470,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UpdateFileDescriptor()
             {
-                KeyHeader = KeyHeader.Empty(),
+                EncryptedKeyHeader = null,
                 FileMetadata = fileMetadata
             };
 
@@ -562,10 +562,10 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
             fileMetadata.IsEncrypted = true;
-
+            
             var descriptor = new UpdateFileDescriptor()
             {
-                KeyHeader = keyHeader,
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, uploadInstructionSet.TransferIv, ref sharedSecret),
                 FileMetadata = fileMetadata
             };
 

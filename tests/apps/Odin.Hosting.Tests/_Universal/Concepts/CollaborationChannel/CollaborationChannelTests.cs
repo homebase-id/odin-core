@@ -117,7 +117,6 @@ public class CollaborationChannelTests
         //
         // Update the file from Pippin's feed app (then wait for the outbox to process)
         //
-        var keyHeader = KeyHeader.NewRandom16();
         var (updateFileResponse, updatedFileMetadata, updatedEncryptedMetadataContent64) =
             await AwaitUpdateFile(callerContext, member2, firstFileUploadMetadata, remoteTargetFile, collabChannel, payload1, keyHeader);
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
@@ -134,7 +133,7 @@ public class CollaborationChannelTests
             Assert.IsTrue(updatedFileInCollabChannel!.FileMetadata.OriginalAuthor == member1.OdinId);
 
             //
-            // The collab channel gets the file then will redistribute to it's followers' feeds
+            // The collab channel gets the file then will redistribute to its followers' feeds
             //
             await collabChannel.DriveRedux.WaitForFeedOutboxDistribution(collabChannelDrive);
 

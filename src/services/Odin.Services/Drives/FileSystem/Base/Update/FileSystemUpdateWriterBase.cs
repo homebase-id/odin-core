@@ -295,6 +295,10 @@ public abstract class FileSystemUpdateWriterBase
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
+        KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
+            ? updateDescriptor.EncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            : KeyHeader.Empty();
+        
         await ValidateUploadDescriptor(updateDescriptor);
 
         var metadata = await MapUploadToMetadata(package, updateDescriptor, odinContext);
@@ -304,8 +308,8 @@ public abstract class FileSystemUpdateWriterBase
             AccessControlList = updateDescriptor.FileMetadata.AccessControlList,
             AllowDistribution = updateDescriptor.FileMetadata.AllowDistribution
         };
-
-        return (updateDescriptor.KeyHeader, metadata, serverMetadata);
+        
+        return (keyHeader, metadata, serverMetadata);
     }
 
     protected virtual async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUpdatePackage package,

@@ -13,7 +13,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         /// <summary>
         ///  
         /// </summary>
-        public KeyHeader KeyHeader { get; init; }
+        public EncryptedKeyHeader EncryptedKeyHeader { get; init; }
 
         public UploadFileMetadata FileMetadata { get; init; }
     }
