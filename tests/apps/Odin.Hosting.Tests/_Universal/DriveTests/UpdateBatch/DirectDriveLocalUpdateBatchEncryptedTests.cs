@@ -116,13 +116,13 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
             }
         };
 
+        keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
         await callerContext.Initialize(ownerApiClient);
-
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedMetadataContent64, _, _) = await callerDriveClient.UpdateEncryptedFile(
             updateInstructionSet,
             updatedFileMetadata,
-            []);
+            [], keyHeader);
 
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
@@ -229,9 +229,10 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
 
         await callerContext.Initialize(ownerApiClient);
 
+        keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedMetadataContent64, encryptedPayloads, encryptedThumbnails) =
-            await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+            await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd], keyHeader);
         
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");

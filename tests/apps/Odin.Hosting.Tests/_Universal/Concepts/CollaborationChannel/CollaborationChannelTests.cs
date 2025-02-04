@@ -20,6 +20,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Refit;
 
@@ -116,8 +117,9 @@ public class CollaborationChannelTests
         //
         // Update the file from Pippin's feed app (then wait for the outbox to process)
         //
+        var keyHeader = KeyHeader.NewRandom16();
         var (updateFileResponse, updatedFileMetadata, updatedEncryptedMetadataContent64) =
-            await AwaitUpdateFile(callerContext, member2, firstFileUploadMetadata, remoteTargetFile, collabChannel, payload1);
+            await AwaitUpdateFile(callerContext, member2, firstFileUploadMetadata, remoteTargetFile, collabChannel, payload1, keyHeader);
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
@@ -329,7 +331,7 @@ public class CollaborationChannelTests
 
     private static async Task<(ApiResponse<UploadPayloadResult> updateFileResponse, UploadFileMetadata updatedFile, string updatedEncryptedMetadataContent64)>
         AwaitUpdateFile(IApiClientContext callerContext, OwnerApiClientRedux sender, UploadFileMetadata uploadedFileMetadata, FileIdentifier remoteTargetFile,
-            OwnerApiClientRedux collabChannel, TestPayloadDefinition payload1)
+            OwnerApiClientRedux collabChannel, TestPayloadDefinition payload1, KeyHeader keyHeader)
     {
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
@@ -366,10 +368,11 @@ public class CollaborationChannelTests
             }
         };
 
+        keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
         await callerContext.Initialize(sender);
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedMetadataContent64, uploadedPayloads, uploadedThumbnails) = await callerDriveClient.UpdateEncryptedFile(
-            updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+            updateInstructionSet, updatedFileMetadata, [payloadToAdd], keyHeader);
 
         if (updateFileResponse.IsSuccessStatusCode)
         {

@@ -470,7 +470,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UpdateFileDescriptor()
             {
-                KeyHeaderIv = keyHeader.Iv,
+                KeyHeader = KeyHeader.Empty(),
                 FileMetadata = fileMetadata
             };
 
@@ -548,9 +548,9 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         FileUpdateInstructionSet uploadInstructionSet,
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads,
+        KeyHeader keyHeader,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var keyHeader = KeyHeader.NewRandom16();
         
         var encryptedThumbnails = new List<EncryptedAttachmentUploadResult>();
         var encryptedPayloads = new List<EncryptedAttachmentUploadResult>();
@@ -565,7 +565,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var descriptor = new UpdateFileDescriptor()
             {
-                KeyHeaderIv = keyHeader.Iv,
+                KeyHeader = keyHeader,
                 FileMetadata = fileMetadata
             };
 

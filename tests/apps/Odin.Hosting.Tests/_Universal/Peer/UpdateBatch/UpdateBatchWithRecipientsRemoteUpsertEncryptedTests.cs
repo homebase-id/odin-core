@@ -167,9 +167,11 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
         await callerContext.Initialize(ownerApiClient);
 
+        keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
+        
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedContent64, _, _) =
-            await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, []);
+            await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [], keyHeader);
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 

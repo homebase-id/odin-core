@@ -1006,6 +1006,24 @@ namespace Odin.Services.Drives.FileSystem.Base
             DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
             DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
 
+            if (existingHeader.FileMetadata.IsEncrypted)
+            {
+                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
+                var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                
+                if(!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
+                {
+                    throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
+                                                  "invalidate one or more payloads.  Re-upload the entire file if you wish " +
+                                                  "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
+                }
+
+                if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
+                {
+                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
+                }
+            }
+            
             //
             // For the payloads, we have two sources and one set of operations
             // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
