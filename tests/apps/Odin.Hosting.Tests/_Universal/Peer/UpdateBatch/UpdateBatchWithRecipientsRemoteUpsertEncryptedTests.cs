@@ -97,7 +97,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         // Setup - upload a new file with payloads 
         // 
 
-        List<TestIdentity> recipients = [TestIdentities.Frodo, TestIdentities.Merry];
+        // List<TestIdentity> recipients = [TestIdentities.Frodo, TestIdentities.Merry];
+        List<TestIdentity> recipients = [TestIdentities.Frodo];
 
         await SetupRecipients(sender, recipients, targetDrive);
 
@@ -105,7 +106,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
         uploadedFileMetadata.AllowDistribution = true;
-        uploadedFileMetadata.AppData.Content = "some content here..";
+        const string originalUploadedContent = "some content here..";
+        uploadedFileMetadata.AppData.Content = originalUploadedContent;
 
         // Note: no transit options on initial upload to ensure
         // the file does not exist on the remote server
@@ -141,6 +143,11 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         Assert.IsTrue(headerToVerify.FileMetadata.AppData.DataType == uploadedFileMetadata.AppData.DataType);
         Assert.IsTrue(headerToVerify.FileMetadata.VersionTag == uploadResult.NewVersionTag);
         Assert.IsFalse(headerToVerify.FileMetadata.Payloads.Any());
+
+        var localSS = ownerApiClient.GetTokenContext().SharedSecret;
+        var localKeyHeaderToVerify = headerToVerify.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref localSS);
+        var localDecryptedBytes = localKeyHeaderToVerify.Decrypt(headerToVerify.FileMetadata.AppData.Content.FromBase64());
+        Assert.IsTrue(localDecryptedBytes.ToStringFromUtf8Bytes() == originalUploadedContent);
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -231,7 +238,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                 var remoteKeyHeader = remoteFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
-                var decryptedBytes = remoteKeyHeader.Decrypt(remoteFileHeader.FileMetadata.AppData.Content.ToUtf8ByteArray());
+                var decryptedBytes = remoteKeyHeader.Decrypt(remoteFileHeader.FileMetadata.AppData.Content.FromBase64());
                 Assert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
             }
         }

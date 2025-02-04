@@ -544,7 +544,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     var updateInstructionSet = new EncryptedRecipientFileUpdateInstructionSet()
                     {
                         FileSystemType = fileSystemType,
-                        EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, iv, ref ss),
+                        EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, iv, ref ss),
                         Request = request
                     };
 

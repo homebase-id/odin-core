@@ -149,7 +149,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
-            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
 
             if (metadata.IsEncrypted == false)
             {

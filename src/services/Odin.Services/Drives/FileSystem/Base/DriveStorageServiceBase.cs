@@ -992,6 +992,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
 
+            var metadata = manifest.FileMetadata;
+            DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
+            DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
+
             //
             // Validations
             //
@@ -1001,11 +1005,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(manifest.FileMetadata.VersionTag, existingHeader.FileMetadata.VersionTag);
-            var metadata = manifest.FileMetadata;
-            DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
-            DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
-
+            DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
+          
             if (existingHeader.FileMetadata.IsEncrypted)
             {
                 var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
