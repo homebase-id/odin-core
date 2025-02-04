@@ -714,8 +714,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             var driveSvc = RestService.For<IUniversalDriveHttpClientApi>(client);
             ApiResponse<UploadPayloadResult> response = await driveSvc.UpdateFile(parts.ToArray());
 
-            keyHeader.AesKey.Wipe();
-
             return (response, encryptedJsonContent64, encryptedPayloads, encryptedThumbnails);
         }
     }

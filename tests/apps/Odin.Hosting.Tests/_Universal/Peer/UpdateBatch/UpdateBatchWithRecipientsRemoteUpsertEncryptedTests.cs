@@ -168,7 +168,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         await callerContext.Initialize(ownerApiClient);
 
         keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
-        
+
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedContent64, _, _) =
             await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [], keyHeader);
@@ -229,6 +229,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
                 var sharedSecret = client.GetTokenContext().SharedSecret;
                 var remoteKeyHeader = remoteFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
                 var decryptedBytes = remoteKeyHeader.Decrypt(remoteFileHeader.FileMetadata.AppData.Content.ToUtf8ByteArray());
                 Assert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
             }
