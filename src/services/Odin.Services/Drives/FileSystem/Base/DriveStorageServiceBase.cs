@@ -1082,7 +1082,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
 
-            await OverwriteMetadataInternal(manifest.KeyHeader, existingHeader, manifest.FileMetadata,
+            await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
                 manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
 
             if (await ShouldRaiseDriveEventAsync(targetFile))
@@ -1316,11 +1316,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
-        private async Task OverwriteMetadataInternal(KeyHeader keyHeader, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
+        private async Task OverwriteMetadataInternal(byte[] keyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
             IOdinContext odinContext, Guid? newVersionTag = null)
         {
-            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(keyHeader))
+            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(keyHeaderIv))
             {
                 throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
             }
@@ -1367,7 +1367,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
                 var newKeyHeader = new KeyHeader()
                 {
-                    Iv = keyHeader,
+                    Iv = keyHeaderIv,
                     AesKey = existingDecryptedKeyHeader.AesKey
                 };
 
