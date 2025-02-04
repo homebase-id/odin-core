@@ -90,9 +90,9 @@ public static class TenantServices
         cb.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
         cb.RegisterGeneric(typeof(SharedOdinContextCache<>)).SingleInstance();
         cb.RegisterGeneric(typeof(SharedConcurrentDictionary<,,>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance();
+        cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
+        cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
+        cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
 
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
