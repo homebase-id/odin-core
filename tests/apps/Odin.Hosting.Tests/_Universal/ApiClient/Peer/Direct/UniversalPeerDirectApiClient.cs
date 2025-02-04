@@ -202,7 +202,6 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             var driveSvc = RestService.For<IUniversalRefitPeerDirect>(client);
             ApiResponse<TransitResult> response = await driveSvc.UploadFile(parts.ToArray());
 
-            keyHeader.AesKey.Wipe();
 
             return (response, encryptedJsonContent64);
         }
