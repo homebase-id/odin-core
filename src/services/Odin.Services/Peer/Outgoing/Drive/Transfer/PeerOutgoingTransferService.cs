@@ -505,7 +505,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
                 catch (Exception ex)
                 {
-                    logger.LogInformation("Failed while creating outbox item {msg}", ex.Message);
+                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
                     status.Add(recipient, TransferStatus.EnqueuedFailed);
                 }
             }

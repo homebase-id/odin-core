@@ -867,6 +867,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             {
                 throw new TimeoutException(
                     $"timeout occured while waiting for outbox to complete processing " +
+                    $"-- Did you enable AllowDistribution on your outgoing file? - " + 
                     $"(wait time: {maxWait.TotalSeconds}sec. " +
                     $"Total Items: {status.Outbox.TotalItems} " +
                     $"Checked Out {status.Outbox.CheckedOutCount})");

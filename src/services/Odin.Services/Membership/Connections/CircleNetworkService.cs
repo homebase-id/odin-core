@@ -274,7 +274,9 @@ namespace Odin.Services.Membership.Connections
         /// Gets the current connection info
         /// </summary>
         /// <returns></returns>
-        public async Task<IdentityConnectionRegistration> GetIcrAsync(OdinId odinId, IOdinContext odinContext, bool overrideHack = false)
+        public async Task<IdentityConnectionRegistration> GetIcrAsync(OdinId odinId, IOdinContext odinContext,
+            bool overrideHack = false,
+            bool tryUpgradeEncryption = true)
         {
             //TODO: need to cache here?
             //HACK: DOING THIS WHILE DESIGNING x-token - REMOVE THIS
@@ -283,7 +285,16 @@ namespace Odin.Services.Membership.Connections
                 odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             }
 
-            return await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            // 
+            if (tryUpgradeEncryption)
+            {
+                await this.UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+            }
+
+            return icr;
         }
 
         /// <summary>
@@ -769,7 +780,7 @@ namespace Odin.Services.Membership.Connections
                 }
             }
             //
-            
+
             tx.Commit();
         }
 
@@ -904,28 +915,6 @@ namespace Odin.Services.Membership.Connections
             var combined = ByteArrayUtil.Combine(randomCode.ToByteArray(), sharedSecret.GetKey());
             var expectedHash = ByteArrayUtil.CalculateSHA256Hash(combined);
             return expectedHash;
-        }
-
-        public async Task UpgradeWeakClientAccessTokensAsync(IOdinContext odinContext, CancellationToken cancellationToken)
-        {
-            var allIdentities = await this.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-            foreach (var identity in allIdentities.Results)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    logger.LogInformation("UpgradeWeakClientAccessTokens - Cancellation requested; breaking from loop");
-                    break;
-                }
-
-                try
-                {
-                    await UpgradeTokenEncryptionIfNeededAsync(identity, odinContext);
-                }
-                catch (Exception e)
-                {
-                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity.OdinId);
-                }
-            }
         }
 
         public async Task<ClientAccessToken> CreatePeerIcrClientForCallerAsync(IOdinContext odinContext)
@@ -1208,7 +1197,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
-            if (identity.TemporaryWeakClientAccessToken != null)
+            if (identity.TemporaryWeakClientAccessToken != null && identity.EncryptedClientAccessToken == null)
             {
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 
