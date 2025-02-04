@@ -35,6 +35,7 @@ public class DriveManager
     private readonly IMediator _mediator;
 
     // SEB:TODO fusion cache L1 or L2 ?
+    // Todd - Easiest to start as L1 
     private readonly SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> _driveCache;
     private readonly SharedAsyncLock<DriveManager> _createDriveLock;
 

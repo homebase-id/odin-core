@@ -70,6 +70,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly TableKeyThreeValue _tblKeyThreeValue;
 
         // SEB:TODO fusion cache L1 or L2 ?
+        // Todd - this shoudl be L2 because it's managing a request that goes over http which could hit a diff server
         private readonly SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> _outgoingIntroductionRequests;
 
         public CircleNetworkRequestService(

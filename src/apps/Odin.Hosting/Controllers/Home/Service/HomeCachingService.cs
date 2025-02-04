@@ -32,6 +32,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly int[] _fileTypesCausingCacheReset = { PostFileType, ChannelFileType };
 
         // SEB:TODO fusion cache L1 or L2 ?
+        // Todd - this is serving as a server side cache; it is invalidated when files are updated. probably easiest to start at L1 until invalidation is understood
         private readonly IGenericMemoryCache<HomeCachingService> _cache;
 
         public HomeCachingService(
