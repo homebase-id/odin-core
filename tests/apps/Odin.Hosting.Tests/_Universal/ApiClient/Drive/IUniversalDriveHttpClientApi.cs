@@ -91,5 +91,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 
         [Post(RootStorageEndpoint + "/send-read-receipt")]
         Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(SendReadReceiptRequest request);
+        
+        [Multipart]
+        [Post(RootStorageEndpoint + "/uploadpayload")]
+        Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
     }
 }

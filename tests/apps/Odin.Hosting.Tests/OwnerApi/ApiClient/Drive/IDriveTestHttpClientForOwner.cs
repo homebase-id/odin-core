@@ -76,5 +76,10 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         
         [Get(OwnerApiPathConstants.DriveV1 + "/status")]
         Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid alias, Guid type);
+        
+        [Multipart]
+        [Post(RootStorageEndpoint + "/uploadpayload")]
+        Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
+
     }
 }

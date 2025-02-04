@@ -23,7 +23,9 @@ using Odin.Services.Configuration;
 using Odin.Services.DataSubscription;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives.FileSystem.Comment;
+using Odin.Services.Drives.FileSystem.Comment.Attachments;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.FileSystem.Standard.Attachments;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Statistics;
@@ -192,6 +194,7 @@ public static class TenantServices
         cb.RegisterType<FileSystemHttpRequestResolver>().InstancePerDependency();
 
         cb.RegisterType<StandardFileStreamWriter>().InstancePerDependency();
+        cb.RegisterType<StandardFilePayloadStreamWriter>().InstancePerDependency();
         cb.RegisterType<StandardFileDriveStorageService>().InstancePerDependency();
         cb.RegisterType<StandardFileDriveQueryService>().InstancePerDependency();
         cb.RegisterType<StandardFileUpdateWriter>().InstancePerDependency();
@@ -199,6 +202,7 @@ public static class TenantServices
         cb.RegisterType<StandardFileSystem>().InstancePerDependency();
 
         cb.RegisterType<CommentStreamWriter>().InstancePerDependency();
+        cb.RegisterType<CommentPayloadStreamWriter>().InstancePerDependency();
         cb.RegisterType<CommentFileStorageService>().InstancePerDependency();
         cb.RegisterType<CommentFileQueryService>().InstancePerDependency();
         cb.RegisterType<CommentFileSystem>().InstancePerDependency();

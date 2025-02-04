@@ -69,7 +69,49 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext);
             return status;
         }
-        
+
+        /// <summary>
+        /// Receives the stream for a new thumbnail being added to an existing file
+        /// </summary>
+        protected async Task<UploadPayloadResult> ReceivePayloadStream()
+        {
+            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            {
+                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
+            }
+
+            var boundary = GetBoundary(HttpContext.Request.ContentType);
+            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+            var writer = this.GetHttpFileSystemResolver().ResolvePayloadStreamWriter();
+
+            var section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);
+
+            await writer.StartUpload(section!.Body, WebOdinContext);
+
+            //
+            section = await reader.ReadNextSectionAsync();
+            while (null != section)
+            {
+                if (IsPayloadPart(section))
+                {
+                    AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
+                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext);
+                }
+
+                if (IsThumbnail(section))
+                {
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
+                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext);
+                }
+
+                section = await reader.ReadNextSectionAsync();
+            }
+
+            var status = await writer.FinalizeUpload(WebOdinContext);
+            return status;
+        }
 
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
         {
