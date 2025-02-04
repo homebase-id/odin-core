@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Core.Storage.Cache;
+
+#nullable enable
 
 public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cache) : IFusionCacheWrapper
 {
@@ -11,15 +14,15 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
 
     //
 
-    public TValue GetOrDefault<TValue>(
+    public TValue? GetOrDefault<TValue>(
         string key,
-        TValue defaultValue = default,
+        TValue? defaultValue = default,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate();
 
         return cache.GetOrDefault(
-            prefix + key,
+            AddPrefix(key),
             defaultValue,
             options,
             cancellationToken);
@@ -27,15 +30,15 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
 
     //
 
-    public ValueTask<TValue> GetOrDefaultAsync<TValue>(
+    public ValueTask<TValue?> GetOrDefaultAsync<TValue>(
         string key,
-        TValue defaultValue = default,
+        TValue? defaultValue = default,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate();
 
         return cache.GetOrDefaultAsync(
-            prefix + key,
+            AddPrefix(key),
             defaultValue,
             options,
             cancellationToken);
@@ -48,7 +51,7 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         var options = DefaultOptions.Duplicate();
 
         return cache.TryGet<TValue>(
-            prefix + key,
+            AddPrefix(key),
             options,
             cancellationToken);
     }
@@ -60,7 +63,7 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         var options = DefaultOptions.Duplicate();
 
         return cache.TryGetAsync<TValue>(
-            prefix + key,
+            AddPrefix(key),
             options,
             cancellationToken);
     }
@@ -71,15 +74,16 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate();
 
         return cache.GetOrSet(
-            prefix + key,
+            AddPrefix(key),
             defaultValue,
             options,
-            tags: null,
+            tags: AddPrefix(tags),
             cancellationToken);
     }
 
@@ -89,31 +93,35 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate();
 
         return cache.GetOrSetAsync(
-            prefix + key,
+            AddPrefix(key),
             defaultValue,
             options,
-            tags: null,
+            tags: AddPrefix(tags),
             cancellationToken);
     }
 
     //
 
     public TValue GetOrSet<TValue>(
-        string key, Func<CancellationToken, TValue> factory,
+        string key,
+        Func<CancellationToken, TValue> factory,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate();
 
-        return cache.GetOrSet(
-            prefix + key,
+        return cache.GetOrSet<TValue>(
+            AddPrefix(key),
             factory,
             options,
+            tags: AddPrefix(tags),
             cancellationToken);
     }
 
@@ -123,14 +131,16 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate();
 
-        return cache.GetOrSetAsync(
-            prefix + key,
+        return cache.GetOrSetAsync<TValue>(
+            AddPrefix(key),
             factory,
             options,
+            tags: AddPrefix(tags),
             cancellationToken);
     }
 
@@ -140,14 +150,16 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         string key,
         TValue value,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate(duration);
 
         cache.Set(
-            prefix + key,
+            AddPrefix(key),
             value,
             options,
+            tags: AddPrefix(tags),
             cancellationToken);
     }
 
@@ -157,14 +169,16 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         string key,
         TValue value,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultOptions.Duplicate(duration);
 
         return cache.SetAsync(
-            prefix + key,
+            AddPrefix(key),
             value,
             options,
+            tags: AddPrefix(tags),
             cancellationToken);
     }
 
@@ -175,7 +189,7 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         var options = DefaultOptions.Duplicate();
 
         cache.Remove(
-            prefix + key,
+            AddPrefix(key),
             options,
             cancellationToken);
     }
@@ -187,27 +201,61 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
         var options = DefaultOptions.Duplicate();
 
         return cache.RemoveAsync(
-            prefix + key,
+            AddPrefix(key),
+            options,
+            cancellationToken);
+    }
+    
+    //
+
+    public void RemoveByTag(string tag, CancellationToken cancellationToken = default)
+    {
+        var options = DefaultOptions.Duplicate();
+
+        cache.RemoveByTag(
+            AddPrefix(tag),
+            options,
+            cancellationToken);
+    }
+    
+    //
+
+    public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
+    {
+        var options = DefaultOptions.Duplicate();
+        
+        return cache.RemoveByTagAsync(
+            AddPrefix(tag),
             options,
             cancellationToken);
     }
 
     //
 
-    public void Clear(CancellationToken cancellationToken = default)
+    public void RemoveByTag(IEnumerable<string> tags, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(tags, nameof(tags));
+
         var options = DefaultOptions.Duplicate();
 
-        cache.Clear(false, options, cancellationToken);
+        cache.RemoveByTag(
+            AddPrefix(tags)!,
+            options,
+            cancellationToken);
     }
 
     //
 
-    public ValueTask ClearAsync(CancellationToken cancellationToken = default)
+    public ValueTask RemoveByTagAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(tags, nameof(tags));
+
         var options = DefaultOptions.Duplicate();
 
-        return cache.ClearAsync(false, options, cancellationToken);
+        return cache.RemoveByTagAsync(
+            AddPrefix(tags)!,
+            options,
+            cancellationToken);
     }
 
     //
@@ -224,6 +272,32 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
     {
         var value = await TryGetAsync<object>(key, cancellationToken);
         return value.HasValue;
+    }
+
+    //
+
+    private string AddPrefix(string text)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(text, nameof(text));
+        return prefix + ":" + text;
+    }
+
+    //
+
+    private List<string>? AddPrefix(IEnumerable<string>? list)
+    {
+        if (list == null)
+        {
+            return null;
+        }
+
+        var result = new List<string>(list is ICollection<string> col ? col.Count : 10);
+        foreach (var text in list)
+        {
+            result.Add(AddPrefix(text));
+        }
+
+        return result;
     }
 
     //

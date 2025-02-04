@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
@@ -12,17 +13,17 @@ public class TableKeyValueCache(
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     TableKeyValue table)
 {
-    public void Clear()
+    public async Task ClearAsync()
     {
-        cache.Clear();
+        await cache.RemoveByTagAsync(CacheTag);
     }
 
     //
 
-    public void Clear(byte[] key)
+    public async Task ClearAsync(byte[] key)
     {
         var hexKey = CacheKey(key);
-        cache.Remove(hexKey);
+        await cache.RemoveAsync(hexKey);
     }
 
     //
@@ -35,7 +36,8 @@ public class TableKeyValueCache(
         var record = await cache.GetOrSetAsync<KeyValueRecord?>(
             hexKey,
             _ => table.GetAsync(key),
-            duration
+            duration,
+            CacheTag
         );
 
         return record;
@@ -49,7 +51,7 @@ public class TableKeyValueCache(
 
         var affectedRows = await table.InsertAsync(record);
         var hexKey = CacheKey(record.key);
-        await cache.SetAsync(hexKey, record, duration);
+        await cache.SetAsync(hexKey, record, duration, CacheTag);
 
         return affectedRows;
     }
@@ -62,7 +64,7 @@ public class TableKeyValueCache(
 
         var affectedRows = await table.UpdateAsync(record);
         var hexKey = CacheKey(record.key);
-        await cache.SetAsync(hexKey, record, duration);
+        await cache.SetAsync(hexKey, record, duration, CacheTag);
 
         return affectedRows;
     }
@@ -75,7 +77,7 @@ public class TableKeyValueCache(
 
         var affectedRows = await table.UpsertAsync(record);
         var hexKey = CacheKey(record.key);
-        await cache.SetAsync(hexKey, record, duration);
+        await cache.SetAsync(hexKey, record, duration, CacheTag);
 
         return affectedRows;
     }
@@ -97,6 +99,7 @@ public class TableKeyValueCache(
     //
 
     public string CacheKey(byte[] key) => GetType().Name + ":" + key.ToHexString();
+    private List<string> CacheTag => [GetType().Name];
 
     //
 

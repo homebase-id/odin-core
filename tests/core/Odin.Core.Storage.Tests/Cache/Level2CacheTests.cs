@@ -299,6 +299,42 @@ public class Level2CacheTests
 
     //
 
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task ItShouldRemoveByTag(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<ILevel2Cache>();
+
+        var id = Guid.NewGuid();
+        var key = $"poco:{id}";
+        var expectedRecord = new PocoA { Id = id, Uuid = Guid.NewGuid() };
+        var tags = new[] { "foo", "bar" };
+
+        // Set the value with a short expiration
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromSeconds(500), tags);
+
+        // Ensure it's retrievable
+        var record1 = cache.GetOrDefault<PocoA?>(key);
+        Assert.That(record1, Is.Not.Null);
+
+        await cache.RemoveByTagAsync("foo");
+
+        // Let redis catch up
+        await Task.Delay(100);
+
+        // Ensure it's gone
+        var record2 = cache.GetOrDefault<PocoA?>(key);
+        Assert.That(record2, Is.Null);
+    }
+
+
+    //
+
     #region POCO
 
     private Task<PocoA?> GetProductFromDbAsync(Guid id)

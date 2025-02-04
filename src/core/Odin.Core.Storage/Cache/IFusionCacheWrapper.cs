@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ZiggyCreatures.Caching.Fusion;
@@ -39,24 +40,28 @@ public interface IFusionCacheWrapper
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
     ValueTask<TValue> GetOrSetAsync<TValue>(
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
     TValue GetOrSet<TValue>(
         string key,
         Func<CancellationToken, TValue> factory,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
     ValueTask<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
     //
@@ -67,12 +72,14 @@ public interface IFusionCacheWrapper
         string key,
         TValue value,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
     ValueTask SetAsync<TValue>(
         string key,
         TValue value,
         TimeSpan duration,
+        IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
     //
@@ -87,12 +94,21 @@ public interface IFusionCacheWrapper
         string key,
         CancellationToken cancellationToken = default);
 
-    //
-    // Clearers
-    //
+    void RemoveByTag(
+        string tag,
+        CancellationToken cancellationToken = default);
 
-    void Clear(CancellationToken cancellationToken = default);
-    ValueTask ClearAsync(CancellationToken cancellationToken = default);
+    ValueTask RemoveByTagAsync(
+        string tag,
+        CancellationToken cancellationToken = default);
+
+    void RemoveByTag(
+        IEnumerable<string> tags,
+        CancellationToken cancellationToken = default);
+
+    ValueTask RemoveByTagAsync(
+        IEnumerable<string> tags,
+        CancellationToken cancellationToken = default);
 
     //
     // Checkers
