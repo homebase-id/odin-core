@@ -82,6 +82,9 @@ namespace Odin.Services.DataSubscription
 
             if (await ShouldDistribute(notification, isCollaborationChannel))
             {
+                _logger.LogDebug("FeedDriveDistributionRouter should distribute is true. IsCollabChannel: {collabDrive} ",
+                    isCollaborationChannel);
+                
                 var deleteNotification = notification as DriveFileDeletedNotification;
                 var isEncryptedFile =
                     (deleteNotification != null &&
@@ -148,6 +151,7 @@ namespace Odin.Services.DataSubscription
                 var recipients = await GetFollowersAsync(notification.File.DriveId, newContext);
                 foreach (var recipient in recipients)
                 {
+                    _logger.LogDebug("Distributing {file} {recipient}", item.SourceFile, recipient);
                     await AddToFeedOutbox(recipient, item);
                 }
             }
@@ -313,7 +317,8 @@ namespace Odin.Services.DataSubscription
                 else
                 {
                     // this should not happen
-                    _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient, file.FileId,
+                    _logger.LogError("No transfer status found for recipient [{recipient}] for fileId [{fileId}] on [{drive}]", recipient,
+                        file.FileId,
                         file.DriveId);
                 }
             }
@@ -371,7 +376,8 @@ namespace Odin.Services.DataSubscription
             await _peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 
-        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermissionAsync(IDriveNotification notification, IOdinContext odinContext)
+        private async Task<List<OdinId>> GetConnectedFollowersWithFilePermissionAsync(IDriveNotification notification,
+            IOdinContext odinContext)
         {
             _logger.LogDebug("GetConnectedFollowersWithFilePermissionAsync");
 
@@ -380,10 +386,11 @@ namespace Odin.Services.DataSubscription
             {
                 return [];
             }
-            
+
             // find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-            
+            var connectedIdentities =
+                await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+
             // NOTE!
             // 
             // ChatGPT has refactored the original code below to run asynchronously.
@@ -396,7 +403,7 @@ namespace Odin.Services.DataSubscription
             //             db)
             //         .GetAwaiter().GetResult()).ToList();
             // return connectedFollowers;
-            
+
             //
             // ChatGPT from here:
             //
