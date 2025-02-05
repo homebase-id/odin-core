@@ -279,15 +279,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public AttestationStatusRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AttestationStatusRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AttestationStatusRecord();
             item.attestationIdNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.attestationId?.Length > 64)
-                throw new Exception("Too much data in attestationId...");
             if (item.attestationId?.Length < 16)
                 throw new Exception("Too little data in attestationId...");
             item.status = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
@@ -323,7 +320,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (attestationId?.Length < 16) throw new Exception("Too short");
             if (attestationId?.Length > 64) throw new Exception("Too long");
             var result = new List<AttestationStatusRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

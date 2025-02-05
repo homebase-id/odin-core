@@ -159,20 +159,6 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             await _samSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, frodoToken, targetDrives);
             _samSocketHandler.FileAdded += SamSocketHandlerOnFileAdded;
 
-            await _frodoSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, samToken, targetDrives);
-            _frodoSocketHandler.FileModified += FrodoSocketHandlerOnFileModified;
-        }
-
-        private void FrodoSocketHandlerOnFileModified(object sender, (TargetDrive targetDrive, SharedSecretEncryptedFileHeader header) e)
-        {
-            //validate sam marked ita s ready
-            if (e.header.ServerMetadata.TransferHistory.Recipients.TryGetValue(TestIdentities.Samwise.OdinId, out var value))
-            {
-                if (value.IsReadByRecipient)
-                {
-                    // _readReceiptsReceivedByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
-                }
-            }
         }
 
         private void SamSocketHandlerOnFileAdded(object sender, (TargetDrive targetDrive, SharedSecretEncryptedFileHeader header) e)
@@ -294,23 +280,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             return response.Content;
         }
 
-        public async Task ValidateFileDelivered(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, ExternalFileIdentifier file)
-        {
-            // Assert: file that was sent has peer transfer status updated
-            var uploadedFileResponse1 = await sender.DriveRedux.GetFileHeader(file);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.Identity.OdinId, out var recipientStatus));
-            Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-            Assert.IsFalse(recipientStatus.IsInOutbox);
-            Assert.IsFalse(recipientStatus.IsReadByRecipient);
-            Assert.IsFalse(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
-            // Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == targetVersionTag);
-        }
-
-
+      
         private async Task<(AppApiClientRedux frodoAppApi, AppApiClientRedux samAppApi)> PrepareScenario(OwnerApiClientRedux hostIdentity,
             OwnerApiClientRedux frodo,
             OwnerApiClientRedux sam,

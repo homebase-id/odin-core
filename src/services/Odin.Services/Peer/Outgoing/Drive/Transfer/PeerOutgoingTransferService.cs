@@ -16,7 +16,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
@@ -41,6 +41,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
+        private const int MaxRecipientCount = 1000;
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         /// <summary>
@@ -53,6 +54,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             var sfo = new FileTransferOptions()
             {
@@ -73,8 +75,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in outboxItems)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true },
-                    odinContext);
+                await fs.Storage.InitiateTransferHistoryAsync(internalFile, item.Recipient, odinContext);
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
@@ -99,6 +100,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+            OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+            OdinValidationUtils.AssertIsTrue(recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             var request = new UpdateRemoteFileRequest()
             {
@@ -127,8 +130,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 if (!item.State.IsTransientFile)
                 {
                     var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient,
-                        new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext);
+                    await fs.Storage.InitiateTransferHistoryAsync(sourceFile, item.Recipient, odinContext);
                 }
 
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
@@ -225,6 +227,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task SendPeerPushNotification(AppNotificationOptions options, Guid driveId, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, false);
+            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             //ISSUE: this is running as the identity uploading the file, which cannot read the ICR key to decrypt the CAT
             // var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
@@ -509,7 +512,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
                 catch (Exception ex)
                 {
-                    logger.LogInformation("Failed while creating outbox item {msg}", ex.Message);
+                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
                     status.Add(recipient, TransferStatus.EnqueuedFailed);
                 }
             }

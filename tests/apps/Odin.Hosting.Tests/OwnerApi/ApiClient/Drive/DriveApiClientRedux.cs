@@ -23,6 +23,7 @@ using Odin.Services.Peer.Outgoing;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
@@ -478,7 +479,8 @@ public class DriveApiClientRedux
         }
     }
 
-    public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, string payloadKey,
+    public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag,
+        string payloadKey,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
@@ -638,15 +640,15 @@ public class DriveApiClientRedux
         var sw = Stopwatch.StartNew();
         while (true)
         {
-            var response = await svc.GetFileHeaderAsPost(file);
+            var response = await svc.GetTransferHistory(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             if (!response.IsSuccessStatusCode)
             {
                 throw new Exception("Error occured while retrieving file to wait for transfer status");
             }
 
-            var header = response.Content;
-            if (header.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient, out var status)
-                && status.LatestTransferStatus == expectedStatus)
+            var history = response.Content;
+            var status = history.GetHistoryItem(recipient);
+            if (status != null && status.LatestTransferStatus == expectedStatus)
             {
                 return status;
             }

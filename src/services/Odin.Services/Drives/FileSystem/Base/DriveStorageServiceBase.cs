@@ -12,7 +12,6 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Threading;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -36,7 +35,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         TempStorageManager tempStorageManager,
         IdentityDatabase db) : RequirePermissionsBase
     {
-        private static readonly KeyedAsyncLock KeyedAsyncLock = new();
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
         protected override DriveManager DriveManager { get; } = driveManager;
@@ -95,6 +93,21 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
 
             return Task.FromResult(df);
+        }
+
+        public async Task<(int originalRecipientCount, PagedResult<RecipientTransferHistoryItem> results)> GetTransferHistory(
+            InternalDriveFileId file, IOdinContext odinContext)
+        {
+            var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
+            if (serverFileHeader == null)
+            {
+                return (0, null);
+            }
+
+            var results = await longTermStorageManager.GetTransferHistory(file.DriveId, file.FileId);
+
+            var pagedResults = new PagedResult<RecipientTransferHistoryItem>(PageOptions.All, 1, results);
+            return (serverFileHeader.ServerMetadata.OriginalRecipientCount, pagedResults);
         }
 
         private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
@@ -778,68 +791,77 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        public async Task InitiateTransferHistoryAsync(InternalDriveFileId file, OdinId recipient, IOdinContext odinContext)
+        {
+            ServerFileHeader header = null;
+
+            await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
+
+            //
+            // Get and validate the header
+            //
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            AssertValidFileSystemType(header.ServerMetadata);
+
+            var (updatedHistory, modifiedTime) = await longTermStorageManager.InitiateTransferHistoryAsync(drive.Id, file.FileId, recipient);
+
+            // note: I'm just avoiding re-reading the file.
+            header.ServerMetadata.TransferHistory = updatedHistory;
+            header.FileMetadata.Updated = modifiedTime.uniqueTime;
+
+            if (await ShouldRaiseDriveEventAsync(file))
+            {
+                await mediator.Publish(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = header,
+                    OdinContext = odinContext,
+                    IgnoreFeedDistribution = true,
+                    IgnoreReactionPreviewCalculation = true
+                });
+            }
+        }
+        
         public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext)
         {
-            // SEB:TODO this kind of locking won't help us when we scale out horizontally
-            using (await KeyedAsyncLock.LockAsync(file.FileId.ToString()))
+            ServerFileHeader header = null;
+
+            await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
+
+            //
+            // Get and validate the header
+            //
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            AssertValidFileSystemType(header.ServerMetadata);
+
+            _logger.LogDebug(
+                "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
+                file,
+                recipient,
+                updateData.VersionTag,
+                updateData.LatestTransferStatus,
+                updateData.IsInOutbox,
+                updateData.IsReadByRecipient);
+
+            var (updatedHistory, modifiedTime) = await longTermStorageManager.SaveTransferHistoryAsync(drive.Id, file.FileId, recipient, updateData);
+
+            // note: I'm just avoiding re-reading the file.
+            header.ServerMetadata.TransferHistory = updatedHistory;
+            header.FileMetadata.Updated = modifiedTime.uniqueTime;
+
+            if (await ShouldRaiseDriveEventAsync(file))
             {
-                ServerFileHeader header = null;
-
-                await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
-
-                //
-                // Get and validate the header
-                //
-                var drive = await DriveManager.GetDriveAsync(file.DriveId);
-                header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-                AssertValidFileSystemType(header.ServerMetadata);
-
-                //
-                // update the transfer history record
-                //
-                var history = header.ServerMetadata.TransferHistory ?? new RecipientTransferHistory();
-                history.Recipients ??= new Dictionary<string, RecipientTransferHistoryItem>(StringComparer.InvariantCultureIgnoreCase);
-
-                if (!history.Recipients.TryGetValue(recipient, out var recipientItem))
+                await mediator.Publish(new DriveFileChangedNotification
                 {
-                    recipientItem = new RecipientTransferHistoryItem();
-                    history.Recipients.Add(recipient, recipientItem);
-                }
-
-                recipientItem.IsInOutbox = updateData.IsInOutbox.GetValueOrDefault(recipientItem.IsInOutbox);
-                recipientItem.IsReadByRecipient = updateData.IsReadByRecipient.GetValueOrDefault(recipientItem.IsReadByRecipient);
-                recipientItem.LastUpdated = UnixTimeUtc.Now();
-                recipientItem.LatestTransferStatus = updateData.LatestTransferStatus.GetValueOrDefault(recipientItem.LatestTransferStatus);
-                if (recipientItem.LatestTransferStatus == LatestTransferStatus.Delivered && updateData.VersionTag.HasValue)
-                {
-                    recipientItem.LatestSuccessfullyDeliveredVersionTag = updateData.VersionTag.GetValueOrDefault();
-                }
-
-                header.ServerMetadata.TransferHistory = history;
-
-                _logger.LogDebug(
-                    "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
-                    file,
-                    recipient,
-                    updateData.VersionTag,
-                    updateData.LatestTransferStatus,
-                    updateData.IsInOutbox,
-                    updateData.IsReadByRecipient);
-
-                await longTermStorageManager.SaveTransferHistory(drive, file.FileId, history);
-
-                if (await ShouldRaiseDriveEventAsync(file))
-                {
-                    await mediator.Publish(new DriveFileChangedNotification
-                    {
-                        File = file,
-                        ServerFileHeader = header,
-                        OdinContext = odinContext,
-                        IgnoreFeedDistribution = true,
-                        IgnoreReactionPreviewCalculation = true
-                    });
-                }
+                    File = file,
+                    ServerFileHeader = header,
+                    OdinContext = odinContext,
+                    IgnoreFeedDistribution = true,
+                    IgnoreReactionPreviewCalculation = true
+                });
             }
         }
 
@@ -1285,7 +1307,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await longTermStorageManager.DeleteAttachments(drive, file.FileId);
                 await WriteFileHeaderInternal(deletedServerFileHeader);
                 await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
-                await longTermStorageManager.DeleteTransferHistory(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+                await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                 tx.Commit();
             }
 
@@ -1375,7 +1397,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
 
+            //fields we keep
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
+            newServerMetadata.OriginalRecipientCount = existingServerHeader.ServerMetadata.OriginalRecipientCount;
 
             //only change the IV if the file was encrypted
             if (existingServerHeader.FileMetadata.IsEncrypted)
