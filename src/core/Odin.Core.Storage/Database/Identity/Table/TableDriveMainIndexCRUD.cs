@@ -232,7 +232,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65536) throw new Exception("Too long");
+                    if (value?.Length > 21504) throw new Exception("Too long");
                   _hdrAppData = value;
                }
         }
@@ -287,7 +287,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 16384) throw new Exception("Too long");
+                    if (value?.Length > 4096) throw new Exception("Too long");
                   _hdrReactionSummary = value;
                }
         }
@@ -1137,7 +1137,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1203,7 +1202,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1278,7 +1276,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1353,7 +1350,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1424,7 +1420,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

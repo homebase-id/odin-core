@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -122,7 +121,6 @@ public abstract class OutboxWorkerBase(
         ServerFileHeader header,
         bool includePayloads,
         IOdinContext odinContext,
-        
         Guid? overrideGlobalTransitId = null
     )
     {

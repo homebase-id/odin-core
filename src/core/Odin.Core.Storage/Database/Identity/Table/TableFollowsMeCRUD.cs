@@ -326,7 +326,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected FollowsMeRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<FollowsMeRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -376,7 +375,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
             var result = new List<FollowsMeRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -438,7 +436,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
             var result = new List<FollowsMeRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

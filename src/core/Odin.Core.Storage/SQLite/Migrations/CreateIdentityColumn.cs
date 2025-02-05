@@ -76,7 +76,7 @@ public static class CreateIdentityColumn
         // DriveMainIndex
         {
             Console.WriteLine("  DriveMainIndex");
-            
+                
             // Clean the source table
             oldCn.Connection.Execute(
                 $"""
