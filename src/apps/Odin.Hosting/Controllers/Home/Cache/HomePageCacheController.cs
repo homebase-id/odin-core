@@ -31,9 +31,9 @@ public class HomePageCacheController : OdinControllerBase
 
     [SwaggerOperation(Tags = new[] { HomePageSwaggerTag })]
     [HttpPost("invalidate")]
-    public IActionResult InvalidCache()
+    public async Task<IActionResult> InvalidCache()
     {
-        _cachingService.Invalidate();
+        await _cachingService.InvalidateAsync();
         return Ok();
     }
 

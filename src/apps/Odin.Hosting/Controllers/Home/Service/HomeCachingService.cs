@@ -1,16 +1,17 @@
 ﻿#nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Cache;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Base;
 
@@ -30,16 +31,13 @@ namespace Odin.Hosting.Controllers.Home.Service
         public const int ChannelFileType = 103;
 
         private readonly int[] _fileTypesCausingCacheReset = { PostFileType, ChannelFileType };
-
-        // SEB:TODO fusion cache L1 or L2 ?
-        // Todd - this is serving as a server side cache; it is invalidated when files are updated. probably easiest to start at L1 until invalidation is understood
-        private readonly IGenericMemoryCache<HomeCachingService> _cache;
+        private readonly ILevel1Cache _cache;
 
         public HomeCachingService(
             DriveManager driveManager,
             OdinConfiguration config,
             FileSystemHttpRequestResolver fsResolver,
-            IGenericMemoryCache<HomeCachingService> cache)
+            ILevel1Cache cache)
         {
             _driveManager = driveManager;
             _config = config;
@@ -53,31 +51,27 @@ namespace Odin.Hosting.Controllers.Home.Service
             IOdinContext odinContext, OdinId tenantOdinId)
         {
             var key = GetCacheKey(string.Join("-", request.Queries.Select(q => q.Name)), tenantOdinId);
-            var result = await _cache.GetOrCreateAsync(
-                key,
-                async () =>
+            var result = await _cache.GetOrSetAsync(key, _ =>
                 {
 #if DEBUG
                     Interlocked.Increment(ref CacheMiss);
 #endif
-                    var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext);
-                    return collection;
+                    return _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext);
                 },
-                Expiration.Relative(TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds)));
+                TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
+                CacheTags);
 
             return result!;
         }
 
         //
 
-        public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.Drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType)
             {
-                Invalidate();
+                await InvalidateAsync();
             }
-
-            return Task.CompletedTask;
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -86,7 +80,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             if (null == drive)
             {
                 //just invalidate because the drive might have been deleted for some reason
-                Invalidate();
+                await InvalidateAsync();
                 return;
             }
 
@@ -97,7 +91,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 {
                     if (_fileTypesCausingCacheReset.Any(fileType => header.FileMetadata.AppData.FileType == fileType))
                     {
-                        Invalidate();
+                        await InvalidateAsync();
                     }
                 }
             }
@@ -105,12 +99,14 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         private string GetCacheKey(string key, OdinId tenantOdinId)
         {
-            return $"{tenantOdinId}-{key}";
+            return $"{GetType().Name}:{tenantOdinId}-{key}";
         }
 
-        public void Invalidate()
+        private List<string> CacheTags { get; } = [nameof(HomeCachingService)];
+
+        public async Task InvalidateAsync()
         {
-            _cache.Clear();
+            await _cache.RemoveByTagAsync(CacheTags);
         }
 
 #if DEBUG
