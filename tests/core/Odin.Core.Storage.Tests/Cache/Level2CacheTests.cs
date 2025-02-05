@@ -230,6 +230,12 @@ public class Level2CacheTests
         // Ensure it is gone
         var record2 = cache.GetOrDefault<PocoA?>(key);
         Assert.That(record2, Is.Null);
+
+        // Once more to make sure we dont blow up when removing a non-existing key
+        await cache.RemoveAsync(key);
+        await Task.Delay(100);
+
+        Assert.Pass();
     }
 
     //
