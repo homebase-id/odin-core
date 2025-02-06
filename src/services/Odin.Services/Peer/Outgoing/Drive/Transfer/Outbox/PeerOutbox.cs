@@ -143,7 +143,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
 
             OutboxItemState state;
-            state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
+            state = OdinSystemSerializer.DeserializeOrThrow<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
 
             var item = new OutboxFileItem()
             {
