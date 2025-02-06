@@ -4,7 +4,7 @@ namespace Odin.Core.Storage.Cache;
 
 public class CacheKeyPrefix(string prefix)
 {
-    public string Prefix { get; } = prefix + ":";
+    public string Prefix { get; } = prefix;
 
     public static implicit operator string(CacheKeyPrefix cacheKeyPrefix)
     {

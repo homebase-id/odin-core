@@ -69,7 +69,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
-        private readonly ILevel2Cache _cache;
+        private readonly ILevel2Cache<CircleNetworkRequestService> _cache;
 
         public CircleNetworkRequestService(
             CircleNetworkService cns,
@@ -87,7 +87,7 @@ namespace Odin.Services.Membership.Connections.Requests
             CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration,
             TableKeyThreeValue tblKeyThreeValue,
-            ILevel2Cache cache)
+            ILevel2Cache<CircleNetworkRequestService> cache)
             : base(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
         {
             _cns = cns;
@@ -1023,9 +1023,9 @@ namespace Odin.Services.Membership.Connections.Requests
                 : PublicPrivateKeyType.OnlineIcrEncryptedKey;
         }
 
-        private string CacheKey(Guid uuid)
+        private static string CacheKey(Guid uuid)
         {
-            return GetType().Name + ":OutgoingIntroductionRequests:" + uuid;
+            return "OutgoingIntroductionRequests:" + uuid;
         }
     }
 }

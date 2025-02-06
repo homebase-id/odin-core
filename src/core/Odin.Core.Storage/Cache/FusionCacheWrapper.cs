@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Cache;
 
 #nullable enable
 
-public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cache) : IFusionCacheWrapper
+public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cache) : IFusionCacheWrapper
 {
     protected abstract FusionCacheEntryOptions DefaultOptions { get; }
 
@@ -279,7 +279,8 @@ public abstract class FusionCacheWrapper(CacheKeyPrefix prefix, IFusionCache cac
     private string AddPrefix(string text)
     {
         ArgumentException.ThrowIfNullOrEmpty(text, nameof(text));
-        return prefix + ":" + text;
+        ArgumentException.ThrowIfNullOrEmpty(cacheKeyPrefix, nameof(cacheKeyPrefix));
+        return cacheKeyPrefix + ":" + text;
     }
 
     //

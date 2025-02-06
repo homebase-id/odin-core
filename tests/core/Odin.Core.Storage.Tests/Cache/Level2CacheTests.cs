@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Storage.Cache;
 using Testcontainers.Redis;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Core.Storage.Tests.Cache;
 
@@ -100,6 +101,56 @@ public class Level2CacheTests
         Assert.That(record1!.Id, Is.EqualTo(record2!.Id));
         Assert.That(record1.Uuid, Is.Not.EqualTo(Guid.Empty));
         Assert.That(record1.Uuid, Is.EqualTo(record2.Uuid));
+
+        var cacheKeyPrefix = _services!.Resolve<CacheKeyPrefix>();
+        var key = $"{cacheKeyPrefix.Prefix}:poco:{id}";
+        var fusion = _services!.Resolve<IFusionCache>();
+        var record3 = fusion.TryGet<PocoA?>(key);
+
+        Assert.That(record3.Value!.Id, Is.EqualTo(record2!.Id));
+        Assert.That(record3.Value!.Uuid, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(record3.Value!.Uuid, Is.EqualTo(record2.Uuid));
+    }
+
+    //
+
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task ItShouldGetAndSetGeneric(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var cache = _services!.Resolve<ILevel2Cache<Level2CacheTests>>();
+
+        var id = Guid.NewGuid();
+
+        var record1 = await cache.GetOrSetAsync<PocoA?>(
+            $"poco:{id}",
+            _ => GetProductFromDbAsync(id),
+            TimeSpan.FromSeconds(30)
+        );
+
+        var record2 = cache.GetOrSet<PocoA?>(
+            $"poco:{id}",
+            _ => GetProductFromDbAsync(id).Result,
+            TimeSpan.FromSeconds(30)
+        );
+
+        Assert.That(record1!.Id, Is.EqualTo(record2!.Id));
+        Assert.That(record1.Uuid, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(record1.Uuid, Is.EqualTo(record2.Uuid));
+
+        var cacheKeyPrefix = _services!.Resolve<CacheKeyPrefix>();
+        var key = $"{cacheKeyPrefix.Prefix}:L2:{GetType().FullName}:poco:{id}";
+        var fusion = _services!.Resolve<IFusionCache>();
+        var record3 = fusion.TryGet<PocoA?>(key);
+
+        Assert.That(record3.Value!.Id, Is.EqualTo(record2!.Id));
+        Assert.That(record3.Value!.Uuid, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(record3.Value!.Uuid, Is.EqualTo(record2.Uuid));
     }
 
     //

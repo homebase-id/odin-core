@@ -66,8 +66,12 @@ public static class FusionCacheWrapperExtensions
         ArgumentException.ThrowIfNullOrEmpty(odinCacheKeyPrefix, nameof(odinCacheKeyPrefix));
 
         cb.RegisterInstance(new CacheKeyPrefix(odinCacheKeyPrefix)).SingleInstance();
+
         cb.RegisterType<Level1Cache>().As<ILevel1Cache>().SingleInstance();
         cb.RegisterType<Level2Cache>().As<ILevel2Cache>().SingleInstance();
+
+        cb.RegisterGeneric(typeof(Level1Cache<>)).As(typeof(ILevel1Cache<>)).SingleInstance();
+        cb.RegisterGeneric(typeof(Level2Cache<>)).As(typeof(ILevel2Cache<>)).SingleInstance();
 
         return cb;
     }
