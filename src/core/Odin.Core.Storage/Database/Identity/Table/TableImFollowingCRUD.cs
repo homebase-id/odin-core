@@ -310,7 +310,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected ImFollowingRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ImFollowingRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -354,7 +353,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
         {
             var result = new List<ImFollowingRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -410,7 +408,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,OdinId identity)
         {
             var result = new List<ImFollowingRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

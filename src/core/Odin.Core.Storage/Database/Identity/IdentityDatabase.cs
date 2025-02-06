@@ -27,7 +27,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableDriveMainIndex),
         typeof(TableDriveReactions),
         typeof(TableDriveTagIndex),
-        typeof(TableDriveLocalTagIndex),
+        typeof(TableDriveTransferHistory),
         typeof(TableFollowsMe),
         typeof(TableImFollowing),
         typeof(TableInbox),
@@ -98,14 +98,14 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     private Lazy<TableKeyValueCache> _keyValueCache;
     public TableKeyValueCache KeyValueCache => LazyResolve(ref _keyValueCache);
 
+    private Lazy<TableDriveTransferHistory> _tableDriveTransferHistory;
+    public TableDriveTransferHistory TableDriveTransferHistory => LazyResolve(ref _tableDriveTransferHistory);
+
     //
     // Abstraction convenience properties (resolved, not injected)
     //
     private Lazy<MainIndexMeta> _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
-
-    private Lazy<LocalMetadataDataOperations> _localTags;
-    public LocalMetadataDataOperations LocalMetadataDataOperations => LazyResolve(ref _localTags);
 
     //
     // Connection

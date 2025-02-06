@@ -820,11 +820,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 await newApi.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
                 // query the file
-                var getFileResponse = await newApi.DriveRedux.GetFileHeader(uploadResult.File);
-                Assert.IsTrue(getFileResponse.IsSuccessStatusCode);
-                var theCommentFile = getFileResponse.Content;
-                Assert.IsNotNull(theCommentFile);
-                Assert.IsTrue(theCommentFile.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.OdinId, out var item));
+                var getHistoryResponse = await newApi.DriveRedux.GetTransferHistory(uploadResult.File);
+                Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                var theHistory = getHistoryResponse.Content;
+                Assert.IsNotNull(theHistory);
+                var item = theHistory.GetHistoryItem(recipient.OdinId);
+                Assert.IsNotNull(item);
                 Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
             }
         }
@@ -1589,13 +1590,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             // query the file
             var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
-            var getFileResponse = await newApi.DriveRedux.GetFileHeader(uploadResult.File, FileSystemType.Comment);
-            Assert.IsTrue(getFileResponse.IsSuccessStatusCode);
-            var theCommentFile = getFileResponse.Content;
-            Assert.IsNotNull(theCommentFile);
-            Assert.IsTrue(theCommentFile.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.OdinId, out var item));
+            var getHistoryResponse = await newApi.DriveRedux.GetTransferHistory(uploadResult.File,FileSystemType.Comment);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var item = theHistory.GetHistoryItem(recipient.OdinId);
+            Assert.IsNotNull(item);
             Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
-
+            
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
 
@@ -1748,11 +1750,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await senderApiRedux.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
 
             // query the file
-            var getFileResponse = await senderApiRedux.DriveRedux.GetFileHeader(uploadResult.File, FileSystemType.Comment);
-            Assert.IsTrue(getFileResponse.IsSuccessStatusCode);
-            var theCommentFile = getFileResponse.Content;
-            Assert.IsNotNull(theCommentFile);
-            Assert.IsTrue(theCommentFile.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.OdinId, out var item));
+            var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
+            var getHistoryResponse = await newApi.DriveRedux.GetTransferHistory(uploadResult.File,FileSystemType.Comment);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var item = theHistory.GetHistoryItem(recipient.OdinId);
+            Assert.IsNotNull(item);
             Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedBadRequest);
 
             keyHeader.AesKey.Wipe();

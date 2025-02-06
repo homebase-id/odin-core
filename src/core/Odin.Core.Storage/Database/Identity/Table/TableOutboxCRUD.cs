@@ -581,7 +581,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected OutboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<OutboxRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -598,8 +597,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.checkOutCount = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.nextRunTime = rdr.IsDBNull(9) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.valueNoLengthCheck = rdr.IsDBNull(10) ? null : (byte[])(rdr[10]);
-            if (item.value?.Length > 65535)
-                throw new Exception("Too much data in value...");
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = rdr.IsDBNull(11) ? null : new Guid((byte[])rdr[11]);
@@ -643,7 +640,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -659,8 +655,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.checkOutCount = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.nextRunTime = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
             item.valueNoLengthCheck = rdr.IsDBNull(6) ? null : (byte[])(rdr[6]);
-            if (item.value?.Length > 65535)
-                throw new Exception("Too much data in value...");
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = rdr.IsDBNull(7) ? null : new Guid((byte[])rdr[7]);
@@ -715,7 +709,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
             var result = new List<OutboxRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -731,8 +724,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.checkOutCount = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             item.nextRunTime = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.valueNoLengthCheck = rdr.IsDBNull(5) ? null : (byte[])(rdr[5]);
-            if (item.value?.Length > 65535)
-                throw new Exception("Too much data in value...");
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = rdr.IsDBNull(6) ? null : new Guid((byte[])rdr[6]);

@@ -125,14 +125,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 return null;
             }
 
-            var dt = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value.milliseconds);
-            var now = DateTimeOffset.Now;
+            UnixTimeUtc dt = nextRun.Value;
+            var now = UnixTimeUtc.Now();
             if (dt < now)
             {
                 return TimeSpan.Zero;
             }
 
-            return dt - now;
+            return TimeSpan.FromMilliseconds(dt.milliseconds - now.milliseconds);
         }
 
         private static OutboxFileItem OutboxRecordToFileItem(OutboxRecord record)
@@ -143,7 +143,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
 
             OutboxItemState state;
-            state = OdinSystemSerializer.Deserialize<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
+            state = OdinSystemSerializer.DeserializeOrThrow<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
 
             var item = new OutboxFileItem()
             {

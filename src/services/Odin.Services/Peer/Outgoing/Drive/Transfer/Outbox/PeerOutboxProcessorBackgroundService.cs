@@ -60,10 +60,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 logger.LogDebug("{service} is running", GetType().Name);
 
                 TimeSpan nextRun;
-                while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItemAsync() is { } item)
+                while (!stoppingToken.IsCancellationRequested)
                 {
-                    var task = ProcessItemThread(item, stoppingToken);
-                    tasks.Add(task);
+                    var item = await peerOutbox.GetNextItemAsync();
+
+                    if (item != null)
+                    {
+                        logger.LogDebug("{service} got a new outbox item", GetType().Name);
+                        var task = ProcessItemThread(item, stoppingToken);
+                        tasks.Add(task);
+                    }
+                    else
+                    {
+                        logger.LogDebug("{service} had no new outbox GetNextItemAsync()", GetType().Name);
+                        break;
+                    }
                 }
 
                 nextRun = await peerOutbox.NextRunAsync() ?? MaxSleepDuration;

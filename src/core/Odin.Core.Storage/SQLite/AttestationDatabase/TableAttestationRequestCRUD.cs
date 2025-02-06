@@ -245,7 +245,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public AttestationRequestRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AttestationRequestRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -284,7 +283,6 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (attestationId?.Length < 0) throw new Exception("Too short");
             if (attestationId?.Length > 65535) throw new Exception("Too long");
             var result = new List<AttestationRequestRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

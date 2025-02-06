@@ -442,7 +442,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<InboxRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -454,8 +453,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.priority = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             item.timeStamp = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.valueNoLengthCheck = rdr.IsDBNull(5) ? null : (byte[])(rdr[5]);
-            if (item.value?.Length > 65535)
-                throw new Exception("Too much data in value...");
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.popStamp = rdr.IsDBNull(6) ? null : new Guid((byte[])rdr[6]);
@@ -488,7 +485,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -500,8 +496,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.priority = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
             item.timeStamp = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             item.valueNoLengthCheck = rdr.IsDBNull(3) ? null : (byte[])(rdr[3]);
-            if (item.value?.Length > 65535)
-                throw new Exception("Too much data in value...");
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.popStamp = rdr.IsDBNull(4) ? null : new Guid((byte[])rdr[4]);

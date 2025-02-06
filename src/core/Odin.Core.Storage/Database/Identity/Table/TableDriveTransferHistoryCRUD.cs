@@ -67,8 +67,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _latestTransferStatus = value;
                }
         }
-        private Int32 _isInOutbox;
-        public Int32 isInOutbox
+        private Boolean _isInOutbox;
+        public Boolean isInOutbox
         {
            get {
                    return _isInOutbox;
@@ -87,8 +87,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _latestSuccessfullyDeliveredVersionTag = value;
                }
         }
-        private Int32 _isReadByRecipient;
-        public Int32 isReadByRecipient
+        private Boolean _isReadByRecipient;
+        public Boolean isReadByRecipient
         {
            get {
                    return _isReadByRecipient;
@@ -130,9 +130,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"fileId BYTEA NOT NULL, "
                    +"remoteIdentityId TEXT NOT NULL, "
                    +"latestTransferStatus BIGINT NOT NULL, "
-                   +"isInOutbox BIGINT NOT NULL, "
+                   +"isInOutbox BOOLEAN NOT NULL, "
                    +"latestSuccessfullyDeliveredVersionTag BYTEA , "
-                   +"isReadByRecipient BIGINT NOT NULL "
+                   +"isReadByRecipient BOOLEAN NOT NULL "
                    + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
                    +");"
@@ -398,7 +398,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTransferHistoryRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTransferHistoryRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -409,9 +408,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.remoteIdentityId = rdr.IsDBNull(3) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[3]);
             item.latestTransferStatus = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.isInOutbox = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.isInOutbox = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[5]);
             item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(6) ? null : new Guid((byte[])rdr[6]);
-            item.isReadByRecipient = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.isReadByRecipient = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[7]);
             return item;
        }
 
@@ -472,7 +471,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTransferHistoryRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,OdinId remoteIdentityId)
         {
             var result = new List<DriveTransferHistoryRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -483,9 +481,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
             item.remoteIdentityId = remoteIdentityId;
             item.latestTransferStatus = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
-            item.isInOutbox = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.isInOutbox = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[1]);
             item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(2) ? null : new Guid((byte[])rdr[2]);
-            item.isReadByRecipient = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.isReadByRecipient = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[3]);
             return item;
        }
 
@@ -530,7 +528,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTransferHistoryRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveTransferHistoryRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -541,9 +538,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.fileId = fileId;
             item.remoteIdentityId = rdr.IsDBNull(0) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[0]);
             item.latestTransferStatus = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.isInOutbox = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.isInOutbox = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[2]);
             item.latestSuccessfullyDeliveredVersionTag = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]);
-            item.isReadByRecipient = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.isReadByRecipient = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[4]);
             return item;
        }
 

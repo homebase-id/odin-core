@@ -313,7 +313,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected AppGrantsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppGrantsRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -324,8 +323,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.appId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.circleId = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.dataNoLengthCheck = rdr.IsDBNull(4) ? null : (byte[])(rdr[4]);
-            if (item.data?.Length > 65535)
-                throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -365,7 +362,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -376,8 +372,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.appId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
             item.circleId = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.dataNoLengthCheck = rdr.IsDBNull(2) ? null : (byte[])(rdr[2]);
-            if (item.data?.Length > 65535)
-                throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -423,7 +417,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -434,8 +427,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.appId = appId;
             item.circleId = circleId;
             item.dataNoLengthCheck = rdr.IsDBNull(0) ? null : (byte[])(rdr[0]);
-            if (item.data?.Length > 65535)
-                throw new Exception("Too much data in data...");
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

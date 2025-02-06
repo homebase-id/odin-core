@@ -720,7 +720,16 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var apiResponse = await svc.GetFileHeaderAsPost(file);
         return apiResponse;
     }
-
+    
+    public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(ExternalFileIdentifier file,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var apiResponse = await svc.GetTransferHistory(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+        return apiResponse;
+    }
+    
     public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -858,6 +867,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             {
                 throw new TimeoutException(
                     $"timeout occured while waiting for outbox to complete processing " +
+                    $"-- Did you enable AllowDistribution on your outgoing file? - " + 
                     $"(wait time: {maxWait.TotalSeconds}sec. " +
                     $"Total Items: {status.Outbox.TotalItems} " +
                     $"Checked Out {status.Outbox.CheckedOutCount})");

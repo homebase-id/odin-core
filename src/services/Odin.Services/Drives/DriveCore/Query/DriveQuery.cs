@@ -282,7 +282,7 @@ public class DriveQuery(
 
     public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, Guid newVersionTag, string metadataJson)
     {
-        await db.LocalMetadataDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, newVersionTag, metadataJson);
+        await db.DriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, newVersionTag, metadataJson);
     }
 
     public async Task SaveLocalMetadataTagsAsync(Guid driveId, Guid fileId, LocalAppMetadata metadata)
@@ -290,21 +290,15 @@ public class DriveQuery(
         await using var tx = await db.BeginStackedTransactionAsync();
 
         // Update the tables used to query
-        await db.LocalMetadataDataOperations.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
+        await db.DriveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
 
         // Update the official metadata field
         var json = OdinSystemSerializer.Serialize(metadata);
-        await db.LocalMetadataDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, json);
+        await db.DriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, json);
 
         tx.Commit();
     }
-
-    public async Task SaveTransferHistoryAsync(StorageDrive drive, Guid fileId, RecipientTransferHistory history)
-    {
-        var json = OdinSystemSerializer.Serialize(history);
-        await tblDriveMainIndex.UpdateTransferHistoryAsync(drive.Id, fileId, json);
-    }
-
+    
     public async Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
     {
         var json = summary == null ? "" : OdinSystemSerializer.Serialize(summary);
@@ -458,7 +452,7 @@ public class DriveQuery(
         return null;
     }
 
-
+  
     private async Task<(QueryBatchCursor cursor, List<DriveMainIndexRecord> fileIds, bool hasMoreRows)> GetBatchExplicitOrderingAsync(
         StorageDrive drive,
         IOdinContext odinContext,

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -23,7 +22,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
-            var localTagsDataOperations = scope.Resolve<LocalMetadataDataOperations>();
+            var localTagsDataOperations = scope.Resolve<TableDriveLocalTagIndex>();
 
             var driveId = Guid.NewGuid();
             var fileId = Guid.NewGuid();
@@ -103,7 +102,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
             var tableDriveLocalTagIndex = scope.Resolve<TableDriveLocalTagIndex>();
-            var localTagsDataOperations = scope.Resolve<LocalMetadataDataOperations>();
 
             var driveId = Guid.NewGuid();
             var fileId = Guid.NewGuid();
@@ -151,7 +149,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Act 
             //
             List<Guid> tags = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
-            await localTagsDataOperations.UpdateLocalTagsAsync(driveId, fileId, tags);
+            await tableDriveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, tags);
 
             // 
             // Assert

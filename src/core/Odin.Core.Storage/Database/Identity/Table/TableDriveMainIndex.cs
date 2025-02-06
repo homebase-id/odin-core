@@ -218,7 +218,7 @@ public class TableDriveMainIndex(
 
         return 0;
     }
-    
+
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -254,13 +254,13 @@ public class TableDriveMainIndex(
         return await updateCommand.ExecuteNonQueryAsync();
     }
 
-    public async Task<int> UpdateTransferHistoryAsync(Guid driveId, Guid fileId, string transferHistory)
+    public async Task<int> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory, UnixTimeUtcUnique modifiedTime)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
-        updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified=@modified,hdrTransferHistory=@hdrTransferHistory WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified=@modified, hdrTransferHistory=@hdrTransferHistory " +
+                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -284,11 +284,10 @@ public class TableDriveMainIndex(
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
-        sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+        sparam5.Value = modifiedTime.uniqueTime;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }
-
 
     public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
     {
