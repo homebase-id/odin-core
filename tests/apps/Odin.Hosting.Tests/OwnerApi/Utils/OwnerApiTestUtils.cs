@@ -121,7 +121,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             // handler.CheckCertificateRevocationList = false;
             handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
 
-            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
@@ -243,7 +242,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             handler.CookieContainer = jar;
             handler.UseCookies = true;
 
-            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
