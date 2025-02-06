@@ -368,7 +368,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<KeyHeader> DecryptedKeyHeaderAsync(OdinId sender, EncryptedKeyHeader encryptedKeyHeader,
             IOdinContext odinContext)
         {
-            var icr = await circleNetworkService.GetIcrAsync(sender, odinContext, overrideHack: true);
+            var icr = await circleNetworkService.GetIcrAsync(sender, odinContext, overrideHack: true, tryUpgradeEncryption: true);
             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             var decryptedKeyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
             return decryptedKeyHeader;

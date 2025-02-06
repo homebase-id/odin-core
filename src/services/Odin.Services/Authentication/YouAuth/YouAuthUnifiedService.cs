@@ -9,6 +9,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Util;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -26,22 +27,19 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly CircleNetworkService _circleNetwork;
-    private readonly IGenericMemoryCache<YouAuthUnifiedService> _encryptedTokens; // SEB:TODO does not scale
-    private readonly SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> _tempConsent;
+    private readonly ILevel2Cache<YouAuthUnifiedService> _level2Cache;
 
     public YouAuthUnifiedService(
         IAppRegistrationService appRegistrationService,
         YouAuthDomainRegistrationService domainRegistrationService,
         CircleNetworkService circleNetwork,
-        IGenericMemoryCache<YouAuthUnifiedService> encryptedTokens,
-        SharedConcurrentDictionary<YouAuthUnifiedService, string, bool> tempConsent)
+        ILevel2Cache<YouAuthUnifiedService> level2Cache)
     {
         _appRegistrationService = appRegistrationService;
 
         _domainRegistrationService = domainRegistrationService;
         _circleNetwork = circleNetwork;
-        _encryptedTokens = encryptedTokens;
-        _tempConsent = tempConsent;
+        _level2Cache = level2Cache;
     }
 
     //
@@ -62,9 +60,10 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
 
         //TODO: need to talk with Seb about the redirecting loop issue here
-        if (_tempConsent.ContainsKey(clientIdOrDomain))
+        var tempConsent = await _level2Cache.GetOrDefaultAsync(TempConsentCacheKey(clientIdOrDomain), false);
+        if (tempConsent)
         {
-            _tempConsent.Remove(clientIdOrDomain, out _);
+            await _level2Cache.RemoveAsync(TempConsentCacheKey(clientIdOrDomain));
             return false;
         }
 
@@ -95,7 +94,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         if (clientType == ClientType.app)
         {
             //so for now i'll just use this dictionary
-            _tempConsent[clientIdOrDomain] = true;
+            await _level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
 
         if (clientType == ClientType.domain)
@@ -122,7 +121,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             }
 
             //so for now i'll just use this dictionary
-            _tempConsent[clientIdOrDomain] = true;
+            await _level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
     }
 
@@ -197,25 +196,23 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             clientAuthTokenCipher,
             clientAuthTokenIv);
 
-        _encryptedTokens.Set(exchangeSharedSecretDigest, encryptedTokenExchange, Expiration.Relative(TimeSpan.FromMinutes(5)));
+        await _level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 
         return (keyPair.PublicKeyJwkBase64Url(), Convert.ToBase64String(exchangeSalt));
     }
 
     //
 
-    public Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
+    public async Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
     {
-        var found = _encryptedTokens.TryGet<EncryptedTokenExchange>(exchangeSharedSecretDigest, out var ec);
+        var ec = await _level2Cache.TryGetAsync<EncryptedTokenExchange?>(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
 
-        if (!found || ec == null)
+        if (ec != null)
         {
-            return Task.FromResult<EncryptedTokenExchange?>(null);
+            await _level2Cache.RemoveAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
         }
 
-        _encryptedTokens.Remove(exchangeSharedSecretDigest);
-
-        return Task.FromResult(ec)!;
+        return ec;
     }
 
     //
@@ -255,5 +252,9 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     }
 
     //
+
+    private string TempConsentCacheKey(string clientIdOrDomain) => $"TempConsent:{clientIdOrDomain}";
+    private string EncryptedTokenCacheKey(string exchangeSharedSecretDigest) =>
+        $"EncryptedToken:{exchangeSharedSecretDigest}";
 }
 //

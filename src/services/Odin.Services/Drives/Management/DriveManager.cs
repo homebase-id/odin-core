@@ -33,6 +33,9 @@ public class DriveManager
 
     private readonly ILogger<DriveManager> _logger;
     private readonly IMediator _mediator;
+
+    // SEB:NOTE we can't use LxCache here since multiple key and list retrieval
+    // are required, so we leave _driveCache for now
     private readonly SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> _driveCache;
     private readonly SharedAsyncLock<DriveManager> _createDriveLock;
 

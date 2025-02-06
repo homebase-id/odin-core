@@ -106,12 +106,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued);
 
                 // Assert: file that was sent has peer transfer status updated
-                var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-                Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-                var uploadedFile1 = uploadedFileResponse1.Content;
-
-                Assert.IsTrue(
-                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.Identity.OdinId, out var recipientStatus));
+                var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+                Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                var theHistory = getHistoryResponse.Content;
+                Assert.IsNotNull(theHistory);
+                var recipientStatus = theHistory.GetHistoryItem(recipient.Identity.OdinId);
                 Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
                 Assert.IsFalse(recipientStatus.IsInOutbox);
                 Assert.IsFalse(recipientStatus.IsReadByRecipient);

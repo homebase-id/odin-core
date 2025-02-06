@@ -13,8 +13,16 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(USER)' == 'seb'">
-    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>
+    <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>
   </PropertyGroup>
+
+<!--  <PropertyGroup Condition="'$(USER)' == 'todd'">-->
+<!--    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>-->
+<!--  </PropertyGroup>-->
+<!--  -->
+<!--  <PropertyGroup Condition="'$(USER)' == 'taud'">-->
+<!--    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>-->
+<!--  </PropertyGroup>-->
 
   <ItemGroup>
     <PackageReference Include="HttpClientFactoryLite" Version="0.4.0" />
@@ -29,8 +37,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\core\Odin.Core.Storage\Odin.Core.Storage.csproj" />
-    <ProjectReference Include="..\..\..\src\services\Odin.Services\Odin.Services.csproj" />
+    <ProjectReference Include="../../../src/core/Odin.Core.Storage/Odin.Core.Storage.csproj" />
+    <ProjectReference Include="../../../src/services/Odin.Services/Odin.Services.csproj" />
     <ProjectReference Include="../../../src/apps/Odin.Hosting/Odin.Hosting.csproj" />
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>

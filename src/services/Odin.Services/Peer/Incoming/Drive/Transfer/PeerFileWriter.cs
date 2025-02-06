@@ -14,6 +14,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -34,12 +35,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             OdinId sender,
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet,
             IOdinContext odinContext,
-            
             bool driveOriginWasCollaborative = false)
         {
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
-            var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
 
             FileMetadata metadata = null;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
@@ -103,14 +102,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 FileSystemType = fileSystemType,
                 AllowDistribution = isCollaborationChannel,
-                AccessControlList = targetAcl
+                AccessControlList = targetAcl,
             };
 
             metadata!.SenderOdinId = sender; //in a collab channel this is not the right sender;
             switch (transferFileType)
             {
                 case TransferFileType.Normal:
-                    await StoreNormalFileLongTermAsync(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata, contentsProvided, odinContext);
+                    await StoreNormalFileLongTermAsync(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata,
+                        encryptedRecipientTransferInstructionSet, odinContext);
                     break;
 
                 case TransferFileType.EncryptedFileForFeed:
@@ -164,31 +164,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogDebug("MarkFileAsRead -> Attempted to mark a deleted file as read");
             }
-
-            // disabling validation during june 14 transition period (old files w/o the transfer history, etc.)
-
-            if (header.ServerMetadata.TransferHistory == null || header.ServerMetadata.TransferHistory.Recipients == null)
-            {
-                logger.LogDebug("MarkFileAsRead -> TransferHistory is null.  File created: {created} and " +
-                                  "last updated: {updated}", header.FileMetadata.Created, header.FileMetadata.Updated);
-            }
-            else
-            {
-                var recordExists = header.ServerMetadata.TransferHistory.Recipients.TryGetValue(item.Sender, out var transferHistoryItem);
-
-                if (!recordExists || transferHistoryItem == null)
-                {
-                    // throw new OdinFileWriteException($"Cannot accept read-receipt; there is no record of having sent this file to {item.Sender}");
-                    logger.LogDebug("Cannot accept read-receipt; there is no record of having sent this file to {sender}", item.Sender);
-                }
-            }
-
-            // logger.LogDebug("MarkFileAsRead -> Target File: Created:{created}\t TransitCreated:{tc}\t Updated:{updated}\t TransitUpdated: {tcu}",
-            //     header.FileMetadata.Created,
-            //     header.FileMetadata.TransitCreated,
-            //     header.FileMetadata.Updated,
-            //     header.FileMetadata.TransitUpdated);
-
+            
             var update = new UpdateTransferHistoryData()
             {
                 IsReadByRecipient = true,
@@ -275,8 +251,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
         private async Task StoreNormalFileLongTermAsync(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
-            FileMetadata newMetadata, ServerMetadata serverMetadata, SendContents contentsProvided, IOdinContext odinContext)
+            FileMetadata newMetadata, ServerMetadata serverMetadata,
+            EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet, IOdinContext odinContext)
         {
+            var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
             var targetDriveId = tempFile.DriveId;
 

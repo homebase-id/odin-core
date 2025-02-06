@@ -64,9 +64,10 @@ namespace Odin.Services.Peer
                 PermissionKeys.UseTransitWrite,
                 PermissionKeys.UseTransitRead);
 
+            
             //Note here we overrideHack the permission check because we have either UseTransitWrite or UseTransitRead
             var icr = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
-            if (icr?.IsConnected() == false)
+            if (icr.IsConnected() == false)
             {
                 if (failIfNotConnected)
                 {
@@ -76,8 +77,7 @@ namespace Odin.Services.Peer
 
                 return null;
             }
-
-
+            
             return icr!.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
         }
 
