@@ -418,17 +418,17 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyChainRecord();
-            item.previousHashNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.previousHashNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-            item.identityNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.timestamp = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
-            item.signedPreviousHashNoLengthCheck = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            item.identityNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
+            item.signedPreviousHashNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-            item.algorithmNoLengthCheck = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.publicKeyJwkBase64UrlNoLengthCheck = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.recordHashNoLengthCheck = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
+            item.algorithmNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.publicKeyJwkBase64UrlNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.recordHashNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
             if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
@@ -478,15 +478,15 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             var item = new KeyChainRecord();
             item.identity = identity;
             item.publicKeyJwkBase64Url = publicKeyJwkBase64Url;
-            item.previousHashNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.previousHashNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-            item.timestamp = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[1]);
-            item.signedPreviousHashNoLengthCheck = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
+            item.timestamp = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[1]);
+            item.signedPreviousHashNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-            item.algorithmNoLengthCheck = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
-            item.recordHashNoLengthCheck = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
+            item.algorithmNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
+            item.recordHashNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
             if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;

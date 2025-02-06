@@ -625,8 +625,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = rdr.GetInt64(0);
-                   long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                   long created = (long) rdr[0];
+                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                    item.created = new UnixTimeUtcUnique(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtcUnique((long)modified);
@@ -782,25 +782,25 @@ namespace Odin.Core.Storage.Database.System.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new JobsRecord();
-            item.id = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.nameNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.state = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.priority = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.nextRun = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.lastRun = rdr.IsDBNull(5) ? null : new UnixTimeUtc((long)rdr[5]);
-            item.runCount = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.maxAttempts = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-            item.retryDelay = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
-            item.onSuccessDeleteAfter = rdr.IsDBNull(9) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
-            item.onFailureDeleteAfter = rdr.IsDBNull(10) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
-            item.expiresAt = rdr.IsDBNull(11) ? null : new UnixTimeUtc((long)rdr[11]);
-            item.correlationIdNoLengthCheck = rdr.IsDBNull(12) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
-            item.jobTypeNoLengthCheck = rdr.IsDBNull(13) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-            item.jobDataNoLengthCheck = rdr.IsDBNull(14) ? null : (string)rdr[14];
-            item.jobHashNoLengthCheck = rdr.IsDBNull(15) ? null : (string)rdr[15];
-            item.lastErrorNoLengthCheck = rdr.IsDBNull(16) ? null : (string)rdr[16];
-            item.created = rdr.IsDBNull(17) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[17]);
-            item.modified = rdr.IsDBNull(18) ? null : new UnixTimeUtcUnique((long)rdr[18]);
+            item.id = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.nameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.state = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.nextRun = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.lastRun = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
+            item.runCount = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.maxAttempts = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.retryDelay = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
+            item.onSuccessDeleteAfter = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
+            item.onFailureDeleteAfter = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
+            item.expiresAt = (rdr[11] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[11]);
+            item.correlationIdNoLengthCheck = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
+            item.jobTypeNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.jobDataNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
+            item.jobHashNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
+            item.lastErrorNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
+            item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[17]);
+            item.modified = (rdr[18] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[18]);
             return item;
        }
 
@@ -830,24 +830,24 @@ namespace Odin.Core.Storage.Database.System.Table
             var guid = new byte[16];
             var item = new JobsRecord();
             item.id = id;
-            item.nameNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
-            item.state = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.priority = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.nextRun = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.lastRun = rdr.IsDBNull(4) ? null : new UnixTimeUtc((long)rdr[4]);
-            item.runCount = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.maxAttempts = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.retryDelay = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[7];
-            item.onSuccessDeleteAfter = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
-            item.onFailureDeleteAfter = rdr.IsDBNull(9) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
-            item.expiresAt = rdr.IsDBNull(10) ? null : new UnixTimeUtc((long)rdr[10]);
-            item.correlationIdNoLengthCheck = rdr.IsDBNull(11) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[11];
-            item.jobTypeNoLengthCheck = rdr.IsDBNull(12) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
-            item.jobDataNoLengthCheck = rdr.IsDBNull(13) ? null : (string)rdr[13];
-            item.jobHashNoLengthCheck = rdr.IsDBNull(14) ? null : (string)rdr[14];
-            item.lastErrorNoLengthCheck = rdr.IsDBNull(15) ? null : (string)rdr[15];
-            item.created = rdr.IsDBNull(16) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[16]);
-            item.modified = rdr.IsDBNull(17) ? null : new UnixTimeUtcUnique((long)rdr[17]);
+            item.nameNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
+            item.state = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.priority = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.nextRun = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.lastRun = (rdr[4] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[4]);
+            item.runCount = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.maxAttempts = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.retryDelay = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[7];
+            item.onSuccessDeleteAfter = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
+            item.onFailureDeleteAfter = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
+            item.expiresAt = (rdr[10] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[10]);
+            item.correlationIdNoLengthCheck = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[11];
+            item.jobTypeNoLengthCheck = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
+            item.jobDataNoLengthCheck = (rdr[13] == DBNull.Value) ? null : (string)rdr[13];
+            item.jobHashNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
+            item.lastErrorNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
+            item.created = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[16]);
+            item.modified = (rdr[17] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[17]);
             return item;
        }
 
