@@ -69,7 +69,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
-        private readonly Level2Cache _cache;
+        private readonly ILevel2Cache _cache;
 
         public CircleNetworkRequestService(
             CircleNetworkService cns,
@@ -87,7 +87,7 @@ namespace Odin.Services.Membership.Connections.Requests
             CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration,
             TableKeyThreeValue tblKeyThreeValue,
-            Level2Cache cache)
+            ILevel2Cache cache)
             : base(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
         {
             _cns = cns;
@@ -506,11 +506,11 @@ namespace Odin.Services.Membership.Connections.Requests
             //Assert that I previously sent a request to the identity attempting to connected with me
             if (null == originalRequest)
             {
-                if (await _cache.ContainsAsync(caller))
+                if (await _cache.ContainsAsync(CacheKey(caller)))
                 {
                     // db record is not yet written.
                 }
-                // this can also happen if the connection was already approved via auto-accept
+                // this can also happen if the connection was already approved via auto-accept 
                 // var existingConnection = await _cns.GetIcrAsync(caller, odinContext, true);
                 // if (existingConnection.IsConnected() && existingConnection.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
                 // {
@@ -1025,7 +1025,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private string CacheKey(Guid uuid)
         {
-            return GetType().Name + ":" + uuid;
+            return GetType().Name + ":OutgoingIntroductionRequests:" + uuid;
         }
     }
 }
