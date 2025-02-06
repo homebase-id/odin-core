@@ -272,7 +272,8 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGlobalTransitIdAsync(OdinId odinId, GlobalTransitIdFileIdentifier file,
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByGlobalTransitIdAsync(OdinId odinId,
+        GlobalTransitIdFileIdentifier file,
         FileSystemType fileSystemType, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
@@ -337,7 +338,7 @@ public class PeerDriveQueryService(
             throw;
         }
     }
-    
+
     public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
         GetPayloadByGlobalTransitIdAsync(OdinId odinId,
             GlobalTransitIdFileIdentifier file, string key,
@@ -447,14 +448,7 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitRead);
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
-        var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true);
-
-        // there's a chance the icr.EncryptedClientAccessToken has not yet been upgraded so try to upgrade
-        if (icr.EncryptedClientAccessToken == null)
-        {
-            await circleNetworkService.UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-            icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true);
-        }
+        var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
 
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
@@ -536,7 +530,7 @@ public class PeerDriveQueryService(
         {
             throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
         }
-        
+
         if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
         {
             throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
@@ -548,7 +542,7 @@ public class PeerDriveQueryService(
         }
     }
 
-    
+
     private async Task<(
             EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
             bool payloadIsEncrypted,
@@ -593,8 +587,9 @@ public class PeerDriveQueryService(
     }
 
 
-    private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)> HandlePayloadResponseAsync(
-        OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
+    private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
+        HandlePayloadResponseAsync(
+            OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
     {
         var permissionContext = odinContext.PermissionsContext;
 

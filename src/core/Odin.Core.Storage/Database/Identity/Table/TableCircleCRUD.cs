@@ -40,6 +40,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _circleName = value;
                }
         }
+        internal string circleNameNoLengthCheck
+        {
+           get {
+                   return _circleName;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 2) throw new Exception("Too short");
+                  _circleName = value;
+               }
+        }
         private Guid _circleId;
         public Guid circleId
         {
@@ -59,6 +70,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 65000) throw new Exception("Too long");
+                  _data = value;
+               }
+        }
+        internal byte[] dataNoLengthCheck
+        {
+           get {
+                   return _data;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _data = value;
                }
         }
@@ -256,7 +277,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -270,22 +291,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new CircleRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.circleName = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.circleId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.data = rdr.IsDBNull(3) ? 
-                null : (byte[])(rdr[3]);
-            if (item.data?.Length > 65000)
-                throw new Exception("Too much data in data...");
+            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.circleNameNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.circleId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.dataNoLengthCheck = rdr.IsDBNull(3) ? null : (byte[])(rdr[3]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -317,7 +331,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected CircleRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
         {
             var result = new List<CircleRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -325,14 +338,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new CircleRecord();
             item.identityId = identityId;
             item.circleId = circleId;
-
-            item.circleName = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
-
-            item.data = rdr.IsDBNull(1) ? 
-                null : (byte[])(rdr[1]);
-            if (item.data?.Length > 65000)
-                throw new Exception("Too much data in data...");
+            item.circleNameNoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
+            item.dataNoLengthCheck = rdr.IsDBNull(1) ? null : (byte[])(rdr[1]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

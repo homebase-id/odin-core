@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Autofac;
+using Autofac.Core.Lifetime;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -13,7 +14,6 @@ namespace Odin.Services.Tests.Tenant.Container;
 
 public class MultiTenantContainerTest
 {
-
     [Test]
     public void ItShouldLookupTenantScope()
     {
@@ -232,6 +232,34 @@ public class MultiTenantContainerTest
             var someServiceUser = tenantScopeAutofac.Resolve<SomeServiceUser>();
             Assert.AreEqual("foo", someServiceUser.SomeScopedData.Name);
         }
+    }
+
+    [Test]
+    public void AutofacLifetimeShouldNotDisposeChildren()
+    {
+        var builder = new ContainerBuilder();
+        builder.RegisterType<SomeScopedData>().InstancePerLifetimeScope();
+
+        SomeScopedData outer;
+        SomeScopedData inner;
+
+        var container = builder.Build();
+
+        outer = container.Resolve<SomeScopedData>();
+        Assert.That(outer.IsDisposed, Is.False);
+
+        var scope = container.BeginLifetimeScope();
+
+        inner = scope.Resolve<SomeScopedData>();
+        Assert.That(inner, Is.Not.SameAs(outer));
+        Assert.That(inner.IsDisposed, Is.False);
+
+        container.Dispose();
+        Assert.That(outer.IsDisposed, Is.True);
+        Assert.That(inner.IsDisposed, Is.False);
+
+        scope.Dispose();
+        Assert.That(inner.IsDisposed, Is.True);
     }
 }
 

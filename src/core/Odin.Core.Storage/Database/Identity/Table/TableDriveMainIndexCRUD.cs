@@ -149,6 +149,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _senderId = value;
                }
         }
+        internal string senderIdNoLengthCheck
+        {
+           get {
+                   return _senderId;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _senderId = value;
+               }
+        }
         private Guid? _groupId;
         public Guid? groupId
         {
@@ -192,6 +202,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _hdrEncryptedKeyHeader = value;
                }
         }
+        internal string hdrEncryptedKeyHeaderNoLengthCheck
+        {
+           get {
+                   return _hdrEncryptedKeyHeader;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                  _hdrEncryptedKeyHeader = value;
+               }
+        }
         private Guid _hdrVersionTag;
         public Guid hdrVersionTag
         {
@@ -211,8 +232,51 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65536) throw new Exception("Too long");
+                    if (value?.Length > 21504) throw new Exception("Too long");
                   _hdrAppData = value;
+               }
+        }
+        internal string hdrAppDataNoLengthCheck
+        {
+           get {
+                   return _hdrAppData;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _hdrAppData = value;
+               }
+        }
+        private Guid? _hdrLocalVersionTag;
+        public Guid? hdrLocalVersionTag
+        {
+           get {
+                   return _hdrLocalVersionTag;
+               }
+           set {
+                  _hdrLocalVersionTag = value;
+               }
+        }
+        private string _hdrLocalAppData;
+        public string hdrLocalAppData
+        {
+           get {
+                   return _hdrLocalAppData;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 4096) throw new Exception("Too long");
+                  _hdrLocalAppData = value;
+               }
+        }
+        internal string hdrLocalAppDataNoLengthCheck
+        {
+           get {
+                   return _hdrLocalAppData;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _hdrLocalAppData = value;
                }
         }
         private string _hdrReactionSummary;
@@ -223,7 +287,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 16384) throw new Exception("Too long");
+                    if (value?.Length > 4096) throw new Exception("Too long");
+                  _hdrReactionSummary = value;
+               }
+        }
+        internal string hdrReactionSummaryNoLengthCheck
+        {
+           get {
+                   return _hdrReactionSummary;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _hdrReactionSummary = value;
                }
         }
@@ -240,6 +314,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _hdrServerData = value;
                }
         }
+        internal string hdrServerDataNoLengthCheck
+        {
+           get {
+                   return _hdrServerData;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _hdrServerData = value;
+               }
+        }
         private string _hdrTransferHistory;
         public string hdrTransferHistory
         {
@@ -249,6 +334,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 16384) throw new Exception("Too long");
+                  _hdrTransferHistory = value;
+               }
+        }
+        internal string hdrTransferHistoryNoLengthCheck
+        {
+           get {
+                   return _hdrTransferHistory;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _hdrTransferHistory = value;
                }
         }
@@ -262,6 +357,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 16384) throw new Exception("Too long");
+                  _hdrFileMetaData = value;
+               }
+        }
+        internal string hdrFileMetaDataNoLengthCheck
+        {
+           get {
+                   return _hdrFileMetaData;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _hdrFileMetaData = value;
                }
         }
@@ -352,6 +458,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"hdrEncryptedKeyHeader TEXT NOT NULL, "
                    +"hdrVersionTag BYTEA NOT NULL UNIQUE, "
                    +"hdrAppData TEXT NOT NULL, "
+                   +"hdrLocalVersionTag BYTEA , "
+                   +"hdrLocalAppData TEXT , "
                    +"hdrReactionSummary TEXT , "
                    +"hdrServerData TEXT NOT NULL, "
                    +"hdrTransferHistory TEXT , "
@@ -379,13 +487,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
             item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            item.hdrLocalVersionTag.AssertGuidNotEmpty("Guid parameter hdrLocalVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -444,29 +553,35 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam19.ParameterName = "@hdrAppData";
                 insertCommand.Parameters.Add(insertParam19);
                 var insertParam20 = insertCommand.CreateParameter();
-                insertParam20.ParameterName = "@hdrReactionSummary";
+                insertParam20.ParameterName = "@hdrLocalVersionTag";
                 insertCommand.Parameters.Add(insertParam20);
                 var insertParam21 = insertCommand.CreateParameter();
-                insertParam21.ParameterName = "@hdrServerData";
+                insertParam21.ParameterName = "@hdrLocalAppData";
                 insertCommand.Parameters.Add(insertParam21);
                 var insertParam22 = insertCommand.CreateParameter();
-                insertParam22.ParameterName = "@hdrTransferHistory";
+                insertParam22.ParameterName = "@hdrReactionSummary";
                 insertCommand.Parameters.Add(insertParam22);
                 var insertParam23 = insertCommand.CreateParameter();
-                insertParam23.ParameterName = "@hdrFileMetaData";
+                insertParam23.ParameterName = "@hdrServerData";
                 insertCommand.Parameters.Add(insertParam23);
                 var insertParam24 = insertCommand.CreateParameter();
-                insertParam24.ParameterName = "@hdrTmpDriveAlias";
+                insertParam24.ParameterName = "@hdrTransferHistory";
                 insertCommand.Parameters.Add(insertParam24);
                 var insertParam25 = insertCommand.CreateParameter();
-                insertParam25.ParameterName = "@hdrTmpDriveType";
+                insertParam25.ParameterName = "@hdrFileMetaData";
                 insertCommand.Parameters.Add(insertParam25);
                 var insertParam26 = insertCommand.CreateParameter();
-                insertParam26.ParameterName = "@created";
+                insertParam26.ParameterName = "@hdrTmpDriveAlias";
                 insertCommand.Parameters.Add(insertParam26);
                 var insertParam27 = insertCommand.CreateParameter();
-                insertParam27.ParameterName = "@modified";
+                insertParam27.ParameterName = "@hdrTmpDriveType";
                 insertCommand.Parameters.Add(insertParam27);
+                var insertParam28 = insertCommand.CreateParameter();
+                insertParam28.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam28);
+                var insertParam29 = insertCommand.CreateParameter();
+                insertParam29.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam29);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
@@ -486,16 +601,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam17.Value = item.hdrEncryptedKeyHeader;
                 insertParam18.Value = item.hdrVersionTag.ToByteArray();
                 insertParam19.Value = item.hdrAppData;
-                insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                insertParam21.Value = item.hdrServerData;
-                insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                insertParam23.Value = item.hdrFileMetaData;
-                insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                insertParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+                insertParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                insertParam23.Value = item.hdrServerData;
+                insertParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                insertParam25.Value = item.hdrFileMetaData;
+                insertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
+                insertParam27.Value = item.hdrTmpDriveType.ToByteArray();
                 var now = UnixTimeUtcUnique.Now();
-                insertParam26.Value = now.uniqueTime;
+                insertParam28.Value = now.uniqueTime;
                 item.modified = null;
-                insertParam27.Value = DBNull.Value;
+                insertParam29.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -514,13 +631,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
             item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            item.hdrLocalVersionTag.AssertGuidNotEmpty("Guid parameter hdrLocalVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified) " +
+                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -580,29 +698,35 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam19.ParameterName = "@hdrAppData";
                 insertCommand.Parameters.Add(insertParam19);
                 var insertParam20 = insertCommand.CreateParameter();
-                insertParam20.ParameterName = "@hdrReactionSummary";
+                insertParam20.ParameterName = "@hdrLocalVersionTag";
                 insertCommand.Parameters.Add(insertParam20);
                 var insertParam21 = insertCommand.CreateParameter();
-                insertParam21.ParameterName = "@hdrServerData";
+                insertParam21.ParameterName = "@hdrLocalAppData";
                 insertCommand.Parameters.Add(insertParam21);
                 var insertParam22 = insertCommand.CreateParameter();
-                insertParam22.ParameterName = "@hdrTransferHistory";
+                insertParam22.ParameterName = "@hdrReactionSummary";
                 insertCommand.Parameters.Add(insertParam22);
                 var insertParam23 = insertCommand.CreateParameter();
-                insertParam23.ParameterName = "@hdrFileMetaData";
+                insertParam23.ParameterName = "@hdrServerData";
                 insertCommand.Parameters.Add(insertParam23);
                 var insertParam24 = insertCommand.CreateParameter();
-                insertParam24.ParameterName = "@hdrTmpDriveAlias";
+                insertParam24.ParameterName = "@hdrTransferHistory";
                 insertCommand.Parameters.Add(insertParam24);
                 var insertParam25 = insertCommand.CreateParameter();
-                insertParam25.ParameterName = "@hdrTmpDriveType";
+                insertParam25.ParameterName = "@hdrFileMetaData";
                 insertCommand.Parameters.Add(insertParam25);
                 var insertParam26 = insertCommand.CreateParameter();
-                insertParam26.ParameterName = "@created";
+                insertParam26.ParameterName = "@hdrTmpDriveAlias";
                 insertCommand.Parameters.Add(insertParam26);
                 var insertParam27 = insertCommand.CreateParameter();
-                insertParam27.ParameterName = "@modified";
+                insertParam27.ParameterName = "@hdrTmpDriveType";
                 insertCommand.Parameters.Add(insertParam27);
+                var insertParam28 = insertCommand.CreateParameter();
+                insertParam28.ParameterName = "@created";
+                insertCommand.Parameters.Add(insertParam28);
+                var insertParam29 = insertCommand.CreateParameter();
+                insertParam29.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam29);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
@@ -622,16 +746,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam17.Value = item.hdrEncryptedKeyHeader;
                 insertParam18.Value = item.hdrVersionTag.ToByteArray();
                 insertParam19.Value = item.hdrAppData;
-                insertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                insertParam21.Value = item.hdrServerData;
-                insertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                insertParam23.Value = item.hdrFileMetaData;
-                insertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                insertParam25.Value = item.hdrTmpDriveType.ToByteArray();
+                insertParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                insertParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+                insertParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                insertParam23.Value = item.hdrServerData;
+                insertParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                insertParam25.Value = item.hdrFileMetaData;
+                insertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
+                insertParam27.Value = item.hdrTmpDriveType.ToByteArray();
                 var now = UnixTimeUtcUnique.Now();
-                insertParam26.Value = now.uniqueTime;
+                insertParam28.Value = now.uniqueTime;
                 item.modified = null;
-                insertParam27.Value = DBNull.Value;
+                insertParam29.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -650,15 +776,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
             item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            item.hdrLocalVersionTag.AssertGuidNotEmpty("Guid parameter hdrLocalVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
+                upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
+                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
-                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
+                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
                                              "RETURNING created, modified;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -718,29 +845,35 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam19.ParameterName = "@hdrAppData";
                 upsertCommand.Parameters.Add(upsertParam19);
                 var upsertParam20 = upsertCommand.CreateParameter();
-                upsertParam20.ParameterName = "@hdrReactionSummary";
+                upsertParam20.ParameterName = "@hdrLocalVersionTag";
                 upsertCommand.Parameters.Add(upsertParam20);
                 var upsertParam21 = upsertCommand.CreateParameter();
-                upsertParam21.ParameterName = "@hdrServerData";
+                upsertParam21.ParameterName = "@hdrLocalAppData";
                 upsertCommand.Parameters.Add(upsertParam21);
                 var upsertParam22 = upsertCommand.CreateParameter();
-                upsertParam22.ParameterName = "@hdrTransferHistory";
+                upsertParam22.ParameterName = "@hdrReactionSummary";
                 upsertCommand.Parameters.Add(upsertParam22);
                 var upsertParam23 = upsertCommand.CreateParameter();
-                upsertParam23.ParameterName = "@hdrFileMetaData";
+                upsertParam23.ParameterName = "@hdrServerData";
                 upsertCommand.Parameters.Add(upsertParam23);
                 var upsertParam24 = upsertCommand.CreateParameter();
-                upsertParam24.ParameterName = "@hdrTmpDriveAlias";
+                upsertParam24.ParameterName = "@hdrTransferHistory";
                 upsertCommand.Parameters.Add(upsertParam24);
                 var upsertParam25 = upsertCommand.CreateParameter();
-                upsertParam25.ParameterName = "@hdrTmpDriveType";
+                upsertParam25.ParameterName = "@hdrFileMetaData";
                 upsertCommand.Parameters.Add(upsertParam25);
                 var upsertParam26 = upsertCommand.CreateParameter();
-                upsertParam26.ParameterName = "@created";
+                upsertParam26.ParameterName = "@hdrTmpDriveAlias";
                 upsertCommand.Parameters.Add(upsertParam26);
                 var upsertParam27 = upsertCommand.CreateParameter();
-                upsertParam27.ParameterName = "@modified";
+                upsertParam27.ParameterName = "@hdrTmpDriveType";
                 upsertCommand.Parameters.Add(upsertParam27);
+                var upsertParam28 = upsertCommand.CreateParameter();
+                upsertParam28.ParameterName = "@created";
+                upsertCommand.Parameters.Add(upsertParam28);
+                var upsertParam29 = upsertCommand.CreateParameter();
+                upsertParam29.ParameterName = "@modified";
+                upsertCommand.Parameters.Add(upsertParam29);
                 var now = UnixTimeUtcUnique.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.driveId.ToByteArray();
@@ -761,14 +894,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam17.Value = item.hdrEncryptedKeyHeader;
                 upsertParam18.Value = item.hdrVersionTag.ToByteArray();
                 upsertParam19.Value = item.hdrAppData;
-                upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                upsertParam21.Value = item.hdrServerData;
-                upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                upsertParam23.Value = item.hdrFileMetaData;
-                upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
-                upsertParam26.Value = now.uniqueTime;
-                upsertParam27.Value = now.uniqueTime;
+                upsertParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                upsertParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+                upsertParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                upsertParam23.Value = item.hdrServerData;
+                upsertParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                upsertParam25.Value = item.hdrFileMetaData;
+                upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
+                upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
+                upsertParam28.Value = now.uniqueTime;
+                upsertParam29.Value = now.uniqueTime;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -794,13 +929,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
             item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
             item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            item.hdrLocalVersionTag.AssertGuidNotEmpty("Guid parameter hdrLocalVersionTag cannot be set to Empty GUID.");
             item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
             item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE driveMainIndex " +
-                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
+                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
                                              "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId)";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
@@ -860,29 +996,35 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam19.ParameterName = "@hdrAppData";
                 updateCommand.Parameters.Add(updateParam19);
                 var updateParam20 = updateCommand.CreateParameter();
-                updateParam20.ParameterName = "@hdrReactionSummary";
+                updateParam20.ParameterName = "@hdrLocalVersionTag";
                 updateCommand.Parameters.Add(updateParam20);
                 var updateParam21 = updateCommand.CreateParameter();
-                updateParam21.ParameterName = "@hdrServerData";
+                updateParam21.ParameterName = "@hdrLocalAppData";
                 updateCommand.Parameters.Add(updateParam21);
                 var updateParam22 = updateCommand.CreateParameter();
-                updateParam22.ParameterName = "@hdrTransferHistory";
+                updateParam22.ParameterName = "@hdrReactionSummary";
                 updateCommand.Parameters.Add(updateParam22);
                 var updateParam23 = updateCommand.CreateParameter();
-                updateParam23.ParameterName = "@hdrFileMetaData";
+                updateParam23.ParameterName = "@hdrServerData";
                 updateCommand.Parameters.Add(updateParam23);
                 var updateParam24 = updateCommand.CreateParameter();
-                updateParam24.ParameterName = "@hdrTmpDriveAlias";
+                updateParam24.ParameterName = "@hdrTransferHistory";
                 updateCommand.Parameters.Add(updateParam24);
                 var updateParam25 = updateCommand.CreateParameter();
-                updateParam25.ParameterName = "@hdrTmpDriveType";
+                updateParam25.ParameterName = "@hdrFileMetaData";
                 updateCommand.Parameters.Add(updateParam25);
                 var updateParam26 = updateCommand.CreateParameter();
-                updateParam26.ParameterName = "@created";
+                updateParam26.ParameterName = "@hdrTmpDriveAlias";
                 updateCommand.Parameters.Add(updateParam26);
                 var updateParam27 = updateCommand.CreateParameter();
-                updateParam27.ParameterName = "@modified";
+                updateParam27.ParameterName = "@hdrTmpDriveType";
                 updateCommand.Parameters.Add(updateParam27);
+                var updateParam28 = updateCommand.CreateParameter();
+                updateParam28.ParameterName = "@created";
+                updateCommand.Parameters.Add(updateParam28);
+                var updateParam29 = updateCommand.CreateParameter();
+                updateParam29.ParameterName = "@modified";
+                updateCommand.Parameters.Add(updateParam29);
                 var now = UnixTimeUtcUnique.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.driveId.ToByteArray();
@@ -903,14 +1045,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam17.Value = item.hdrEncryptedKeyHeader;
                 updateParam18.Value = item.hdrVersionTag.ToByteArray();
                 updateParam19.Value = item.hdrAppData;
-                updateParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-                updateParam21.Value = item.hdrServerData;
-                updateParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-                updateParam23.Value = item.hdrFileMetaData;
-                updateParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-                updateParam25.Value = item.hdrTmpDriveType.ToByteArray();
-                updateParam26.Value = now.uniqueTime;
-                updateParam27.Value = now.uniqueTime;
+                updateParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+                updateParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+                updateParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+                updateParam23.Value = item.hdrServerData;
+                updateParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+                updateParam25.Value = item.hdrFileMetaData;
+                updateParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
+                updateParam27.Value = item.hdrTmpDriveType.ToByteArray();
+                updateParam28.Value = now.uniqueTime;
+                updateParam29.Value = now.uniqueTime;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -935,7 +1079,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -957,6 +1101,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("hdrEncryptedKeyHeader");
             sl.Add("hdrVersionTag");
             sl.Add("hdrAppData");
+            sl.Add("hdrLocalVersionTag");
+            sl.Add("hdrLocalAppData");
             sl.Add("hdrReactionSummary");
             sl.Add("hdrServerData");
             sl.Add("hdrTransferHistory");
@@ -987,70 +1133,44 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
+        // SELECT identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
         protected DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveMainIndexRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.driveId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.fileId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.globalTransitId = rdr.IsDBNull(3) ? 
-                null : new Guid((byte[])rdr[3]);
-            item.fileState = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.requiredSecurityGroup = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.fileSystemType = rdr.IsDBNull(6) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.userDate = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.fileType = rdr.IsDBNull(8) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-            item.dataType = rdr.IsDBNull(9) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-            item.archivalStatus = rdr.IsDBNull(10) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
-            item.historyStatus = rdr.IsDBNull(11) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[11];
-            item.senderId = rdr.IsDBNull(12) ? 
-                null : (string)rdr[12];
-            item.groupId = rdr.IsDBNull(13) ? 
-                null : new Guid((byte[])rdr[13]);
-            item.uniqueId = rdr.IsDBNull(14) ? 
-                null : new Guid((byte[])rdr[14]);
-            item.byteCount = rdr.IsDBNull(15) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[15];
-            item.hdrEncryptedKeyHeader = rdr.IsDBNull(16) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
-            item.hdrVersionTag = rdr.IsDBNull(17) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[17]);
-            item.hdrAppData = rdr.IsDBNull(18) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
-            item.hdrReactionSummary = rdr.IsDBNull(19) ? 
-                null : (string)rdr[19];
-            item.hdrServerData = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
-            item.hdrTransferHistory = rdr.IsDBNull(21) ? 
-                null : (string)rdr[21];
-            item.hdrFileMetaData = rdr.IsDBNull(22) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
-            item.hdrTmpDriveAlias = rdr.IsDBNull(23) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
-            item.hdrTmpDriveType = rdr.IsDBNull(24) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
-            item.created = rdr.IsDBNull(25) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
-            item.modified = rdr.IsDBNull(26) ? 
-                null : new UnixTimeUtcUnique((long)rdr[26]);
+            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.fileId = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.globalTransitId = rdr.IsDBNull(3) ? null : new Guid((byte[])rdr[3]);
+            item.fileState = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.requiredSecurityGroup = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.fileSystemType = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.userDate = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.fileType = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.dataType = rdr.IsDBNull(9) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.archivalStatus = rdr.IsDBNull(10) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
+            item.historyStatus = rdr.IsDBNull(11) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[11];
+            item.senderIdNoLengthCheck = rdr.IsDBNull(12) ? null : (string)rdr[12];
+            item.groupId = rdr.IsDBNull(13) ? null : new Guid((byte[])rdr[13]);
+            item.uniqueId = rdr.IsDBNull(14) ? null : new Guid((byte[])rdr[14]);
+            item.byteCount = rdr.IsDBNull(15) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[15];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = rdr.IsDBNull(16) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrVersionTag = rdr.IsDBNull(17) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[17]);
+            item.hdrAppDataNoLengthCheck = rdr.IsDBNull(18) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
+            item.hdrLocalVersionTag = rdr.IsDBNull(19) ? null : new Guid((byte[])rdr[19]);
+            item.hdrLocalAppDataNoLengthCheck = rdr.IsDBNull(20) ? null : (string)rdr[20];
+            item.hdrReactionSummaryNoLengthCheck = rdr.IsDBNull(21) ? null : (string)rdr[21];
+            item.hdrServerDataNoLengthCheck = rdr.IsDBNull(22) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrTransferHistoryNoLengthCheck = rdr.IsDBNull(23) ? null : (string)rdr[23];
+            item.hdrFileMetaDataNoLengthCheck = rdr.IsDBNull(24) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[24];
+            item.hdrTmpDriveAlias = rdr.IsDBNull(25) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[25]);
+            item.hdrTmpDriveType = rdr.IsDBNull(26) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[26]);
+            item.created = rdr.IsDBNull(27) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[27]);
+            item.modified = rdr.IsDBNull(28) ? null : new UnixTimeUtcUnique((long)rdr[28]);
             return item;
        }
 
@@ -1082,7 +1202,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1091,78 +1210,32 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.uniqueId = uniqueId;
-
-            item.fileId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.globalTransitId = rdr.IsDBNull(1) ? 
-                null : new Guid((byte[])rdr[1]);
-
-            item.fileState = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-
-            item.requiredSecurityGroup = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-
-            item.fileSystemType = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-
-            item.userDate = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-
-            item.fileType = rdr.IsDBNull(6) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-
-            item.dataType = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-
-            item.archivalStatus = rdr.IsDBNull(8) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-
-            item.historyStatus = rdr.IsDBNull(9) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-
-            item.senderId = rdr.IsDBNull(10) ? 
-                null : (string)rdr[10];
-
-            item.groupId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
-
-            item.byteCount = rdr.IsDBNull(12) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
-
-            item.hdrEncryptedKeyHeader = rdr.IsDBNull(13) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-
-            item.hdrVersionTag = rdr.IsDBNull(14) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
-
-            item.hdrAppData = rdr.IsDBNull(15) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
-
-            item.hdrReactionSummary = rdr.IsDBNull(16) ? 
-                null : (string)rdr[16];
-
-            item.hdrServerData = rdr.IsDBNull(17) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
-
-            item.hdrTransferHistory = rdr.IsDBNull(18) ? 
-                null : (string)rdr[18];
-
-            item.hdrFileMetaData = rdr.IsDBNull(19) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
-
-            item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
-
-            item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
-
-            item.created = rdr.IsDBNull(22) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
-
-            item.modified = rdr.IsDBNull(23) ? 
-                null : new UnixTimeUtcUnique((long)rdr[23]);
+            item.fileId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.globalTransitId = rdr.IsDBNull(1) ? null : new Guid((byte[])rdr[1]);
+            item.fileState = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.requiredSecurityGroup = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.fileSystemType = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.userDate = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.fileType = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.dataType = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.archivalStatus = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.historyStatus = rdr.IsDBNull(9) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.senderIdNoLengthCheck = rdr.IsDBNull(10) ? null : (string)rdr[10];
+            item.groupId = rdr.IsDBNull(11) ? null : new Guid((byte[])rdr[11]);
+            item.byteCount = rdr.IsDBNull(12) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = rdr.IsDBNull(13) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.hdrVersionTag = rdr.IsDBNull(14) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
+            item.hdrAppDataNoLengthCheck = rdr.IsDBNull(15) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
+            item.hdrLocalVersionTag = rdr.IsDBNull(16) ? null : new Guid((byte[])rdr[16]);
+            item.hdrLocalAppDataNoLengthCheck = rdr.IsDBNull(17) ? null : (string)rdr[17];
+            item.hdrReactionSummaryNoLengthCheck = rdr.IsDBNull(18) ? null : (string)rdr[18];
+            item.hdrServerDataNoLengthCheck = rdr.IsDBNull(19) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
+            item.hdrTransferHistoryNoLengthCheck = rdr.IsDBNull(20) ? null : (string)rdr[20];
+            item.hdrFileMetaDataNoLengthCheck = rdr.IsDBNull(21) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
+            item.hdrTmpDriveAlias = rdr.IsDBNull(22) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
+            item.hdrTmpDriveType = rdr.IsDBNull(23) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.created = rdr.IsDBNull(24) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[24]);
+            item.modified = rdr.IsDBNull(25) ? null : new UnixTimeUtcUnique((long)rdr[25]);
             return item;
        }
 
@@ -1171,7 +1244,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get0Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
@@ -1203,7 +1276,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1212,78 +1284,32 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.globalTransitId = globalTransitId;
-
-            item.fileId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.fileState = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-
-            item.requiredSecurityGroup = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-
-            item.fileSystemType = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-
-            item.userDate = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-
-            item.fileType = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-
-            item.dataType = rdr.IsDBNull(6) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-
-            item.archivalStatus = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-
-            item.historyStatus = rdr.IsDBNull(8) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-
-            item.senderId = rdr.IsDBNull(9) ? 
-                null : (string)rdr[9];
-
-            item.groupId = rdr.IsDBNull(10) ? 
-                null : new Guid((byte[])rdr[10]);
-
-            item.uniqueId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
-
-            item.byteCount = rdr.IsDBNull(12) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
-
-            item.hdrEncryptedKeyHeader = rdr.IsDBNull(13) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-
-            item.hdrVersionTag = rdr.IsDBNull(14) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
-
-            item.hdrAppData = rdr.IsDBNull(15) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
-
-            item.hdrReactionSummary = rdr.IsDBNull(16) ? 
-                null : (string)rdr[16];
-
-            item.hdrServerData = rdr.IsDBNull(17) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
-
-            item.hdrTransferHistory = rdr.IsDBNull(18) ? 
-                null : (string)rdr[18];
-
-            item.hdrFileMetaData = rdr.IsDBNull(19) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
-
-            item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
-
-            item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
-
-            item.created = rdr.IsDBNull(22) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
-
-            item.modified = rdr.IsDBNull(23) ? 
-                null : new UnixTimeUtcUnique((long)rdr[23]);
+            item.fileId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.fileState = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.requiredSecurityGroup = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.fileSystemType = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.userDate = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.fileType = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.dataType = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.archivalStatus = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.historyStatus = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.senderIdNoLengthCheck = rdr.IsDBNull(9) ? null : (string)rdr[9];
+            item.groupId = rdr.IsDBNull(10) ? null : new Guid((byte[])rdr[10]);
+            item.uniqueId = rdr.IsDBNull(11) ? null : new Guid((byte[])rdr[11]);
+            item.byteCount = rdr.IsDBNull(12) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = rdr.IsDBNull(13) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.hdrVersionTag = rdr.IsDBNull(14) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
+            item.hdrAppDataNoLengthCheck = rdr.IsDBNull(15) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
+            item.hdrLocalVersionTag = rdr.IsDBNull(16) ? null : new Guid((byte[])rdr[16]);
+            item.hdrLocalAppDataNoLengthCheck = rdr.IsDBNull(17) ? null : (string)rdr[17];
+            item.hdrReactionSummaryNoLengthCheck = rdr.IsDBNull(18) ? null : (string)rdr[18];
+            item.hdrServerDataNoLengthCheck = rdr.IsDBNull(19) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
+            item.hdrTransferHistoryNoLengthCheck = rdr.IsDBNull(20) ? null : (string)rdr[20];
+            item.hdrFileMetaDataNoLengthCheck = rdr.IsDBNull(21) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
+            item.hdrTmpDriveAlias = rdr.IsDBNull(22) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
+            item.hdrTmpDriveType = rdr.IsDBNull(23) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.created = rdr.IsDBNull(24) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[24]);
+            item.modified = rdr.IsDBNull(25) ? null : new UnixTimeUtcUnique((long)rdr[25]);
             return item;
        }
 
@@ -1292,7 +1318,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get1Command.CommandText = "SELECT fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
@@ -1324,7 +1350,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1332,81 +1357,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new DriveMainIndexRecord();
             item.identityId = identityId;
             item.driveId = driveId;
-
-            item.fileId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.globalTransitId = rdr.IsDBNull(1) ? 
-                null : new Guid((byte[])rdr[1]);
-
-            item.fileState = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-
-            item.requiredSecurityGroup = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-
-            item.fileSystemType = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-
-            item.userDate = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-
-            item.fileType = rdr.IsDBNull(6) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-
-            item.dataType = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-
-            item.archivalStatus = rdr.IsDBNull(8) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-
-            item.historyStatus = rdr.IsDBNull(9) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-
-            item.senderId = rdr.IsDBNull(10) ? 
-                null : (string)rdr[10];
-
-            item.groupId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
-
-            item.uniqueId = rdr.IsDBNull(12) ? 
-                null : new Guid((byte[])rdr[12]);
-
-            item.byteCount = rdr.IsDBNull(13) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
-
-            item.hdrEncryptedKeyHeader = rdr.IsDBNull(14) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
-
-            item.hdrVersionTag = rdr.IsDBNull(15) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
-
-            item.hdrAppData = rdr.IsDBNull(16) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
-
-            item.hdrReactionSummary = rdr.IsDBNull(17) ? 
-                null : (string)rdr[17];
-
-            item.hdrServerData = rdr.IsDBNull(18) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
-
-            item.hdrTransferHistory = rdr.IsDBNull(19) ? 
-                null : (string)rdr[19];
-
-            item.hdrFileMetaData = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
-
-            item.hdrTmpDriveAlias = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
-
-            item.hdrTmpDriveType = rdr.IsDBNull(22) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
-
-            item.created = rdr.IsDBNull(23) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[23]);
-
-            item.modified = rdr.IsDBNull(24) ? 
-                null : new UnixTimeUtcUnique((long)rdr[24]);
+            item.fileId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.globalTransitId = rdr.IsDBNull(1) ? null : new Guid((byte[])rdr[1]);
+            item.fileState = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.requiredSecurityGroup = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.fileSystemType = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.userDate = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.fileType = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.dataType = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.archivalStatus = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.historyStatus = rdr.IsDBNull(9) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.senderIdNoLengthCheck = rdr.IsDBNull(10) ? null : (string)rdr[10];
+            item.groupId = rdr.IsDBNull(11) ? null : new Guid((byte[])rdr[11]);
+            item.uniqueId = rdr.IsDBNull(12) ? null : new Guid((byte[])rdr[12]);
+            item.byteCount = rdr.IsDBNull(13) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = rdr.IsDBNull(14) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.hdrVersionTag = rdr.IsDBNull(15) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
+            item.hdrAppDataNoLengthCheck = rdr.IsDBNull(16) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrLocalVersionTag = rdr.IsDBNull(17) ? null : new Guid((byte[])rdr[17]);
+            item.hdrLocalAppDataNoLengthCheck = rdr.IsDBNull(18) ? null : (string)rdr[18];
+            item.hdrReactionSummaryNoLengthCheck = rdr.IsDBNull(19) ? null : (string)rdr[19];
+            item.hdrServerDataNoLengthCheck = rdr.IsDBNull(20) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistoryNoLengthCheck = rdr.IsDBNull(21) ? null : (string)rdr[21];
+            item.hdrFileMetaDataNoLengthCheck = rdr.IsDBNull(22) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrTmpDriveAlias = rdr.IsDBNull(23) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.hdrTmpDriveType = rdr.IsDBNull(24) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+            item.created = rdr.IsDBNull(25) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
+            item.modified = rdr.IsDBNull(26) ? null : new UnixTimeUtcUnique((long)rdr[26]);
             return item;
        }
 
@@ -1415,7 +1392,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get2Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Param1.ParameterName = "@identityId";
@@ -1443,7 +1420,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
-            byte[] tmpbuf = new byte[65536+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -1452,78 +1428,32 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.fileId = fileId;
-
-            item.globalTransitId = rdr.IsDBNull(0) ? 
-                null : new Guid((byte[])rdr[0]);
-
-            item.fileState = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-
-            item.requiredSecurityGroup = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-
-            item.fileSystemType = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-
-            item.userDate = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-
-            item.fileType = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-
-            item.dataType = rdr.IsDBNull(6) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-
-            item.archivalStatus = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-
-            item.historyStatus = rdr.IsDBNull(8) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-
-            item.senderId = rdr.IsDBNull(9) ? 
-                null : (string)rdr[9];
-
-            item.groupId = rdr.IsDBNull(10) ? 
-                null : new Guid((byte[])rdr[10]);
-
-            item.uniqueId = rdr.IsDBNull(11) ? 
-                null : new Guid((byte[])rdr[11]);
-
-            item.byteCount = rdr.IsDBNull(12) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
-
-            item.hdrEncryptedKeyHeader = rdr.IsDBNull(13) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-
-            item.hdrVersionTag = rdr.IsDBNull(14) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
-
-            item.hdrAppData = rdr.IsDBNull(15) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
-
-            item.hdrReactionSummary = rdr.IsDBNull(16) ? 
-                null : (string)rdr[16];
-
-            item.hdrServerData = rdr.IsDBNull(17) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
-
-            item.hdrTransferHistory = rdr.IsDBNull(18) ? 
-                null : (string)rdr[18];
-
-            item.hdrFileMetaData = rdr.IsDBNull(19) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
-
-            item.hdrTmpDriveAlias = rdr.IsDBNull(20) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[20]);
-
-            item.hdrTmpDriveType = rdr.IsDBNull(21) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[21]);
-
-            item.created = rdr.IsDBNull(22) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[22]);
-
-            item.modified = rdr.IsDBNull(23) ? 
-                null : new UnixTimeUtcUnique((long)rdr[23]);
+            item.globalTransitId = rdr.IsDBNull(0) ? null : new Guid((byte[])rdr[0]);
+            item.fileState = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.requiredSecurityGroup = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.fileSystemType = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.userDate = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.fileType = rdr.IsDBNull(5) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.dataType = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.archivalStatus = rdr.IsDBNull(7) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.historyStatus = rdr.IsDBNull(8) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.senderIdNoLengthCheck = rdr.IsDBNull(9) ? null : (string)rdr[9];
+            item.groupId = rdr.IsDBNull(10) ? null : new Guid((byte[])rdr[10]);
+            item.uniqueId = rdr.IsDBNull(11) ? null : new Guid((byte[])rdr[11]);
+            item.byteCount = rdr.IsDBNull(12) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = rdr.IsDBNull(13) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.hdrVersionTag = rdr.IsDBNull(14) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
+            item.hdrAppDataNoLengthCheck = rdr.IsDBNull(15) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
+            item.hdrLocalVersionTag = rdr.IsDBNull(16) ? null : new Guid((byte[])rdr[16]);
+            item.hdrLocalAppDataNoLengthCheck = rdr.IsDBNull(17) ? null : (string)rdr[17];
+            item.hdrReactionSummaryNoLengthCheck = rdr.IsDBNull(18) ? null : (string)rdr[18];
+            item.hdrServerDataNoLengthCheck = rdr.IsDBNull(19) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
+            item.hdrTransferHistoryNoLengthCheck = rdr.IsDBNull(20) ? null : (string)rdr[20];
+            item.hdrFileMetaDataNoLengthCheck = rdr.IsDBNull(21) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
+            item.hdrTmpDriveAlias = rdr.IsDBNull(22) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
+            item.hdrTmpDriveType = rdr.IsDBNull(23) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.created = rdr.IsDBNull(24) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[24]);
+            item.modified = rdr.IsDBNull(25) ? null : new UnixTimeUtcUnique((long)rdr[25]);
             return item;
        }
 
@@ -1532,7 +1462,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
-                get3Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get3Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
                 var get3Param1 = get3Command.CreateParameter();
                 get3Param1.ParameterName = "@identityId";

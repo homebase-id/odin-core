@@ -20,6 +20,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
+using Odin.Hosting.Controllers.Base.Drive.Update;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -603,6 +604,38 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         }
     }
 
+    public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadataTags(UpdateLocalMetadataTagsRequest request,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var keyHeader = KeyHeader.NewRandom16();
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var driveSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+            ApiResponse<UpdateLocalMetadataResult> response = await driveSvc.UpdateLocalMetadataTags(request);
+
+            keyHeader.AesKey.Wipe();
+
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadataContent(UpdateLocalMetadataContentRequest request,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var keyHeader = KeyHeader.NewRandom16();
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var driveSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+            ApiResponse<UpdateLocalMetadataResult> response = await driveSvc.UpdateLocalMetadataContent(request);
+
+            keyHeader.AesKey.Wipe();
+
+            return response;
+        }
+    }
+
     public async Task<(ApiResponse<UploadPayloadResult> response, string encryptedMetadataContent64)> UpdateEncryptedFile(
         FileUpdateInstructionSet uploadInstructionSet,
         UploadFileMetadata fileMetadata,
@@ -687,7 +720,16 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var apiResponse = await svc.GetFileHeaderAsPost(file);
         return apiResponse;
     }
-
+    
+    public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(ExternalFileIdentifier file,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var apiResponse = await svc.GetTransferHistory(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+        return apiResponse;
+    }
+    
     public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -825,6 +867,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             {
                 throw new TimeoutException(
                     $"timeout occured while waiting for outbox to complete processing " +
+                    $"-- Did you enable AllowDistribution on your outgoing file? - " + 
                     $"(wait time: {maxWait.TotalSeconds}sec. " +
                     $"Total Items: {status.Outbox.TotalItems} " +
                     $"Checked Out {status.Outbox.CheckedOutCount})");

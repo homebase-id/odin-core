@@ -85,7 +85,6 @@ public static class IdentityExtensions
 
         // Abstractions
         cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
-
         return cb;
     }
     

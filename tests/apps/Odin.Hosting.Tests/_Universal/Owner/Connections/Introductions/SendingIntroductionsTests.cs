@@ -399,7 +399,6 @@ public class SendingIntroductionsTests
         await Cleanup();
     }
 
-
     [Test]
     public async Task CanAcceptConnectionRequestManually_AndRelatedIntroductionsAreDeleted()
     {

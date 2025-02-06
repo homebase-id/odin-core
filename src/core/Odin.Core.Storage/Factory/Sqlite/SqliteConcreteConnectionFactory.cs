@@ -13,7 +13,6 @@ internal static class SqliteConcreteConnectionFactory
 
     internal static async Task<DbConnection> CreateAsync(string connectionString)
     {
-        // SEB:TODO do we need explicit retry logic here?
         var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 

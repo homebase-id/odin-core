@@ -30,7 +30,7 @@ namespace Odin.Services.Peer.Encryption
         public AppNotificationOptions AppNotificationOptions { get; set; }
 
         public AccessControlList OriginalAcl { get; set; }
-
+        
         public bool IsValid()
         {
             if (null == this.SharedSecretEncryptedKeyHeader)

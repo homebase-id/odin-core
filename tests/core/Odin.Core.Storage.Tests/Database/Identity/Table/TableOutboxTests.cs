@@ -402,6 +402,95 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         }
 
 
+        // Make sure dependency works for GetNextTimeAsync
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task DependencyTestGetNextRun(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblOutbox = scope.Resolve<TableOutbox>();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var v2 = SequentialGuid.CreateGuid().ToByteArray();
+            var v3 = SequentialGuid.CreateGuid().ToByteArray();
+            var v4 = SequentialGuid.CreateGuid().ToByteArray();
+            var v5 = SequentialGuid.CreateGuid().ToByteArray();
+            var driveId = SequentialGuid.CreateGuid();
+
+            var t1 = UnixTimeUtc.Now();
+            var t2 = t1.milliseconds + 10;
+            var t3 = t1.milliseconds + 20;
+            var t4 = t1.milliseconds + 30;
+            var t5 = t1.milliseconds + 40;
+
+            await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", dependencyFileId = f3, priority = 0, value = v2, nextRunTime =  t2});
+            await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", dependencyFileId = null, priority = 0, value = v3, nextRunTime = t3 });
+            await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f4, recipient = "frodo.baggins.me", dependencyFileId = f2, priority = 0, value = v4, nextRunTime = t4 });
+            await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", dependencyFileId = f4, priority = 0, value = v5, nextRunTime = t5 });
+            await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", dependencyFileId = f5, priority = 0, value = v1, nextRunTime = t1 });
+
+            // f3 is the only non-dependent item, so we should get that
+            var nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == t3);
+
+            await Task.Delay(50); // Now all items are ready to be popped
+
+            // We'll get F3 first
+            var r = await tblOutbox.CheckOutItemAsync();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f3) == 0);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == null); // There are no items left, because f2 is popped and everything else is dependent
+            await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == t2); // f2 is the next item now that f3 is popped
+
+            // Get the next one, which is f2
+            r = await tblOutbox.CheckOutItemAsync();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f2) == 0);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == null);
+            await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == t4); // f4 is the next item now that f2 is popped
+
+            // Get the next one, which is f4
+            r = await tblOutbox.CheckOutItemAsync();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f4) == 0);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == null);
+            await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == t5); // f5 is the next item now that f4 is popped
+
+            // Get the next one, which is f5
+            r = await tblOutbox.CheckOutItemAsync();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f5) == 0);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == null);
+            await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == t1); // f1 is the last item now that f5 is popped
+
+            // Get the next one, which is f1
+            r = await tblOutbox.CheckOutItemAsync();
+            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f1) == 0);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == null);
+            await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
+            nrt = await tblOutbox.NextScheduledItemAsync();
+            Assert.IsTrue(nrt == null); // There are no more items
+        }
+
+
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS

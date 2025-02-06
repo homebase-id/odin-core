@@ -40,6 +40,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _key1 = value;
                }
         }
+        internal byte[] key1NoLengthCheck
+        {
+           get {
+                   return _key1;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                  _key1 = value;
+               }
+        }
         private byte[] _key2;
         public byte[] key2
         {
@@ -50,6 +61,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 256) throw new Exception("Too long");
+                  _key2 = value;
+               }
+        }
+        internal byte[] key2NoLengthCheck
+        {
+           get {
+                   return _key2;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _key2 = value;
                }
         }
@@ -66,6 +88,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _key3 = value;
                }
         }
+        internal byte[] key3NoLengthCheck
+        {
+           get {
+                   return _key3;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _key3 = value;
+               }
+        }
         private byte[] _data;
         public byte[] data
         {
@@ -75,6 +108,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 1048576) throw new Exception("Too long");
+                  _data = value;
+               }
+        }
+        internal byte[] dataNoLengthCheck
+        {
+           get {
+                   return _data;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _data = value;
                }
         }
@@ -288,7 +331,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -303,36 +346,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected KeyUniqueThreeValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyUniqueThreeValueRecord>();
-            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyUniqueThreeValueRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.key1 = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
-            if (item.key1?.Length > 48)
-                throw new Exception("Too much data in key1...");
+            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.key1NoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.key2 = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
-            if (item.key2?.Length > 256)
-                throw new Exception("Too much data in key2...");
+            item.key2NoLengthCheck = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.key3 = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
-            if (item.key3?.Length > 256)
-                throw new Exception("Too much data in key3...");
+            item.key3NoLengthCheck = rdr.IsDBNull(3) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.key3?.Length < 0)
                 throw new Exception("Too little data in key3...");
-            item.data = rdr.IsDBNull(4) ? 
-                null : (byte[])(rdr[4]);
-            if (item.data?.Length > 1048576)
-                throw new Exception("Too much data in data...");
+            item.dataNoLengthCheck = rdr.IsDBNull(4) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -404,8 +433,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         else
                         {
                             bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 1048576+1);
-                            if (bytesRead > 1048576)
-                                throw new Exception("Too much data in data...");
                             if (bytesRead < 0)
                                 throw new Exception("Too little data in data...");
                             result0tmp = new byte[bytesRead];
@@ -461,8 +488,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         else
                         {
                             bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 1048576+1);
-                            if (bytesRead > 1048576)
-                                throw new Exception("Too much data in data...");
                             if (bytesRead < 0)
                                 throw new Exception("Too little data in data...");
                             result0tmp = new byte[bytesRead];
@@ -487,7 +512,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key3?.Length < 0) throw new Exception("Too short");
             if (key3?.Length > 256) throw new Exception("Too long");
             var result = new List<KeyUniqueThreeValueRecord>();
-            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -496,18 +520,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key2 = key2;
             item.key3 = key3;
-
-            item.key1 = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.key1?.Length > 48)
-                throw new Exception("Too much data in key1...");
+            item.key1NoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-
-            item.data = rdr.IsDBNull(1) ? 
-                null : (byte[])(rdr[1]);
-            if (item.data?.Length > 1048576)
-                throw new Exception("Too much data in data...");
+            item.dataNoLengthCheck = rdr.IsDBNull(1) ? null : (byte[])(rdr[1]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -566,7 +582,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key1?.Length < 16) throw new Exception("Too short");
             if (key1?.Length > 48) throw new Exception("Too long");
             var result = new List<KeyUniqueThreeValueRecord>();
-            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -574,25 +589,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyUniqueThreeValueRecord();
             item.identityId = identityId;
             item.key1 = key1;
-
-            item.key2 = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
-            if (item.key2?.Length > 256)
-                throw new Exception("Too much data in key2...");
+            item.key2NoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-
-            item.key3 = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
-            if (item.key3?.Length > 256)
-                throw new Exception("Too much data in key3...");
+            item.key3NoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key3?.Length < 0)
                 throw new Exception("Too little data in key3...");
-
-            item.data = rdr.IsDBNull(2) ? 
-                null : (byte[])(rdr[2]);
-            if (item.data?.Length > 1048576)
-                throw new Exception("Too much data in data...");
+            item.dataNoLengthCheck = rdr.IsDBNull(2) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
