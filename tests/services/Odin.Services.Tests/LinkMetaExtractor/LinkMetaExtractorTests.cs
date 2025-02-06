@@ -93,7 +93,7 @@ public class LinkMetaExtractorTests
         Assert.IsNull(linkMeta.ImageUrl);
     }
 
-
+#if !CI_GITHUB
     [Test]
     public async Task TestTwitterUrl()
     {
@@ -107,6 +107,7 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Title);
         Assert.NotNull(ogp.Url);
     }
+    #endif
 
 #if !CI_GITHUB
     [Test]
@@ -175,7 +176,7 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Description);
         Assert.NotNull(ogp.Url);
     }
-
+#if !CI_GITHUB
     [Test]
     public async Task TestCloudFareBlockedURl()
     {
@@ -187,6 +188,7 @@ public class LinkMetaExtractorTests
         Assert.NotNull(ogp.Description);
         Assert.NotNull(ogp.Url);
     }
+    #endif
 
     [Test]
     public void TestError()
