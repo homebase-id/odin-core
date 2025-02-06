@@ -92,7 +92,7 @@ public class TableDriveReactions(
     /// <param name="identity"></param>
     /// <param name="postId"></param>
     /// <returns></returns>
-    public async Task<long> GetIdentityPostReactionsAsync(OdinId identity, Guid driveId, Guid postId)
+    public async Task<int> GetIdentityPostReactionsAsync(OdinId identity, Guid driveId, Guid postId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -123,7 +123,7 @@ public class TableDriveReactions(
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
             if (await rdr.ReadAsync())
-                return (long) rdr[0];
+                return (int)(long) rdr[0];
             else
                 return 0;
         }
