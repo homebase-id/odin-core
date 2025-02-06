@@ -14,6 +14,7 @@ using Odin.Core.Fluff;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -68,7 +69,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private readonly CircleNetworkVerificationService _verificationService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
-        private readonly SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> _outgoingIntroductionRequests;
+        private readonly ILevel2Cache<CircleNetworkRequestService> _cache;
 
         public CircleNetworkRequestService(
             CircleNetworkService cns,
@@ -86,7 +87,7 @@ namespace Odin.Services.Membership.Connections.Requests
             CircleNetworkVerificationService verificationService,
             OdinConfiguration odinConfiguration,
             TableKeyThreeValue tblKeyThreeValue,
-            SharedConcurrentDictionary<CircleNetworkRequestService, Guid, Guid> outgoingIntroductionRequests)
+            ILevel2Cache<CircleNetworkRequestService> cache)
             : base(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
         {
             _cns = cns;
@@ -103,7 +104,7 @@ namespace Odin.Services.Membership.Connections.Requests
             _verificationService = verificationService;
             _odinConfiguration = odinConfiguration;
             _tblKeyThreeValue = tblKeyThreeValue;
-            _outgoingIntroductionRequests = outgoingIntroductionRequests;
+            _cache = cache;
         }
 
         /// <summary>
@@ -250,7 +251,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinSecurityException("Identity is blocked");
             }
 
-            if (_outgoingIntroductionRequests.TryGetValue(sender, out var outgoingTimestamp))
+            var outgoingTimestamp = await _cache.TryGetAsync<Guid>(CacheKey(sender), cancellationToken);
+            if (outgoingTimestamp.HasValue)
             {
                 //who short first?  if mine was sent first
                 if (ByteArrayUtil.muidcmp(outgoingTimestamp, payload.TimestampId) == -1)
@@ -504,7 +506,7 @@ namespace Odin.Services.Membership.Connections.Requests
             //Assert that I previously sent a request to the identity attempting to connected with me
             if (null == originalRequest)
             {
-                if (_outgoingIntroductionRequests.ContainsKey(caller))
+                if (await _cache.ContainsAsync(CacheKey(caller)))
                 {
                     // db record is not yet written.
                 }
@@ -831,7 +833,7 @@ namespace Odin.Services.Membership.Connections.Requests
 
             //TODO: scalability - _outgoingIntroductionRequests needs to work across servers
             var timestamp = SequentialGuid.CreateGuid();
-            _outgoingIntroductionRequests[recipient] = timestamp;
+            await _cache.SetAsync(CacheKey(recipient), timestamp, TimeSpan.FromHours(1));
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -888,7 +890,7 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             finally
             {
-                _outgoingIntroductionRequests.TryRemove(recipient, out _);
+                await _cache.RemoveAsync(CacheKey(recipient));
             }
 
             keyStoreKey.Wipe();
@@ -1019,6 +1021,11 @@ namespace Odin.Services.Membership.Connections.Requests
             return origin == ConnectionRequestOrigin.Introduction
                 ? PublicPrivateKeyType.OfflineKey
                 : PublicPrivateKeyType.OnlineIcrEncryptedKey;
+        }
+
+        private static string CacheKey(Guid uuid)
+        {
+            return "OutgoingIntroductionRequests:" + uuid;
         }
     }
 }

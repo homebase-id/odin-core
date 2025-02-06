@@ -1,75 +1,83 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Caching.Memory;
-using Odin.Core.Cache;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
 public class TableKeyValueCache(
-    IGenericMemoryCache<TableKeyValueCache> cache,
+    ILevel1Cache<TableKeyValueCache> cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     TableKeyValue table)
 {
-    public void Clear()
+    public async Task ClearAsync()
     {
-        cache.Clear();
+        await cache.RemoveByTagAsync(CacheTag);
     }
 
-    public void Clear(byte[] key)
+    //
+
+    public async Task ClearAsync(byte[] key)
     {
-        cache.Remove(key);
+        var hexKey = CacheKey(key);
+        await cache.RemoveAsync(hexKey);
     }
 
-    public async Task<KeyValueRecord?> GetAsync(byte[] key, MemoryCacheEntryOptions options)
+    //
+
+    public async Task<KeyValueRecord?> GetAsync(byte[] key, TimeSpan duration)
     {
         NoTransactionCheck();
 
-        if (cache.TryGet<KeyValueRecord?>(key, out var record))
-        {
-            cache.Set(key, record, options);
-            return record;
-        }
+        var hexKey = CacheKey(key);
+        var record = await cache.GetOrSetAsync<KeyValueRecord?>(
+            hexKey,
+            _ => table.GetAsync(key),
+            duration,
+            CacheTag
+        );
 
-        record = await table.GetAsync(key);
-        cache.Set(key, record, options);
         return record;
     }
 
     //
 
-    public async Task<int> InsertAsync(KeyValueRecord record, MemoryCacheEntryOptions options)
+    public async Task<int> InsertAsync(KeyValueRecord record, TimeSpan duration)
     {
         NoTransactionCheck();
 
         var affectedRows = await table.InsertAsync(record);
-        cache.Set(record.key, record, options);
+        var hexKey = CacheKey(record.key);
+        await cache.SetAsync(hexKey, record, duration, CacheTag);
 
         return affectedRows;
     }
 
     //
 
-    public async Task<int> UpdateAsync(KeyValueRecord record, MemoryCacheEntryOptions options)
+    public async Task<int> UpdateAsync(KeyValueRecord record, TimeSpan duration)
     {
         NoTransactionCheck();
 
         var affectedRows = await table.UpdateAsync(record);
-        cache.Set(record.key, record, options);
+        var hexKey = CacheKey(record.key);
+        await cache.SetAsync(hexKey, record, duration, CacheTag);
 
         return affectedRows;
     }
 
     //
 
-    public async Task<int> UpsertAsync(KeyValueRecord record, MemoryCacheEntryOptions options)
+    public async Task<int> UpsertAsync(KeyValueRecord record, TimeSpan duration)
     {
         NoTransactionCheck();
 
         var affectedRows = await table.UpsertAsync(record);
-        cache.Set(record.key, record, options);
+        var hexKey = CacheKey(record.key);
+        await cache.SetAsync(hexKey, record, duration, CacheTag);
 
         return affectedRows;
     }
@@ -81,10 +89,17 @@ public class TableKeyValueCache(
         NoTransactionCheck();
 
         var affectedRows = await table.DeleteAsync(key);
-        cache.Remove(key);
+
+        var hexKey = CacheKey(key);
+        await cache.RemoveAsync(hexKey);
 
         return affectedRows;
     }
+
+    //
+
+    public static string CacheKey(byte[] key) => key.ToHexString();
+    private List<string> CacheTag => [GetType().Name];
 
     //
 
@@ -97,4 +112,5 @@ public class TableKeyValueCache(
     }
 
     //
+
 }
