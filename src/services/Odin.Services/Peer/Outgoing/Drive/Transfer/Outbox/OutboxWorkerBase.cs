@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -122,7 +121,6 @@ public abstract class OutboxWorkerBase(
         ServerFileHeader header,
         bool includePayloads,
         IOdinContext odinContext,
-        
         Guid? overrideGlobalTransitId = null
     )
     {
@@ -224,6 +222,13 @@ public abstract class OutboxWorkerBase(
     {
         int baseDelaySeconds = 10;
 
+        if (attemptNumber < 1)
+        {
+            logger.LogDebug("ERR Hi Seb, sorry to wake you but we needed to know if " +
+                            "this was occurring but didnt want to break the system :D <3");
+            attemptNumber = 1;
+        }
+        
         if (attemptNumber <= 5)
         {
             return (int)(baseDelaySeconds * attemptNumber);

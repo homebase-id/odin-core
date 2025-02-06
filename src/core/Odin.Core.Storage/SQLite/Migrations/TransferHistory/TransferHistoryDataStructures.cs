@@ -1,15 +1,17 @@
 using System;
+using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 
-namespace Odin.Services.Drives.DriveCore.Storage;
+namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
 
-public class RecipientTransferHistory
+internal class RecipientTransferHistoryForMigration
 {
-    public TransferHistorySummary Summary { get; init; }
+    public TransferHistorySummaryForMigration Summary { get; init; }
 }
 
-public class TransferHistorySummary
+
+internal class TransferHistorySummaryForMigration
 {
     public int TotalInOutbox { get; set; }
     public int TotalFailed { get; set; }
@@ -17,16 +19,22 @@ public class TransferHistorySummary
     public int TotalReadByRecipient { get; set; }
 }
 
-public class RecipientTransferHistoryItem
+internal class RecipientTransferHistoryForMigrationOld
+{
+    public Dictionary<string, RecipientTransferHistoryItemForMigration> Recipients { get; set; } =
+        new(StringComparer.InvariantCultureIgnoreCase);
+}
+
+internal class RecipientTransferHistoryItemForMigration
 {
     public OdinId Recipient { get; init; }
-    
+
     public UnixTimeUtc LastUpdated { get; set; }
 
     /// <summary>
     /// Indicates the latest known status of a transfer as of the LastUpdated timestmp.  If null
     /// </summary>
-    public LatestTransferStatus LatestTransferStatus { get; set; }
+    public LatestTransferStatusForMigration LatestTransferStatus { get; set; }
 
     /// <summary>
     /// Indicates if the item is still in the outbox and attempting to be sent
@@ -44,7 +52,7 @@ public class RecipientTransferHistoryItem
     public bool IsReadByRecipient { get; set; }
 }
 
-public enum LatestTransferStatus
+public enum LatestTransferStatusForMigration
 {
     /// <summary>
     /// No value specified

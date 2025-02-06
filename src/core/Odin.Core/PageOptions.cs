@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 using MessagePack;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core
 {
@@ -19,12 +20,12 @@ namespace Odin.Core
         {
             if (pageSize < 1)
             {
-                throw new Exception("Page size must be more than 1");
+                throw new OdinClientException("Page size must be more than 1");
             }
 
             if (pageNumber < 1)
             {
-                throw new Exception("Page Number must be greater than 0");
+                throw new OdinClientException("Page Number must be greater than 0");
             }
 
             PageNumber = pageNumber;
