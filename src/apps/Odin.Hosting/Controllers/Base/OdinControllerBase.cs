@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Base;
@@ -13,7 +14,6 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.Middleware;
 using Odin.Services.Configuration.VersionUpgrade;
 
 namespace Odin.Hosting.Controllers.Base;
@@ -34,9 +34,18 @@ public abstract class OdinControllerBase : ControllerBase
     protected async Task AddUpgradeRequiredHeaderAsync()
     {
         var scheduler = this.HttpContext.RequestServices.GetRequiredService<VersionUpgradeScheduler>();
-        var (upgradeRequired, _) = await scheduler.RequiresUpgradeAsync();
+        var (upgradeRequired, tenantVersion, failureInfo) = await scheduler.RequiresUpgradeAsync();
         if (upgradeRequired)
         {
+            var logger = HttpContext.RequestServices.GetRequiredService<ILogger<OdinControllerBase>>();
+            logger.LogDebug("Upgrade test indicated that upgrade is required.  " +
+                            "It will be scheduled only when you are running as owner " +
+                            "Tenant is on v{cv} while release version is v{rv} " +
+                            "(previously failed build version: {failure})",
+                tenantVersion,
+                Odin.Services.Version.DataVersionNumber,
+                failureInfo?.BuildVersion ?? "none");
+
             VersionUpgradeScheduler.SetRequiresUpgradeResponse(HttpContext);
         }
     }
