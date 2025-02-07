@@ -346,17 +346,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyThreeValueRecord();
-            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.key1NoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.key2NoLengthCheck = rdr.IsDBNull(2) ? null : (byte[])(rdr[2]);
+            item.key2NoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.key3NoLengthCheck = rdr.IsDBNull(3) ? null : (byte[])(rdr[3]);
+            item.key3NoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.key3?.Length < 0)
                 throw new Exception("Too little data in key3...");
-            item.dataNoLengthCheck = rdr.IsDBNull(4) ? null : (byte[])(rdr[4]);
+            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -415,22 +415,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[1048576+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
                     var guid = new byte[16];
                     while (true)
                     {
 
-                        if (rdr.IsDBNull(0))
+                        if (rdr[0] == DBNull.Value)
                             result0tmp = null;
                         else
                         {
-                            bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 1048576+1);
-                            if (bytesRead < 0)
+                            tmpbuf = (byte[]) rdr[0];
+                            if (tmpbuf.Length < 0)
                                 throw new Exception("Too little data in data...");
-                            result0tmp = new byte[bytesRead];
-                            Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) bytesRead);
+                            result0tmp = new byte[tmpbuf.Length];
+                            Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) tmpbuf.Length);
                         }
                         thelistresult.Add(result0tmp);
                         if (!await rdr.ReadAsync())
@@ -469,22 +466,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[1048576+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
                     var guid = new byte[16];
                     while (true)
                     {
 
-                        if (rdr.IsDBNull(0))
+                        if (rdr[0] == DBNull.Value)
                             result0tmp = null;
                         else
                         {
-                            bytesRead = rdr.GetBytes(0, 0, tmpbuf, 0, 1048576+1);
-                            if (bytesRead < 0)
+                            tmpbuf = (byte[]) rdr[0];
+                            if (tmpbuf.Length < 0)
                                 throw new Exception("Too little data in data...");
-                            result0tmp = new byte[bytesRead];
-                            Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) bytesRead);
+                            result0tmp = new byte[tmpbuf.Length];
+                            Buffer.BlockCopy(tmpbuf, 0, result0tmp, 0, (int) tmpbuf.Length);
                         }
                         thelistresult.Add(result0tmp);
                         if (!await rdr.ReadAsync())
@@ -511,10 +505,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key2 = key2;
             item.key3 = key3;
-            item.key1NoLengthCheck = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.key1NoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.dataNoLengthCheck = rdr.IsDBNull(1) ? null : (byte[])(rdr[1]);
+            item.dataNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -578,13 +572,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyThreeValueRecord();
             item.identityId = identityId;
             item.key1 = key1;
-            item.key2NoLengthCheck = rdr.IsDBNull(0) ? null : (byte[])(rdr[0]);
+            item.key2NoLengthCheck = (rdr[0] == DBNull.Value) ? null : (byte[])(rdr[0]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.key3NoLengthCheck = rdr.IsDBNull(1) ? null : (byte[])(rdr[1]);
+            item.key3NoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
             if (item.key3?.Length < 0)
                 throw new Exception("Too little data in key3...");
-            item.dataNoLengthCheck = rdr.IsDBNull(2) ? null : (byte[])(rdr[2]);
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

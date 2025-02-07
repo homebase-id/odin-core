@@ -123,8 +123,8 @@ public class TableInbox(
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
             int totalCount = 0;
-            if (!rdr.IsDBNull(0))
-                totalCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                totalCount = (int)(Int64) rdr[0];
 
             // Read the popped count
             if (await rdr.NextResultAsync() == false)
@@ -133,8 +133,8 @@ public class TableInbox(
                 throw new Exception("Not possible");
 
             int poppedCount = 0;
-            if (!rdr.IsDBNull(0))
-                poppedCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                poppedCount = (int)(Int64) rdr[0];
 
             if (await rdr.NextResultAsync() == false)
                 throw new Exception("Not possible");
@@ -142,11 +142,10 @@ public class TableInbox(
             var utc = UnixTimeUtc.ZeroTime;
             if (await rdr.ReadAsync())
             {
-                if (!rdr.IsDBNull(0))
+                if (!(rdr[0] == DBNull.Value))
                 {
-                    var bytes = new byte[16];
-                    var n = rdr.GetBytes(0, 0, bytes, 0, 16);
-                    if (n != 16)
+                    var bytes = (byte[]) rdr[0];
+                    if (bytes.Length != 16)
                         throw new Exception("Invalid stamp");
 
                     var guid = new Guid(bytes);
@@ -192,8 +191,8 @@ public class TableInbox(
                 throw new Exception("Not possible");
 
             int totalCount = 0;
-            if (!rdr.IsDBNull(0))
-                totalCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                totalCount = (int)(Int64) rdr[0];
 
             // Read the popped count
             if (await rdr.NextResultAsync() == false)
@@ -202,8 +201,8 @@ public class TableInbox(
                 throw new Exception("Not possible");
 
             int poppedCount = 0;
-            if (!rdr.IsDBNull(0))
-                poppedCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                poppedCount = (int)(Int64) rdr[0];
 
             if (await rdr.NextResultAsync() == false)
                 throw new Exception("Not possible");
@@ -213,11 +212,10 @@ public class TableInbox(
             // Read the marker, if any
             if (await rdr.ReadAsync())
             {
-                if (!rdr.IsDBNull(0))
+                if (!(rdr[0] == DBNull.Value))
                 {
-                    var bytes = new byte[16];
-                    var n = rdr.GetBytes(0, 0, bytes, 0, 16);
-                    if (n != 16)
+                    var bytes = (byte[]) rdr[0];
+                    if (bytes.Length != 16)
                         throw new Exception("Invalid stamp");
 
                     var guid = new Guid(bytes);

@@ -168,10 +168,10 @@ public class TableOutbox(
             // Read the total count
             if (await rdr.ReadAsync() == false)
                 return null;
-            if (rdr.IsDBNull(0))
+            if ((rdr[0] == DBNull.Value))
                 throw new Exception("Not possible");
 
-            long nextRunTime = rdr.GetInt64(0);
+            long nextRunTime = (Int64) rdr[0];
             return new UnixTimeUtc(nextRunTime);
         }
     }
@@ -295,8 +295,8 @@ public class TableOutbox(
                 throw new Exception("Not possible");
 
             int totalCount = 0;
-            if (!rdr.IsDBNull(0))
-                totalCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                totalCount = (int)(Int64) rdr[0];
 
             // Read the popped count
             if (await rdr.NextResultAsync() == false)
@@ -305,8 +305,8 @@ public class TableOutbox(
                 throw new Exception("Not possible");
 
             int poppedCount = 0;
-            if (!rdr.IsDBNull(0))
-                poppedCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                poppedCount = (int)(Int64) rdr[0];
 
             if (await rdr.NextResultAsync() == false)
                 throw new Exception("Not possible");
@@ -315,9 +315,9 @@ public class TableOutbox(
             if (await rdr.ReadAsync())
             {
                 // Read the marker, if any
-                if (!rdr.IsDBNull(0))
+                if (!(rdr[0] == DBNull.Value))
                 {
-                    Int64 t = rdr.GetInt64(0);
+                    Int64 t = (Int64) rdr[0];
                     utc = new UnixTimeUtc(t);
                 }
             }
@@ -362,8 +362,8 @@ public class TableOutbox(
                 throw new Exception("Not possible");
 
             int totalCount = 0;
-            if (!rdr.IsDBNull(0))
-                totalCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                totalCount = (int)(Int64) rdr[0];
 
             // Read the popped count
             if (await rdr.NextResultAsync() == false)
@@ -372,8 +372,8 @@ public class TableOutbox(
                 throw new Exception("Not possible");
 
             int poppedCount = 0;
-            if (!rdr.IsDBNull(0))
-                poppedCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                poppedCount = (int)(Int64) rdr[0];
 
             if (await rdr.NextResultAsync() == false)
                 throw new Exception("Not possible");
@@ -382,9 +382,9 @@ public class TableOutbox(
             if (await rdr.ReadAsync())
             {
                 // Read the marker, if any
-                if (!rdr.IsDBNull(0))
+                if (!(rdr[0] == DBNull.Value))
                 {
-                    Int64 t = rdr.GetInt64(0);
+                    Int64 t = (Int64) rdr[0];
                     utc = new UnixTimeUtc(t);
                 }
             }

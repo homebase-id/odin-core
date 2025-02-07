@@ -39,7 +39,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblDriveReactions.InsertAsync(new DriveReactionsRecord { identityId = identityKey, driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p1, singleReaction = ":lol:" });
             await tblDriveReactions.InsertAsync(new DriveReactionsRecord { identityId = identityKey, driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p1, singleReaction = ":smiley:" });
 
-            int n = await tblDriveReactions.GetIdentityPostReactionsAsync(new OdinId("frodo.baggins.me"), driveId, p1);
+            var n = await tblDriveReactions.GetIdentityPostReactionsAsync(new OdinId("frodo.baggins.me"), driveId, p1);
             Assert.IsTrue(n == 2); // Frodo made 2 reactions to post P1
 
             // Added: 3 lol, 2 wink, 1 smiley to post 'p1'
@@ -242,7 +242,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblDriveReactions.DeleteAllReactionsAsync(driveId, new OdinId("frodo.baggins.me"), k1);
             await tblDriveReactions.InsertAsync(new DriveReactionsRecord { identityId = identityKey, driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
             await tblDriveReactions.InsertAsync(new DriveReactionsRecord { identityId = identityKey, driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
-            int n = await tblDriveReactions.GetIdentityPostReactionsAsync(new OdinId("frodo.baggins.me"), driveId, k1);
+            var n = await tblDriveReactions.GetIdentityPostReactionsAsync(new OdinId("frodo.baggins.me"), driveId, k1);
             Assert.IsTrue(n == 2);
         }
 
