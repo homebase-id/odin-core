@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Authorization.Apps;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Security
@@ -23,8 +22,9 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
         [HttpGet("verifytoken")]
         [SwaggerResponse((int)HttpStatusCode.OK, "Returned when ClientAuthToken is valid")]
         [SwaggerResponse((int)HttpStatusCode.Forbidden, "Returned when ClientAuthToken is not valid, expired, or revoked")]
-        public ActionResult VerifyToken()
+        public async Task<ActionResult> VerifyToken()
         {
+            await base.AddUpgradeRequiredHeaderAsync();
             return Ok(true);
         }
 
