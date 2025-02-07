@@ -80,7 +80,7 @@ public class SendFileOutboxWorkerAsync(
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;
-
+        
         if (header.ServerMetadata.AllowDistribution == false)
         {
             throw new OdinOutboxProcessingException("File does not allow distribution")
@@ -184,10 +184,10 @@ public class SendFileOutboxWorkerAsync(
 
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
 
-        logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.  Next Run Time {nrt}", e.File,
+        logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.  Next Run Time {nrt} sec", e.File,
             e.TransferStatus,
-            nextRunTime.milliseconds);
-
+            nextRunTime.AddMilliseconds(UnixTimeUtc.Now().milliseconds * -1).seconds);
+        
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
         await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
 
