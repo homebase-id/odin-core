@@ -295,7 +295,11 @@ public class TableDriveMainIndex(
         await using var sizeCommand = cn.CreateCommand();
 
         sizeCommand.CommandText =
-            $"SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=@identityId AND driveid=@driveId;";
+            """
+            SELECT count(*), CAST(COALESCE(SUM(byteCount), 0) AS BIGINT)
+            FROM drivemainindex
+            WHERE identityId=@identityId AND driveid=@driveId;
+            """;
 
         var sparam1 = sizeCommand.CreateParameter();
         sparam1.ParameterName = "@driveId";
@@ -313,7 +317,7 @@ public class TableDriveMainIndex(
             if (await rdr.ReadAsync())
             {
                 var count = (rdr[0] == DBNull.Value) ? 0 : (Int64) rdr[0];
-                var size = (rdr[1] == DBNull.Value) ? 0 : (Int64) rdr[1];
+                var size = (rdr[1] == DBNull.Value) ? 0 : (Int64)rdr[1];
                 return (count, size);
             }
         }
