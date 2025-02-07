@@ -148,7 +148,7 @@ public class SendFileOutboxWorkerAsync(
             var e = ex.InnerException;
 
             logger.LogDebug(e, "Failed while sending file from outbox. Message {e}", e.Message);
-            
+
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
                 : LatestTransferStatus.UnknownServerError;
@@ -167,7 +167,6 @@ public class SendFileOutboxWorkerAsync(
     protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
-        logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
 
         var update = new UpdateTransferHistoryData()
         {
@@ -177,6 +176,11 @@ public class SendFileOutboxWorkerAsync(
         };
         
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
+        
+        logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.  Next Run Time {nrt}", e.File,
+            e.TransferStatus,
+            nextRunTime.milliseconds);
+
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
         await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
 

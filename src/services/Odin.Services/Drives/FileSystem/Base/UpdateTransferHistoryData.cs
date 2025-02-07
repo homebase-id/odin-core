@@ -12,4 +12,10 @@ public class UpdateTransferHistoryData
     public bool? IsInOutbox { get; set; }
 
     public bool? IsReadByRecipient { get; set; }
+
+
+    public string ToDebug()
+    {
+        return $"LatestTransferStatus: {LatestTransferStatus} VersionTag: {VersionTag} IsInOutbox: {IsInOutbox} IsReadByRecipient: {IsReadByRecipient}";
+    }
 }

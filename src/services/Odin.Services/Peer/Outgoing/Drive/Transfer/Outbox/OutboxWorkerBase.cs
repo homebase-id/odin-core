@@ -45,11 +45,12 @@ public abstract class OutboxWorkerBase(
     }
 
     protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext,
-        
         OdinOutboxProcessingException e)
     {
-        logger.LogDebug(e, "Failed to process outbox item for recipient: {recipient} " +
+        // changed to real error while we are debugging the transfer history locking issue
+        logger.LogError(e, "Failed to process outbox item (type: {type}) for recipient: {recipient} " +
                            "with globalTransitId:{gtid}.  Transfer status was {transferStatus}",
+            FileItem.Type,
             e.Recipient,
             e.GlobalTransitId,
             e.TransferStatus);
@@ -224,11 +225,9 @@ public abstract class OutboxWorkerBase(
 
         if (attemptNumber < 1)
         {
-            logger.LogDebug("ERR Hi Seb, sorry to wake you but we needed to know if " +
-                            "this was occurring but didnt want to break the system :D <3");
             attemptNumber = 1;
         }
-        
+
         if (attemptNumber <= 5)
         {
             return (int)(baseDelaySeconds * attemptNumber);
