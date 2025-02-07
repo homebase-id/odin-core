@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -21,7 +20,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
         /// </summary>
-        protected async Task<UploadResult> ReceiveFileStream(DatabaseConnection cn)
+        protected async Task<UploadResult> ReceiveFileStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -37,7 +36,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             AssertIsPart(section, MultipartUploadParts.Instructions);
             try
             {
-                await driveUploadService.StartUpload(section!.Body, WebOdinContext, cn);
+                await driveUploadService.StartUpload(section!.Body, WebOdinContext);
             }
             catch (JsonException e)
             {
@@ -46,7 +45,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await driveUploadService.AddMetadata(section!.Body, WebOdinContext, cn);
+            await driveUploadService.AddMetadata(section!.Body, WebOdinContext);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -55,26 +54,26 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultiPartSection);
-                    await driveUploadService.AddPayload(payloadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await driveUploadService.AddPayload(payloadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultiPartSection);
-                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await driveUploadService.AddThumbnail(thumbnailUploadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await driveUploadService.FinalizeUpload(WebOdinContext, cn);
+            var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext);
             return status;
         }
 
         /// <summary>
         /// Receives the stream for a new thumbnail being added to an existing file
         /// </summary>
-        protected async Task<UploadPayloadResult> ReceivePayloadStream(DatabaseConnection cn)
+        protected async Task<UploadPayloadResult> ReceivePayloadStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -89,7 +88,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);
 
-            await writer.StartUpload(section!.Body, WebOdinContext, cn);
+            await writer.StartUpload(section!.Body, WebOdinContext);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -98,19 +97,19 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentType);
-                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    await writer.AddPayload(payloadKey, contentType, fileSection.FileStream, WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentType);
-                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext, cn);
+                    await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await writer.FinalizeUpload(WebOdinContext, cn);
+            var status = await writer.FinalizeUpload(WebOdinContext);
             return status;
         }
 
@@ -122,6 +121,16 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
         }
 
+        private protected bool IsMetadataPart(MultipartSection section)
+        {
+            if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
+            {
+                throw new OdinClientException("Section does not match a known MultipartSection", OdinClientErrorCode.InvalidUpload);
+            }
+
+            return part == MultipartUploadParts.Metadata;
+        }
+        
         private protected bool IsPayloadPart(MultipartSection section)
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part))
@@ -152,17 +161,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
 
             fileSection = section.AsFileSection();
-
             contentTypeFromMultiPartSection = section.ContentType;
-            // Todd - removed constraint so we can set the content type explicitly in the manifest
-            // if (string.IsNullOrEmpty(contentType) || string.IsNullOrWhiteSpace(contentType))
-            // {
-            //     throw new OdinClientException(
-            //         "Payloads must include a valid contentType in the multi-part upload.",
-            //         OdinClientErrorCode.InvalidPayload);
-            // }
 
-            fileSection = section.AsFileSection();
             DriveFileUtility.AssertValidPayloadKey(fileSection?.FileName);
             payloadKey = fileSection?.FileName;
         }
@@ -183,16 +183,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     OdinClientErrorCode.InvalidThumnbnailName);
             }
 
-            fileSection = section.AsFileSection();
-
             contentTypeFromMultiPartSection = section.ContentType;
-            // Todd - removed constraint so we can set the content type explicitly in the manifest
-            // if (string.IsNullOrEmpty(contentTypeFromMultiPartSection) || string.IsNullOrWhiteSpace(contentTypeFromMultiPartSection))
-            // {
-            //     throw new OdinClientException(
-            //         "Thumbnails must include a valid contentType in the multi-part upload.",
-            //         OdinClientErrorCode.InvalidThumnbnailName);
-            // }
 
             thumbnailUploadKey = fileSection?.FileName;
             if (string.IsNullOrEmpty(thumbnailUploadKey) || string.IsNullOrWhiteSpace(thumbnailUploadKey))

@@ -14,12 +14,12 @@ namespace Odin.KeyChainTests
         }
 
         [Test]
-        public void Test1()
+        public async Task Test1()
         {
-            using var db = new NotaryDatabase("");
+            using var db = new NotaryDatabase("NotariusTest001");
             using (var myc = db.CreateDisposableConnection())
             {
-                db.CreateDatabase(myc);
+                await db.CreateDatabaseAsync();
 
                 var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
                 var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
@@ -37,7 +37,7 @@ namespace Odin.KeyChainTests
                     timestamp = UnixTimeUtcUnique.Now(),
                     notarySignature = Guid.Empty.ToByteArray()
                 };
-                db.tblNotaryChain.Insert(myc, r);
+                await db.tblNotaryChain.InsertAsync(myc, r);
 
                 Assert.Pass();
             }

@@ -8,10 +8,8 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Connections
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/requests")]
     [AuthorizeValidAppToken]
-    public class AppCircleNetworkRequestsController : CircleNetworkRequestsControllerBase
-    {
-        public AppCircleNetworkRequestsController(CircleNetworkRequestService cn, TenantSystemStorage tenantSystemStorage) : base(cn, tenantSystemStorage)
-        {
-        }
-    }
+    public class AppCircleNetworkRequestsController(
+        CircleNetworkRequestService cn,
+        CircleNetworkIntroductionService introductionService)
+        : CircleNetworkRequestsControllerBase(cn, introductionService);
 }

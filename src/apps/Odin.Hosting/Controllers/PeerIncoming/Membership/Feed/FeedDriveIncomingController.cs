@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.DataSubscription.ReceivingHost;
@@ -25,47 +26,53 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
         private readonly FollowerService _followerService;
         private readonly IMediator _mediator;
         private readonly TransitInboxBoxStorage _transitInboxStorage;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
         private readonly DriveManager _driveManager;
+        private readonly ILoggerFactory _loggerFactory;
+
 
         /// <summary />
         public FeedDriveIncomingController(
-            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage, TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
+            FileSystemResolver fileSystemResolver, FollowerService followerService, IMediator mediator, TransitInboxBoxStorage transitInboxStorage,
+             DriveManager driveManager, ILoggerFactory loggerFactory)
         {
             _fileSystemResolver = fileSystemResolver;
             _followerService = followerService;
             _mediator = mediator;
             _transitInboxStorage = transitInboxStorage;
-            _tenantSystemStorage = tenantSystemStorage;
+            
             _driveManager = driveManager;
+            _loggerFactory = loggerFactory;
         }
 
-        [HttpPost("filemetadata")]
+        [HttpPost("send-feed-filemetadata")]
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await perimeterService.AcceptUpdatedFileMetadata(payload, WebOdinContext, cn);
+            
+            return await perimeterService.AcceptUpdatedFileMetadataAsync(payload, WebOdinContext);
         }
 
         [HttpPost("delete")]
         public async Task<PeerTransferResponse> DeleteFileMetadata(DeleteFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await perimeterService.Delete(payload, WebOdinContext, cn);
+            
+            return await perimeterService.DeleteAsync(payload, WebOdinContext);
         }
 
         private FeedDistributionPerimeterService GetPerimeterService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
+            var logger = _loggerFactory.CreateLogger<FeedDistributionPerimeterService>();
             return new FeedDistributionPerimeterService(
                 fileSystem,
                 _fileSystemResolver,
                 _followerService,
                 _mediator,
                 _transitInboxStorage,
-                _driveManager);
+                _driveManager, 
+                logger);
         }
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Extensions;
+using Odin.Services;
 
 namespace Odin.Hosting.Controllers.Anonymous;
 

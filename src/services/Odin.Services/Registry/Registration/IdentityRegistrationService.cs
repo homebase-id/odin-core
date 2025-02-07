@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -48,8 +48,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _httpClientFactory = httpClientFactory;
         _dnsLookupService = dnsLookupService;
         _jobManager = jobManager;
-
-        RegisterHttpClient();
     }
 
     //
@@ -260,9 +258,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<Guid> CreateIdentityOnDomain(string domain, string email, string planId)
+    public async Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId)
     {
-        var identity = await _registry.Get(domain);
+        var identity = await _registry.GetAsync(domain);
         if (identity != null)
         {
             throw new OdinSystemException($"Identity {domain} already exists");
@@ -335,12 +333,25 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             .Exists(c => string.Equals(c, code, StringComparison.InvariantCultureIgnoreCase));
         return Task.FromResult(match);
     }
+}
 
-    //
-
-    private void RegisterHttpClient()
+public static class IdentityRegistrationServiceExtensions
+{
+    public static IServiceCollection AddIdentityRegistrationServices(
+        this IServiceCollection services,
+        IHttpClientFactory httpClientFactory,
+        OdinConfiguration configuration)
     {
-        _httpClientFactory.Register<IdentityRegistrationService>(builder => builder
+        services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
+
+        RegisterHttpClientFactory(httpClientFactory, configuration);
+
+        return services;
+    }
+
+    private static void RegisterHttpClientFactory(IHttpClientFactory httpClientFactory, OdinConfiguration configuration)
+    {
+        httpClientFactory.Register<IdentityRegistrationService>(builder => builder
             .ConfigureHttpClient(c =>
             {
                 // this is called everytime you request a httpclient
@@ -356,7 +367,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 };
 
                 // Make sure we accept certifactes from letsencrypt staging servers if not in production
-                if (!_configuration.CertificateRenewal.UseCertificateAuthorityProductionServers)
+                if (!configuration.CertificateRenewal.UseCertificateAuthorityProductionServers)
                 {
                     handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
                 }
@@ -366,4 +377,3 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             .SetHandlerLifetime(TimeSpan.FromSeconds(5))); // Shortlived to deal with DNS changes
     }
 }
-

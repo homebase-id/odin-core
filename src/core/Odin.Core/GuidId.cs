@@ -119,6 +119,11 @@ public class GuidId : IGenericCloneable<GuidId>
     {
         return new GuidId(id);
     }
+    
+    public static implicit operator Guid?(GuidId id)
+    {
+        return id?.Value;
+    }
 
     public static implicit operator Guid(GuidId id)
     {

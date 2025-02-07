@@ -25,7 +25,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -104,7 +104,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var response = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
             {
                 File = uploadResult.GlobalTransitIdFileIdentifier,
-                Cursor = 0,
+                Cursor = "",
                 MaxRecords = 100
             });
 
@@ -173,7 +173,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var response = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
             {
                 File = uploadResult.GlobalTransitIdFileIdentifier,
-                Cursor = 0,
+                Cursor = "",
                 MaxRecords = 100
             });
 
@@ -187,7 +187,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var shouldBeDeletedResponse = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
             {
                 File = uploadResult.GlobalTransitIdFileIdentifier,
-                Cursor = 0,
+                Cursor = "",
                 MaxRecords = 100
             });
 

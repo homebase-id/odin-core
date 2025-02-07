@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
 
@@ -20,7 +19,7 @@ namespace Odin.Services.Authorization.Acl
             ThrowWhenFalse(await CallerHasPermission(acl, odinContext));
         }
 
-        public async Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext)
         {
             //there must be an acl
             if (acl == null)
@@ -32,12 +31,12 @@ namespace Odin.Services.Authorization.Acl
             var requiredCircles = acl.GetRequiredCircles().ToList();
             if (requiredCircles.Any())
             {
-                var icr = await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, cn, true);
+                var icr = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
                 var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
                 if (hasBadData.GetValueOrDefault())
                 {
                     var cg = icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.Redacted());
-                    logger.LogWarning("ICR for {odinId} has corrupt circle grants. {cg}", odinId, cg);
+                    logger.LogInformation("ICR for {odinId} has corrupt circle grants. {cg}", odinId, cg);
 
                     //let it continue on
                 }
@@ -58,7 +57,7 @@ namespace Odin.Services.Authorization.Acl
                     return true;
 
                 case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIdentityConnectionRegistration(odinId, odinContext, cn, true)).IsConnected();
+                    return (await circleNetwork.GetIcrAsync(odinId, odinContext, true)).IsConnected();
             }
 
             return false;
@@ -103,6 +102,7 @@ namespace Odin.Services.Authorization.Acl
                 case SecurityGroupType.Authenticated:
                     return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
+                case SecurityGroupType.AutoConnected:
                 case SecurityGroupType.Connected:
                     return CallerIsConnected(odinContext);
             }
@@ -118,10 +118,10 @@ namespace Odin.Services.Authorization.Acl
             }
         }
 
-        private async Task<bool> CallerIsConnected(IOdinContext odinContext)
+        private Task<bool> CallerIsConnected(IOdinContext odinContext)
         {
             //TODO: cache result - 
-            return await Task.FromResult(odinContext.Caller.IsConnected);
+            return Task.FromResult(odinContext.Caller.IsConnected);
         }
     }
 }

@@ -4,17 +4,13 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Util;
-using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Reactions;
 using Refit;
 
@@ -24,25 +20,23 @@ namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 public class PeerReactionSenderService(
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    
     FileSystemResolver fileSystemResolver,
     OdinConfiguration odinConfiguration)
     : PeerServiceBase(odinHttpClientFactory,
-        circleNetworkService, fileSystemResolver)
+        circleNetworkService, fileSystemResolver,odinConfiguration)
 {
-
     /// <summary />
-    public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task AddReactionAsync(OdinId odinId, AddRemoteReactionRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         ApiResponse<HttpContent> response = null;
         try
         {
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.AddReaction(payload); });
         }
@@ -56,19 +50,21 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<GetReactionsPerimeterResponse> GetReactionsAsync(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = CreateSharedSecretEncryptedPayload(token, request);
 
         try
         {
             ApiResponse<GetReactionsPerimeterResponse> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactions(payload); });
+
+            AssertValidResponse(response);
 
             return response.Content;
         }
@@ -80,19 +76,21 @@ public class PeerReactionSenderService(
     }
 
     /// <summary />
-    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<GetReactionCountsResponse> GetReactionCountsAsync(OdinId odinId, GetRemoteReactionsRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
         {
             ApiResponse<GetReactionCountsResponse> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactionCountsByFile(payload); });
+
+            AssertValidResponse(response);
 
             return response.Content;
         }
@@ -103,19 +101,21 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId odinId, PeerGetReactionsByIdentityRequest request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
         {
             ApiResponse<List<string>> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
                 async () => { response = await client.GetReactionsByIdentity(payload); });
+
+            AssertValidResponse(response);
 
             return response.Content;
         }
@@ -126,18 +126,20 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task DeleteReactionAsync(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId,odinContext, cn);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         try
         {
-            // ApiResponse<HttpContent> response = null;
+            ApiResponse<HttpContent> response = null;
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
-                async () => { await client.DeleteReactionContent(payload); });
+                async () => { response = await client.DeleteReactionContent(payload); });
+
+            AssertValidResponse(response);
         }
         catch (TryRetryException ex)
         {
@@ -146,18 +148,22 @@ public class PeerReactionSenderService(
         }
     }
 
-    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task DeleteAllReactionsAsync(OdinId odinId, DeleteReactionRequestByGlobalTransitId request, IOdinContext odinContext)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, odinContext, cn);
+        var (token, client) = await CreateReactionContentClientAsync(odinId, odinContext);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
         try
         {
+            ApiResponse<List<string>> response = null;
+
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                OdinConfiguration.Host.PeerOperationMaxAttempts,
+                OdinConfiguration.Host.PeerOperationDelayMs,
                 CancellationToken.None,
-                async () => { await client.GetReactionsByIdentity(payload); });
+                async () => { response = await client.GetReactionsByIdentity(payload); });
+
+            AssertValidResponse(response);
         }
         catch (TryRetryException ex)
         {
@@ -165,42 +171,7 @@ public class PeerReactionSenderService(
             throw;
         }
     }
-
-    /// <summary>
-    /// Converts the icr-shared-secret-encrypted key header to an owner-shared-secret encrypted key header
-    /// </summary>
-    /// <param name="sharedSecretEncryptedFileHeader"></param>
-    /// <param name="icr"></param>
-    private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
-        IdentityConnectionRegistration icr, IOdinContext odinContext)
-    {
-        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (sharedSecretEncryptedFileHeader.FileMetadata.IsEncrypted)
-        {
-            var currentKey = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
-            var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader, odinContext);
-        }
-        else
-        {
-            ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-        }
-
-        sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = ownerSharedSecretEncryptedKeyHeader;
-
-        return sharedSecretEncryptedFileHeader;
-    }
-
-    private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader, IOdinContext odinContext)
-    {
-        var newKey = odinContext.PermissionsContext.SharedSecretKey;
-        var keyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref currentKey);
-        var newEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref newKey);
-        keyHeader.AesKey.Wipe();
-
-        return newEncryptedKeyHeader;
-    }
-
+    
     private void AssertValidResponse<T>(ApiResponse<T> response)
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -212,6 +183,11 @@ public class PeerReactionSenderService(
         if (response.StatusCode == HttpStatusCode.InternalServerError)
         {
             throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
+        }
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            throw new OdinClientException("Invalid Global TransitId", OdinClientErrorCode.InvalidGlobalTransitId);
         }
 
         if (!response.IsSuccessStatusCode)

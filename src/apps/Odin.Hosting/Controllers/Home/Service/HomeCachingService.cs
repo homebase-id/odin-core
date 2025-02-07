@@ -1,22 +1,19 @@
 ﻿#nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using LazyCache;
-using LazyCache.Providers;
 using MediatR;
-using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Identity;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.Cache;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Base;
-using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {
@@ -34,60 +31,56 @@ namespace Odin.Hosting.Controllers.Home.Service
         public const int ChannelFileType = 103;
 
         private readonly int[] _fileTypesCausingCacheReset = { PostFileType, ChannelFileType };
+        private readonly ILevel1Cache<HomeCachingService> _cache;
 
-        private IAppCache? _cache;
-
-        public HomeCachingService(DriveManager driveManager, OdinConfiguration config,
-            FileSystemHttpRequestResolver fsResolver)
+        public HomeCachingService(
+            DriveManager driveManager,
+            OdinConfiguration config,
+            FileSystemHttpRequestResolver fsResolver,
+            ILevel1Cache<HomeCachingService> cache)
         {
             _driveManager = driveManager;
             _config = config;
             _fsResolver = fsResolver;
-
-            InitializeCache();
+            _cache = cache;
         }
 
         //
 
-        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request, IOdinContext odinContext, OdinId tenantOdinId, DatabaseConnection cn)
+        public async Task<QueryBatchCollectionResponse> GetResult(QueryBatchCollectionRequest request,
+            IOdinContext odinContext, OdinId tenantOdinId)
         {
-            var queryBatchCollection = new Func<Task<QueryBatchCollectionResponse>>(async delegate
-            {
-#if DEBUG
-                CacheMiss++;
-#endif
-                var collection = await _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext, cn);
-                return collection;
-            });
-
             var key = GetCacheKey(string.Join("-", request.Queries.Select(q => q.Name)), tenantOdinId);
-            var policy = new MemoryCacheEntryOptions()
-            {
-                SlidingExpiration = TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
-            };
+            var result = await _cache.GetOrSetAsync(key, _ =>
+                {
+#if DEBUG
+                    Interlocked.Increment(ref CacheMiss);
+#endif
+                    return _fsResolver.ResolveFileSystem().Query.GetBatchCollection(request, odinContext);
+                },
+                TimeSpan.FromSeconds(_config.Host.HomePageCachingExpirationSeconds),
+                CacheTags);
 
-            return await _cache.GetOrAddAsync(key, queryBatchCollection, policy);
+            return result!;
         }
 
         //
 
-        public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             if (notification.Drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType)
             {
-                Invalidate();
+                await InvalidateAsync();
             }
-
-            return Task.CompletedTask;
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var drive = await _driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection);
+            var drive = await _driveManager.GetDriveAsync(notification.File.DriveId);
             if (null == drive)
             {
                 //just invalidate because the drive might have been deleted for some reason
-                Invalidate();
+                await InvalidateAsync();
                 return;
             }
 
@@ -98,7 +91,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 {
                     if (_fileTypesCausingCacheReset.Any(fileType => header.FileMetadata.AppData.FileType == fileType))
                     {
-                        Invalidate();
+                        await InvalidateAsync();
                     }
                 }
             }
@@ -109,29 +102,17 @@ namespace Odin.Hosting.Controllers.Home.Service
             return $"{tenantOdinId}-{key}";
         }
 
-        public void Invalidate()
-        {
-            //from: https://github.com/alastairtree/LazyCache/wiki/API-documentation-(v-2.x)#empty-the-entire-cache
-            InitializeCache();
-        }
+        private List<string> CacheTags { get; } = [nameof(HomeCachingService)];
 
-        private void InitializeCache()
+        public async Task InvalidateAsync()
         {
-            var provider = new MemoryCacheProvider(
-                new MemoryCache(
-                    new MemoryCacheOptions()
-                    {
-                        ExpirationScanFrequency = TimeSpan.FromMinutes(2),
-                        // SizeLimit = ???
-                    }));
-
-            _cache = new CachingService(provider);
+            await _cache.RemoveByTagAsync(CacheTags);
         }
 
 #if DEBUG
         public static void ResetCacheStats()
         {
-            CacheMiss = 0;
+            Interlocked.Exchange(ref CacheMiss, 0);
         }
 #endif
     }

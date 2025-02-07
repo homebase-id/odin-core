@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -12,20 +13,19 @@ namespace Odin.Services.Drives
     /// <summary>
     /// Information about a drive
     /// </summary>
+    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
     public sealed class StorageDrive : StorageDriveBase
     {
-        private readonly string _longTermHeaderRootPath;
         private readonly string _tempDataRootPath;
         private readonly string _driveFolderName;
         private readonly string _longTermPayloadPath;
 
         private readonly StorageDriveBase _inner;
 
-        public StorageDrive(string longTermHeaderRootPath, string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
+        public StorageDrive(string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
         {
             _inner = inner;
             _driveFolderName = this.Id.ToString("N");
-            _longTermHeaderRootPath = Path.Combine(longTermHeaderRootPath, _driveFolderName);
             _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
 
             // value = \data\tenant\payloads\p1\{driveId}\
@@ -68,7 +68,7 @@ namespace Odin.Services.Drives
         public override bool AllowSubscriptions
         {
             get => _inner.AllowSubscriptions;
-            set { }
+            set => _inner.AllowSubscriptions = value;
         }
 
         public override SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey
@@ -107,11 +107,6 @@ namespace Odin.Services.Drives
             set { }
         }
 
-        public string GetLongTermHeaderStoragePath()
-        {
-            return Path.Combine(_longTermHeaderRootPath, "files");
-        }
-
         public string GetLongTermPayloadStoragePath()
         {
             return Path.Combine(_longTermPayloadPath, "files");
@@ -122,19 +117,10 @@ namespace Odin.Services.Drives
             return Path.Combine(_tempDataRootPath, "files");
         }
 
-        public string GetIndexPath()
-        {
-            return Path.Combine(this._longTermHeaderRootPath, "idx");
-        }
-
         public void EnsureDirectories()
         {
-            Directory.CreateDirectory(this.GetLongTermHeaderStoragePath());
             Directory.CreateDirectory(this.GetTempStoragePath());
-
             // Directory.CreateDirectory(this.GetPayloadStoragePath());
-
-            Directory.CreateDirectory(this.GetIndexPath());
         }
 
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
@@ -144,6 +130,23 @@ namespace Odin.Services.Drives
             {
                 throw new OdinSecurityException("Invalid key storage attempted to encrypt data");
             }
+        }
+
+        public bool AttributeHasTrueValue(string attribute)
+        {
+            if (null == Attributes)
+            {
+                return false;
+            }
+
+            return this.Attributes.TryGetValue(attribute, out string value) &&
+                   bool.TryParse(value, out bool flagValue) &&
+                   flagValue;
+        }
+
+        public bool IsCollaborationDrive()
+        {
+            return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
         }
     }
 

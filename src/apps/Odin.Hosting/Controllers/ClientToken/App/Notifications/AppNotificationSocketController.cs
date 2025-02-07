@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Configuration.VersionUpgrade;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
@@ -43,18 +44,24 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
                 HttpContext.RequestAborted,
                 _hostApplicationLifetime.ApplicationStopping);
 
-            using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
-            {
-                DangerousEnableCompression = true
-            });
-
             try
             {
+                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
+                {
+                    DangerousEnableCompression = true
+                });
+
                 await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, WebOdinContext);
             }
             catch (OperationCanceledException)
             {
                 // ignore
+            }
+            catch (InvalidOperationException)
+            {
+                // this can happen when we need to upgrade
+                //System.InvalidOperationException: The response status code for a Extended CONNECT request must be 2XX.
+                VersionUpgradeScheduler.SetRequiresUpgradeResponse(HttpContext);
             }
         }
 
@@ -64,10 +71,5 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
             //this only exists so we can use the [AuthorizeValidAppExchangeGrant] attribute to trigger the clienttokenauthhandler
             return Ok();
         }
-    }
-
-    public class SocketPreAuthRequest
-    {
-        public string? Cat64 { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
@@ -17,9 +18,10 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
     /// <summary>
     /// List of sites that needs bot headers to be fetched CSR website
     /// </summary>
-    private static readonly List<string> SiteThatNeedsBotHeaders = ["twitter.com", "x.com"];
+    private static readonly List<string> SiteThatNeedsBotHeaders = ["x.com", "twitter.com"];
+    private static readonly List<string> SiteThatNeedsMozillaHeaders = [];
 
-    private static bool IsUrlSafe(string url)
+    public static bool IsUrlSafe(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
             return false;
@@ -83,100 +85,163 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
 
         return false;
     }
+
+
+    public async Task<LinkMeta> ProcessHtmlAsync(string htmlContent, string url)
+    {
+        if (htmlContent == null)
+            return null;
+
+        var linkMeta = ProcessMetaData(htmlContent, url);
+        if (linkMeta == null)
+            return null;
+        if (!string.IsNullOrEmpty(linkMeta.ImageUrl))
+        {
+            if (!LinkMeta.IsValidEmbeddedImage(linkMeta.ImageUrl))
+            {
+                var imageUrl = await ProcessImageAsync(linkMeta.ImageUrl, url);
+                if (imageUrl != null)
+                {
+                    linkMeta.ImageUrl = imageUrl;
+                }
+                else
+                {
+                    linkMeta.ImageUrl = null;
+                }
+            }
+        }
+        return linkMeta;
+    }
+
+
     public async Task<LinkMeta> ExtractAsync(string url)
     {
         if (!IsUrlSafe(url))
         {
             throw new OdinClientException($"Invalid or unsafe URL: {url}");
         }
-        var htmlContent = await FetchHtmlContentAsync(url);
-        if (htmlContent == null)
-            return null;
-        var linkMeta = ProcessMetaData(htmlContent, url);
-        if (linkMeta == null)
-            return null;
-        if (!string.IsNullOrEmpty(linkMeta.ImageUrl))
-        {
-            var imageUrl = await ProcessImageAsync(linkMeta.ImageUrl, url);
-            if (imageUrl != null)
-            {
-                linkMeta.ImageUrl = imageUrl;
-            }
-            else
-            {
-                linkMeta.ImageUrl = null;
-            }
-        }
-        return linkMeta;
 
+        var htmlContent = await FetchHtmlContentAsync(url);
+
+        return await ProcessHtmlAsync(htmlContent, url);
     }
-     private async Task<string> FetchHtmlContentAsync(string url)
+
+
+    private async Task<string> FetchHtmlContentAsync(string url)
     {
         var client = clientFactory.CreateClient<LinkMetaExtractor>();
         // Set headers
         client.DefaultRequestHeaders.Add("Accept", "text/html");
+
+
+        // Use specific User-Agent based on the URL
         if (SiteThatNeedsBotHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
         {
             client.DefaultRequestHeaders.Add("User-Agent", "grapeshot|googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
         }
+        else if (SiteThatNeedsMozillaHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
+        {
+            // Use a modern browser-like User-Agent for general requests
+            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
+        }
         else
         {
-            client.DefaultRequestHeaders.Add("User-Agent", "*");
+            // Use facebookexternalhit for Open Graph previews
+            client.DefaultRequestHeaders.Add("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)");
         }
+
         // Set a timeout
         client.Timeout = TimeSpan.FromSeconds(20);
         const long maxContentLength = 3 * 1024 * 1024;
+
         try
         {
             var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                logger.LogDebug("Forbidden to fetch information from {Url}. Status code: {StatusCode}", url, response.StatusCode);
+                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url, response.StatusCode);
                 return null;
             }
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                logger.LogDebug("LinkExtractor: Not OK {Url}. Status code: {StatusCode}", url, response.StatusCode);
+                return null;
+            }
+
             // Check content length
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxContentLength)
             {
-                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}", contentLength.Value, maxContentLength,url);
+                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
+                    contentLength.Value, maxContentLength, url);
                 return null;
             }
+
             // Read the content with a limited buffer
             var content = await response.Content.ReadAsStringAsync();
             if (content.Length > maxContentLength)
             {
-                logger.LogDebug("Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}", content.Length, maxContentLength,url);
+                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
+                    content.Length, maxContentLength, url);
                 return null;
             }
-            // Decode the HTML content
-            var decodedHtml = WebUtility.HtmlDecode(content);
-            return decodedHtml;
+
+            // Do NOT decode the HTML content. The chat client and stuff reliably handles unsafe "html".
+            return content;
         }
         catch (OperationCanceledException)
         {
             // Operation was cancelled
-            logger.LogDebug("Request to {Url} timed out", url);
+            logger.LogDebug("LinkExtractor: Request to {Url} timed out", url);
             return null;
         }
         catch (HttpRequestException e)
         {
-            logger.LogInformation("Error fetching information from {Url}. Error: {Error} StatusCode: {Status}", url, e.Message, e.StatusCode);
-            throw new OdinClientException("Failed to fetch information from the URL");
+            logger.LogInformation("LinkExtractor: Error fetching information from {Url}. Error: {Error} StatusCode: {Status}", url,
+                e.Message, e.StatusCode);
+            throw new OdinClientException("LinkExtractor: Failed to fetch information from the URL");
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation("LinkExtractor: Something went seriously wrong that you are here {Url}. Error: {Error}", url, e.Message);
+            return null;
         }
     }
-    private static LinkMeta ProcessMetaData(string htmlContent, string url)
+
+
+    private LinkMeta ProcessMetaData(string htmlContent, string url)
     {
-        var meta = Parser.Parse(htmlContent);
-        if (meta.Count == 0)
+        try
+        {
+            var meta = Parser.Parse(htmlContent);
+            if (meta == null || meta.Count == 0)
+                return null;
+
+            var linkMeta = LinkMeta.FromMetaData(meta, url);
+
+            if (string.IsNullOrEmpty(linkMeta.Title))
+            {
+                logger.LogDebug("LinkExtractor: The Title must be set (I'm not sure why) [{Url}]", url);
+                return null;
+            }
+
+            return linkMeta;
+        }
+        catch (Exception e)
+        {
+            logger.LogDebug("LinkExtractor: Error processing metadata for {Url}. Error: {Error}", url, e.Message);
             return null;
-        var linkMeta = LinkMeta.FromMetaData(meta, url);
-        return linkMeta;
+        }
     }
+
+
     private async Task<string> ProcessImageAsync(string imageUrl, string originalUrl)
     {
         if (!IsUrlSafe(imageUrl))
         {
-            logger.LogDebug("Unsafe image URL {ImageUrl} for original URL {OriginalUrl}", imageUrl, originalUrl);
+            logger.LogDebug("LinkExtractor: Unsafe image URL {ImageUrl} for original URL {OriginalUrl}", imageUrl, originalUrl);
             return null;
         }
         var client = clientFactory.CreateClient<LinkMetaExtractor>();
@@ -189,20 +254,20 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var response = await client.GetAsync(cleanedUrl, HttpCompletionOption.ResponseHeadersRead);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogDebug("Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
+                logger.LogDebug("LinkExtractor: Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
                 return null;
             }
             // Check content length
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength.HasValue && contentLength.Value > maxImageSize)
             {
-                logger.LogDebug("Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", contentLength.Value, maxImageSize,imageUrl);
+                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", contentLength.Value, maxImageSize,imageUrl);
                 return null;
             }
             var image = await response.Content.ReadAsByteArrayAsync();
             if (image.Length > maxImageSize)
             {
-                logger.LogDebug("Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize,imageUrl);
+                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize,imageUrl);
                 return null;
             }
             var mimeType = response.Content.Headers.ContentType?.ToString();
@@ -211,7 +276,7 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             var imageBase64 = Convert.ToBase64String(image);
             if (string.IsNullOrWhiteSpace(imageBase64))
             {
-                logger.LogDebug("No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", imageUrl, originalUrl);
+                logger.LogDebug("LinkExtractor: No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", imageUrl, originalUrl);
                 return null;
             }
             var imageUri = $"data:{mimeType};base64,{imageBase64}";
@@ -219,12 +284,12 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
         }
         catch (OperationCanceledException)
         {
-            logger.LogDebug("Image download from {ImageUrl} timed out", imageUrl);
+            logger.LogDebug("LinkExtractor: Image download from {ImageUrl} timed out", imageUrl);
             return null;
         }
         catch (HttpRequestException e)
         {
-            logger.LogDebug("Error downloading image from {ImageUrl}. Error: {Error} StatusCode: {Status}", imageUrl, e.Message, e.StatusCode);
+            logger.LogDebug("LinkExtractor: Error downloading image from {ImageUrl}. Error: {Error} StatusCode: {Status}", imageUrl, e.Message, e.StatusCode);
             return null;
         }
     }

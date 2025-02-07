@@ -106,8 +106,8 @@ public class TcpProbeTests
     {
         var cache = new GenericMemoryCache();
         var tcpProbe = new TcpProbe(cache);
-        var (success, message) = await tcpProbe.ProbeAsync("example.com", "80");
-        Assert.That(message, Is.EqualTo("Successfully connected to example.com:80, but did not get the expected response"));
+        var (success, message) = await tcpProbe.ProbeAsync("www.google.com", "443");
+        Assert.That(message, Is.EqualTo("Successfully connected to www.google.com:443, but did not get the expected response"));
         Assert.That(success, Is.False);
     }
     

@@ -1,10 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Odin.Services.Base;
-using Odin.Services.Registry.Registration;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Services.Configuration;
 
@@ -47,8 +45,16 @@ namespace Odin.Hosting.Middleware
                         "Access-Control-Allow-Origin", $"https://{appHostName}");
                     allowHeaders.Add(YouAuthConstants.AppCookieName);
                     allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
+                    allowHeaders.Add(OdinHeaderNames.RequiresUpgrade);
+                    allowHeaders.Add(OdinHeaderNames.UpgradeIsRunning);
                 }
             }
+
+            // removed when we supported auth via websocket
+            // if (odinContext.AuthContext == YouAuthConstants.AppNotificationSubscriberScheme)
+            // {
+            //     allowHeaders.Add(YouAuthConstants.SubscriberCookieName);
+            // }
 
             if (shouldSetHeaders)
             {

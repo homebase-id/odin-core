@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -22,23 +21,13 @@ public class DeleteRemoteReactionOutboxWorker(
     ILogger<DeleteRemoteReactionOutboxWorker> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     OdinConfiguration odinConfiguration
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
-            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
-            {
-                throw new OdinOutboxProcessingException("Too many attempts")
-                {
-                    File = FileItem.File,
-                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
-                    Recipient = default,
-                    VersionTag = default,
-                    GlobalTransitId = default
-                };
-            }
+            AssertHasRemainingAttempts();
 
             logger.LogDebug("AddRemoteReaction -> Sending request for file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
@@ -57,7 +46,7 @@ public class DeleteRemoteReactionOutboxWorker(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, cn, e);
+                return await HandleOutboxProcessingException(odinContext, e);
             }
             catch (Exception exception)
             {
@@ -82,7 +71,7 @@ public class DeleteRemoteReactionOutboxWorker(
 
         var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         async Task<ApiResponse<PeerResponseCode>> TrySendRequest()
         {
@@ -99,8 +88,8 @@ public class DeleteRemoteReactionOutboxWorker(
             ApiResponse<PeerResponseCode> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                Configuration.Host.PeerOperationMaxAttempts,
+                Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
                 async () => { response = await TrySendRequest(); });
 
@@ -136,16 +125,18 @@ public class DeleteRemoteReactionOutboxWorker(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(
+        IOdinContext odinContext, 
+        
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         return Task.FromResult(nextRunTime);
     }
 
-    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        DatabaseConnection cn)
+    protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(
+        OdinOutboxProcessingException e,
+        IOdinContext odinContext)
     {
         return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }

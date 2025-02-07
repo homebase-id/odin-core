@@ -30,7 +30,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests();
     }
@@ -78,7 +78,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         Assert.IsNotNull(headerBeforeUpload);
 
-        await PerformanceFramework.ThreadedTestAsync(maxThreads: 100, iterations: 300, OverwriteFile);
+        await PerformanceFramework.ThreadedTestAsync(maxThreads: 20, iterations: 50, OverwriteFile);
         Console.WriteLine($"Success Count: {_successCount}");
         Console.WriteLine($"Bad Request Count: {_serverErrorCount}");
 

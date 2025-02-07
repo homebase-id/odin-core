@@ -11,6 +11,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// If true, the file should not be indexed
         /// </summary>
+        [Obsolete]
         public bool DoNotIndex { get; set; }
         
         /// <summary>
@@ -25,6 +26,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Int64 FileByteCount { get; set; }
         
+        public int OriginalRecipientCount { get; set; }
+
         public RecipientTransferHistory TransferHistory { get; set; }
 
     }

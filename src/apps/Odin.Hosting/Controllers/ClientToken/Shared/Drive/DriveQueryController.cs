@@ -14,7 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstants.DriveQueryV1)]
     [Route(GuestApiPathConstants.DriveQueryV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class DriveQueryController(TenantSystemStorage tenantSystemStorage) : DriveQueryControllerBase
+    public class DriveQueryController : DriveQueryControllerBase
     {
         /// <summary>
         /// Returns modified files (their last modified property must be set).
@@ -23,10 +23,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("modified")]
-        public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
+        public new async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryModified(request, cn);
+            
+            return await base.QueryModified(request);
         }
 
         /// <summary>
@@ -39,8 +39,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
         {
             var queryModifiedRequest = request.ToQueryModifiedRequest();
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryModified(queryModifiedRequest, cn);
+            
+            return await base.QueryModified(queryModifiedRequest);
         }
 
         /// <summary>
@@ -48,10 +48,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batch")]
-        public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
+        public new async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatch(request, cn);
+            
+            return await base.QueryBatch(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
@@ -59,8 +59,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
         {
             var queryBatchRequest = request.ToQueryBatchRequest();
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatch(queryBatchRequest, cn);
+            
+            return await base.QueryBatch(queryBatchRequest);
         }
 
         /// <summary>
@@ -70,10 +70,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batchcollection")]
-        public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
+        public new async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatchCollection(request, cn);
+            
+            return await base.QueryBatchCollection(request);
         }
 
         /// <summary>
@@ -96,8 +96,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
             var request = new QueryBatchCollectionRequest(){
                 Queries = sections
             };
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.QueryBatchCollection(request, cn);
+            
+            return await base.QueryBatchCollection(request);
         }
     }
 }

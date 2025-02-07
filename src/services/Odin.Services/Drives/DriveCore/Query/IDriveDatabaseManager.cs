@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Base;
-using Odin.Services.Drives.DriveCore.Query.Sqlite;
 using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Drives.DriveCore.Query
@@ -14,19 +12,17 @@ namespace Odin.Services.Drives.DriveCore.Query
     /// <summary>
     /// Surfaces functions of the DriveDatabase for a specific drive
     /// </summary>
-    public interface IDriveDatabaseManager : IDisposable
+    public interface IDriveDatabaseManager
     {
-        /// <summary>
-        /// Specifies the drive being managed (indexed and queried)
-        /// </summary>
-        StorageDrive Drive { get; init; }
-
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModifiedCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
-            QueryModifiedResultOptions options, DatabaseConnection cn);
-
+        Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
+            StorageDrive drive,
+            IOdinContext odinContext,
+            FileSystemType fileSystemType,
+            FileQueryParams qp,
+            QueryModifiedResultOptions options);
 
         /// <summary>
         /// Returns a batch of file Ids
@@ -34,51 +30,53 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatchCore(IOdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
-            QueryBatchResultOptions options, DatabaseConnection cn);
+        Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetBatchCoreAsync(
+            StorageDrive drive,
+            IOdinContext odinContext,
+            FileSystemType fileSystemType,
+            FileQueryParams qp,
+            QueryBatchResultOptions options);
 
         /// <summary>
-        /// Updates the current index that is in use.
+        /// Saves the file to the database
         /// </summary>
-        Task UpdateCurrentIndex(ServerFileHeader metadata, DatabaseConnection cn);
+        Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader metadata);
 
         /// <summary>
         /// Todd says it aint soft and it aint hard ... mushy it is
         /// </summary>
-        /// <param name="metadata"></param>
-        /// <param name="cn"></param>
         /// <returns></returns>
-        Task SoftDeleteFromIndex(ServerFileHeader metadata, DatabaseConnection cn);
+        Task SoftDeleteFileHeader(ServerFileHeader metadata);
 
         /// <summary>
         /// Removes the specified file from the index that is currently in use.
         /// </summary>
-        /// <param name="file"></param>
-        /// <returns></returns>
-        Task HardDeleteFromIndex(InternalDriveFileId file, DatabaseConnection cn);
+        Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file);
 
-        Task LoadLatestIndex(DatabaseConnection cn);
+        Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction);
 
-        void AddReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
+        Task DeleteReactionsAsync(StorageDrive drive, OdinId odinId, Guid fileId);
 
-        void DeleteReactions(OdinId odinId, Guid fileId, DatabaseConnection cn);
+        Task DeleteReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction);
 
-        void DeleteReaction(OdinId odinId, Guid fileId, string reaction, DatabaseConnection cn);
+        Task<(List<string>, int)> GetReactionsAsync(StorageDrive drive, Guid fileId);
 
-        (List<string>, int) GetReactions(Guid fileId, DatabaseConnection cn);
+        Task<(List<ReactionCount> reactions, int total)> GetReactionSummaryByFileAsync(StorageDrive drive, Guid fileId);
 
-        (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId, DatabaseConnection cn);
+        Task<List<string>> GetReactionsByIdentityAndFileAsync(StorageDrive drive, OdinId identity, Guid fileId);
 
-        List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId, DatabaseConnection cn);
+        Task<int> GetReactionCountByIdentityAsync(StorageDrive drive, OdinId odinId, Guid fileId);
 
-        int GetReactionCountByIdentity(OdinId odinId, Guid fileId, DatabaseConnection cn);
+        Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(StorageDrive drive, int maxCount, int cursor, Guid fileId);
 
-        (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId, DatabaseConnection cn);
+        Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive);
 
-        Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfo(DatabaseConnection cn);
+        Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType);
 
-        Task<Guid?> GetByGlobalTransitId(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, DatabaseConnection cn);
+        Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType);
 
-        Task<Guid?> GetByClientUniqueId(Guid driveId, Guid uniqueId, FileSystemType fileSystemType, DatabaseConnection cn);
+        Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType);
+
+        Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary);
     }
 }

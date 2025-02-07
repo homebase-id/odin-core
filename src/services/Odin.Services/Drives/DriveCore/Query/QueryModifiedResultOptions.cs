@@ -3,7 +3,7 @@ namespace Odin.Services.Drives.DriveCore.Query;
 public class QueryModifiedResultOptions : ResultOptions
 {
     public long MaxDate { get; set; }
-    public long Cursor { get; set; }
+    public string Cursor { get; set; }
 
     public static QueryModifiedResultOptions Default()
     {

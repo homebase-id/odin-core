@@ -10,33 +10,24 @@ namespace WaitingListApi.Data.Database
         public string? JsonData { get; set; }
     }
 
-    public class WaitingListTableCrud : TableBase
+    public class WaitingListTableCrud
     {
-        private bool _disposed = false;
+        private readonly WaitingListDatabase _db;
 
-        public WaitingListTableCrud(WaitingListDatabase db) : base(db, "waiting_list")
+        public WaitingListTableCrud(WaitingListDatabase db)
         {
+            _db = db;
         }
 
-        ~WaitingListTableCrud()
+        public async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
-            if (_disposed == false) throw new Exception("WaitingListTableCrud Not disposed properly");
-        }
-
-        public override void Dispose()
-        {
-            _disposed = true;
-        }
-
-        public void EnsureTableExists(bool dropExisting = false)
-        {
-            using var cn = _database.CreateDisposableConnection();
-            using (var cmd = _database.CreateCommand())
+            using var cn = _db.CreateDisposableConnection();
+            using (var cmd = _db.CreateCommand())
             {
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS waiting_list;";
-                    cn.ExecuteNonQuery(cmd);
+                    await cn.ExecuteNonQueryAsync(cmd);
                 }
 
                 cmd.CommandText =
@@ -46,17 +37,15 @@ namespace WaitingListApi.Data.Database
                     + "created INT NOT NULL "
                     + ", PRIMARY KEY (emailAddress)"
                     + ");";
-                cn.ExecuteNonQuery(cmd);
-
-                cn.Vacuum();
+                await cn.ExecuteNonQueryAsync(cmd);
             }
         }
 
         public virtual int Insert(WaitingListRecord item)
         {
-            using var cn = _database.CreateDisposableConnection();
+            using var cn = _db.CreateDisposableConnection();
 
-            using (var _insertCommand = _database.CreateCommand())
+            using (var _insertCommand = _db.CreateCommand())
             {
                 _insertCommand.CommandText = "INSERT INTO waiting_list (emailAddress, jsonData, created) " +
                                              "VALUES ($emailAddress, $jsonData, $created)";
@@ -76,7 +65,7 @@ namespace WaitingListApi.Data.Database
                 _insertParam1!.Value = item.EmailAddress;
                 _insertParam2!.Value = item.JsonData;
                 _insertParam8!.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return cn.ExecuteNonQuery(_insertCommand);
+                return cn.ExecuteNonQueryAsync(_insertCommand).Result; // SEB:NOTE Can't be bothered. This is a temporary class.
             } // Lock
         }
     }

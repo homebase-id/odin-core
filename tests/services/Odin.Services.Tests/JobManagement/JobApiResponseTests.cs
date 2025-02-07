@@ -1,28 +1,32 @@
 using System;
-using Microsoft.Extensions.DependencyInjection;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.JobManagement;
+using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Tests.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement;
 
 public class JobApiResponseTests
 {
-    private IServiceProvider _serviceProvider = null!;
+    private ILifetimeScope _container = null!;
 
     [SetUp]
     public void Setup()
     {
-        var serviceCollection = new ServiceCollection();
+        var builder = new ContainerBuilder();
+        var mockLogger = Mock.Of<ILogger<SimpleJobTest>>();
+        builder.RegisterInstance(mockLogger).As<ILogger<SimpleJobTest>>();
 
-        serviceCollection.AddTransient<ILogger<SimpleJobTest>>(_ => Mock.Of<ILogger<SimpleJobTest>>());
-        serviceCollection.AddTransient<SimpleJobTest>();
+        var jobTypeRegistry = new JobTypeRegistry();
+        builder.RegisterInstance(jobTypeRegistry).As<IJobTypeRegistry>().SingleInstance();
+        jobTypeRegistry.RegisterJobType<SimpleJobTest>(builder, SimpleJobTest.JobTypeId);
 
-        _serviceProvider = serviceCollection.BuildServiceProvider();
+        _container = builder.Build();    
     }
 
     [Test]
@@ -33,10 +37,10 @@ public class JobApiResponseTests
             id = Guid.NewGuid(),
             state = (int)JobState.Scheduled,
             lastError = "some error",
-            jobType = typeof(SimpleJobTest).AssemblyQualifiedName,
+            jobType = SimpleJobTest.JobTypeId.ToString(),
         };
 
-        var job = AbstractJob.CreateInstance<SimpleJobTest>(_serviceProvider, record);
+        using var job = AbstractJob.CreateInstance<SimpleJobTest>(_container, record);
         job.JobData.SomeJobData = "hurrah!";
 
         Assert.That(job.Id, Is.EqualTo(record.id));

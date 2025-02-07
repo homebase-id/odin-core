@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage;
 
@@ -25,10 +25,9 @@ public class TwoKeyValueStorage
         _contextKey = contextKey;
     }
 
-    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
+    public async Task<T> GetAsync<T>(TableKeyTwoValue tblKeyTwoValue, Guid key) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var record = db.tblKeyTwoValue.Get(cn, MakeStorageKey(key));
+        var record = await tblKeyTwoValue.GetAsync(MakeStorageKey(key));
 
         if (null == record)
         {
@@ -38,10 +37,9 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByDataType<T>(DatabaseConnection cn, byte[] key2) where T : class
+    public async Task<IEnumerable<T>> GetByDataTypeAsync<T>(TableKeyTwoValue tblKeyTwoValue, byte[] key2) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var list = db.tblKeyTwoValue.GetByKeyTwo(cn, key2);
+        var list = await tblKeyTwoValue.GetByKeyTwoAsync(key2);
         if (null == list)
         {
             return new List<T>();
@@ -50,17 +48,15 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(DatabaseConnection cn, Guid key1, byte[] dataTypeKey, T value)
+    public async Task UpsertAsync<T>(TableKeyTwoValue tblKeyTwoValue, Guid key1, byte[] dataTypeKey, T value)
     {
-        var db = (IdentityDatabase)cn.db; // :(
         var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyTwoValue.Upsert(cn, new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        await tblKeyTwoValue.UpsertAsync(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(DatabaseConnection cn, Guid id)
+    public async Task DeleteAsync(TableKeyTwoValue tblKeyTwoValue, Guid id)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        db.tblKeyTwoValue.Delete(cn, MakeStorageKey(id));
+        await tblKeyTwoValue.DeleteAsync(MakeStorageKey(id));
     }
 
     private T Deserialize<T>(byte[] bytes)

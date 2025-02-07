@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -20,7 +18,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
     /// <summary />
     public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
     {
@@ -50,13 +48,13 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-        IOdinContext odinContext, DatabaseConnection cn)
+        IOdinContext odinContext)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
@@ -65,7 +63,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 targetFile: package.InternalFile,
                 newMetadata: metadata,
                 newServerMetadata: serverMetadata,
-                odinContext: odinContext, cn);
+                odinContext: odinContext);
 
             return;
         }
@@ -78,8 +76,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
-                odinContext: odinContext,
-                cn);
+                odinContext: odinContext);
 
             return;
         }
@@ -87,9 +84,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext, DatabaseConnection cn)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext, cn);
+        return await ProcessTransitBasic(package, FileSystemType.Standard, odinContext);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
@@ -117,8 +114,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             },
 
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
-            SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
-
+            SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
+            OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 
             Payloads = package.GetFinalPayloadDescriptors()

@@ -24,12 +24,12 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 {
     private WebScaffold _scaffold;
 
-    private static readonly Dictionary<string, string> IsGroupChannelAttributes = new() { { FeedDriveDistributionRouter.IsCollaborativeChannel, bool.TrueString } };
+    private static readonly Dictionary<string, string> IsGroupChannelAttributes = new() { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } };
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests();
     }

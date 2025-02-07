@@ -28,7 +28,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
 
             var env = new Dictionary<string, string>
@@ -115,24 +115,23 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem);
             Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
-            
 
-            
+
             //TODO: there is no way to check the status of an item in the outbox; so the best
             //we can do is check if the target file is not updated
-            
+
             //
             // Assert the read receipt was not updated on the sender's file
             //
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+            
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
@@ -146,27 +145,27 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
         public async Task FailToSendReadReceiptWhenNotConnectedOnRecipientSide(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
-            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
             const DrivePermission senderDrivePermissions = DrivePermission.Write;
             const DrivePermission recipientDrivePermissions = DrivePermission.Read;
 
             var targetDrive = callerContext.TargetDrive;
-            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, senderDrivePermissions, recipientDrivePermissions);
+            await PrepareScenario(frodoOwnerClient, samOwnerClient, targetDrive, senderDrivePermissions, recipientDrivePermissions);
 
             var transitOptions = new TransitOptions()
             {
-                Recipients = [recipientOwnerClient.Identity.OdinId]
+                Recipients = [samOwnerClient.Identity.OdinId]
             };
 
             var (uploadResult, _, recipientFiles) =
-                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+                await AssertCanUploadEncryptedMetadata(frodoOwnerClient, samOwnerClient, targetDrive, transitOptions);
 
-            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+            await samOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
-            await callerContext.Initialize(recipientOwnerClient);
-            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+            await callerContext.Initialize(samOwnerClient);
+            var driveClient = new UniversalDriveApiClient(samOwnerClient.Identity.OdinId, callerContext.GetFactory());
 
             //
             // Send the read receipt
@@ -181,7 +180,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             //
             // Severe the connection
             //
-            await recipientOwnerClient.Connections.DisconnectFrom(senderOwnerClient.Identity.OdinId);
+            await samOwnerClient.Connections.DisconnectFrom(frodoOwnerClient.Identity.OdinId);
 
             var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt]);
 
@@ -190,7 +189,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsNotNull(sendReadReceiptResult);
             var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
             Assert.IsNotNull(item, "no record for file");
-            var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
+            var statusItem = item.Status.SingleOrDefault(i => i.Recipient == frodoOwnerClient.Identity.OdinId);
             Assert.IsNotNull(statusItem);
             Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.NotConnectedToOriginalSender);
 
@@ -198,20 +197,21 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             // Assert the read receipt was not updated on the sender's file
             //
 
-            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
+            await frodoOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await frodoOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(samOwnerClient.Identity.OdinId);
+            
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 
-            await senderOwnerClient.Connections.DisconnectFrom(recipientOwnerClient.Identity.OdinId);
+            await frodoOwnerClient.Connections.DisconnectFrom(samOwnerClient.Identity.OdinId);
+            await samOwnerClient.Connections.DisconnectFrom(frodoOwnerClient.Identity.OdinId);
         }
 
         [Test]
@@ -267,26 +267,26 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             Assert.IsNotNull(statusItem);
             Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
 
-            
+
             //TODO: we cannot check if the original sender rejected the read-receipt because this
             //now in the outbox and there's no mechanism for that; therefore the best we can do is
             //validate the original sender file was not updated
-            
+
             await driveClient.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
 
-            
+
             //
             // Assert the read receipt was not updated on the sender's file
             //
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+            
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
@@ -333,7 +333,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
                 Recipients = [recipientOwnerClient.Identity.OdinId]
             };
 
-            var (senderUploadResult, _, recipientFiles) =
+            var (senderUploadResult, _, _) =
                 await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
 
             await recipientOwnerClient.DriveRedux.ProcessInbox(senderUploadResult.File.TargetDrive);
@@ -359,7 +359,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
             Assert.IsNotNull(item);
             Assert.IsNull(item.Status.Single().Recipient);
-            Assert.IsTrue(item.Status.Single().Status == SendReadReceiptResultStatus.FileDoesNotHaveSender);
+            Assert.IsTrue(item.Status.Single().Status == SendReadReceiptResultStatus.CannotSendReadReceiptToSelf);
 
             //
             // Assert the read receipt was not updated on the sender's file
@@ -367,18 +367,18 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(senderUploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(senderUploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsFalse(recipientStatus.IsReadByRecipient, "the file should not be marked as read");
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == senderUploadResult.NewVersionTag);
 
             await senderOwnerClient.Connections.DisconnectFrom(recipientOwnerClient.Identity.OdinId);
+            await recipientOwnerClient.Connections.DisconnectFrom(senderOwnerClient.Identity.OdinId);
         }
 
         [Test]

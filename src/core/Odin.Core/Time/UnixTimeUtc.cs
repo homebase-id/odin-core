@@ -284,6 +284,7 @@ namespace Odin.Core.Time
         }
 
         private Int64 _millisecondsUniqueWithCounter;
+        
     }
 
 
@@ -293,6 +294,52 @@ namespace Odin.Core.Time
         static private UnixTimeUtc _lastSecond = new UnixTimeUtc(0);
         static private Int32 _counter = 0;
 
+        /// <summary>
+        /// Returns a (single server) unique timestamp. 
+        /// Top 48 bits (0xFF FF FF FF FF FF 00 00) are the milliseconds (8,925 years since year 1970)
+        /// Bottom 16 bits (0xFF FF) are the counter (up to 65,535 per millisecond)
+        /// Thread safe.
+        /// </summary>
+        /// <returns>UnixTimeUtcUnique</returns>
+        public static UnixTimeUtcUnique Generator()
+        {
+            UnixTimeUtc ms;
+
+            while (true)
+            {
+                lock (_lock)
+                {
+                    ms = new UnixTimeUtc(); // Update timestamp at the beginning of each iteration
+
+                    if (ms == _lastSecond)
+                    {
+                        // 16 bit counter, 65535 max / millisecond
+                        _counter++;
+                        if (_counter >= 0xFFFF)
+                        {
+                            // Need to wait for the next millisecond
+                            // Exit lock to sleep without holding the lock
+                        }
+                        else
+                        {
+                            break; // Unique timestamp generated
+                        }
+                    }
+                    else
+                    {
+                        _lastSecond = ms;
+                        _counter = 0;
+                        break; // Unique timestamp generated
+                    }
+                }
+
+                Thread.Sleep(1); // Sleep outside the lock
+            }
+
+            Int64 r = (ms.milliseconds << 16) | (UInt16)_counter;
+
+            return new UnixTimeUtcUnique(r);
+        }
 
         /// <summary>
         /// Returns a (single server) unique timestamp. 
@@ -301,7 +348,8 @@ namespace Odin.Core.Time
         /// Thread safe.
         /// </summary>
         /// <returns>UnixTimeUtcUnique</returns>
-        public static UnixTimeUtcUnique Generator()
+        ///
+        public static UnixTimeUtcUnique OldGenerator()
         {
             var ms = new UnixTimeUtc();
 
@@ -316,7 +364,7 @@ namespace Odin.Core.Time
                         Thread.Sleep(1);
                         // http://msdn.microsoft.com/en-us/library/c5kehkcz.aspx
                         // A lock knows which thread locked it. If the same thread comes again it just increments a counter and does not block.
-                        return Generator();
+                        return OldGenerator();
                     }
                 }
                 else

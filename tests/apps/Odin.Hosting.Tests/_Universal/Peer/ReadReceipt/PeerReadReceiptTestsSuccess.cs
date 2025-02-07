@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
 
             var env = new Dictionary<string, string>
@@ -124,12 +124,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+            
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsTrue(recipientStatus.IsReadByRecipient);
             Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
@@ -216,30 +216,31 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
 
             await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive, batchSize: 100);
 
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(senderUploadResult1.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
+            var getHistoryResponse1 = await senderOwnerClient.DriveRedux.GetTransferHistory(senderUploadResult1.File);
+            Assert.IsTrue(getHistoryResponse1.IsSuccessStatusCode);
+            var file1TransferHistory = getHistoryResponse1.Content;
+            Assert.IsNotNull(file1TransferHistory);
+            var samRecipientStatus1 = file1TransferHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
 
-            var file1TransferHistory = uploadedFile1.ServerMetadata.TransferHistory;
-            Assert.IsTrue(file1TransferHistory.Recipients.Count == 1);
-            Assert.IsTrue(file1TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var samRecipientStatus1));
+            Assert.IsTrue(file1TransferHistory.History.Results.Count == 1);
             Assert.IsNotNull(samRecipientStatus1, "There should be a status update for the sam");
             Assert.IsTrue(samRecipientStatus1.IsReadByRecipient);
             Assert.IsTrue(samRecipientStatus1.LatestTransferStatus == LatestTransferStatus.Delivered);
             Assert.IsTrue(samRecipientStatus1.LatestSuccessfullyDeliveredVersionTag == senderUploadResult1.NewVersionTag);
+            
+            
+            var getHistoryResponse2 = await senderOwnerClient.DriveRedux.GetTransferHistory(senderUploadResult2.File);
+            Assert.IsTrue(getHistoryResponse2.IsSuccessStatusCode);
+            var file1TransferHistory2 = getHistoryResponse2.Content;
+            Assert.IsNotNull(file1TransferHistory2);
+            var samRecipientStatus2 = file1TransferHistory2.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
 
-            var uploadedFileResponse2 = await senderOwnerClient.DriveRedux.GetFileHeader(senderUploadResult2.File);
-            Assert.IsTrue(uploadedFileResponse2.IsSuccessStatusCode);
-            var uploadedFile2 = uploadedFileResponse2.Content;
-
-            var file1TransferHistory2 = uploadedFile2.ServerMetadata.TransferHistory;
-            Assert.IsTrue(file1TransferHistory2.Recipients.Count == 1);
-            Assert.IsTrue(file1TransferHistory2.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var samRecipientStatus));
-            Assert.IsNotNull(samRecipientStatus, "There should be a status update for the recipient");
-            Assert.IsTrue(samRecipientStatus.IsReadByRecipient);
-            Assert.IsTrue(samRecipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
-            Assert.IsTrue(samRecipientStatus.LatestSuccessfullyDeliveredVersionTag == senderUploadResult2.NewVersionTag);
-
+            Assert.IsTrue(file1TransferHistory2.History.Results.Count == 1);
+            Assert.IsNotNull(samRecipientStatus2, "There should be a status update for the sam");
+            Assert.IsTrue(samRecipientStatus2.IsReadByRecipient);
+            Assert.IsTrue(samRecipientStatus2.LatestTransferStatus == LatestTransferStatus.Delivered);
+            Assert.IsTrue(samRecipientStatus2.LatestSuccessfullyDeliveredVersionTag == senderUploadResult2.NewVersionTag);
+            
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 

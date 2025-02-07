@@ -36,7 +36,6 @@ public static class OdinContextUpgrades
     //
     //     return patchedContext;
     // }
-
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
@@ -49,7 +48,7 @@ public static class OdinContextUpgrades
 
         return patchedContext;
     }
-
+    
     public static IOdinContext PrepForSynchronizeChannelFiles(
         IOdinContext odinContext,
         Guid feedDriveId,
@@ -124,6 +123,18 @@ public static class OdinContextUpgrades
                     // PermissionKeys.SendOnBehalfOfOwner,
                     PermissionKeys.ReadCircleMembership
                 ]),
+                new List<DriveGrant>(), null, null));
+
+        return patchedContext;
+    }
+
+    public static IOdinContext UsePermissions(IOdinContext odinContext, params int[] permissionKeys)
+    {
+        var patchedContext = odinContext.Clone();
+
+        patchedContext.PermissionsContext.PermissionGroups.TryAdd($"UsePermissions_{Guid.NewGuid().ToString()}",
+            new PermissionGroup(
+                new PermissionSet(permissionKeys),
                 new List<DriveGrant>(), null, null));
 
         return patchedContext;

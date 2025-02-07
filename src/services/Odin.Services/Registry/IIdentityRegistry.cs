@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Time;
@@ -8,6 +9,8 @@ namespace Odin.Services.Registry
 {
     public interface IIdentityRegistry
     {
+        public Task LoadRegistrations();
+
         /// <summary>
         /// Returns ID for *exact* domain, e.g. www.frodo.me 
         /// </summary>
@@ -66,13 +69,14 @@ namespace Odin.Services.Registry
         /// </summary>
         /// <returns></returns>
         Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null);
+        Task<List<IdentityRegistration>> GetTenants();
 
         /// <summary>
         /// Gets an <see cref="IdentityRegistration"/> by domain name
         /// </summary>
         /// <param name="domain"></param>
         /// <returns></returns>
-        Task<IdentityRegistration> Get(string domain);
+        Task<IdentityRegistration> GetAsync(string domain);
 
         Task MarkRegistrationComplete(Guid firstRunToken);
 
@@ -90,8 +94,8 @@ namespace Odin.Services.Registry
         /// <summary>
         /// Marks an account for deletion as of now(); returns the date on which it will be deleted based on registry config
         /// </summary>
-        Task<UnixTimeUtc> MarkForDeletion(string domain);
+        Task<UnixTimeUtc> MarkForDeletionAsync(string domain);
 
-        Task UnmarkForDeletion(string domain);
+        Task UnmarkForDeletionAsync(string domain);
     }
 }

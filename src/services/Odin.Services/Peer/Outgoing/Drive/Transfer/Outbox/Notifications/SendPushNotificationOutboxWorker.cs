@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
@@ -23,19 +22,19 @@ public class SendPushNotificationOutboxWorker(
     IAppRegistrationService appRegistrationService,
     PushNotificationService pushNotificationService)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         await PerformanceCounter.MeasureExecutionTime("Notifications SendPushNotification",
             async () =>
             {
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
-                await PushItem(newContext, cn, cancellationToken);
+                await PushItem(newContext, cancellationToken);
             });
 
         return (true, UnixTimeUtc.ZeroTime);
     }
 
-    private async Task PushItem(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    private async Task PushItem(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         //HACK as I refactor stuff - I should rather deserialize this in the push notification service?
         var data = fileItem.State.Data?.ToStringFromUtf8Bytes();
@@ -62,7 +61,7 @@ public class SendPushNotificationOutboxWorker(
             Payloads = new List<PushNotificationPayload>()
         };
 
-        var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext, cn);
+        var (validAppName, appName) = await TryResolveAppName(record.Options.AppId, odinContext);
 
         if (validAppName)
         {
@@ -82,7 +81,7 @@ public class SendPushNotificationOutboxWorker(
 
         try
         {
-            await pushNotificationService.Push(pushContent, odinContext, cn, cancellationToken);
+            await pushNotificationService.PushAsync(pushContent, odinContext, cancellationToken);
         }
         catch (Exception e)
         {
@@ -95,7 +94,7 @@ public class SendPushNotificationOutboxWorker(
         }
     }
 
-    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<(bool success, string appName)> TryResolveAppName(Guid appId, IOdinContext odinContext)
     {
         if (appId == SystemAppConstants.OwnerAppId)
         {
@@ -107,7 +106,7 @@ public class SendPushNotificationOutboxWorker(
             return (true, "Homebase Feed");
         }
 
-        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext, cn);
+        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext);
         return (appReg != null, appReg?.Name);
     }
 }

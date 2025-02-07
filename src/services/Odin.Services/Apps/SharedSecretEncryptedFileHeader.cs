@@ -36,14 +36,34 @@ namespace Odin.Services.Apps
             }
         }
 
+        public void AssertOriginalAuthor(OdinId odinId)
+        {
+            if (string.IsNullOrEmpty(this.FileMetadata.OriginalAuthor))
+            {
+                // backwards compatibility
+                AssertOriginalSender(odinId);
+            }
+
+            if (this.FileMetadata.OriginalAuthor != odinId)
+            {
+                throw new OdinSecurityException("Sender does not match original author");
+            }
+        }
+
+        public bool IsOriginalSender(OdinId odinId)
+        {
+            return new OdinId(this.FileMetadata.SenderOdinId) == odinId;
+        }
+
         public void AssertOriginalSender(OdinId odinId)
         {
             if (string.IsNullOrEmpty(this.FileMetadata.SenderOdinId))
             {
-                throw new OdinSecurityException($"Original file does not have a sender (FileId: {this.FileId} on Drive: {this.TargetDrive}");
+                throw new OdinSecurityException(
+                    $"Original file does not have a sender (FileId: {this.FileId} on Drive: {this.TargetDrive}");
             }
 
-            if (new OdinId(this.FileMetadata.SenderOdinId) != odinId)
+            if (!IsOriginalSender(odinId))
             {
                 throw new OdinSecurityException("Sender does not match original sender");
             }

@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
+using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.Certificate;
 using Odin.Services.Email;
@@ -31,6 +33,8 @@ namespace Odin.Services.Configuration
         public TransitSection Transit { get; init; }
 
         public PushNotificationSection PushNotification { get; init; }
+        public DatabaseSection Database { get; init; }
+        public CacheSection Cache { get; init; }
 
         public OdinConfiguration()
         {
@@ -56,6 +60,8 @@ namespace Odin.Services.Configuration
 
             CertificateRenewal = new CertificateRenewalSection(config);
             PushNotification = new PushNotificationSection(config);
+            Database = new DatabaseSection(config);
+            Cache = new CacheSection(config);
         }
 
         //
@@ -172,6 +178,8 @@ namespace Odin.Services.Configuration
 
             public int ShutdownTimeoutSeconds { get; init; }
             public Guid SystemProcessApiKey { get; set; }
+            
+            public int IpRateLimitRequestsPerSecond { get; init; }
 
             public HostSection()
             {
@@ -196,7 +204,7 @@ namespace Odin.Services.Configuration
 
                 HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
-                ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 30);
+                ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 120);
                 SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
 
                 //TODO: changed to required when Seb and I can coordinate config changes
@@ -208,12 +216,17 @@ namespace Odin.Services.Configuration
 
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
 
-                UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", true);
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
                 PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
+
+                OutboxOperationMaxAttempts = config.GetOrDefault("Host:OutboxOperationMaxAttempts", 30);
+
                 ReportContentUrl = config.GetOrDefault<string>("Host:ReportContentUrl");
 
                 InboxOutboxRecoveryAgeSeconds = config.GetOrDefault("Host:InboxOutboxRecoveryAgeSeconds", 24 * 60 * 60);
+
+                // SEB:TODO figure out what the rate limit should default to. FE requests an insane amount of files in development mode.
+                IpRateLimitRequestsPerSecond = config.GetOrDefault("Host:IpRateLimitRequestsPerSecond", 1000);
             }
 
             public string ReportContentUrl { get; set; }
@@ -238,9 +251,10 @@ namespace Odin.Services.Configuration
             /// </summary>
             public int FileWriteChunkSizeInBytes { get; set; }
 
-            public bool UseConcurrentFileManager { get; set; }
             public int PushNotificationBatchSize { get; set; }
             public int PeerOperationMaxAttempts { get; init; }
+            public int OutboxOperationMaxAttempts { get; init; }
+            
             public TimeSpan PeerOperationDelayMs { get; init; }
 
             /// <summary>
@@ -269,6 +283,8 @@ namespace Odin.Services.Configuration
             public int EnsureCertificateProcessorIntervalSeconds { get; init; }
             public int InboxOutboxReconciliationIntervalSeconds { get; init; }
             public int JobCleanUpIntervalSeconds { get; init; }
+            public bool SystemJobsEnabled { get; init; }
+            public bool TenantJobsEnabled { get; init; }
 
             public JobSection()
             {
@@ -280,6 +296,8 @@ namespace Odin.Services.Configuration
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Job:EnsureCertificateProcessorIntervalSeconds");
                 InboxOutboxReconciliationIntervalSeconds = config.Required<int>("Job:InboxOutboxReconciliationIntervalSeconds");
                 JobCleanUpIntervalSeconds = config.Required<int>("Job:JobCleanUpIntervalSeconds");
+                SystemJobsEnabled = config.GetOrDefault("Job:SystemJobsEnabled", true);
+                TenantJobsEnabled = config.GetOrDefault("Job:TenantJobsEnabled", true);
             }
         }
 
@@ -411,6 +429,50 @@ namespace Odin.Services.Configuration
             public PushNotificationSection(IConfiguration config)
             {
                 BaseUrl = config.GetOrDefault("PushNotification:BaseUrl", "https://push.homebase.id");
+            }
+        }
+        
+        //
+
+        public class DatabaseSection
+        {
+            public DatabaseType Type { get; init; }
+            public string ConnectionString { get; init; } = "";
+
+            public DatabaseSection()
+            {
+                // Mockable support
+            }
+
+            public DatabaseSection(IConfiguration config)
+            {
+                Type = config.GetOrDefault("Database:Type", DatabaseType.Sqlite);
+                if (Type != DatabaseType.Sqlite) // Sqlite doesn't require a connection string
+                {
+                    ConnectionString = config.Required<string>("Database:ConnectionString");        
+                }
+            }
+        }
+
+        //
+
+        public class CacheSection
+        {
+            public Level2CacheType Level2CacheType { get; init; }
+            public string Level2Configuration { get; init; } = "";
+
+            public CacheSection()
+            {
+                // Mockable support
+            }
+
+            public CacheSection(IConfiguration config)
+            {
+                Level2CacheType = config.GetOrDefault("Cache:Level2CacheType", Level2CacheType.None);
+                if (Level2CacheType != Level2CacheType.None)
+                {
+                    Level2Configuration = config.Required<string>("Cache:Level2Configuration");
+                }
             }
         }
     }

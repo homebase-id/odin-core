@@ -9,7 +9,8 @@ public enum OdinClientErrorCode
     // Auth Errors 10xx
     InvalidAuthToken = 1001,
     SharedSecretEncryptionIsInvalid = 1002,
-
+    PublicKeyEncryptionIsInvalid = 1004,
+    
     // Notifcation Errors 20xx
     InvalidNotificationType = 2001,
     UnknownNotificationId = 2002,
@@ -25,6 +26,7 @@ public enum OdinClientErrorCode
     NotAFollowerIdentity = 3007,
     IdentityNotFollowed = 3008,
     IdentityAlreadyFollowed = 3009,
+    CannotGrantAutoConnectedMoreCircles = 3010,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -66,11 +68,16 @@ public enum OdinClientErrorCode
     InvalidUpload = 4163,
     InvalidPayloadNameOrKey = 4164,
     FileLockedDuringWriteOperation = 4165,
+    InvalidGlobalTransitId = 4166,
+
 
     // Connection errors 50xx
-    CannotSendConnectionRequestToExistingIncomingRequest = 5001,
-    CannotSendMultipleConnectionRequestToTheSameIdentity = 5002,
+    NotAnAutoConnection = 5001,
+    IdentityMustBeConnected = 5002,
     ConnectionRequestToYourself = 5003,
+    BlockedConnection = 5004,
+    CannotSendConnectionRequestToValidConnection = 5005,
+    RemoteServerMissingOutgoingRequest = 5006,
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
@@ -83,6 +90,7 @@ public enum OdinClientErrorCode
     //Transit errors
     RemoteServerReturnedForbidden = 7403,
     RemoteServerReturnedInternalServerError = 7500,
+    RemoteServerReturnedUnavailable = 7503,
     RemoteServerTransitRejected = 7900,
     InvalidTransitOptions = 7901,
     FileDoesNotHaveSender = 7902,
@@ -95,4 +103,7 @@ public enum OdinClientErrorCode
     NotInitialized = 9002,
     UnknownFlagName = 9003,
     InvalidOrExpiredRsaKey = 9004,
+    MissingVerificationHash = 9005,
+    PasswordAlreadySet = 9006,
+    IntroductoryRequestAlreadySent = 9007,
 }

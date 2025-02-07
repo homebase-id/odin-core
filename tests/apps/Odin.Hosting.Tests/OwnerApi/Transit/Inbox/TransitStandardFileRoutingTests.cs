@@ -28,7 +28,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -102,6 +102,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+
             Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == uploadedContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
@@ -163,6 +165,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
             Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);

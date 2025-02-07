@@ -15,13 +15,13 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
     {
         private readonly CircleNetworkService _cns;
         private readonly CircleMembershipService _circleMembershipService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public CircleDefinitionControllerBase(CircleNetworkService cns, CircleMembershipService circleMembershipService, TenantSystemStorage tenantSystemStorage)
+
+        public CircleDefinitionControllerBase(CircleNetworkService cns, CircleMembershipService circleMembershipService)
         {
             _cns = cns;
             _circleMembershipService = circleMembershipService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
 
         /// <summary>
@@ -31,16 +31,14 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
         [HttpGet("list")]
         public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _circleMembershipService.GetCircleDefinitions(includeSystemCircle, WebOdinContext, cn);
+            var result = await _circleMembershipService.GetCircleDefinitions(includeSystemCircle, WebOdinContext);
             return result;
         }
 
         [HttpPost("get")]
-        public CircleDefinition GetCircle([FromBody] Guid id)
+        public async Task<CircleDefinition> GetCircle([FromBody] Guid id)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return _circleMembershipService.GetCircle(id, WebOdinContext, cn);
+            return await _circleMembershipService.GetCircleAsync(id, WebOdinContext);
         }
 
         [HttpPost("create")]
@@ -50,40 +48,35 @@ namespace Odin.Hosting.Controllers.Base.Membership.Circles
             OdinValidationUtils.AssertNotNullOrEmpty(request.Name, nameof(request.Name));
             OdinValidationUtils.AssertNotEmptyGuid(request.Id, nameof(request.Id));
 
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _circleMembershipService.CreateCircleDefinition(request, WebOdinContext, cn);
+            await _circleMembershipService.CreateCircleDefinitionAsync(request, WebOdinContext);
             return true;
         }
 
         [HttpPost("update")]
         public async Task<bool> UpdateCircle([FromBody] CircleDefinition circleDefinition)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _cns.UpdateCircleDefinition(circleDefinition, WebOdinContext, cn);
+            await _cns.UpdateCircleDefinitionAsync(circleDefinition, WebOdinContext);
             return true;
         }
 
         [HttpPost("delete")]
         public async Task<bool> DeleteCircle([FromBody] Guid id)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _cns.DeleteCircleDefinition(new GuidId(id), WebOdinContext, cn);
+            await _cns.DeleteCircleDefinitionAsync(new GuidId(id), WebOdinContext);
             return true;
         }
 
         [HttpPost("enable")]
         public async Task<bool> EnableCircle([FromBody] Guid id)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _circleMembershipService.EnableCircle(new GuidId(id), WebOdinContext, cn);
+            await _circleMembershipService.EnableCircleAsync(new GuidId(id), WebOdinContext);
             return true;
         }
 
         [HttpPost("disable")]
         public async Task<bool> DisableCircle([FromBody] Guid id)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _circleMembershipService.DisableCircle(new GuidId(id), WebOdinContext, cn);
+            await _circleMembershipService.DisableCircleAsync(new GuidId(id), WebOdinContext);
             return true;
         }
     }

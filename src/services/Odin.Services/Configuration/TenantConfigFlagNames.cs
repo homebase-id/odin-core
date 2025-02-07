@@ -30,5 +30,8 @@ public enum TenantConfigFlagNames
     ConnectedIdentitiesCanReactOnAnonymousDrives,
     
     /// <summary/>
-    ConnectedIdentitiesCanCommentOnAnonymousDrives
+    ConnectedIdentitiesCanCommentOnAnonymousDrives,
+    
+    /// <summary/>
+    DisableAutoAcceptIntroductionsForTests
 }

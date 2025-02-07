@@ -1,3 +1,6 @@
+using Odin.Core.Identity;
+using Odin.Core.Time;
+
 namespace Odin.Services.EncryptionKeyService
 {
     /// <summary>
@@ -25,29 +28,5 @@ namespace Odin.Services.EncryptionKeyService
             var isBad = this.KeyHeaderEncryptedData == null || this.RsaEncryptedKeyHeader == null || this.Crc32 == 0;
             return !isBad;
         }
-    }
-    
-    public class EccEncryptedPayload
-    {
-        /// <summary>
-        /// Initialization Vector for EncryptedData
-        /// </summary>
-        public byte[] Iv { get; set; }
-
-        /// <summary>
-        /// The encrypted data
-        /// </summary>
-        public byte[] EncryptedData { get; set; }
-
-        /// <summary>
-        /// Public key used to generate the shared secret for encrypting the EncryptedData
-        /// </summary>
-        public string PublicKey { get; set; }
-
-        /// <summary>
-        /// Salt used for generating the shared secret for encrypted the EncryptedData
-        /// </summary>
-        public byte[] Salt { get; set; }
-
     }
 }

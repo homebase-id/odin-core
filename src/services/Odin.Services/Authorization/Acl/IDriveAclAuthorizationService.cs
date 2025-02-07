@@ -1,14 +1,12 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 
 namespace Odin.Services.Authorization.Acl
 {
     public interface IDriveAclAuthorizationService
     {
-        Task<bool> IdentityHasPermission(OdinId odinId, AccessControlList acl, IOdinContext odinContext, DatabaseConnection cn);
+        Task<bool> IdentityHasPermissionAsync(OdinId odinId, AccessControlList acl, IOdinContext odinContext);
         
         Task AssertCallerHasPermission(AccessControlList acl, IOdinContext odinContext);
 

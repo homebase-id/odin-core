@@ -42,18 +42,20 @@ runs:
       run: |
         npm ci
         npm run build:libs
-        touch packages/public-app/.env
-        echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
-        touch packages/owner-app/.env
-        echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
-        touch packages/feed-app/.env
-        echo VITE_VERSION=$(date +%s) >> packages/feed-app/.env
-        touch packages/chat-app/.env
-        echo VITE_VERSION=$(date +%s) >> packages/chat-app/.env
-        touch packages/mail-app/.env
-        echo VITE_VERSION=$(date +%s) >> packages/mail-app/.env
-        touch packages/provisioning-app/.env
-        echo VITE_VERSION=$(date +%s) >> packages/provisioning-app/.env
+        touch packages/apps/public-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/apps/public-app/.env
+        touch packages/apps/owner-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/apps/owner-app/.env
+        touch packages/apps/feed-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/apps/feed-app/.env
+        touch packages/apps/chat-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/apps/chat-app/.env
+        touch packages/apps/mail-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/apps/mail-app/.env
+        touch packages/apps/provisioning-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/apps/provisioning-app/.env
+        touch packages/apps/community-app/.env
+        echo VITE_VERSION=$(date +%s) >> packages/apps/community-app/.env
 
     - name: Build owner-app
       shell: bash
@@ -61,7 +63,7 @@ runs:
       run: |
         npm run build:owner
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/owner-app
-        mv packages/owner-app/dist ../../odin-core/src/apps/Odin.Hosting/client/owner-app
+        mv packages/apps/owner-app/dist ../../odin-core/src/apps/Odin.Hosting/client/owner-app
 
     - name: Build public-app
       shell: bash
@@ -69,7 +71,7 @@ runs:
       run: |
         npm run build:public
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/public-app
-        mv packages/public-app/dist ../../odin-core/src/apps/Odin.Hosting/client/public-app
+        mv packages/apps/public-app/dist ../../odin-core/src/apps/Odin.Hosting/client/public-app
 
     - name: Build feed-app
       shell: bash
@@ -77,7 +79,7 @@ runs:
       run: |
         npm run build:feed
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/feed
-        mv packages/feed-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/feed
+        mv packages/apps/feed-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/feed
 
     - name: Build chat-app
       shell: bash
@@ -85,7 +87,7 @@ runs:
       run: |
         npm run build:chat
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
-        mv packages/chat-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
+        mv packages/apps/chat-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
 
     - name: Build mail-app
       shell: bash
@@ -93,7 +95,15 @@ runs:
       run: |
         npm run build:mail
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/mail
-        mv packages/mail-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/mail
+        mv packages/apps/mail-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/mail
+
+    - name: Build community-app
+      shell: bash
+      working-directory: ./client/apps
+      run: |
+        npm run build:community
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/community
+        mv packages/apps/community-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/community
 
     - name: Build provisioning-app
       shell: bash
@@ -101,5 +111,4 @@ runs:
       run: |
         npm run build:provisioning
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
-        mv packages/provisioning-app/dist ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app
-
+        mv packages/apps/provisioning-app/dist ../../odin-core/src/apps/Odin.Hosting/client/provisioning-app

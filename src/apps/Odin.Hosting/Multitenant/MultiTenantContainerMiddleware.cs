@@ -2,68 +2,50 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 
 #nullable enable
-namespace Odin.Hosting.Multitenant
+namespace Odin.Hosting.Multitenant;
+
+internal class MultiTenantContainerMiddleware(
+    RequestDelegate next,
+    IMultiTenantContainerAccessor container,
+    IIdentityRegistry identityRegistry,
+    ICorrelationContext correlationContext)
 {
-    internal class MultiTenantContainerMiddleware
+    public async Task Invoke(HttpContext context)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<MultiTenantContainerMiddleware> _logger;
-        private readonly IMultiTenantContainerAccessor _container;
-        private readonly IIdentityRegistry _identityRegistry;
-
-        //
-
-        public MultiTenantContainerMiddleware(
-            RequestDelegate next,
-            ILogger<MultiTenantContainerMiddleware> logger,
-            IMultiTenantContainerAccessor container,
-            IIdentityRegistry identityRegistry)
+        // Bail if we don't know the hostname/tenant
+        var host = context.Request.Host.Host;
+        var registration = identityRegistry.ResolveIdentityRegistration(host, out _);
+        if (registration == null)
         {
-            _next = next;
-            _logger = logger;
-            _container = container;
-            _identityRegistry = identityRegistry;
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await context.Response.WriteAsync($"{host} not found");
+            return;
         }
-        
-        //
 
-        public async Task Invoke(HttpContext context)
+        if (registration.Disabled)
         {
-            ILifetimeScope? scope = null;
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await context.Response.WriteAsync($"{host} is disabled");
+            return;
+        }
 
-            // Bail if we don't know the hostname/tenant
-            var host = context.Request.Host.Host;
-            var registration = _identityRegistry.ResolveIdentityRegistration(host, out _);
-            if (registration == null)
-            {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
-                await context.Response.WriteAsync($"{host} not found");
-                return;
-            }
-
-            if (registration.Disabled)
-            {
-                context.Response.StatusCode = StatusCodes.Status409Conflict;
-                await context.Response.WriteAsync($"{host} is disabled");
-                return;
-            }
-            
-            // Begin new scope for the request (this is where e.g. OdinContext is created)
-            try
-            {
-                scope = _container.Container().GetCurrentTenantScope().BeginLifetimeScope("requestscope");
-                context.RequestServices = new AutofacServiceProvider(scope);
-                await _next(context);
-            }
-            finally
-            {
-                scope?.Dispose();
-            }
+        // Begin new scope for the request (this is where e.g. OdinContext is created)
+        ILifetimeScope? requestScope = null;
+        try
+        {
+            var tenantScope = container.Container().GetTenantScope(registration.PrimaryDomainName);
+            requestScope = tenantScope.BeginLifetimeScope($"Request:{correlationContext.Id}");
+            context.RequestServices = new AutofacServiceProvider(requestScope);
+            await next(context);
+        }
+        finally
+        {
+            requestScope?.Dispose();
         }
     }
 }

@@ -13,4 +13,5 @@ public enum SocketCommandType
     ProcessTransitInstructions = 111,
     ProcessInbox = 222,
     Ping = 999,
+    WhoIsOnline = 444,
 }

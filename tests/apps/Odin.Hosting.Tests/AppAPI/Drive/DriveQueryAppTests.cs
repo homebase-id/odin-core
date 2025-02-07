@@ -19,7 +19,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -230,7 +230,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
+                Assert.IsTrue(firstResult.FileMetadata.SenderOdinId == identity.OdinId);
+                Assert.IsTrue(firstResult.FileMetadata.OriginalAuthor == identity.OdinId);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -288,7 +289,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
-                    ArchivalStatus =  new List<int>() { archivalStatus }
+                    ArchivalStatus = new List<int>() { archivalStatus }
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
@@ -324,13 +325,14 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.ArchivalStatus == uploadFileMetadata_archived.AppData.ArchivalStatus);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.DataType == uploadFileMetadata_archived.AppData.DataType);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.UserDate == uploadFileMetadata_archived.AppData.UserDate);
-                Assert.IsTrue(string.IsNullOrEmpty(theFileResult.FileMetadata.SenderOdinId));
+                Assert.IsTrue(theFileResult.FileMetadata.SenderOdinId == identity.OdinId);
+                Assert.IsTrue(theFileResult.FileMetadata.OriginalAuthor == identity.OdinId);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
             }
         }
-        
+
         [Test]
         public async Task CanQueryDriveModifiedItemsRedactedContent()
         {
@@ -385,6 +387,5 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)), "One or more items had content");
             }
         }
-
     }
 }

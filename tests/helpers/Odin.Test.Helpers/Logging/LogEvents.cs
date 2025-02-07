@@ -16,4 +16,25 @@ public static class LogEvents
         var found = logEvents.Any(e => e.RenderMessage() == message);
         Assert.That(found, Is.True, $"Expected log message not found: '{message}'");
     }
+
+    public static void DumpEvents(List<LogEvent> logEvents)
+    {
+        foreach (var logEvent in logEvents)
+        {
+            Console.WriteLine("Begin LogEvent dump");
+            Console.WriteLine($"Message: {logEvent.RenderMessage()}");
+            if (logEvent.Exception != null)
+            {
+                Console.WriteLine(logEvent.Exception);
+            }
+            Console.WriteLine("End LogEvent dump");
+        }
+    }
+
+    public static void DumpErrorEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
+    {
+        DumpEvents(logEvents[LogEventLevel.Error]);
+        DumpEvents(logEvents[LogEventLevel.Fatal]);
+    }
+
 }

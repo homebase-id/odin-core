@@ -5,13 +5,16 @@ using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using NodaTime;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base;
 
@@ -22,6 +25,9 @@ public static class DriveFileUtility
     public const string FileNameSectionDelimiter = "-";
     public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
     public const string TransitThumbnailKeyDelimiter = "|";
+
+    public const int MaxAppDataContentLength = 10 * 1024;
+    public const int MaxTinyThumbLength = 10 * 1024;
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -40,7 +46,8 @@ public static class DriveFileUtility
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(header.FileMetadata.File.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-            sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
+            sharedSecretEncryptedKeyHeader =
+                EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
         }
         else
         {
@@ -133,9 +140,12 @@ public static class DriveFileUtility
             TransitUpdated = fileMetadata.TransitUpdated,
 
             AppData = fileMetadata.AppData,
+            LocalAppData = fileMetadata.LocalAppData,
+
             GlobalTransitId = fileMetadata.GlobalTransitId,
             IsEncrypted = fileMetadata.IsEncrypted,
             SenderOdinId = fileMetadata.SenderOdinId,
+            OriginalAuthor = fileMetadata.OriginalAuthor,
             ReferencedFile = fileMetadata.ReferencedFile,
             ReactionPreview = fileMetadata.ReactionPreview,
             Payloads = fileMetadata.Payloads,
@@ -183,7 +193,8 @@ public static class DriveFileUtility
             var lastModifiedValue = values.FirstOrDefault();
 
             const string dateTimePattern = "ddd, dd MMM yyyy HH:mm:ss 'GMT'";
-            if (DateTimeOffset.TryParseExact(lastModifiedValue, dateTimePattern, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var result))
+            if (DateTimeOffset.TryParseExact(lastModifiedValue, dateTimePattern, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal, out var result))
             {
                 Instant instant = Instant.FromDateTimeOffset(result);
                 lastModified = new UnixTimeUtc(instant);
@@ -215,18 +226,22 @@ public static class DriveFileUtility
 
     public static void AssertValidPayloadKey(string payloadKey)
     {
-        if (null == payloadKey)
+        if (!IsValidPayloadKey(payloadKey))
         {
             throw new OdinClientException($"Missing payload key.  It must match pattern {ValidPayloadKeyRegex}.",
                 OdinClientErrorCode.InvalidPayloadNameOrKey);
         }
+    }
+
+    public static bool IsValidPayloadKey(string payloadKey)
+    {
+        if (string.IsNullOrEmpty(payloadKey?.Trim()))
+        {
+            return false;
+        }
 
         bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
-        if (!isMatch)
-        {
-            throw new OdinClientException($"Invalid payload key {payloadKey}.  It must match pattern {ValidPayloadKeyRegex}.",
-                OdinClientErrorCode.InvalidPayloadNameOrKey);
-        }
+        return isMatch;
     }
 
     public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
@@ -258,5 +273,33 @@ public static class DriveFileUtility
     {
         var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
         return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+    }
+
+    public static SharedSecretEncryptedFileHeader AddIfDeletedNotification(IDriveNotification notification, IOdinContext deviceOdinContext)
+    {
+        var deletedNotification = notification as DriveFileDeletedNotification;
+        if (deletedNotification == null)
+        {
+            return null;
+        }
+
+        return CreateClientFileHeader(deletedNotification.PreviousServerFileHeader, deviceOdinContext);
+    }
+
+    public static Guid CreateVersionTag()
+    {
+        return SequentialGuid.CreateGuid();
+    }
+
+    public static void AssertValidAppContentLength(string content)
+    {
+        OdinValidationUtils.AssertMaxStringLength(content, MaxAppDataContentLength,
+            $"local app content is too long; max length is {MaxAppDataContentLength}");
+    }
+
+    public static void AssertValidPreviewThumbnail(ThumbnailContent thumbnail)
+    {
+        OdinValidationUtils.AssertIsTrue((thumbnail?.Content?.Length ?? 0) <= MaxTinyThumbLength,
+            $"max preview thumb size is {MaxTinyThumbLength}");
     }
 }

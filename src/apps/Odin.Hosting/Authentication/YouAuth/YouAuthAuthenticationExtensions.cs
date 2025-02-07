@@ -15,5 +15,6 @@ namespace Odin.Hosting.Authentication.YouAuth
             return builder.AddScheme<YouAuthAuthenticationSchemeOptions, YouAuthAuthenticationHandler>(
                 YouAuthConstants.YouAuthScheme, op => { });
         }
+        
     }
 }

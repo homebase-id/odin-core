@@ -8,25 +8,22 @@ namespace Odin.Services.Background.Services;
 
 #nullable enable
 
-public interface IAbstractBackgroundService
-{
-    void PulseBackgroundProcessor();
-}
-
 //
 
-public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackgroundService
+public abstract class AbstractBackgroundService(ILogger logger)
 {
+    public bool IsStarted { get; private set; }
+
     private static readonly Random Random = new();
     private readonly AsyncManualResetEvent _wakeUpEvent = new();
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
-    
+
     // Maximum sleep duration. Sleeping too long makes Delay behave unpredictably, so cap it at some reasonable number.
     public static readonly TimeSpan MaxSleepDuration = TimeSpan.FromDays(7);
 
     // Override initialization logic here. BackgroundServiceManager will wait for this to complete before starting the service.
-    public virtual Task StartingAsync(CancellationToken stoppingToken)
+    protected virtual Task StartingAsync(CancellationToken stoppingToken)
     {
         return Task.CompletedTask;
     }
@@ -37,59 +34,59 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
     //
 
     // Override cleanup logic here. BackgroundServiceManager will run this after the service has stopped.
-    public virtual Task StoppedAsync(CancellationToken stoppingToken)
+    protected virtual Task StoppedAsync(CancellationToken stoppingToken)
     {
         return Task.CompletedTask;
     }
 
     //
 
-    // Call me in your ExecuteAsync method to sleep for duration. If duration is null, sleep indefinitely.
-    // Call PulseBackgroundProcessor() to wake up.
+    // Call me in your ExecuteAsync method to sleep for duration.
+    // Call InternalPulseBackgroundProcessor() to wake up.
     protected Task SleepAsync(TimeSpan duration, CancellationToken stoppingToken)
     {
         return SleepAsync(duration, duration, stoppingToken);
     }
-    
+
     //
-    
+
     // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2 (max 48 hours)
-    // Call PulseBackgroundProcessor() to wake up.
+    // Call InternalPulseBackgroundProcessor() to wake up.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
-        if (duration1 < TimeSpan.Zero) 
+        if (duration1 < TimeSpan.Zero)
         {
             logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to min.", duration1.TotalMilliseconds);
             duration1 = TimeSpan.Zero;
         }
-        if (duration1 > MaxSleepDuration) 
+        if (duration1 > MaxSleepDuration)
         {
             logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to max.", duration1.TotalMilliseconds);
             duration1 = MaxSleepDuration;
         }
-        if (duration2 < TimeSpan.Zero) 
+        if (duration2 < TimeSpan.Zero)
         {
             logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to min.", duration2.TotalMilliseconds);
             duration2 = TimeSpan.Zero;
         }
-        if (duration2 > MaxSleepDuration) 
+        if (duration2 > MaxSleepDuration)
         {
             logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to max.", duration2.TotalMilliseconds);
             duration2 = MaxSleepDuration;
         }
-        
+
         if (duration1 > duration2)
         {
             throw new ArgumentException("duration1 must be less than or equal to duration2");
-        }        
-        
+        }
+
         var duration = Random.Next((int)duration1.TotalMilliseconds, (int)duration2.TotalMilliseconds);
         try
         {
             var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
             var delay = Task.Delay(duration, stoppingToken);
-            
-            // Sleep for duration or until PulseBackgroundProcessor is signalled
+
+            // Sleep for duration or until InternalPulseBackgroundProcessor is signalled
             await Task.WhenAny(wakeUp, delay);
         }
         catch (OperationCanceledException)
@@ -98,14 +95,14 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
         }
         finally
         {
-            _wakeUpEvent.Reset();            
+            _wakeUpEvent.Reset();
         }
     }
 
     //
 
-    // Call me from anywhere to wake up the service from SleepAsync
-    public void PulseBackgroundProcessor()
+    // Call me through BackgroundServiceManager to wake up the service from SleepAsync
+    internal void InternalPulseBackgroundProcessor()
     {
         _wakeUpEvent.Set();
     }
@@ -114,11 +111,16 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
 
     internal async Task InternalStartAsync(CancellationToken stoppingToken)
     {
-        _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        await StartingAsync(_stoppingCts.Token);
+        if (!IsStarted)
+        {
+            IsStarted = true;
 
-        // No 'await' here, this is intentional; we want to start the task and return immediately
-        _task = ExecuteWithCatchAllAsync(_stoppingCts.Token);
+            _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            await StartingAsync(_stoppingCts.Token);
+
+            // No 'await' here, this is intentional; we want to start the task and return immediately
+            _task = ExecuteWithCatchAllAsync(_stoppingCts.Token);
+        }
     }
 
     //
@@ -170,6 +172,7 @@ public abstract class AbstractBackgroundService(ILogger logger) : IAbstractBackg
             _stoppingCts?.Dispose();
             _stoppingCts = null;
             _task = null;
+            IsStarted = false;
         }
     }
 

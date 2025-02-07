@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public abstract class PeerSenderControllerBase(IPeerOutgoingTransferService peerOutgoingTransferService, TenantSystemStorage tenantSystemStorage)
+    public abstract class PeerSenderControllerBase(PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveUploadControllerBase
     {
         /// <summary>
@@ -61,12 +61,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
 
-            using var cn = tenantSystemStorage.CreateConnection();
-            await fileSystemWriter.StartUpload(uploadInstructionSet, WebOdinContext, cn);
+            await fileSystemWriter.StartUpload(uploadInstructionSet, WebOdinContext);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await fileSystemWriter.AddMetadata(section!.Body, WebOdinContext, cn);
+            await fileSystemWriter.AddMetadata(section!.Body, WebOdinContext);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -75,19 +74,19 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await fileSystemWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext, cn);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var uploadResult = await fileSystemWriter.FinalizeUpload(WebOdinContext, cn);
+            var uploadResult = await fileSystemWriter.FinalizeUploadAsync(WebOdinContext);
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information
@@ -101,8 +100,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 RecipientStatus = uploadResult.RecipientStatus
             };
         }
-
-
+        
         /// <summary>
         /// Sends a Delete Linked File Request to recipients
         /// </summary>
@@ -117,8 +115,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
             OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.GlobalTransitId != Guid.Empty,
                 "GlobalTransitId is empty (cannot be Guid.Empty)");
 
-            using var cn = tenantSystemStorage.CreateConnection();
-
             //send the deleted file
             var map = await peerOutgoingTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
                 new FileTransferOptions()
@@ -126,7 +122,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     FileSystemType = request.FileSystemType,
                     TransferFileType = TransferFileType.Normal
                 },
-                request.Recipients, WebOdinContext, cn);
+                request.Recipients, WebOdinContext);
 
             return new JsonResult(map);
         }
@@ -159,6 +155,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,
+                    UseAppNotification = transitInstructionSet.NotificationOptions != null,
+                    AppNotificationOptions = transitInstructionSet.NotificationOptions,
                 },
                 Manifest = transitInstructionSet.Manifest
             };

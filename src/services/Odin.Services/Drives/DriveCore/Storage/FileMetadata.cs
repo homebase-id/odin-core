@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Identity;
 using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -11,7 +12,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         Active = 1,
         // Archived = 3
     }
-    
+
     /// <summary>
     /// Metadata about the file being stored.  This data is managed by the system. See AppFileMetaData for
     /// data owned by the app
@@ -40,20 +41,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// A file to which this file references.  I.e. this file is a comment about another file
         /// </summary>
         public GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
-        
+
         public InternalDriveFileId File { get; set; }
-        
+
         /// <summary>
         /// A globally unique Id to cross reference this file across Identities 
         /// </summary>
         public Guid? GlobalTransitId { get; set; }
-        
+
         public FileState FileState { get; set; }
 
         public Int64 Created { get; set; }
 
         public Int64 Updated { get; set; }
-        
+
         public Int64 TransitCreated { get; set; }
 
         public Int64 TransitUpdated { get; set; }
@@ -65,21 +66,28 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// data yet there are use cases where we need anonymous users to read data (i.e. some profile attributes, etc.)
         /// </summary>
         public bool IsEncrypted { get; set; }
-        
+
         /// <summary>
-        /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
+        /// The OdinId of the DI that sent this file.  This might vary from the <see cref="OriginalAuthor"/>
         /// </summary>
         public string SenderOdinId { get; set; }
 
+        /// <summary>
+        /// The first identity which created this file.
+        /// </summary>
+        public OdinId? OriginalAuthor { get; set; }
+
         public AppFileMetaData AppData { get; set; }
 
+        public LocalAppMetadata LocalAppData { get; set; }
+        
         public List<PayloadDescriptor> Payloads { get; set; }
 
         public Guid? VersionTag { get; set; }
 
         public PayloadDescriptor GetPayloadDescriptor(string key)
         {
-            return Payloads?.SingleOrDefault(pk => pk.Key == key);
+            return Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
         }
     }
 }

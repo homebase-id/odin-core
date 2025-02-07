@@ -9,20 +9,11 @@ using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 
-public class OwnerConfigurationApiClient
+public class OwnerConfigurationApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
 {
-    private readonly TestIdentity _identity;
-    private readonly OwnerApiTestUtils _ownerApi;
-
-    public OwnerConfigurationApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
-    {
-        _ownerApi = ownerApi;
-        _identity = identity;
-    }
-
     public async Task<ApiResponse<bool>> InitializeIdentity(InitialSetupRequest setupConfig)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             return await svc.InitializeIdentity(setupConfig);
@@ -31,7 +22,7 @@ public class OwnerConfigurationApiClient
     
     public async Task<ApiResponse<bool>> IsIdentityConfigured()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             return await svc.IsIdentityConfigured();
@@ -40,7 +31,7 @@ public class OwnerConfigurationApiClient
     
     public async Task<ApiResponse<HttpContent>> MarkEulaSigned(MarkEulaSignedRequest request)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             return await svc.MarkEulaSigned(request);
@@ -49,7 +40,7 @@ public class OwnerConfigurationApiClient
     
     public async Task<ApiResponse<bool>> IsEulaSignatureRequired()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             return await svc.IsEulaSignatureRequired();
@@ -57,7 +48,7 @@ public class OwnerConfigurationApiClient
     }
     public async Task<ApiResponse<bool>> UpdateTenantSettingsFlag(TenantConfigFlagNames flag, string value)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             var updateFlagResponse = await svc.UpdateSystemConfigFlag(new UpdateFlagRequest()
@@ -72,7 +63,7 @@ public class OwnerConfigurationApiClient
     
     public async Task<ApiResponse<TenantSettings>> GetTenantSettings()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             return  await svc.GetTenantSettings();
@@ -81,7 +72,7 @@ public class OwnerConfigurationApiClient
     
     public async Task<ApiResponse<OwnerAppSettings>> GetOwnerAppSettings()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             return await svc.GetOwnerAppSettings();
@@ -91,7 +82,7 @@ public class OwnerConfigurationApiClient
     public async Task<ApiResponse<bool>> UpdateOwnerAppSetting(OwnerAppSettings ownerSettings)
     {
         
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
 
@@ -101,10 +92,21 @@ public class OwnerConfigurationApiClient
 
     public async Task<ApiResponse<List<EulaSignature>>> GetEulaSignatureHistory()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             return await svc.GetEulaSignatureHistory();
+        }
+    }
+
+    public async Task DisableAutoAcceptIntroductions(bool disabled)
+    {
+        var updateTenantSettingsFlagResponse =
+            await this.UpdateTenantSettingsFlag(TenantConfigFlagNames.DisableAutoAcceptIntroductionsForTests, disabled.ToString());
+
+        if (!updateTenantSettingsFlagResponse.IsSuccessStatusCode)
+        {
+            throw new Exception("test setup failed");
         }
     }
 }

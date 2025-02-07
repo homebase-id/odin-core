@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -21,8 +22,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveStorageController(
         ILogger<OwnerDriveStorageController> logger,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
-        TenantSystemStorage tenantSystemStorage)
+        PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
         private readonly ILogger<OwnerDriveStorageController> _logger = logger;
@@ -32,10 +32,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("header")]
-        public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
+        public new async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.GetFileHeader(request, cn);
+            return await base.GetFileHeader(request);
         }
 
         /// <summary>
@@ -44,7 +43,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             return await base.GetFileHeader(
                 new ExternalFileIdentifier()
                 {
@@ -54,8 +52,49 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                         Alias = alias,
                         Type = type
                     }
-                },
-                cn);
+                });
+        }
+
+        [HttpGet("transfer-history")]
+        public async Task<FileTransferHistoryResponse> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            var result = await base.GetFileTransferHistory(new ExternalFileIdentifier()
+            {
+                FileId = fileId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            });
+
+            if (null == result)
+            {
+                Response.StatusCode = (int)HttpStatusCode.NotFound;
+                return null;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Retrieves a file's header and metadata by globalTransitId
+        /// </summary>
+        [HttpGet("header_byglobaltransitid")]
+        public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] Guid globalTransitId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            return await base.GetFileHeaderByGlobalTransitId(
+                new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = globalTransitId,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                });
         }
 
         /// <summary>
@@ -63,10 +102,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
-        public async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
+        public new async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.GetPayloadStream(request, cn);
+            return await base.GetPayloadStream(request);
         }
 
 
@@ -75,10 +113,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] string key)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] string key)
         {
             FileChunk chunk = this.GetChunk(null, null);
-            using var cn = tenantSystemStorage.CreateConnection();
+
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -93,8 +132,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     },
                     Key = key,
                     Chunk = chunk
-                },
-                cn);
+                });
         }
 
         /// <summary>
@@ -104,10 +142,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("thumb")]
-        public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
+        public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.GetThumbnail(request, cn);
+            return await base.GetThumbnail(request);
         }
 
         /// <summary>
@@ -116,27 +153,26 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// See GET files/header
         /// </summary>
         [HttpGet("thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] string payloadKey, [FromQuery] Guid alias,
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] string payloadKey,
+            [FromQuery] Guid alias,
             [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             return await base.GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
                 {
-                    File = new ExternalFileIdentifier()
+                    FileId = fileId,
+                    TargetDrive = new()
                     {
-                        FileId = fileId,
-                        TargetDrive = new()
-                        {
-                            Alias = alias,
-                            Type = type
-                        }
-                    },
-                    Width = width,
-                    Height = height,
-                    PayloadKey = payloadKey,
+                        Alias = alias,
+                        Type = type
+                    }
                 },
-                cn);
+                Width = width,
+                Height = height,
+                PayloadKey = payloadKey,
+            });
         }
 
 
@@ -145,34 +181,30 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
-        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
+        public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.DeleteFile(request, cn);
+            return await base.DeleteFile(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletefileidbatch")]
-        public async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
+        public new async Task<IActionResult> DeleteFileIdBatch([FromBody] DeleteFileIdBatchRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.DeleteFileIdBatch(request, cn);
+            return await base.DeleteFileIdBatch(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletegroupidbatch")]
-        public async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
+        public new async Task<IActionResult> DeleteFilesByGroupIdBatch([FromBody] DeleteFilesByGroupIdBatchRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.DeleteFilesByGroupIdBatch(request, cn);
+            return await base.DeleteFilesByGroupIdBatch(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deletepayload")]
         public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.DeletePayload(request, cn);
+            return await base.DeletePayload(request);
         }
 
         /// <summary>
@@ -182,15 +214,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("harddelete")]
         public async Task<IActionResult> HardDeleteFileC([FromBody] DeleteFileRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await base.HardDeleteFile(request, cn);
+            return await base.HardDeleteFile(request);
         }
 
         [HttpPost("send-read-receipt")]
-        public async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
+        public new async Task<IActionResult> SendReadReceipt(SendReadReceiptRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            var result = await base.SendReadReceipt(request, cn);
+            var result = await base.SendReadReceipt(request);
             return new JsonResult(result);
         }
     }

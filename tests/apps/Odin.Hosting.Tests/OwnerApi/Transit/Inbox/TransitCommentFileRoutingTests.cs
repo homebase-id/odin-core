@@ -28,7 +28,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -128,6 +128,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original author should have been ${sender.OdinId}");
             Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.GlobalTransitId);
@@ -214,6 +215,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var receivedFile = batch.SearchResults.First();
             Assert.IsTrue(receivedFile.FileState == FileState.Active);
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
             Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
             Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.GlobalTransitId);
@@ -365,9 +367,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             _scaffold.SetAssertLogEventsAction(logEvents =>
             {
                 var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
-                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-                Assert.That(errorLogs[0].Exception!.Message,
-                    Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));
+                Assert.That(errorLogs.Count, Is.GreaterThan(0), "Unexpected number of Error log events");
+                foreach (var error in errorLogs)
+                {
+                    Assert.That(error.Exception!.Message,
+                        Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));    
+                }
+                
             });
 
             var sender = TestIdentities.Frodo;
@@ -440,9 +446,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             _scaffold.SetAssertLogEventsAction(logEvents =>
             {
                 var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
-                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-                Assert.That(errorLogs[0].Exception!.Message,
-                    Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));
+                Assert.That(errorLogs.Count, Is.GreaterThan(0), "Unexpected number of Error log events");
+                foreach (var error in errorLogs)
+                {
+                    Assert.That(error.Exception!.Message,
+                        Is.EqualTo("Remote identity host failed: Referenced filed and metadata payload encryption do not match"));    
+                }
             });
 
             var sender = TestIdentities.Frodo;

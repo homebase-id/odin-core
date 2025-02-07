@@ -20,6 +20,10 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
@@ -45,7 +49,6 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 
@@ -54,17 +57,20 @@ namespace Odin.Hosting
     public class Startup(IConfiguration configuration, IEnumerable<string> args)
     {
         private readonly IEnumerable<string> _args = args;
+        private readonly OdinConfiguration _config = new(configuration);
 
         public void ConfigureServices(IServiceCollection services)
         {
-            var config = new OdinConfiguration(configuration);
-            services.AddSingleton(config);
+            services.AddSingleton(_config);
 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-            services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
+            services.Configure<HostOptions>(options =>
+            {
+                options.ShutdownTimeout = TimeSpan.FromSeconds(_config.Host.ShutdownTimeoutSeconds);
+            });
 
-            PrepareEnvironment(config);
-            AssertValidRenewalConfiguration(config.CertificateRenewal);
+            PrepareEnvironment(_config);
+            AssertValidRenewalConfiguration(_config.CertificateRenewal);
 
             //
             // We are using HttpClientFactoryLite because we have to be able to create HttpClientHandlers on the fly.
@@ -83,17 +89,10 @@ namespace Odin.Hosting
             // - Use SetHandlerLifetime to control how long connections are pooled (this also controls when existing
             //   HttpClientHandlers are called)
             //
-            services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
+            var httpClientFactory = new HttpClientFactory();
+            services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-            services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
-
-            //
-            // Background and job stuff
-            //
-            services.AddSystemBackgroundServices();
-            services.AddJobManagerServices();
-            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -175,8 +174,6 @@ namespace Odin.Hosting
                 PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             });
 
-            services.AddSingleton<ServerSystemStorage>();
-
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
@@ -186,30 +183,33 @@ namespace Odin.Hosting
                 sp.GetRequiredService<IHttpClientFactory>(),
                 sp.GetRequiredService<ISystemHttpClient>(),
                 sp.GetRequiredService<IMultiTenantContainerAccessor>(),
-                config));
+                TenantServices.ConfigureTenantServices,
+                _config));
 
             services.AddSingleton(new AcmeAccountConfig
             {
-                AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
-                AcmeAccountFolder = config.Host.SystemSslRootPath
+                AcmeContactEmail = _config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
+                AcmeAccountFolder = _config.Host.SystemSslRootPath
             });
             services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
-            services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
+
+            services.AddIdentityRegistrationServices(httpClientFactory, _config);
+
             services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
             services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
                 sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
-                new Uri($"https://{config.Registry.PowerDnsHostAddress}/api/v1"),
-                config.Registry.PowerDnsApiKey));
+                new Uri($"https://{_config.Registry.PowerDnsHostAddress}/api/v1"),
+                _config.Registry.PowerDnsApiKey));
 
             services.AddSingleton<ICertesAcme>(sp => new CertesAcme(
                 sp.GetRequiredService<ILogger<CertesAcme>>(),
                 sp.GetRequiredService<IAcmeHttp01TokenCache>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
-                config.CertificateRenewal.UseCertificateAuthorityProductionServers));
+                _config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
             services.AddSingleton<ICertificateCache, CertificateCache>();
             services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
@@ -217,59 +217,71 @@ namespace Odin.Hosting
             services.AddSingleton<IEmailSender>(sp => new MailgunSender(
                 sp.GetRequiredService<ILogger<MailgunSender>>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
-                config.Mailgun.ApiKey,
-                config.Mailgun.EmailDomain,
-                config.Mailgun.DefaultFrom));
+                _config.Mailgun.ApiKey,
+                _config.Mailgun.EmailDomain,
+                _config.Mailgun.DefaultFrom));
 
             services.AddSingleton(sp => new AdminApiRestrictedAttribute(
                 sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
-                config.Admin.ApiEnabled,
-                config.Admin.ApiKey,
-                config.Admin.ApiKeyHttpHeaderName,
-                config.Admin.ApiPort,
-                config.Admin.Domain));
+                _config.Admin.ApiEnabled,
+                _config.Admin.ApiKey,
+                _config.Admin.ApiKeyHttpHeaderName,
+                _config.Admin.ApiPort,
+                _config.Admin.Domain));
 
-            services.AddSingleton(new RegistrationRestrictedAttribute(config.Registry.ProvisioningEnabled));
+            services.AddSingleton(new RegistrationRestrictedAttribute(_config.Registry.ProvisioningEnabled));
 
-            services.AddSingleton<ITenantAdmin, TenantAdmin>();
+            services.AddTransient<ITenantAdmin, TenantAdmin>();
 
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+
+            services.AddIpRateLimiter(_config.Host.IpRateLimitRequestsPerSecond);
+
+            services.AddCoreCacheServices(new CacheConfiguration
+            {
+                Level2CacheType = _config.Cache.Level2CacheType,
+                Level2Configuration = _config.Cache.Level2Configuration
+            });
         }
 
         // ConfigureContainer is where you can register things directly
         // with Autofac. This runs after ConfigureServices so the things
         // here will override registrations made in ConfigureServices.
-        // Don't build the container; that gets done for you. If you
-        // need a reference to the container, you need to use the
-        // "Without ConfigureContainer" mechanism shown later.
+        // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
         public void ConfigureContainer(ContainerBuilder builder)
         {
-            /*
-            AUTOFAC CHEAT SHEET (https://stackoverflow.com/questions/42809618/migration-from-asp-net-cores-container-to-autofac)
-            ASP.NET Core container             -> Autofac
-            ----------------------                -------
-            // the 3 big ones
-            services.AddSingleton<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().SingleInstance()
-            services.AddScoped<IFoo, Foo>()    -> builder.RegisterType<Foo>().As<IFoo>().InstancePerLifetimeScope()
-            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>().InstancePerDependency()
-            // default
-            services.AddTransient<IFoo, Foo>() -> builder.RegisterType<Foo>().As<IFoo>()
-            // multiple
-            services.AddX<IFoo1, Foo>();
-            services.AddX<IFoo2, Foo>();       -> builder.RegisterType<Foo>().As<IFoo1>().As<IFoo2>().X()
-            // without interface
-            services.AddX<Foo>()               -> builder.RegisterType<Foo>().AsSelf().X()
-            */
-
-            // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
-            //builder.RegisterType<Controllers.Test.TenantDependencyTest2>().As<Controllers.Test.ITenantDependencyTest2>().SingleInstance();
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
+           
+            builder.AddSystemBackgroundServices();
+            builder.AddJobManagerServices();
+
+            // Global database services
+            builder.AddDatabaseCacheServices();
+            builder.AddDatabaseCounterServices();
+
+            // System database services
+            switch (_config.Database.Type)
+            {
+                case DatabaseType.Sqlite:
+                    builder.AddSqliteSystemDatabaseServices(Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
+                    break;
+                case DatabaseType.Postgres:
+                    builder.AddPgsqlSystemDatabaseServices(_config.Database.ConnectionString);
+                    break;
+                default:
+                    throw new OdinSystemException("Unsupported database type");
+            }
+
+            // System cache services
+            builder.AddCacheLevels("system");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, IHostApplicationLifetime lifetime)
         {
+            logger.LogInformation("Environment: {Environment}", env.EnvironmentName);
+
             var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
 
             // Note 1: see NotificationSocketController
@@ -280,6 +292,12 @@ namespace Odin.Hosting
             });
 
             app.UseLoggingMiddleware();
+
+            if (env.IsProduction())
+            {
+                app.UseRateLimiter();
+            }
+
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();
@@ -313,6 +331,9 @@ namespace Odin.Hosting
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.UseIdentityReadyState();
+            app.UseVersionUpgrade();
 
             app.UseMiddleware<OdinContextMiddleware>();
             app.UseCors();
@@ -356,6 +377,9 @@ namespace Odin.Hosting
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/mail"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3004/"); }); });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
@@ -439,6 +463,24 @@ namespace Odin.Hosting
                         });
                     });
 
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
+                    communityApp =>
+                    {
+                        var communityPath = Path.Combine(env.ContentRootPath, "client", "apps", "community");
+                        communityApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(communityPath),
+                            RequestPath = "/apps/community"
+                        });
+
+                        communityApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(communityPath, "index.html"));
+                            return;
+                        });
+                    });
+
                 // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                 app.MapWhen(ctx => true,
                     homeApp =>
@@ -462,11 +504,37 @@ namespace Odin.Hosting
             lifetime.ApplicationStarted.Register(() =>
             {
                 var services = app.ApplicationServices;
+
+                // Create system database
+                var systemDatabase = services.GetRequiredService<SystemDatabase>();
+                systemDatabase.CreateDatabaseAsync().BlockingWait();
+
+                // Load identity registry
                 var registry = services.GetRequiredService<IIdentityRegistry>();
+                registry.LoadRegistrations().BlockingWait();
                 DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
+                // Check for singleton dependencies
+                if (env.IsDevelopment())
+                {
+                    var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+                    new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
+                }
+
+                // Sanity ping cache
+                var cache = services.GetRequiredService<ILevel2Cache>();
+                cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
+                var pong = cache.TryGet<string>("ping");
+                if (pong != "pong")
+                {
+                    throw new OdinSystemException("Cache sanity check failed");
+                }
+
                 // Start system background services
-                services.StartSystemBackgroundServices().BlockingWait();
+                if (config.Job.SystemJobsEnabled)
+                {
+                    services.StartSystemBackgroundServices().BlockingWait();
+                }
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -476,14 +544,11 @@ namespace Odin.Hosting
 
                 var services = app.ApplicationServices;
 
-                // Wait for any registered fire-and-forget tasks to complete
-                services.GetRequiredService<IForgottenTasks>().WhenAll().Wait();
-
                 //
                 // Shutdown all tenant background services
                 //
-                services.ShutdownTenantBackgroundServices().BlockingWait();                
-                
+                services.ShutdownTenantBackgroundServices().BlockingWait();
+
                 //
                 // Shutdown system background services
                 //

@@ -8,22 +8,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]
     [Route(GuestApiPathConstants.PublicKeysV1)]
-    public class PublicKeyController : ControllerBase
+    public class PublicKeyController(PublicPrivateKeyService publicKeyService) : ControllerBase
     {
-        private readonly PublicPrivateKeyService _publicKeyService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
-
-        public PublicKeyController(PublicPrivateKeyService publicKeyService, TenantSystemStorage tenantSystemStorage)
-        {
-            _publicKeyService = publicKeyService;
-            _tenantSystemStorage = tenantSystemStorage;
-        }
-
         [HttpGet("signing")]
         public async Task<GetPublicKeyResponse> GetSigningKey()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var key = await _publicKeyService.GetSigningPublicKey(cn);
+            
+            var key = await publicKeyService.GetSigningPublicKeyAsync();
 
             return new GetPublicKeyResponse()
             {
@@ -35,8 +26,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("online")]
         public async Task<GetPublicKeyResponse> GetOnlineKey()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var key = await _publicKeyService.GetOnlineRsaPublicKey(cn);
+            var key = await publicKeyService.GetOnlineRsaPublicKeyPublic();
 
             return new GetPublicKeyResponse()
             {
@@ -46,15 +36,15 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         }
 
         [HttpGet("online_ecc")]
-        public async Task<GetPublicKeyResponse> GetOnlineEccKey()
+        public async Task<GetEccPublicKeyResponse> GetOnlineEccKey()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var key = await _publicKeyService.GetOnlineEccPublicKey(cn);
+            
+            var key = await publicKeyService.GetOnlineEccPublicKeyAsync();
 
-            return new GetPublicKeyResponse()
+            return new GetEccPublicKeyResponse()
             {
-                PublicKey = key?.publicKey,
-                Crc32 = key?.crc32c ?? 0,
+                PublicKeyJwkBase64Url = key?.PublicKeyJwkBase64Url(),
+                CRC32c = key?.crc32c ?? 0,
                 Expiration = key?.expiration.milliseconds ?? 0
             };
         }
@@ -62,8 +52,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("offline_ecc")]
         public async Task<string> GetOfflineEccPublicKey()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var key = await _publicKeyService.GetOfflineEccPublicKey(cn);
+            var key = await publicKeyService.GetOfflineEccPublicKeyAsync();
             var expiration = Math.Min(key.expiration.seconds, 3600);
             Response.Headers.CacheControl = $"public,max-age={expiration}";
             return key?.PublicKeyJwkBase64Url();
@@ -74,9 +63,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         {
             // var key = await _publicKeyService.GetNotificationsPublicKey();
             // return key.GenerateEcdsaBase64Url();
-
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await _publicKeyService.GetNotificationsEccPublicKey(cn);
+            
+            return await publicKeyService.GetNotificationsEccPublicKeyAsync();
 
             // return new GetPublicKeyResponse()
             // {
@@ -88,8 +76,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("offline")]
         public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var key = await _publicKeyService.GetOfflineRsaPublicKey(cn);
+            
+            var key = await publicKeyService.GetOfflineRsaPublicKeyAsync();
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,

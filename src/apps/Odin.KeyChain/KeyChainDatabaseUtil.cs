@@ -1,5 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
-using Odin.Core.Storage.SQLite.KeyChainDatabase;
+﻿using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.Core.Time;
 using Odin.Core;
 using System.Text;
@@ -16,11 +15,11 @@ namespace Odin.KeyChain
         /// Need to set drop to false in production
         /// </summary>
         /// <param name="_db"></param>
-        public static void InitializeDatabase(KeyChainDatabase _db, DatabaseConnection conn)
+        public static async Task InitializeDatabaseAsync(KeyChainDatabase _db, DatabaseConnection conn)
         {
-            _db.CreateDatabase(conn, dropExistingTables: true); // Remove "true" for production
+            await _db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
 
-            var r = _db.tblKeyChain.GetLastLink(conn);
+            var r = await _db.tblKeyChain.GetLastLinkAsync(conn);
 
             // If the database is empty then we need to create the genesis record
             if (r == null)
@@ -41,7 +40,7 @@ namespace Odin.KeyChain
                 genesis.signedPreviousHash = signature;
                 genesis.recordHash = CalculateRecordHash(genesis);
                 VerifyBlockChainRecord(genesis, null, false);
-                _db.tblKeyChain.Insert(conn, genesis);
+                await _db.tblKeyChain.InsertAsync(conn, genesis);
             }
         }
 
@@ -114,30 +113,27 @@ namespace Odin.KeyChain
 
 
         // Verifies the entire chain
-        public static bool VerifyEntireBlockChain(KeyChainDatabase _db, DatabaseConnection conn)
+        public static async Task<bool> VerifyEntireBlockChainAsync(KeyChainDatabase db, DatabaseConnection conn)
         {
-            using (var _sqlcmd = _db.CreateCommand())
+            using (var sqlcmd = db.CreateCommand())
             {
-                _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid ASC;";
+                sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid ASC;";
 
-                lock (conn._lock)
+                using (var rdr = await conn.ExecuteReaderAsync(sqlcmd, System.Data.CommandBehavior.SingleRow))
                 {
-                    using (SqliteDataReader rdr = conn.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
+                    KeyChainRecord? previousRecord = null;
+
+                    while (await rdr.ReadAsync())
                     {
-                        KeyChainRecord? previousRecord = null;
+                        var record = db.tblKeyChain.ReadRecordFromReaderAll(rdr);
+                        if (VerifyBlockChainRecord(record, previousRecord, true) == false)
+                            return false;
+                        previousRecord = record;
+                    }
+                } // using
 
-                        while (rdr.Read())
-                        {
-                            var record = _db.tblKeyChain.ReadRecordFromReaderAll(rdr);
-                            if (VerifyBlockChainRecord(record, previousRecord, true) == false)
-                                return false;
-                            previousRecord = record;
-                        }
-                    } // using
+                return true;
 
-                    return true;
-
-                }
             }
         }
     }

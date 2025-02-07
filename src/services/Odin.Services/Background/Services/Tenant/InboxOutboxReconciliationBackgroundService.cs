@@ -13,10 +13,9 @@ namespace Odin.Services.Background.Services.Tenant;
 public class InboxOutboxReconciliationBackgroundService(
     ILogger<InboxOutboxReconciliationBackgroundService> logger,
     OdinConfiguration config,
-    TenantSystemStorage tenantSystemStorage,
     TransitInboxBoxStorage inbox,
     PeerOutbox outbox,
-    PeerOutboxProcessorBackgroundService outboxProcessor)
+    IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger)
     : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -30,16 +29,14 @@ public class InboxOutboxReconciliationBackgroundService(
 
             var recoveredOutboxItems = 0;
             var recoveredInboxItems = 0;
-            using (var cn = tenantSystemStorage.CreateConnection())
-            {
-                recoveredOutboxItems = await outbox.RecoverDead(time, cn);
-                recoveredInboxItems = await inbox.RecoverDead(time, cn);
-            }
+
+            recoveredOutboxItems = await outbox.RecoverDeadAsync(time);
+            recoveredInboxItems = await inbox.RecoverDeadAsync(time);
 
             if (recoveredOutboxItems > 0)
             {
                 logger.LogInformation("Recovered {count} outbox items", recoveredOutboxItems);
-                outboxProcessor.PulseBackgroundProcessor(); // signal outbox processor to get to work                
+                backgroundServiceTrigger.PulseBackgroundProcessor(); // signal outbox processor to get to work
             }
 
             if (recoveredInboxItems > 0)

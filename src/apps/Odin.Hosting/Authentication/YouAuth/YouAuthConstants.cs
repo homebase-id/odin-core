@@ -9,5 +9,6 @@
         
         public const string YouAuthScheme = "youauth-token";
         
+        public const string SubscriberCookieName = "SUB32";
     }
 }

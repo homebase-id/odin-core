@@ -28,9 +28,9 @@ namespace Odin.Services.Peer.Encryption
         public SendContents ContentsProvided { get; set; }
 
         public AppNotificationOptions AppNotificationOptions { get; set; }
-        
-        public AccessControlList OriginalAcl { get; set; }
 
+        public AccessControlList OriginalAcl { get; set; }
+        
         public bool IsValid()
         {
             if (null == this.SharedSecretEncryptedKeyHeader)

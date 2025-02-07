@@ -31,27 +31,27 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
 
             if (string.IsNullOrEmpty(tenant))
             {
-                return await Task.FromResult(new JsonResult(new GetIdentResponse()
+                return new JsonResult(new GetIdentResponse
                 {
                     OdinId = string.Empty,
                     Version = 1.0
-                }));
+                });
             }
             
             if(await _registry.IsIdentityRegistered(tenant))
             {
-                return await Task.FromResult(new JsonResult(new GetIdentResponse()
+                return new JsonResult(new GetIdentResponse
                 {
                     OdinId = tenant,
                     Version = 1.0
-                }));
+                });
             }
             
-            return await Task.FromResult(new JsonResult(new GetIdentResponse
+            return new JsonResult(new GetIdentResponse
             {
                 OdinId = string.Empty,
                 Version = 1.0
-            }));
+            });
         }
     }
 }

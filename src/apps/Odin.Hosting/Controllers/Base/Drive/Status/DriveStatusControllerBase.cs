@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Services.Base;
+using Odin.Core.Identity;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -12,8 +12,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Status;
 public abstract class DriveStatusControllerBase(
     StandardFileSystem fileSystem,
     PeerOutbox peerOutbox,
-    TransitInboxBoxStorage peerInbox,
-    TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+    TransitInboxBoxStorage peerInbox) : OdinControllerBase
 {
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus(Guid alias, Guid type)
@@ -24,14 +23,26 @@ public abstract class DriveStatusControllerBase(
             Type = type
         });
 
-        using var cn = tenantSystemStorage.CreateConnection();
         var status = new DriveStatus()
         {
-            Inbox = await peerInbox.GetStatus(driveId, cn),
-            Outbox = await peerOutbox.GetOutboxStatus(driveId, cn),
-            SizeInfo = await fileSystem.Query.GetDriveSize(driveId, WebOdinContext, cn)
+            Inbox = await peerInbox.GetStatusAsync(driveId),
+            Outbox = await peerOutbox.GetOutboxStatusAsync(driveId),
+            SizeInfo = await fileSystem.Query.GetDriveSize(driveId, WebOdinContext)
         };
 
         return new JsonResult(status);
+    }
+
+    [HttpGet("outbox-item")]
+    public async Task<IActionResult> GetOutboxItem(Guid alias, Guid type, Guid fileId, string recipient)
+    {
+        var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
+        {
+            Alias = alias,
+            Type = type
+        });
+
+        var item = await peerOutbox.GetItemAsync(driveId, fileId, (OdinId)recipient);
+        return new JsonResult(item);
     }
 }

@@ -12,6 +12,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -27,20 +28,20 @@ namespace Odin.Services.AppNotifications.WebSocket
         PeerInboxProcessor peerInboxProcessor,
         DriveManager driveManager,
         ILogger<AppNotificationHandler> logger,
-        TenantSystemStorage tenantSystemStorage)
+        SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         :
             INotificationHandler<IClientNotification>,
             INotificationHandler<IDriveNotification>,
             INotificationHandler<InboxItemReceivedNotification>
     {
-        private readonly DeviceSocketCollection _deviceSocketCollection = new();
 
         //
 
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken, IOdinContext odinContext)
+        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             var webSocketKey = Guid.NewGuid();
             try
@@ -50,14 +51,15 @@ namespace Odin.Services.AppNotifications.WebSocket
                     Key = webSocketKey,
                     Socket = webSocket,
                 };
-                _deviceSocketCollection.AddSocket(deviceSocket);
+                deviceSocketCollection.AddSocket(deviceSocket);
                 await AwaitCommands(deviceSocket, cancellationToken, odinContext);
             }
             catch (OperationCanceledException)
             {
                 // ignore, this exception is expected when the socket is closing behind the scenes
             }
-            catch (WebSocketException e) when (e.Message == "The remote party closed the WebSocket connection without completing the close handshake.")
+            catch (WebSocketException e) when (e.Message ==
+                                               "The remote party closed the WebSocket connection without completing the close handshake.")
             {
                 // ignore, this exception is expected when the client doesn't play by the rules
             }
@@ -67,7 +69,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
             finally
             {
-                _deviceSocketCollection.RemoveSocket(webSocketKey);
+                deviceSocketCollection.RemoveSocket(webSocketKey);
                 if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
                 {
                     try
@@ -164,7 +166,8 @@ namespace Odin.Services.AppNotifications.WebSocket
         public async Task Handle(IClientNotification notification, CancellationToken cancellationToken)
         {
             var shouldEncrypt =
-                !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted or ClientNotificationType.ConnectionRequestReceived);
+                !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted
+                    or ClientNotificationType.ConnectionRequestReceived);
 
             var json = OdinSystemSerializer.Serialize(new
             {
@@ -172,7 +175,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 Data = notification.GetClientData()
             });
 
-            var sockets = _deviceSocketCollection.GetAll().Values;
+            var sockets = deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {
                 await SendMessageAsync(deviceSocket, json, cancellationToken, shouldEncrypt);
@@ -183,7 +186,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var sockets = _deviceSocketCollection.GetAll().Values
+            var sockets = deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
 
             foreach (var deviceSocket in sockets)
@@ -195,9 +198,12 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                     var o = new ClientDriveNotification
                     {
-                        TargetDrive = (await driveManager.GetDrive(notification.File.DriveId, notification.DatabaseConnection)).TargetDriveInfo,
+                        TargetDrive = (await driveManager.GetDriveAsync(notification.File.DriveId)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
+                            : null,
+                        PreviousServerFileHeader = hasSharedSecret
+                            ? DriveFileUtility.AddIfDeletedNotification(notification, deviceOdinContext!)
                             : null
                     };
 
@@ -241,7 +247,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 Data = notification.GetClientData()
             });
 
-            var sockets = _deviceSocketCollection.GetAll().Values
+            var sockets = deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
 
             foreach (var deviceSocket in sockets)
@@ -279,7 +285,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             if (deviceSocket.DeviceOdinContext == null)
             {
-                _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 logger.LogInformation("Invalid/Stale Device found; removing from list");
                 return;
             }
@@ -313,7 +319,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
             catch (WebSocketException e)
             {
-                logger.LogWarning("WebSocketException: {error}", e.Message);
+                logger.LogInformation("WebSocketException: {error}", e.Message);
             }
             catch (Exception e)
             {
@@ -324,7 +330,8 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken, IOdinContext odinContext)
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             //process the command
             switch (command.Command)
@@ -333,12 +340,13 @@ namespace Odin.Services.AppNotifications.WebSocket
                     try
                     {
                         var drives = new List<Guid>();
-                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ?? new EstablishConnectionOptions()
-                        {
-                            WaitTimeMs = 100,
-                            BatchSize = 100,
-                            Drives = []
-                        };
+                        var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
+                                      new EstablishConnectionOptions()
+                                      {
+                                          WaitTimeMs = 100,
+                                          BatchSize = 100,
+                                          Drives = []
+                                      };
 
                         foreach (var td in options.Drives)
                         {
@@ -365,22 +373,20 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 case SocketCommandType.ProcessTransitInstructions:
                 {
-                    using var cn = tenantSystemStorage.CreateConnection();
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     if (d != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(d.TargetDrive, odinContext, cn);
+                        await peerInboxProcessor.ProcessInboxAsync(d.TargetDrive, odinContext);
                     }
                 }
                     break;
 
                 case SocketCommandType.ProcessInbox:
                 {
-                    using var cn = tenantSystemStorage.CreateConnection();
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     if (request != null)
                     {
-                        await peerInboxProcessor.ProcessInbox(request.TargetDrive, odinContext, cn, request.BatchSize);
+                        await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, odinContext, request.BatchSize);
                     }
                 }
                     break;

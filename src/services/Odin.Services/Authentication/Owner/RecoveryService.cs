@@ -5,7 +5,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -14,53 +14,48 @@ namespace Odin.Services.Authentication.Owner;
 
 public class RecoveryService
 {
-    
-    private readonly SingleKeyValueStorage _storage;
-    private readonly Guid _recordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
-    private readonly TenantSystemStorage _tenantSystemStorage;
+    private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
+    private const string ContextKey = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
+    private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
+
     private readonly OdinConfiguration _odinConfiguration;
+    private readonly TableKeyValue _tblKeyValue;
 
-    public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinConfiguration odinConfiguration)
+    public RecoveryService(OdinConfiguration odinConfiguration, TableKeyValue tblKeyValue)
     {
-        _tenantSystemStorage = tenantSystemStorage;
         _odinConfiguration = odinConfiguration;
-
-        const string k = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
-        Guid contextKey = Guid.Parse(k);
-        _storage = tenantSystemStorage.CreateSingleKeyValueStorage(contextKey);
+        _tblKeyValue = tblKeyValue;
     }
 
     /// <summary>
     /// Validates the recovery key and returns the decrypted master key, if valid.
     /// </summary>
-    public void AssertValidKey(string text, out SensitiveByteArray masterKey, DatabaseConnection cn)
+    public async Task<SensitiveByteArray> AssertValidKeyAsync(string text)
     {
-        var existingKey = GetKeyInternal(cn);
+        var existingKey = await GetKeyInternalAsync();
         if (null == existingKey?.MasterKeyEncryptedRecoverKey)
         {
             throw new OdinSystemException("Recovery key not configured");
         }
 
         var key = BIP39Util.DecodeBIP39(text);
-        masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
+        return existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(key);
     }
 
-    public async Task CreateInitialKey(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task CreateInitialKeyAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var keyRecord = _storage.Get<RecoveryKeyRecord>(cn, _recordStorageId);
+        var keyRecord = await Storage.GetAsync<RecoveryKeyRecord>(_tblKeyValue, RecordStorageId);
         if (null != keyRecord)
         {
             throw new OdinSystemException("Recovery key already exists");
         }
 
         var keyBytes = ByteArrayUtil.GetRndByteArray(16);
-        SaveKey(keyBytes.ToSensitiveByteArray(), odinContext, cn);
-
-        await Task.CompletedTask;
+        await SaveKeyAsync(keyBytes.ToSensitiveByteArray(), odinContext);
     }
 
-    public Task<DecryptedRecoveryKey> GetKey(IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<DecryptedRecoveryKey> GetKeyAsync(IOdinContext odinContext)
     {
         var ctx = odinContext;
         ctx.Caller.AssertHasMasterKey();
@@ -81,7 +76,7 @@ public class RecoveryService
             throw new OdinSecurityException($"Cannot reveal token before {recoveryKeyWaitingPeriod.Days} days from creation");
         }
 
-        var keyRecord = GetKeyInternal(cn);
+        var keyRecord = await GetKeyInternalAsync();
         var masterKey = odinContext.Caller.GetMasterKey();
         var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
 
@@ -94,16 +89,16 @@ public class RecoveryService
         };
 
         recoverKey.Wipe();
-        return Task.FromResult(rk);
+        return rk;
     }
 
-    private RecoveryKeyRecord GetKeyInternal(DatabaseConnection cn)
+    private async Task<RecoveryKeyRecord> GetKeyInternalAsync()
     {
-        var existingKey = _storage.Get<RecoveryKeyRecord>(cn, _recordStorageId);
+        var existingKey = await Storage.GetAsync<RecoveryKeyRecord>(_tblKeyValue, RecordStorageId);
         return existingKey;
     }
 
-    private void SaveKey(SensitiveByteArray recoveryKey, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task SaveKeyAsync(SensitiveByteArray recoveryKey, IOdinContext odinContext)
     {
         var masterKey = odinContext.Caller.GetMasterKey();
 
@@ -115,6 +110,6 @@ public class RecoveryService
             RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(recoveryKey, masterKey)
         };
 
-        _storage.Upsert(cn, _recordStorageId, record);
+        await Storage.UpsertAsync(_tblKeyValue, RecordStorageId, record);
     }
 }

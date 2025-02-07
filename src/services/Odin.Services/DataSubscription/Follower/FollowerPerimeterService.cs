@@ -1,10 +1,11 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -15,23 +16,21 @@ namespace Odin.Services.DataSubscription.Follower
     /// <summary/>
     public class FollowerPerimeterService
     {
-        private readonly TenantSystemStorage _tenantStorage;
-
         private readonly IMediator _mediator;
+        private readonly IdentityDatabase _db;
 
 
-        public FollowerPerimeterService(TenantSystemStorage tenantStorage, IMediator mediator)
+        public FollowerPerimeterService(IMediator mediator, IdentityDatabase db)
         {
-            _tenantStorage = tenantStorage;
-
             _mediator = mediator;
+            _db = db;
         }
 
         /// <summary>
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        public Task AcceptFollower(PerimeterFollowRequest request, IOdinContext odinContext, DatabaseConnection cn)
+        public async Task AcceptFollowerAsync(PerimeterFollowRequest request, IOdinContext odinContext)
         {
             //
             //TODO: where to store the request.ClientAuthToken ??
@@ -39,12 +38,11 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                cn.CreateCommitUnitOfWork(() =>
-                {
-                    _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
-                    _tenantStorage.Followers.Insert(cn,
-                        new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
-                });
+                // Created sample DeleteAndAddFollower() - take a look
+                await using var trx = await _db.BeginStackedTransactionAsync();
+                await _db.FollowsMe.DeleteByIdentityAsync(new OdinId(request.OdinId));
+                await _db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
+                trx.Commit();
             }
 
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -71,39 +69,32 @@ namespace Odin.Services.DataSubscription.Follower
                     throw new OdinSecurityException("Caller does not have read access to one or more channels");
                 }
 
-                cn.CreateCommitUnitOfWork(() =>
-                {
-                    _tenantStorage.Followers.DeleteByIdentity(cn, request.OdinId);
-                    foreach (var channel in request.Channels)
-                    {
-                        _tenantStorage.Followers.Insert(cn,
-                            new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
-                    }
-                });
+                var followsMeRecords = new List<FollowsMeRecord>();
 
-                return Task.CompletedTask;
+                foreach (var channel in request.Channels)
+                {
+                    followsMeRecords.Add(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
+                }
+
+                await _db.FollowsMe.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
             }
 
-            _mediator.Publish(new NewFollowerNotification
+            await _mediator.Publish(new NewFollowerNotification
             {
                 Sender = (OdinId)request.OdinId,
                 OdinContext = odinContext,
-                DatabaseConnection = cn
             });
-
-            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Removes the caller from the list of followers so they no longer recieve updates
         /// </summary>
         /// <returns></returns>
-        public Task AcceptUnfollowRequest(IOdinContext odinContext, DatabaseConnection cn)
+        public async Task AcceptUnfollowRequestAsync(IOdinContext odinContext)
         {
             var follower = odinContext.Caller.OdinId;
 
-            _tenantStorage.Followers.DeleteByIdentity(cn, follower);
-            return Task.CompletedTask;
+            await _db.FollowsMe.DeleteByIdentityAsync(new OdinId(follower));
         }
     }
 }

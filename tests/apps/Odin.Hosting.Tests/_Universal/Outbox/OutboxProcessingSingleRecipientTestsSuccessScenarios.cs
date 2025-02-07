@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             
             var env = new Dictionary<string, string>
@@ -103,12 +103,12 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 //
                 // Validate the transfer history was updated correctly
                 //
-                var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-                Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-                var uploadedFile1 = uploadedFileResponse1.Content;
-
-                Assert.IsTrue(
-                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+                var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+                Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                var theHistory = getHistoryResponse.Content;
+                Assert.IsNotNull(theHistory);
+                var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+                
                 Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
                 Assert.IsFalse(recipientStatus.IsInOutbox);
                 Assert.IsFalse(recipientStatus.IsReadByRecipient);
@@ -171,11 +171,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
 
             // Assert: file that was sent has peer transfer status updated
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 
@@ -255,11 +255,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
 
             // Assert: file that was sent has peer transfer status updated
-            var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            var theHistory = getHistoryResponse.Content;
+            Assert.IsNotNull(theHistory);
+            var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
             Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
             Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
 

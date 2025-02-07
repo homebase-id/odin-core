@@ -12,34 +12,30 @@ namespace Odin.Hosting.Controllers.Base.Notifications
     /// Handles reading/writing of app notifications
     /// </summary>
     public abstract class NotificationListDataControllerBase(
-        NotificationListService notificationService,
-        TenantSystemStorage tenantSystemStorage) : OdinControllerBase
+        NotificationListService notificationService) : OdinControllerBase
     {
         [HttpPost("list")]
         public async Task<AddNotificationResult> AddNotification([FromBody] AddNotificationRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             var sender = WebOdinContext.GetCallerOdinIdOrFail();
-            return await notificationService.AddNotification(sender, request, WebOdinContext, cn);
+            return await notificationService.AddNotification(sender, request, WebOdinContext);
         }
 
         [HttpGet("list")]
-        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] Int64? cursor, [FromQuery] Guid? appId)
+        public async Task<NotificationsListResult> GetList([FromQuery] int count, [FromQuery] string cursor, [FromQuery] Guid? appId)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
             return await notificationService.GetList(new GetNotificationListRequest()
             {
                 AppId = appId,
                 Count = count,
-                Cursor = cursor == null ? null : new UnixTimeUtcUnique(cursor.Value)
-            }, WebOdinContext, cn);
+                Cursor = cursor
+            }, WebOdinContext);
         }
 
         [HttpGet("list/counts-by-appid")]
         public async Task<NotificationsCountResult> GetUnreadCounts()
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            return await notificationService.GetUnreadCounts(WebOdinContext, cn);
+            return await notificationService.GetUnreadCounts(WebOdinContext);
         }
 
         [HttpPut("list")]
@@ -50,24 +46,28 @@ namespace Odin.Hosting.Controllers.Base.Notifications
                 throw new OdinClientException("Invalid request");
             }
 
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.UpdateNotifications(request, WebOdinContext, cn);
+            await notificationService.UpdateNotifications(request, WebOdinContext);
             return Ok();
         }
 
         [HttpPost("list/mark-read-by-appid")]
         public async Task<IActionResult> UpdateNotification([FromBody] Guid appId)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.MarkReadByApp(appId, WebOdinContext, cn);
+            await notificationService.MarkReadByApp(appId, WebOdinContext);
+            return Ok();
+        }
+
+        [HttpPost("list/mark-read-by-appid-and-typeid")]
+        public async Task<IActionResult> UpdateNotificationByTypeId([FromBody] MarkNotificationsAsReadRequest request)
+        {
+            await notificationService.MarkReadByAppAndTypeId(request.AppId, request.TypeId, WebOdinContext);
             return Ok();
         }
 
         [HttpDelete("list")]
         public async Task<IActionResult> DeleteNotification([FromBody] DeleteNotificationsRequest request)
         {
-            using var cn = tenantSystemStorage.CreateConnection();
-            await notificationService.Delete(request, WebOdinContext, cn);
+            await notificationService.Delete(request, WebOdinContext);
             return Ok();
         }
     }

@@ -25,7 +25,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
         }
@@ -298,59 +298,62 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         [Test]
         public async Task CanGetListOfCircleDefinitions()
         {
+            var request1 = new CreateCircleRequest()
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Circle 1",
+                Description = "Test circle description 1",
+                DriveGrants = null,
+                Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
+            };
+
+            var request2 = new CreateCircleRequest()
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Circle 2",
+                Description = "Test circle description 2",
+                DriveGrants = null,
+                Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
+            };
+
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
-
-                var request1 = new CreateCircleRequest()
+                try
                 {
-                    Id = Guid.NewGuid(),
-                    Name = "Test Circle 1",
-                    Description = "Test circle description 1",
-                    DriveGrants = null,
-                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
-                };
+                    var createCircleResponse1 = await svc.CreateCircleDefinition(request1);
+                    Assert.IsTrue(createCircleResponse1.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse1.StatusCode}");
 
-                var createCircleResponse1 = await svc.CreateCircleDefinition(request1);
-                Assert.IsTrue(createCircleResponse1.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse1.StatusCode}");
+                    var createCircleResponse2 = await svc.CreateCircleDefinition(request2);
+                    Assert.IsTrue(createCircleResponse2.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse2.StatusCode}");
 
+                    var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
+                    Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
-                var request2 = new CreateCircleRequest()
+                    Assert.IsNotNull(getCircleDefinitionsResponse.Content);
+                    var definitionList = getCircleDefinitionsResponse.Content.ToList();
+
+                    Assert.IsTrue(definitionList.Count() == 2);
+
+                    var circle1 = definitionList.Single(x => x.Name == request1.Name);
+                    Assert.AreEqual(request1.Name, circle1.Name);
+                    Assert.AreEqual(request1.Description, circle1.Description);
+                    CollectionAssert.AreEqual(request1.DriveGrants, circle1.DriveGrants);
+                    Assert.IsTrue(request1.Permissions == circle1.Permissions);
+
+                    var circle2 = definitionList.Single(x => x.Name == request2.Name);
+                    Assert.AreEqual(request2.Name, circle2.Name);
+                    Assert.AreEqual(request2.Description, circle2.Description);
+                    CollectionAssert.AreEqual(request2.DriveGrants, circle2.DriveGrants);
+                    Assert.IsTrue(request2.Permissions == circle2.Permissions);
+                }
+                finally
                 {
-                    Id = Guid.NewGuid(),
-                    Name = "Test Circle 2",
-                    Description = "Test circle description 2",
-                    DriveGrants = null,
-                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
-                };
+                    // cleanup
+                    await svc.DeleteCircleDefinition(request1.Id);
+                    await svc.DeleteCircleDefinition(request2.Id);
+                }
 
-                var createCircleResponse2 = await svc.CreateCircleDefinition(request2);
-                Assert.IsTrue(createCircleResponse2.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse2.StatusCode}");
-
-                var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
-
-                Assert.IsNotNull(getCircleDefinitionsResponse.Content);
-                var definitionList = getCircleDefinitionsResponse.Content.ToList();
-
-                Assert.IsTrue(definitionList.Count() == 2);
-
-                var circle1 = definitionList[0];
-                Assert.AreEqual(request1.Name, circle1.Name);
-                Assert.AreEqual(request1.Description, circle1.Description);
-                CollectionAssert.AreEqual(request1.DriveGrants, circle1.DriveGrants);
-                Assert.IsTrue(request1.Permissions == circle1.Permissions);
-
-                var circle2 = definitionList[1];
-                Assert.AreEqual(request2.Name, circle2.Name);
-                Assert.AreEqual(request2.Description, circle2.Description);
-                CollectionAssert.AreEqual(request2.DriveGrants, circle2.DriveGrants);
-                Assert.IsTrue(request2.Permissions == circle2.Permissions);
-
-                // cleanup
-
-                await svc.DeleteCircleDefinition(circle1.Id);
-                await svc.DeleteCircleDefinition(circle2.Id);
             }
         }
 

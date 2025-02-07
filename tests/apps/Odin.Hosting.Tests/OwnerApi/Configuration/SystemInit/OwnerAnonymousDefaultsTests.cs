@@ -16,7 +16,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests(initializeIdentity: false);
         }
@@ -73,7 +73,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var client = _scaffold.CreateAnonymousApiHttpClient(samOwnerClient.Identity.OdinId);
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
-                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 0);
+                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, "");
                 Assert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
             }
 
@@ -83,7 +83,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 
-                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 0);
+                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, "");
                 Assert.IsTrue(getConnectionsResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getConnectionsResponse.Content);
                 Assert.IsTrue(getConnectionsResponse.Content.Results.Any());
@@ -125,7 +125,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 
-                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 100);
+                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, "");
                 Assert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
             }
 

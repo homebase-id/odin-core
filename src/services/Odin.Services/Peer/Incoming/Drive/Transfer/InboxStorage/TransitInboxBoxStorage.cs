@@ -4,11 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
@@ -16,36 +14,34 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)
     /// </summary>
-    public class TransitInboxBoxStorage(TenantSystemStorage tenantSystemStorage)
+    public class TransitInboxBoxStorage(TableInbox tableInbox)
     {
-        public Task Add(TransferInboxItem item, DatabaseConnection cn)
+        public async Task AddAsync(TransferInboxItem item)
         {
             item.AddedTimestamp = UnixTimeUtc.Now();
 
             var state = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            tenantSystemStorage.Inbox.Insert(cn, new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
+            await tableInbox.InsertAsync(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
 
             PerformanceCounter.IncrementCounter("Inbox Item Added");
-
-            return Task.CompletedTask;
         }
 
-        public async Task<InboxStatus> GetStatus(Guid driveId, DatabaseConnection cn)
+        public async Task<InboxStatus> GetStatusAsync(Guid driveId)
         {
-            var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(cn, driveId);
+            var p = await tableInbox.PopStatusSpecificBoxAsync(driveId);
 
-            return await Task.FromResult(new InboxStatus()
+            return new InboxStatus
             {
                 TotalItems = p.totalCount,
                 PoppedCount = p.poppedCount,
                 OldestItemTimestamp = p.oldestItemTime,
-            });
+            };
         }
 
 
-        public InboxStatus GetPendingCount(Guid driveId, DatabaseConnection cn)
+        public async Task<InboxStatus> GetPendingCountAsync(Guid driveId)
         {
-            var p = tenantSystemStorage.Inbox.PopStatusSpecificBox(cn, driveId);
+            var p = await tableInbox.PopStatusSpecificBoxAsync(driveId);
             return new InboxStatus()
             {
                 TotalItems = p.totalCount,
@@ -54,10 +50,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             };
         }
 
-        public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId, int batchSize, DatabaseConnection cn)
+        public async Task<List<TransferInboxItem>> GetPendingItemsAsync(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = tenantSystemStorage.Inbox.PopSpecificBox(cn, driveId, batchSize == 0 ? 1 : batchSize);
+            var records = await tableInbox.PopSpecificBoxAsync(driveId, batchSize == 0 ? 1 : batchSize);
 
             if (null == records)
             {
@@ -79,34 +75,27 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
                 return item;
             }).ToList();
 
-            return await Task.FromResult(items);
+            return items;
         }
 
-        public Task MarkComplete(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
+        public async Task MarkCompleteAsync(InternalDriveFileId file, Guid marker)
         {
-            tenantSystemStorage.Inbox.PopCommitList(cn, marker, file.DriveId, [file.FileId]);
+            await tableInbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
             
             PerformanceCounter.IncrementCounter("Inbox Mark Complete");
-
-            return Task.CompletedTask;
         }
 
-        public Task MarkFailure(InternalDriveFileId file, Guid marker, DatabaseConnection cn)
+        public async Task MarkFailureAsync(InternalDriveFileId file, Guid marker)
         {
-            tenantSystemStorage.Inbox.PopCancelList(cn, marker, file.DriveId, [file.FileId]);
-            
+            await tableInbox.PopCancelListAsync(marker, file.DriveId, [file.FileId]);
             PerformanceCounter.IncrementCounter("Inbox Mark Failure");
-
-            return Task.CompletedTask;
         }
 
-        public Task<int> RecoverDead(UnixTimeUtc time, DatabaseConnection cn)
+        public async Task<int> RecoverDeadAsync(UnixTimeUtc time)
         {
-            var recovered = tenantSystemStorage.Inbox.PopRecoverDead(cn, time);
-            
+            var recovered = await tableInbox.PopRecoverDeadAsync(time);
             PerformanceCounter.IncrementCounter("Inbox Recover Dead");
-
-            return Task.FromResult(recovered);
+            return recovered;
         }
     }
 }

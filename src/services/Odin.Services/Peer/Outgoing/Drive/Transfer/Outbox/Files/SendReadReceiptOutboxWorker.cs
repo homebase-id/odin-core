@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -22,24 +21,14 @@ public class SendReadReceiptOutboxWorker(
     ILogger<SendReadReceiptOutboxWorker> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     OdinConfiguration odinConfiguration
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
-            if (FileItem.AttemptCount > odinConfiguration.Host.PeerOperationMaxAttempts)
-            {
-                throw new OdinOutboxProcessingException("Too many attempts")
-                {
-                    File = FileItem.File,
-                    TransferStatus = LatestTransferStatus.SendingServerTooManyAttempts,
-                    Recipient = default,
-                    VersionTag = default,
-                    GlobalTransitId = default
-                };
-            }
-
+            AssertHasRemainingAttempts();
+            
             logger.LogDebug("SendReadReceipt -> Sending request for file: {file} to {recipient}", FileItem.File, FileItem.Recipient);
 
             var globalTransitId = await HandleRequest(FileItem, cancellationToken);
@@ -57,7 +46,7 @@ public class SendReadReceiptOutboxWorker(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, cn, e);
+                return await HandleOutboxProcessingException(odinContext, e);
             }
             catch (Exception exception)
             {
@@ -82,7 +71,7 @@ public class SendReadReceiptOutboxWorker(
 
         var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
@@ -99,8 +88,8 @@ public class SendReadReceiptOutboxWorker(
             ApiResponse<PeerTransferResponse> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                Configuration.Host.PeerOperationMaxAttempts,
+                Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
                 async () => { response = await TrySendFile(); });
 
@@ -136,7 +125,7 @@ public class SendReadReceiptOutboxWorker(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
@@ -144,8 +133,7 @@ public class SendReadReceiptOutboxWorker(
     }
 
     protected override Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        DatabaseConnection cn)
+        IOdinContext odinContext)
     {
         return Task.FromResult((false, UnixTimeUtc.ZeroTime));
     }

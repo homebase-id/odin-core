@@ -12,8 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
     public class OwnerNotificationListDataListController : NotificationListDataControllerBase
     {
         public OwnerNotificationListDataListController(
-            NotificationListService notificationService,
-            TenantSystemStorage tenantSystemStorage) : base(notificationService, tenantSystemStorage)
+            NotificationListService notificationService) : base(notificationService)
         {
         }
     }

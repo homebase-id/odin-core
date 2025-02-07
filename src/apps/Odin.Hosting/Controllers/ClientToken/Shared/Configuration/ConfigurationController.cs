@@ -17,13 +17,13 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Configuration;
 public class ConfigurationController : Controller
 {
     private readonly TenantConfigService _tenantConfigService;
-    private readonly TenantSystemStorage _tenantSystemStorage;
+
 
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, TenantSystemStorage tenantSystemStorage)
+    public ConfigurationController(TenantConfigService tenantConfigService)
     {
         _tenantConfigService = tenantConfigService;
-        _tenantSystemStorage = tenantSystemStorage;
+        
     }
 
     /// <summary>
@@ -31,11 +31,10 @@ public class ConfigurationController : Controller
     /// </summary>
     /// <returns></returns>
     [HttpPost("system/isconfigured")]
-    public Task<bool> IsIdentityServerConfigured()
+    public async Task<bool> IsIdentityServerConfigured()
     {
-        using var cn = _tenantSystemStorage.CreateConnection();
-        var result = _tenantConfigService.IsIdentityServerConfigured(cn);
-        return Task.FromResult(result);
+        var result = await _tenantConfigService.IsIdentityServerConfiguredAsync();
+        return result;
     }
 
 }

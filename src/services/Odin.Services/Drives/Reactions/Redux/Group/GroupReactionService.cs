@@ -7,8 +7,9 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
+using Odin.Services.Background;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives.Reactions.Group;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
@@ -22,109 +23,113 @@ public class GroupReactionService(
     TenantContext tenantContext,
     ReactionContentService reactionContentService,
     PeerOutbox peerOutbox,
-    PeerOutboxProcessorBackgroundService outboxProcessorBackgroundService,
+    IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
-    FileSystemResolver fileSystemResolver) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver)
+    FileSystemResolver fileSystemResolver,
+    OdinConfiguration odinConfiguration)
+    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
-    public async Task<AddReactionResult> AddReaction(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
-        DatabaseConnection connection, FileSystemType fileSystemType)
+    public async Task<AddReactionResult> AddReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options,
+        IOdinContext odinContext,
+        FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
         fileId.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        var localFile = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
+        var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new AddReactionResult();
 
-        await reactionContentService.AddReaction(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, connection);
+        await reactionContentService.AddReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext);
 
         if (options?.Recipients?.Any() ?? false)
         {
             foreach (var recipient in options.Recipients)
             {
-                var status = await EnqueueRemoteReactionOutboxItem(OutboxItemType.AddRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
-                    odinContext, connection, fileSystemType);
+                var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.AddRemoteReaction, (OdinId)recipient, fileId,
+                    reaction, localFile,
+                    odinContext, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor();
         }
 
         return result;
     }
 
-    public async Task<DeleteReactionResult> DeleteReaction(FileIdentifier fileId, string reaction, ReactionTransitOptions options, IOdinContext odinContext,
-        DatabaseConnection connection, FileSystemType fileSystemType)
+    public async Task<DeleteReactionResult> DeleteReactionAsync(FileIdentifier fileId, string reaction, ReactionTransitOptions options,
+        IOdinContext odinContext, FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertValidRecipientList(options?.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
         fileId.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        var localFile = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
+        var localFile = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new DeleteReactionResult();
-        await reactionContentService.DeleteReaction(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, connection);
+        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext);
 
         if (options?.Recipients?.Any() ?? false)
         {
             foreach (var recipient in options.Recipients)
             {
-                var status = await EnqueueRemoteReactionOutboxItem(OutboxItemType.DeleteRemoteReaction, (OdinId)recipient, fileId, reaction, localFile,
-                    odinContext, connection, fileSystemType);
+                var status = await EnqueueRemoteReactionOutboxItemAsync(OutboxItemType.DeleteRemoteReaction, (OdinId)recipient, fileId,
+                    reaction, localFile,
+                    odinContext, fileSystemType);
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            outboxProcessorBackgroundService.PulseBackgroundProcessor();
+            backgroundServiceTrigger.PulseBackgroundProcessor();
         }
 
         return result;
     }
 
-    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(FileIdentifier fileId, IOdinContext odinContext,
-        DatabaseConnection connection, FileSystemType fileSystemType)
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFileAsync(FileIdentifier fileId, IOdinContext odinContext,
+        FileSystemType fileSystemType)
     {
-        var file = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
+        var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactionCountsByFile(file, odinContext, connection);
+        return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext);
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId identity, FileIdentifier fileId, IOdinContext odinContext,
-        DatabaseConnection connection, FileSystemType fileSystemType)
+    public async Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId identity, FileIdentifier fileId, IOdinContext odinContext,
+        FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertIsValidOdinId(identity, out _);
 
-        var file = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
+        var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactionsByIdentityAndFile(identity, file, odinContext, connection);
+        return await reactionContentService.GetReactionsByIdentityAndFileAsync(identity, file, odinContext);
     }
 
-    public async Task<GetReactionsResponse> GetReactions(FileIdentifier fileId, int cursor, int maxCount, IOdinContext odinContext,
-        DatabaseConnection connection, FileSystemType fileSystemType)
+    public async Task<GetReactionsResponse> GetReactionsAsync(FileIdentifier fileId, int cursor, int maxCount, IOdinContext odinContext,
+        FileSystemType fileSystemType)
     {
-        var file = await GetLocalFileId(fileId, odinContext, connection, fileSystemType);
+        var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
 
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
-        return await reactionContentService.GetReactions(file, cursor, maxCount, odinContext, connection);
+        return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext);
     }
 
     //
 
-    private async Task<InternalDriveFileId> GetLocalFileId(FileIdentifier fileId, IOdinContext odinContext, DatabaseConnection connection,
-        FileSystemType fileSystemType)
+    private async Task<InternalDriveFileId> GetLocalFileIdAsync(FileIdentifier fileId, IOdinContext odinContext, FileSystemType fileSystemType)
     {
         var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
-        var localFileId = (await fs.Query.ResolveFileId(fileId.ToGlobalTransitIdFileIdentifier(), odinContext, connection)).GetValueOrDefault();
+        var localFileId = (await fs.Query.ResolveFileId(fileId.ToGlobalTransitIdFileIdentifier(), odinContext)).GetValueOrDefault();
 
         if (!localFileId.IsValid())
         {
@@ -134,16 +139,15 @@ public class GroupReactionService(
         return localFileId;
     }
 
-    private async Task<TransferStatus> EnqueueRemoteReactionOutboxItem(OutboxItemType outboxItemType,
+    private async Task<TransferStatus> EnqueueRemoteReactionOutboxItemAsync(OutboxItemType outboxItemType,
         OdinId recipient,
         FileIdentifier file,
         string reaction,
         InternalDriveFileId localFile,
         IOdinContext odinContext,
-        DatabaseConnection connection,
         FileSystemType fileSystemType)
     {
-        var clientAuthToken = await ResolveClientAccessToken(recipient, odinContext, connection, false);
+        var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
         if (null == clientAuthToken)
         {
             return TransferStatus.EnqueuedFailed;
@@ -174,7 +178,7 @@ public class GroupReactionService(
             }
         };
 
-        await peerOutbox.AddItem(outboxItem, connection, useUpsert: true);
+        await peerOutbox.AddItemAsync(outboxItem, useUpsert: true);
         return TransferStatus.Enqueued;
     }
 }

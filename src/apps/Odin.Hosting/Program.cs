@@ -26,7 +26,9 @@ using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using Serilog;
+using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using Version = Odin.Services.Version;
 
 namespace Odin.Hosting
 {
@@ -49,7 +51,7 @@ namespace Odin.Hosting
                 try
                 {
                     Log.Information("Starting web host");
-                    Log.Information("Identity-host version: {Version}", Extensions.Version.VersionText);
+                    Log.Information("Identity-host version: {Version}", Version.VersionText);
                     CreateHostBuilder(args).Build().Run();
                     Log.Information("Stopped web host\n\n\n");
                 }
@@ -92,8 +94,14 @@ namespace Odin.Hosting
             if (odinConfig.Logging.LogFilePath != "")
             {
                 loggerConfig.WriteTo.LogLevelModifier(s => s.Async(
-                    sink => sink.RollingFile(Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"),
-                        outputTemplate: logOutputTemplate)));
+                    sink => sink.File(
+                        path: Path.Combine(odinConfig.Logging.LogFilePath, "app-.log"),
+                        rollingInterval: RollingInterval.Day,
+                        outputTemplate: logOutputTemplate,
+                        fileSizeLimitBytes: 1L * 1024 * 1024 * 1024,
+                        rollOnFileSizeLimit: true,
+                        retainedFileCountLimit: null
+                    )));
             }
 
             if (services != null)
@@ -125,13 +133,16 @@ namespace Odin.Hosting
                 }
             }
 
+            Directory.CreateDirectory(odinConfig.Host.SystemDataRootPath);
+            Log.Information($"System root path:{odinConfig.Host.SystemDataRootPath}");
+
             var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new OdinSystemException($"Could not create logging folder at [{odinConfig.Host.TenantDataRootPath}]");
+                throw new OdinSystemException($"Could not create tenant root folder at [{odinConfig.Host.TenantDataRootPath}]");
             }
 
-            Log.Information($"Root path:{odinConfig.Host.TenantDataRootPath}");
+            Log.Information($"Tenant root path:{odinConfig.Host.TenantDataRootPath}");
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
@@ -139,10 +150,7 @@ namespace Odin.Hosting
                 {
                     CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
                 })
-                .UseServiceProviderFactory(
-                    new MultiTenantServiceProviderFactory(
-                        TenantServices.ConfigureMultiTenantServices,
-                        TenantServices.InitializeTenant))
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory())
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(kestrelOptions =>
@@ -249,6 +257,11 @@ namespace Odin.Hosting
             OdinConfiguration config,
             IServiceProvider serviceProvider)
         {
+            if (Log.IsEnabled(LogEventLevel.Verbose))
+            {
+                Log.Verbose("Getting certificate for {host}", hostName);
+            }
+            
             if (string.IsNullOrWhiteSpace(hostName))
             {
                 return (null, false);

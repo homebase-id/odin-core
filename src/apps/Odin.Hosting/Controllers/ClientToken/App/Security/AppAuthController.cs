@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Authorization.Apps;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Security
@@ -14,9 +13,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
     [Route(AppApiPathConstants.AuthV1)]
     [AuthorizeValidAppToken]
     public class AppAuthController(
-        IAppRegistrationService appRegistrationService,
-        TenantSystemStorage tenantSystemStorage
-        ) : OdinControllerBase
+        IAppRegistrationService appRegistrationService) : OdinControllerBase
     {
         /// <summary>
         /// Verifies the ClientAuthToken (provided as a cookie) is Valid.
@@ -25,8 +22,9 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
         [HttpGet("verifytoken")]
         [SwaggerResponse((int)HttpStatusCode.OK, "Returned when ClientAuthToken is valid")]
         [SwaggerResponse((int)HttpStatusCode.Forbidden, "Returned when ClientAuthToken is not valid, expired, or revoked")]
-        public ActionResult VerifyToken()
+        public async Task<ActionResult> VerifyToken()
         {
+            await base.AddUpgradeRequiredHeaderAsync();
             return Ok(true);
         }
 
@@ -38,8 +36,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Security
         {
             // Cookie might have been set by the preauth middleware
             Response.Cookies.Delete(YouAuthConstants.AppCookieName);
-            using var cn = tenantSystemStorage.CreateConnection();
-            await appRegistrationService.DeleteCurrentAppClient(WebOdinContext, cn);
+            await appRegistrationService.DeleteCurrentAppClientAsync(WebOdinContext);
         }
     }
 }

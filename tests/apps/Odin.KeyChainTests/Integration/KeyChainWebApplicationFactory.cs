@@ -29,7 +29,7 @@ internal class KeyChainWebApplicationFactory : WebApplicationFactory<Program>
             //
             var db = new KeyChainDatabase("helpsasafile.db"); 
             var memoryConnection = db.CreateDisposableConnection();
-            KeyChainDatabaseUtil.InitializeDatabase(db, memoryConnection);
+            KeyChainDatabaseUtil.InitializeDatabaseAsync(db, memoryConnection).Wait();
             services.AddSingleton(db);
             services.AddSingleton(memoryConnection);
         });

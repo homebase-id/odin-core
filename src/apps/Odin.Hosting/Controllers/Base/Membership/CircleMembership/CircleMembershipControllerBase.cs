@@ -10,20 +10,19 @@ namespace Odin.Hosting.Controllers.Base.Membership.CircleMembership
     public abstract class CircleMembershipControllerBase : OdinControllerBase
     {
         private readonly CircleMembershipService _circleMembershipService;
-        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public CircleMembershipControllerBase(CircleMembershipService circleMembershipService, TenantSystemStorage tenantSystemStorage)
+
+        public CircleMembershipControllerBase(CircleMembershipService circleMembershipService)
         {
             _circleMembershipService = circleMembershipService;
-            _tenantSystemStorage = tenantSystemStorage;
+            
         }
         
         [HttpPost("list")]
-        public Task<List<CircleDomainResult>> GetDomainsInCircle([FromBody] GetCircleMembersRequest request)
+        public async Task<List<CircleDomainResult>> GetDomainsInCircle([FromBody] GetCircleMembersRequest request)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = _circleMembershipService.GetDomainsInCircle(request.CircleId, WebOdinContext, cn);
-            return Task.FromResult(result);
+            var result = await _circleMembershipService.GetDomainsInCircleAsync(request.CircleId, WebOdinContext);
+            return result;
         }
     }
 }

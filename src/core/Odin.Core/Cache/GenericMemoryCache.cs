@@ -1,7 +1,10 @@
 using System;
 using System.Linq;
-using System.Runtime.Caching;
 using System.Text;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
+using Odin.Core.Exceptions;
+using Odin.Core.Threading;
 
 namespace Odin.Core.Cache;
 
@@ -14,10 +17,12 @@ public interface IGenericMemoryCache
     bool TryGet(byte[] key, out object? value);
     bool TryGet<T>(string key, out T? value);
     bool TryGet<T>(byte[] key, out T? value);
-    void Set(string key, object? value, TimeSpan lifespan);
-    void Set(string key, object? value, DateTimeOffset absoluteExpiration);
-    void Set(byte[] key, object? value, TimeSpan lifespan);
-    void Set(byte[] key, object? value, DateTimeOffset absoluteExpiration);
+    void Set(string key, object? value, MemoryCacheEntryOptions options);
+    void Set(byte[] key, object? value, MemoryCacheEntryOptions options);
+    T? GetOrCreate<T>(string key, Func<T?> factory, MemoryCacheEntryOptions options);
+    T? GetOrCreate<T>(byte[] key, Func<T?> factory, MemoryCacheEntryOptions options);
+    Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, MemoryCacheEntryOptions options);
+    Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, MemoryCacheEntryOptions options);
     object? Remove(string key);
     object? Remove(byte[] key);
     bool Contains(string key);
@@ -26,60 +31,46 @@ public interface IGenericMemoryCache
     string GenerateKey(string prefix, params byte[][] values);
 }
 
+public interface IGenericMemoryCache<TRegistration> : IGenericMemoryCache;
+
 //
 
-public class GenericMemoryCache(string name = "generic-memory-cache") : IGenericMemoryCache, IDisposable
+public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 {
-    private static readonly object NullValue = new ();
-    private readonly object _mutex = new(); // We need locking because user can call Clear() at any time
-    private MemoryCache _cache = new(name);
-
-    //
+    private static readonly object NullValue = new();
+    private readonly MemoryCache _cache = new(new MemoryCacheOptions());
+    private readonly KeyedAsyncLock _factoryLock = new();
 
     public void Dispose()
     {
-        lock (_mutex)
-        {
-            _cache.Dispose();
-        }
+        _cache.Dispose();
     }
 
     //
 
     public void Clear()
     {
-        lock (_mutex)
-        {
-            var name = _cache.Name;
-            _cache.Dispose();
-            _cache = new MemoryCache(name);
-        }
+        _cache.Clear();
     }
 
     //
 
     public bool TryGet(string key, out object? value)
     {
-        object? result;
-        lock (_mutex)
+        if (_cache.TryGetValue(key, out var result))
         {
-            result = _cache.Get(key);
-        }
+            if (ReferenceEquals(result, NullValue))
+            {
+                value = default;
+                return true;
+            }
 
-        if (result == null)
-        {
-            value = default;
-            return false;
-        }
-
-        if (result == NullValue)
-        {
-            value = default;
+            value = result;
             return true;
         }
 
-        value = result;
-        return true;
+        value = default;
+        return false;
     }
 
     //
@@ -93,31 +84,25 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     public bool TryGet<T>(string key, out T? value)
     {
-        object? result;
-        lock (_mutex)
+        if (_cache.TryGetValue(key, out var result))
         {
-            result = _cache.Get(key);
+            if (ReferenceEquals(result, NullValue))
+            {
+                value = default;
+                return true;
+            }
+
+            if (result is T actual)
+            {
+                value = actual;
+                return true;
+            }
+
+            throw new InvalidCastException($"The item with key '{key}' cannot be cast to type {typeof(T).Name}.");
         }
 
-        if (result == null)
-        {
-            value = default;
-            return false;
-        }
-
-        if (result == NullValue)
-        {
-            value = default;
-            return true;
-        }
-
-        if (result is T actual)
-        {
-            value = actual;
-            return true;
-        }
-
-        throw new InvalidCastException($"The item with key '{key}' cannot be cast to type {typeof(T).Name}.");
+        value = default;
+        return false;
     }
 
     //
@@ -129,44 +114,93 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     //
 
-    public void Set(string key, object? value, TimeSpan lifespan)
+    public void Set(string key, object? value, MemoryCacheEntryOptions options)
     {
-        Set(key, value, DateTimeOffset.Now.Add(lifespan));
+        Check(options);
+        _cache.Set(key, value ?? NullValue, options);
     }
 
     //
 
-    public void Set(string key, object? value, DateTimeOffset absoluteExpiration)
+    public void Set(byte[] key, object? value, MemoryCacheEntryOptions options)
     {
-        var policy = new CacheItemPolicy { AbsoluteExpiration = absoluteExpiration };
-        lock (_mutex)
+        Set(Convert.ToBase64String(key), value, options);
+    }
+
+    //
+
+    public T? GetOrCreate<T>(string key, Func<T?> factory, MemoryCacheEntryOptions options)
+    {
+        Check(options);
+
+        if (TryGet<T?>(key, out var existingValue))
         {
-            _cache.Set(new CacheItem(key, value ?? NullValue), policy);
+            return existingValue;
+        }
+
+        using (_factoryLock.Lock(key))
+        {
+            // Double-check if the value was added while waiting for the lock
+            if (TryGet<T?>(key, out existingValue))
+            {
+                return existingValue;
+            }
+
+            // Execute the factory function and store the result
+            var value = factory();
+            _cache.Set(key, value ?? NullValue, options);
+
+            return value;
+        }
+    }
+    //
+
+    public T? GetOrCreate<T>(byte[] key, Func<T?> factory, MemoryCacheEntryOptions options)
+    {
+        return GetOrCreate(Convert.ToBase64String(key), factory, options);
+    }
+
+    //
+
+    public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, MemoryCacheEntryOptions options)
+    {
+        Check(options);
+
+        if (TryGet<T?>(key, out var existingValue))
+        {
+            return existingValue;
+        }
+
+        using (await _factoryLock.LockAsync(key))
+        {
+            // Double-check if the value was added while waiting for the lock
+            if (TryGet<T?>(key, out existingValue))
+            {
+                return existingValue;
+            }
+
+            // Execute the factory function and store the result
+            var value = await factory().ConfigureAwait(false);
+            _cache.Set(key, value ?? NullValue, options);
+
+            return value;
         }
     }
 
     //
 
-    public void Set(byte[] key, object? value, TimeSpan lifespan)
+    public Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, MemoryCacheEntryOptions options)
     {
-        Set(Convert.ToBase64String(key), value, lifespan);
-    }
-
-    //
-
-    public void Set(byte[] key, object? value, DateTimeOffset absoluteExpiration)
-    {
-        Set(Convert.ToBase64String(key), value, absoluteExpiration);
+        return GetOrCreateAsync(Convert.ToBase64String(key), factory, options);
     }
 
     //
 
     public object? Remove(string key)
     {
-        lock (_mutex)
-        {
-            return _cache.Remove(key);
-        }
+        _cache.TryGetValue(key, out var value);
+        _cache.Remove(key);
+        return ReferenceEquals(value, NullValue) ? null : value;
     }
 
     //
@@ -180,10 +214,7 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     public bool Contains(string key)
     {
-        lock (_mutex)
-        {
-            return _cache.Contains(key);
-        }
+        return _cache.TryGetValue(key, out _);
     }
 
     //
@@ -204,7 +235,6 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
             return prefix;
         }
 
-        // SEB:NOTE random guestimate on the sweet spot for when to use string.Join vs StringBuilder
         if (values.Length < 5)
         {
             return $"{prefix}:{string.Join(":", values)}";
@@ -238,4 +268,46 @@ public class GenericMemoryCache(string name = "generic-memory-cache") : IGeneric
 
     //
 
+    private static void Check(MemoryCacheEntryOptions options)
+    {
+        var badOptions =
+            options.AbsoluteExpiration == null &&
+            options.AbsoluteExpirationRelativeToNow == null &&
+            options.SlidingExpiration == null;
+        if (badOptions)
+        {
+            throw new OdinSystemException("MemoryCacheEntryOptions: missing expiration");
+        }
+    }
+}
+
+public class GenericMemoryCache<TRegistration> : GenericMemoryCache, IGenericMemoryCache<TRegistration>;
+
+//
+
+public static class Expiration
+{
+    public static MemoryCacheEntryOptions Absolute(DateTimeOffset absoluteExpiration)
+    {
+        return new MemoryCacheEntryOptions
+        {
+            AbsoluteExpiration = absoluteExpiration
+        };
+    }
+
+    public static MemoryCacheEntryOptions Relative(TimeSpan absoluteExpirationRelativeToNow)
+    {
+        return new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = absoluteExpirationRelativeToNow
+        };
+    }
+
+    public static MemoryCacheEntryOptions Sliding(TimeSpan slidingExpiration)
+    {
+        return new MemoryCacheEntryOptions
+        {
+            SlidingExpiration = slidingExpiration
+        };
+    }
 }

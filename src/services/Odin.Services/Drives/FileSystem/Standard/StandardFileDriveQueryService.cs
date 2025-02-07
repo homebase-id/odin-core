@@ -3,10 +3,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Standard
@@ -15,34 +15,34 @@ namespace Odin.Services.Drives.FileSystem.Standard
     {
         public StandardFileDriveQueryService(
             ILogger<StandardFileDriveQueryService> logger,
-            DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager,
-            StandardFileDriveStorageService storage) :
-            base(logger, driveDatabaseHost, driveManager, storage)
+            DriveQuery driveQuery,
+            StandardFileDriveStorageService storage, IdentityDatabase db) :
+            base(logger, driveManager, driveQuery, storage, db)
         {
         }
 
-        public override async Task AssertCanReadDrive(Guid driveId, IOdinContext odinContext, DatabaseConnection cn)
+        public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
         {
-            var drive = await DriveManager.GetDrive(driveId, cn, true);
+            var drive = await DriveManager.GetDriveAsync(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 odinContext.PermissionsContext.AssertCanReadDrive(driveId);
             }
         }
 
-        public override async Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext, DatabaseConnection cn)
+        public override async Task AssertCanWriteToDrive(Guid driveId, IOdinContext odinContext)
         {
-            var drive = await DriveManager.GetDrive(driveId, cn, true);
+            var drive = await DriveManager.GetDriveAsync(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
 
-        public override async Task AssertCanReadOrWriteToDrive(Guid driveId, IOdinContext odinContext, DatabaseConnection cn)
+        public override async Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext)
         {
-            var drive = await DriveManager.GetDrive(driveId, cn, true);
+            var drive = await DriveManager.GetDriveAsync(driveId, true);
             if (!drive.AllowAnonymousReads)
             {
                 var pc = odinContext.PermissionsContext;

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -17,13 +16,13 @@ namespace Odin.Services.Drives.FileSystem.Comment;
 /// <summary />
 public class CommentStreamWriter : FileSystemStreamWriterBase
 {
-    private readonly IPeerOutgoingTransferService _peerOutgoingTransferService;
+    private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
     public CommentStreamWriter(
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
-        IPeerOutgoingTransferService peerOutgoingTransferService,
+        PeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
     {
@@ -60,18 +59,18 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     }
 
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
+        FileMetadata metadata, ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //
         // Note: this new file is a new comment but not a new ReferenceToFile; at
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext, cn);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata, IOdinContext odinContext, DatabaseConnection cn)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here, so we can ensure the right event is called
@@ -84,8 +83,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 targetFile,
                 metadata,
                 serverMetadata,
-                odinContext,
-                cn);
+                odinContext);
 
             return;
         }
@@ -98,8 +96,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
-                odinContext: odinContext,
-                cn);
+                odinContext: odinContext);
 
             return;
         }
@@ -107,10 +104,9 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext,
-        DatabaseConnection cn)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
     {
-        return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext, cn);
+        return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext);
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
@@ -140,7 +136,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             },
 
             IsEncrypted = uploadDescriptor.FileMetadata.IsEncrypted,
-            SenderOdinId = odinContext.Caller.OdinId,
+            SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
+            OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
 

@@ -1,5 +1,4 @@
 using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -89,6 +88,6 @@ namespace Odin.Services.Authorization.Permissions
 
     public class RedactedPermissionSet
     {
-        public List<int> Keys { get; set; }
+        public List<int> Keys { get; set; } = new();
     }
 }

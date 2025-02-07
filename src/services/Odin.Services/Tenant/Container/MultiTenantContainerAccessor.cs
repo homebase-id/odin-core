@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Autofac;
 
 #nullable enable
@@ -7,9 +8,10 @@ namespace Odin.Services.Tenant.Container
     public interface IMultiTenantContainerAccessor : IDisposable
     {
         Func<MultiTenantContainer> Container { get; }
+        ILifetimeScope GetOrAddTenantScope(string tenant, Action<ContainerBuilder> configurationAction);
         ILifetimeScope GetTenantScope(string tenant);
-        ILifetimeScope GetCurrentTenantScope();
         ILifetimeScope? LookupTenantScope(string tenant);
+        List<ILifetimeScope> GetTenantScopesForDiagnostics();
     }
 
     //
@@ -19,9 +21,11 @@ namespace Odin.Services.Tenant.Container
     {
         public Func<MultiTenantContainer> Container { get; } = container;
 
+        public ILifetimeScope GetOrAddTenantScope(string tenant, Action<ContainerBuilder> configurationAction) =>
+            Container().GetOrAddTenantScope(tenant, configurationAction);
         public ILifetimeScope GetTenantScope(string tenant) => Container().GetTenantScope(tenant);
-        public ILifetimeScope GetCurrentTenantScope() => Container().GetCurrentTenantScope();
         public ILifetimeScope? LookupTenantScope(string tenant) => Container().LookupTenantScope(tenant);
+        public List<ILifetimeScope> GetTenantScopesForDiagnostics() => Container().GetTenantScopesForDiagnostics();
 
         public void Dispose()
         {

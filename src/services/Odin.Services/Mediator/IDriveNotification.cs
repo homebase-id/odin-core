@@ -1,7 +1,4 @@
 using MediatR;
-using Odin.Core.Storage.SQLite;
-using Odin.Services.AppNotifications;
-using Odin.Services.Apps;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -21,8 +18,6 @@ public interface IDriveNotification : INotification
     public IOdinContext OdinContext { get; init; }
     // public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 
-    public DatabaseConnection DatabaseConnection { get; init; }
-    
     /// <summary>
     /// Feed hack so I can ensure certain update events do not get distributed 
     /// </summary>

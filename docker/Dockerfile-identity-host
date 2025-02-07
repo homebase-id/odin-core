@@ -1,8 +1,8 @@
-﻿# here's what to do when we upgrade to dotnet 8:
+# here's what to do when we upgrade to dotnet 8:
 # https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/
 # https://github.com/dotnet/dotnet-docker/issues/4388
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 LABEL org.opencontainers.image.source="https://github.com/homebase-id/odin-core"
 ARG TARGETARCH
 ARG VERSION_TEXT="0.0.0"
@@ -36,14 +36,14 @@ COPY src/apps/Odin.Hosting/                      src/apps/Odin.Hosting/
 COPY src/apps/Odin.Cli/                          src/apps/Odin.Cli/
 
 # Update version text in Version.cs
-RUN sed -i "s/-\.-\.-/$VERSION_TEXT/g" src/apps/Odin.Hosting/Extensions/Version.cs
+RUN sed -i "s/-\.-\.-/$VERSION_TEXT/g" src/services/Odin.Services/Version.cs
 
 # Build release
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.Hosting/Odin.Hosting.csproj -c Release -o out/web
 RUN dotnet publish --no-restore --warnaserror -a $TARGETARCH --self-contained false src/apps/Odin.Cli/Odin.Cli.csproj -c Release -o out/cli
 
 # Create runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 RUN echo "alias ls='ls --color=auto'" >> ~/.bashrc
 RUN echo "alias l='ls -lah'" >> ~/.bashrc
 RUN echo "alias ll='ls -lh'" >> ~/.bashrc

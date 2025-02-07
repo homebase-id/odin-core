@@ -25,7 +25,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests();
     }
@@ -109,7 +109,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var response = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
         {
             File = uploadResult.GlobalTransitIdFileIdentifier,
-            Cursor = 0,
+            Cursor = "",
             MaxRecords = 100
         });
 

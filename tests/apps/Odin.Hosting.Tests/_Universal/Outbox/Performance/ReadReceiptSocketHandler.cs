@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Core.Serialization;
+using Odin.Hosting.Tests._Universal.ApiClient;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Apps;
@@ -10,7 +11,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance;
 
 public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificationBatchSize, int notificationWaitTime)
 {
-    private readonly TestWebSocketListener _socketListener = new();
+    private readonly TestOwnerWebSocketListener _socketListener = new();
 
     private OwnerApiClientRedux _client;
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileAdded;
@@ -44,7 +45,7 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificatio
                 break;
 
             case ClientNotificationType.FileAdded:
-                await HandleFileAdded(notification);
+                HandleFileAdded(notification);
                 break;
 
             case ClientNotificationType.FileModified:
@@ -59,10 +60,9 @@ public class ReadReceiptSocketHandler(int processInboxBatchSize, int notificatio
         this.FileModified?.Invoke(this, (driveNotification.TargetDrive, driveNotification.Header));
     }
 
-    private async Task HandleFileAdded(TestClientNotification notification)
+    private void HandleFileAdded(TestClientNotification notification)
     {
         var driveNotification = OdinSystemSerializer.Deserialize<ClientDriveNotification>(notification.Data);
         this.FileAdded?.Invoke(this, (driveNotification.TargetDrive, driveNotification.Header));
-        await Task.CompletedTask;
     }
 }

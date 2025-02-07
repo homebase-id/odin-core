@@ -3,36 +3,37 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Identity;
-using Odin.Core.Storage.SQLite;
+using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
-using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
-
 namespace Odin.Services.Authentication.Transit;
 
-public class TransitAuthenticationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
+public class TransitAuthenticationService :
+    INotificationHandler<ConnectionFinalizedNotification>,
+    INotificationHandler<ConnectionBlockedNotification>,
+    INotificationHandler<ConnectionDeletedNotification>
 {
-    private readonly OdinContextCache _cache;
+    private readonly SharedOdinContextCache<TransitAuthenticationService> _cache;
     private readonly CircleNetworkService _circleNetworkService;
 
-    public TransitAuthenticationService(CircleNetworkService circleNetworkService, OdinConfiguration config)
+    public TransitAuthenticationService(SharedOdinContextCache<TransitAuthenticationService> cache, CircleNetworkService circleNetworkService)
     {
+        _cache = cache;
         _circleNetworkService = circleNetworkService;
-        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
 
     /// <summary>
-    /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+    /// Gets the <see cref="IOdinContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<IOdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
+    public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var creator = new Func<Task<IOdinContext>>(async delegate
         {
             var dotYouContext = new OdinContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token, odinContext, cn);
+            var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, token, odinContext);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -45,13 +46,13 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
             return dotYouContext;
         });
 
-        return await _cache.GetOrAddContext(token, creator);
+        return await _cache.GetOrAddContextAsync(token, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
-        ClientAuthenticationToken token, IOdinContext odinContext, DatabaseConnection cn)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
+        ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token, odinContext, cn);
+        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
@@ -61,7 +62,21 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
         return (cc, permissionContext);
     }
 
-    public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
+    public Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
+    {
+        // _cache.EnqueueIdentityForReset(notification.OdinId);
+        _cache.Reset();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
+    {
+        // _cache.EnqueueIdentityForReset(notification.OdinId);
+        _cache.Reset();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
     {
         // _cache.EnqueueIdentityForReset(notification.OdinId);
         _cache.Reset();

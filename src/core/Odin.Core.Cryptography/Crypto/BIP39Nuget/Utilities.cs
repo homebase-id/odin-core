@@ -43,23 +43,17 @@ namespace Bitcoin.BitcoinUtilities
 			return Enumerable.Range(0, hexString.Length).Where(x => x % 2 == 0).Select(x => Convert.ToByte(hexString.Substring(x, 2), 16)).ToArray();
 		}
 
-		// <summary>
+		/// <summary>
 		/// Turns a byte array into a Hex encoded string
 		/// </summary>
 		/// <param name="bytes">The bytes to encode to hex</param>
+		/// <param name="upperCase"></param>
 		/// <returns>The hex encoded representation of the bytes</returns>
 		public static string BytesToHexString(byte[] bytes, bool upperCase = false)
 		{
-			if (upperCase)
-			{
-				return string.Concat(bytes.Select(byteb => byteb.ToString("X2")).ToArray());
-			}
-			else
-			{
-				return string.Concat(bytes.Select(byteb => byteb.ToString("x2")).ToArray());
-			}
+			var result = Convert.ToHexString(bytes);
+			return upperCase ? result : result.ToLower();
 		}
-
 
 		/// <summary>
 		/// Safely get Crypto Random byte array at the size you desire, made this async version because can take 500ms to complete and so this allows non-blocking for the 500ms.

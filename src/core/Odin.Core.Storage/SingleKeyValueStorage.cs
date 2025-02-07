@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage;
 
@@ -23,13 +25,13 @@ public class SingleKeyValueStorage
     /// <summary>
     /// Gets T by key.  
     /// </summary>
+    /// <param name="tblKeyValue"></param>
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public T Get<T>(DatabaseConnection cn, Guid key) where T : class
+    public async Task<T> GetAsync<T>(TableKeyValue tblKeyValue, Guid key) where T : class
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var item = db.tblKeyValue.Get(cn, MakeStorageKey(key));
+        var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
 
         if (null == item)
         {
@@ -44,17 +46,26 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public void Upsert<T>(DatabaseConnection cn, Guid key, T value)
+    public async Task UpsertManyAsync<T>(TableKeyValue tblKeyValue, List<(Guid key, T value)> keyValuePairs)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        var json = OdinSystemSerializer.Serialize(value);
-        db.tblKeyValue.Upsert(cn, new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
+        {
+            key = MakeStorageKey(pair.key),
+            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray()
+        }).ToList();
+
+        await tblKeyValue.UpsertManyAsync(keyValueRecords);
     }
 
-    public void Delete(DatabaseConnection cn, Guid key)
+    public async Task UpsertAsync<T>(TableKeyValue tblKeyValue, Guid key, T value)
     {
-        var db = (IdentityDatabase)cn.db; // :(
-        db.tblKeyValue.Delete(cn, MakeStorageKey(key));
+        var json = OdinSystemSerializer.Serialize(value);
+        await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+    }
+
+    public async Task DeleteAsync(TableKeyValue tblKeyValue, Guid key)
+    {
+        await tblKeyValue.DeleteAsync(MakeStorageKey(key));
     }
     
     private byte[] MakeStorageKey(Guid key)

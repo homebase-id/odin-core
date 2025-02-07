@@ -9,12 +9,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.Connections
     [ApiController]
     [Route(OwnerApiPathConstants.CirclesV1 + "/requests")]
     [AuthorizeValidOwnerToken]
-    public class OwnerCircleNetworkRequestsController : CircleNetworkRequestsControllerBase
-    {
-        public OwnerCircleNetworkRequestsController(
-            CircleNetworkRequestService cn,
-            TenantSystemStorage tenantSystemStorage): base(cn, tenantSystemStorage)
-        {
-        }
-    }
+    public class OwnerCircleNetworkRequestsController(
+        CircleNetworkRequestService cn,
+        CircleNetworkIntroductionService introductionService)
+        : CircleNetworkRequestsControllerBase(cn, introductionService);
 }

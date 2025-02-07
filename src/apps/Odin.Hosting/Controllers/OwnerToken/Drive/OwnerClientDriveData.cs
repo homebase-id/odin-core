@@ -11,6 +11,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
 
         public string Metadata { get; set; }
         public bool IsReadonly { get; set; }
+        public bool AllowSubscriptions { get; set; }
         public bool AllowAnonymousReads { get; set; }
         public bool OwnerOnly { get; set; }
 

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Storage;
 using Odin.Services.Apps;
 
 namespace Odin.Services.Drives;
@@ -19,8 +19,7 @@ public class QueryBatchResult
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
     
-    public UInt64 CursorUpdatedTimestamp { get; set; }
-    
+   
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
     public bool HasMoreRows { get; set; }

@@ -9,77 +9,64 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// <summary>
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
     /// </summary>
-    public class TempStorageManager
+    public class TempStorageManager(DriveFileReaderWriter driveFileReaderWriter, ILogger<TempStorageManager> logger)
     {
-        private readonly DriveFileReaderWriter _driveFileReaderWriter;
-        private readonly ILogger<TempStorageManager> _logger;
-
-        private readonly StorageDrive _drive;
-
-        public TempStorageManager(StorageDrive drive, DriveFileReaderWriter driveFileReaderWriter, ILogger<TempStorageManager> logger)
-        {
-            drive.EnsureDirectories();
-
-            _driveFileReaderWriter = driveFileReaderWriter;
-            _logger = logger;
-            _drive = drive;
-        }
-
         // public StorageDrive Drive { get; }
 
         /// <summary>
         /// Gets a stream of data for the specified file
         /// </summary>
-        public async Task<byte[]> GetAllFileBytes(Guid fileId, string extension)
+        public async Task<byte[]> GetAllFileBytes(StorageDrive drive, Guid fileId, string extension)
         {
-            string path = GetTempFilenameAndPath(fileId, extension);
-            _logger.LogDebug("Getting temp file bytes for [{path}]", path);
-            var bytes = await _driveFileReaderWriter.GetAllFileBytes(path);
+            string path = GetTempFilenameAndPath(drive, fileId, extension);
+            logger.LogDebug("Getting temp file bytes for [{path}]", path);
+            var bytes = await driveFileReaderWriter.GetAllFileBytes(path);
             return bytes;
         }
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task<uint> WriteStream(Guid fileId, string extension, Stream stream)
+        public async Task<uint> WriteStream(StorageDrive drive, Guid fileId, string extension, Stream stream)
         {
-            string filePath = GetTempFilenameAndPath(fileId, extension, true);
-            uint bytesWritten = await _driveFileReaderWriter.WriteStream(filePath, stream);
+            string filePath = GetTempFilenameAndPath(drive, fileId, extension, true);
+            uint bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
             return bytesWritten;
         }
 
         /// <summary>
         /// Deletes the file matching <param name="fileId"></param> and extension.
         /// </summary>
-        public async Task EnsureDeleted(Guid fileId, string extension)
+        public async Task EnsureDeleted(StorageDrive drive, Guid fileId, string extension)
         {
-            string filePath = GetTempFilenameAndPath(fileId, extension);
-            await _driveFileReaderWriter.DeleteFile(filePath);
+            string filePath = GetTempFilenameAndPath(drive, fileId, extension);
+            await driveFileReaderWriter.DeleteFileAsync(filePath);
         }
 
         /// <summary>
         /// Deletes all files matching <param name="fileId"></param> regardless of extension
         /// </summary>
+        /// <param name="drive"></param>
         /// <param name="fileId"></param>
-        public async Task EnsureDeleted(Guid fileId)
+        public async Task EnsureDeleted(StorageDrive drive, Guid fileId)
         {
             // var dir = new DirectoryInfo(GetFileDirectory(fileId));
-            var dir = GetFileDirectory(fileId);
-            await _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern: GetFilename(fileId, "*"));
+            var dir = GetFileDirectory(drive, fileId);
+            await driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern: GetFilename(fileId, "*"));
         }
 
         /// <summary>
         /// Gets the physical path of the specified file
         /// </summary>
-        public Task<string> GetPath(Guid fileId, string extension)
+        public Task<string> GetPath(StorageDrive drive, Guid fileId, string extension)
         {
-            string filePath = GetTempFilenameAndPath(fileId, extension);
+            string filePath = GetTempFilenameAndPath(drive, fileId, extension);
             return Task.FromResult(filePath);
         }
 
-        private string GetFileDirectory(Guid fileId, bool ensureExists = false)
+        private string GetFileDirectory(StorageDrive drive, Guid fileId, bool ensureExists = false)
         {
-            string path = _drive.GetTempStoragePath();
+            string path = drive.GetTempStoragePath();
 
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8
             //The positions in the time guid are hex values as follows
@@ -110,9 +97,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
         }
 
-        private string GetTempFilenameAndPath(Guid fileId, string extension, bool ensureExists = false)
+        private string GetTempFilenameAndPath(StorageDrive drive, Guid fileId, string extension, bool ensureExists = false)
         {
-            string dir = GetFileDirectory(fileId, ensureExists);
+            string dir = GetFileDirectory(drive, fileId, ensureExists);
             return Path.Combine(dir, GetFilename(fileId, extension));
         }
     }

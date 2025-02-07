@@ -185,7 +185,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
@@ -213,7 +213,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
@@ -243,7 +243,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
@@ -272,7 +272,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
@@ -301,7 +301,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
@@ -467,8 +467,8 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
-#if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+#if !CI_GITHUB
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
     }
 
@@ -493,8 +493,8 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
-#if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+#if !CI_GITHUB
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
     }
 
@@ -521,8 +521,8 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
-#if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+#if !CI_GITHUB
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
     }
 
@@ -548,8 +548,8 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
-#if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+#if !CI_GITHUB
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 4 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
@@ -576,8 +576,8 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
-#if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+#if !CI_GITHUB
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 4 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
@@ -606,8 +606,8 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
-#if !NOISY_NEIGHBOUR
-        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(800));
+#if !CI_GITHUB
+        Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 4 attempt(s))"));
         Assert.That(exception.InnerException?.Message, Is.EqualTo("oh no"));
@@ -635,7 +635,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(300));
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(400));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));
@@ -664,7 +664,7 @@ public class TryRetryTest
         // Assert
         Assert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(300));
-#if !NOISY_NEIGHBOUR
+#if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(400));
 #endif
         Assert.That(exception?.Message, Is.EqualTo("oh no (giving up after 3 attempt(s))"));

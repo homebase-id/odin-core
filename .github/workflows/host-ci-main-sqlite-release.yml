@@ -1,0 +1,42 @@
+name: "Host: CI main/ubuntu/sqlite/release"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allows manual triggering from the UI
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4.0.0
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore ./odin-core.sln
+
+      - name: Check for Vulnerable Packages
+        run: |
+          dotnet list ./odin-core.sln package --vulnerable --include-transitive | tee packages_report.txt
+          if grep -q "Severity" packages_report.txt; then
+            echo "❌ Vulnerable packages detected! Failing the build."
+            exit 1
+          fi
+      
+      - name: Build
+        # below: %3B is ASCII for semicolon
+        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX%3BRUN_REDIS_TESTS" ./odin-core.sln
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
+        # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests.CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
+        # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
+

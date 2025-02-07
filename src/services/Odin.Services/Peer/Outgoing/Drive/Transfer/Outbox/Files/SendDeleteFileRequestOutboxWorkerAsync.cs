@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -22,11 +21,11 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     ILogger<SendDeleteFileRequestOutboxWorkerAsync> logger,
     OdinConfiguration odinConfiguration,
     IOdinHttpClientFactory odinHttpClientFactory
-) : OutboxWorkerBase(fileItem, logger)
+) : OutboxWorkerBase(fileItem, logger, null, odinConfiguration)
 {
     private readonly OutboxFileItem _fileItem = fileItem;
 
-    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, DatabaseConnection cn, CancellationToken cancellationToken)
+    public async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> Send(IOdinContext odinContext, CancellationToken cancellationToken)
     {
         try
         {
@@ -47,7 +46,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         {
             try
             {
-                return await HandleOutboxProcessingException(odinContext, cn, e);
+                return await HandleOutboxProcessingException(odinContext,  e);
             }
             catch (Exception exception)
             {
@@ -72,9 +71,9 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
 
         var decryptedClientAuthTokenBytes = outboxItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
-        decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
+        decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
-        async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
+        async Task<ApiResponse<PeerTransferResponse>> TrySendDeleteFileRequest()
         {
             var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
                 recipient,
@@ -89,10 +88,10 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
             ApiResponse<PeerTransferResponse> response = null;
 
             await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
+                Configuration.Host.PeerOperationMaxAttempts,
+                Configuration.Host.PeerOperationDelayMs,
                 cancellationToken,
-                async () => { response = await TrySendFile(); });
+                async () => { response = await TrySendDeleteFileRequest(); });
 
             if (response.IsSuccessStatusCode)
             {
@@ -126,7 +125,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         }
     }
 
-    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext, DatabaseConnection cn,
+    protected override Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
@@ -134,8 +133,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     }
 
     protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
-        IOdinContext odinContext,
-        DatabaseConnection cn)
+        IOdinContext odinContext)
     {
         return Task.CompletedTask;
     }

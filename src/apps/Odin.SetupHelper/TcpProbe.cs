@@ -61,13 +61,13 @@ public class TcpProbe(IGenericMemoryCache cache)
                 result = new TcpProbeResult(false, $"Successfully connected to {ipOrDomain}:{port}, but did not get the expected response");    
             }
             
-            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+            cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
             return result;
         }
         catch (Exception ex)
         {
             result = new TcpProbeResult(false, $"Failed to connect to {ipOrDomain}:{port}: {ex.Message}");
-            cache.Set(cacheKey, result, TimeSpan.FromSeconds(5));
+            cache.Set(cacheKey, result, Expiration.Relative(TimeSpan.FromSeconds(5)));
             return result;
         }
     }

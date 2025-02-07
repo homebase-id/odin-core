@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
@@ -18,14 +17,19 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Util;
+using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
+using Testcontainers.PostgreSql;
+using Testcontainers.Redis;
 
 namespace Odin.Hosting.Tests
 {
@@ -62,6 +66,14 @@ namespace Odin.Hosting.Tests
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
         public IServiceProvider Services => _webserver.Services;
+
+#if RUN_POSTGRES_TESTS
+        protected PostgreSqlContainer PostgresContainer;
+#endif
+
+#if RUN_REDIS_TESTS
+        protected RedisContainer  RedisContainer;
+#endif
 
         static WebScaffold()
         {
@@ -122,6 +134,29 @@ namespace Odin.Hosting.Tests
             _assertLogEvents = null;
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
+#if RUN_POSTGRES_TESTS
+            PostgresContainer = new PostgreSqlBuilder()
+                .WithImage("postgres:latest")
+                .WithDatabase("odin")
+                .WithUsername("odin")
+                .WithPassword("odin")
+                .Build();
+            PostgresContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("Database__Type", "postgres");
+            Environment.SetEnvironmentVariable("Database__ConnectionString", PostgresContainer.GetConnectionString());
+            // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.System.Connection.ScopedSystemConnectionFactory", "Verbose");
+            // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.Identity.Connection.ScopedIdentityConnectionFactory", "Verbose");
+#endif
+
+#if RUN_REDIS_TESTS
+            RedisContainer = new RedisBuilder()
+                .WithImage("redis:latest")
+                .Build();
+            RedisContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("Cache__Level2CacheType", "redis");
+            Environment.SetEnvironmentVariable("Cache__Level2Configuration", RedisContainer.GetConnectionString());
+#endif
+
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
@@ -143,8 +178,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpPort", HttpPort);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpsPort", HttpsPort);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__Ip", "*");
-
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
+            Environment.SetEnvironmentVariable("Host__IpRateLimitRequestsPerSecond", int.MaxValue.ToString());
 
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
@@ -216,6 +251,17 @@ namespace Odin.Hosting.Tests
                 _webserver.Dispose();
             }
 
+#if RUN_POSTGRES_TESTS
+            PostgresContainer?.DisposeAsync().AsTask().Wait();
+            PostgresContainer = null;
+#endif
+
+#if RUN_REDIS_TESTS
+            RedisContainer?.StopAsync().Wait();
+            RedisContainer?.DisposeAsync().AsTask().Wait();
+            RedisContainer = null;
+#endif
+
             this.DeleteData();
             this.DeleteLogs();
 
@@ -242,12 +288,19 @@ namespace Odin.Hosting.Tests
             return new OwnerApiClientRedux(this._oldOwnerApi, identity);
         }
 
+        public AppApiClientRedux CreateAppApiClientRedux(OdinId identity, ClientAccessToken accessToken)
+        {
+            return new AppApiClientRedux(identity, accessToken.ToAuthenticationToken(), accessToken.SharedSecret.GetKey());
+        }
+
         public AppApiClient CreateAppClient(TestIdentity identity, Guid appId)
         {
             return new AppApiClient(this._oldOwnerApi, identity, appId);
         }
 
-        public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
+        public AppApiTestUtils AppApi => this._appApi ??
+                                         throw new NullReferenceException(
+                                             "Check if the owner app was initialized in method RunBeforeAnyTests");
 
         public ScenarioBootstrapper Scenarios => this._scenarios ?? throw new NullReferenceException("");
 
@@ -389,6 +442,26 @@ namespace Odin.Hosting.Tests
             return logEvents;
         }
 
+        public void DumpLogEventsToConsole()
+        {
+            Console.WriteLine("--------======== Log Events Begin ========--------");
+
+            var logEvents = new List<LogEvent>();
+            var keyedLogEvents = GetLogEvents();
+            foreach (var (level, events) in keyedLogEvents)
+            {
+                logEvents.AddRange(events);
+            }
+
+            logEvents.Sort((a,b) => a.Timestamp < b.Timestamp ? -1 : 1);
+            foreach (var logEvent in logEvents)
+            {
+                Console.WriteLine($"{logEvent.Timestamp.ToUnixTimeMilliseconds()} {logEvent.RenderMessage()}");
+            }
+
+            Console.WriteLine("--------======== Log Events End ========--------");
+        }
+
         public void ClearLogEvents()
         {
             Services.GetRequiredService<ILogEventMemoryStore>().Clear();
@@ -414,7 +487,10 @@ namespace Odin.Hosting.Tests
 
         private static void DefaultAssertLogEvents(Dictionary<LogEventLevel, List<LogEvent>> logEvents)
         {
+            LogEvents.DumpEvents(logEvents[LogEventLevel.Error]);
             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(0), "Unexpected number of Error log events");
+
+            LogEvents.DumpEvents(logEvents[LogEventLevel.Fatal]);
             Assert.That(logEvents[LogEventLevel.Fatal].Count, Is.EqualTo(0), "Unexpected number of Fatal log events");
         }
 

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.SQLite;
 using Odin.Services.Drives.Reactions;
 
 namespace Odin.Hosting.Controllers.Base.Drive;
@@ -19,40 +18,39 @@ public abstract class DriveReactionContentControllerBase : OdinControllerBase
     }
 
     /// <summary />
-    protected async Task AddReaction(AddReactionRequest request, DatabaseConnection cn)
+    protected async Task AddReaction(AddReactionRequest request)
     {
-        await _reactionContentService.AddReaction(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext,
-            cn);
+        await _reactionContentService.AddReactionAsync(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext);
     }
 
     /// <summary />
-    protected async Task DeleteReaction(DeleteReactionRequest request, DatabaseConnection cn)
+    protected async Task DeleteReaction(DeleteReactionRequest request)
     {
-        await _reactionContentService.DeleteReaction(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext,
-            cn);
+        await _reactionContentService.DeleteReactionAsync(MapToInternalFile(request.File), request.Reaction, WebOdinContext.GetCallerOdinIdOrFail(), WebOdinContext);
     }
 
     /// <summary />
-    protected async Task DeleteAllReactions(DeleteReactionRequest request, DatabaseConnection cn)
+    protected async Task DeleteAllReactions(DeleteReactionRequest request)
     {
-        await _reactionContentService.DeleteAllReactions(MapToInternalFile(request.File), WebOdinContext, cn);
+        await _reactionContentService.DeleteAllReactionsAsync(MapToInternalFile(request.File), WebOdinContext);
     }
 
     /// <summary />
-    protected async Task<GetReactionsResponse> GetReactions(GetReactionsRequest request, DatabaseConnection cn)
+    protected async Task<GetReactionsResponse> GetReactions(GetReactionsRequest request)
     {
-        return await _reactionContentService.GetReactions(MapToInternalFile(request.File), cursor: request.Cursor,
-            maxCount: request.MaxRecords, WebOdinContext, cn);
+        int.TryParse(request.Cursor, out var c);
+        return await _reactionContentService.GetReactionsAsync(MapToInternalFile(request.File), cursor: c,
+            maxCount: request.MaxRecords, WebOdinContext);
     }
 
     /// <summary />
-    protected async Task<GetReactionCountsResponse> GetReactionCounts(GetReactionsRequest request, DatabaseConnection cn)
+    protected async Task<GetReactionCountsResponse> GetReactionCounts(GetReactionsRequest request)
     {
-        return await _reactionContentService.GetReactionCountsByFile(MapToInternalFile(request.File), WebOdinContext, cn);
+        return await _reactionContentService.GetReactionCountsByFileAsync(MapToInternalFile(request.File), WebOdinContext);
     }
 
-    protected async Task<List<string>> GetReactionsByIdentityAndFile(GetReactionsByIdentityRequest request, DatabaseConnection cn)
+    protected async Task<List<string>> GetReactionsByIdentityAndFile(GetReactionsByIdentityRequest request)
     {
-        return await _reactionContentService.GetReactionsByIdentityAndFile(request.Identity, MapToInternalFile(request.File), WebOdinContext, cn);
+        return await _reactionContentService.GetReactionsByIdentityAndFileAsync(request.Identity, MapToInternalFile(request.File), WebOdinContext);
     }
 }

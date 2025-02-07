@@ -61,6 +61,7 @@ using Odin.Hosting.Tests.OwnerApi.Drive.Management;
 using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Refit;
+using System.Text;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
@@ -110,7 +111,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         }
 
 
-        public async Task ForceNewPassword(string identity, string password)
+        public async Task ForceNewPassword(OdinId identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -120,9 +121,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             // handler.CheckCertificateRevocationList = false;
             handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
 
-            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
@@ -137,7 +137,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             // };
             // var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
 
-            var saltyReply = await CalculatePasswordReply(authClient, password);
+            var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+            var saltyReply = await CalculatePasswordReply(authClient, password, clientEccFullKey);
             //saltyReply.FirstRunToken = ???
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
@@ -145,9 +146,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         }
 
         /// <summary>
-        /// Creates a password reply when you are setting the owner password
+        /// Creates a client password reply when you are setting the owner password
         /// </summary>
-        public async Task<PasswordReply> CalculatePasswordReply(HttpClient authClient, string password)
+        public async Task<PasswordReply> CalculatePasswordReply(HttpClient authClient, string password, EccFullKeyData clientEccFullKey)
         {
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
@@ -156,12 +157,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
 
             var clientSalts = saltResponse.Content;
-            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC)
+            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicJwk, clientSalts.CRC)
             {
                 Nonce64 = clientSalts.Nonce64
             };
 
-            var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
+            var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce, clientEccFullKey);
 
             return saltyReply;
         }
@@ -169,7 +170,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         /// <summary>
         /// Creates a password reply for use when you are authenticating as the owner
         /// </summary>
-        public async Task<PasswordReply> CalculateAuthenticationPasswordReply(HttpClient authClient, string password)
+        public async Task<PasswordReply> CalculateAuthenticationPasswordReply(HttpClient authClient, string password, EccFullKeyData clientEccFullKey)
         {
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
@@ -177,71 +178,75 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
 
-            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
+            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicJwk, clientNonce.CRC)
             {
                 Nonce64 = clientNonce.Nonce64
             };
 
-            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
+            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce, clientEccFullKey);
             return reply;
         }
 
-        public HttpClient CreateAnonymousClient(string identity)
+        public HttpClient CreateAnonymousClient(OdinId identity)
         {
             HttpClient authClient = new();
-            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             return authClient;
         }
 
-        public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string identity, string recoveryKey, string password)
+        public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(OdinId identity, string recoveryKey, string password)
         {
+            var keyType = PublicPrivateKeyType.OfflineKey;
             using var authClient = CreateAnonymousClient(identity);
-            var saltyReply = await CalculatePasswordReply(authClient, password);
+            var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+            var saltyReply = await CalculatePasswordReply(authClient, password, clientEccFullKey);
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
-            var publicKeyResponse = await svc.GetPublicKey(PublicPrivateKeyType.OfflineKey);
+            var publicKeyResponse = await svc.GetPublicKeyEcc(keyType);
             Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
 
-            var pkData = new RsaPublicKeyData()
-            {
-                publicKey = publicKey.PublicKey,
-                crc32c = publicKey.Crc32,
-                expiration = new UnixTimeUtc(publicKey.Expiration)
-            };
+            var hostPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKeyResponse.Content.PublicKeyJwkBase64Url);
+            hostPublicKey.crc32c = publicKey.CRC32c;
+            hostPublicKey.expiration = new UnixTimeUtc(publicKey.Expiration);
 
             var keyHeader = KeyHeader.NewRandom16();
-            var encryptedRecoveryKey = new RsaEncryptedPayload()
+
+            var transferSharedSecret = clientEccFullKey.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicKey, saltyReply.Nonce64.FromBase64());
+
+            var encryptedRecoveryKey = new EccEncryptedPayload()
             {
                 //Note: i exclude the key type here because the methods that receive
                 //this must decide the encryption they expect
-                Crc32 = pkData.crc32c,
-                RsaEncryptedKeyHeader = pkData.Encrypt(keyHeader.Combine().GetKey()),
-                KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(recoveryKey).ToByteArray()
+                RemotePublicKeyJwk = clientEccFullKey.PublicKeyJwk(),
+                Salt = saltyReply.Nonce64.FromBase64(),
+                Iv = saltyReply.Nonce64.FromBase64(),
+                EncryptionPublicKeyCrc32 = hostPublicKey.crc32c,
+                EncryptedData = AesGcm.Encrypt(recoveryKey.ToUtf8ByteArray(), transferSharedSecret, saltyReply.Nonce64.FromBase64()),
+                KeyType = keyType
             };
 
             var resetRequest = new ResetPasswordUsingRecoveryKeyRequest()
             {
                 EncryptedRecoveryKey = encryptedRecoveryKey,
-                PasswordReply = saltyReply
+                PasswordReply = saltyReply // The sensitive parts here are GCM encrypted.
             };
 
             return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
         }
 
-        public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(string identity, string password)
+        public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(OdinId identity, string password, EccFullKeyData clientEccFullKey)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
             handler.CookieContainer = jar;
             handler.UseCookies = true;
 
-            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var uri = new Uri($"https://{identity}:{WebScaffold.HttpsPort}");
+            var uri = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
 
             Console.WriteLine($"authenticating to {uri}");
             // var nonceResponse = await svc.GenerateAuthenticationNonce();
@@ -255,10 +260,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             // };
             // var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
 
-            var reply = await this.CalculateAuthenticationPasswordReply(authClient, password);
+            var reply = await this.CalculateAuthenticationPasswordReply(authClient, password, clientEccFullKey);
             var response = await svc.Authenticate(reply);
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity.DomainName}");
             Assert.That(response.Content, Is.Not.Null);
 
             var ownerAuthenticationResult = response.Content;
@@ -274,11 +279,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
-        public async Task<OwnerAuthTokenContext> GetOwnerAuthContext(OdinId identity)
+        public OwnerAuthTokenContext GetOwnerAuthContext(OdinId identity)
         {
             if (_ownerLoginTokens.TryGetValue(identity, out var context))
             {
-                return await Task.FromResult(context);
+                return context;
             }
 
             throw new Exception($"No token found for {identity}");
@@ -288,8 +293,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         {
             var pwd = password ?? this._defaultOwnerPassword;
             await this.ForceNewPassword(identity, pwd);
+            var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-            var (result, sharedSecret) = await this.LoginToOwnerConsole(identity, pwd);
+            var (result, sharedSecret) = await this.LoginToOwnerConsole(identity, pwd, clientEccFullKey);
 
             var context = new OwnerAuthTokenContext()
             {
@@ -319,7 +325,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         public HttpClient CreateOwnerApiHttpClient(OdinId identity, out SensitiveByteArray sharedSecret,
             FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
+            var token = GetOwnerAuthContext(identity);
             var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret, fileSystemType);
             sharedSecret = token.SharedSecret;
             return client;

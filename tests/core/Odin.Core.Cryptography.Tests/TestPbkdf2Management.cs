@@ -41,7 +41,7 @@ namespace Odin.Core.Cryptography.Tests
 
             sw.Start();
             // Hash the user password + user salt
-            var HashPassword = KeyDerivation.Pbkdf2("EnSøienØ", saltArray, KeyDerivationPrf.HMACSHA256, 100000, 16);
+            var HashPassword = KeyDerivation.Pbkdf2("EnSøienØ", saltArray, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, 16);
             sw.Stop();
 
             Console.WriteLine("Elapsed={0}", sw.Elapsed);

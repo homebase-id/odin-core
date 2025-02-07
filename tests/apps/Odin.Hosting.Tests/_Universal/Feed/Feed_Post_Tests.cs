@@ -29,7 +29,7 @@ public class Feed_Post_Tests
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
         _scaffold.RunBeforeAnyTests();
     }
@@ -220,7 +220,7 @@ public class Feed_Post_Tests
         await ownerSam.Connections.SendConnectionRequest(frodo.OdinId, new List<GuidId>() { circleId });
         await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { });
 
-        var x = await ownerSam.Connections.GetConnectionInfo(ownerFrodo.Identity.OdinId);
+        var x = await ownerSam.Network.GetConnectionInfo(ownerFrodo.Identity.OdinId);
         Assert.IsNotNull(x);
         //
         // Using the feed app, Sam posts to public channel with encrypted file having ACL of friends circle

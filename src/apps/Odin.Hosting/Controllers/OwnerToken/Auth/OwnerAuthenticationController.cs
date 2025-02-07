@@ -24,20 +24,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         private readonly OwnerSecretService _ss;
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly ILogger<OwnerAuthenticationController> _logger;
-        private readonly TenantSystemStorage _tenantSystemStorage;
+
 
         public OwnerAuthenticationController(
             OwnerAuthenticationService authService,
             OwnerSecretService ss,
             PublicPrivateKeyService publicPrivateKeyService,
-            ILogger<OwnerAuthenticationController> logger,
-            TenantSystemStorage tenantSystemStorage)
+            ILogger<OwnerAuthenticationController> logger)
         {
             _authService = authService;
             _ss = ss;
             _publicPrivateKeyService = publicPrivateKeyService;
             _logger = logger;
-            _tenantSystemStorage = tenantSystemStorage;
         }
 
         [HttpGet("verifyToken")]
@@ -46,8 +44,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
             {
-                using var cn = _tenantSystemStorage.CreateConnection();
-                var isValid = await _authService.IsValidToken(result.Id, cn);
+                var isValid = await _authService.IsValidTokenAsync(result.Id);
+                if (isValid)
+                {
+                    await base.AddUpgradeRequiredHeaderAsync();
+                }
+
                 return new JsonResult(isValid);
             }
 
@@ -57,75 +59,60 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost]
         public async Task<OwnerAuthenticationResult> Authenticate([FromBody] PasswordReply package)
         {
-            // try
-            // {
-
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var (result, sharedSecret) = await _authService.Authenticate(package, cn);
+            var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request);
+            var (result, sharedSecret) = await _authService.AuthenticateAsync(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
             //TODO: need to encrypt shared secret using client public key
             return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };
-
-            // }
-            // catch //todo: evaluate if I want to catch all exceptions here or just the authentication exception
-            // {
-            //     return null;
-            // }
         }
 
         [HttpGet("logout")]
-        public Task<JsonResult> ExpireCookieBasedToken()
+        public async Task<JsonResult> ExpireCookieBasedToken()
         {
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (ClientAuthenticationToken.TryParse(value, out var result))
             {
-                using var cn = _tenantSystemStorage.CreateConnection();
-                _authService.ExpireToken(result.Id, cn);
+                await _authService.ExpireTokenAsync(result.Id);
             }
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
-            return Task.FromResult(new JsonResult(true));
+            return new JsonResult(true);
         }
 
         [HttpPost("extend")]
         public async Task<NoResultResponse> Extend(Guid token)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _authService.ExtendTokenLife(token, 100, cn);
+            await _authService.ExtendTokenLifeAsync(token, 100);
             return new NoResultResponse(true);
         }
 
         [HttpPost("expire")]
-        public NoResultResponse Expire(Guid token)
+        public async Task<NoResultResponse> Expire(Guid token)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            _authService.ExpireToken(token, cn);
+            await _authService.ExpireTokenAsync(token);
             return new NoResultResponse(true);
         }
 
         [HttpGet]
         public async Task<bool> IsValid(Guid token)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var isValid = await _authService.IsValidToken(token, cn);
+            var isValid = await _authService.IsValidTokenAsync(token);
             return isValid;
         }
 
         [HttpGet("nonce")]
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var result = await _authService.GenerateAuthenticationNonce(cn);
+            var result = await _authService.GenerateAuthenticationNonceAsync();
             return result;
         }
 
         [HttpPost("passwd")]
         public async Task<NoResultResponse> SetNewPassword([FromBody] PasswordReply reply)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            await _ss.SetNewPassword(reply, cn);
+            await _ss.SetNewPasswordAsync(reply);
             return new NoResultResponse(true);
         }
 
@@ -134,8 +121,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             try
             {
-                using var cn = _tenantSystemStorage.CreateConnection();
-                await _ss.ResetPasswordUsingRecoveryKey(reply, WebOdinContext, cn);
+                await _ss.ResetPasswordUsingRecoveryKeyAsync(reply, WebOdinContext);
             }
             catch (BIP39Exception e)
             {
@@ -149,29 +135,40 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("ispasswordset")]
         public async Task<bool> IsMasterPasswordSet()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            return await _ss.IsMasterPasswordSet(cn);
+            return await _ss.IsMasterPasswordSetAsync();
         }
 
         [HttpGet("getsalts")]
         public async Task<NonceData> GenerateSalts()
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var salts = await _ss.GenerateNewSalts(cn);
+            var salts = await _ss.GenerateNewSaltsAsync();
             return salts;
         }
 
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
         {
-            using var cn = _tenantSystemStorage.CreateConnection();
-            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType, cn);
+            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,
                 Crc32 = key.crc32c,
                 Expiration = key.expiration.milliseconds
             };
+        }
+
+        [HttpGet("publickey_ecc")]
+        public async Task<GetEccPublicKeyResponse> GetEccKey(PublicPrivateKeyType keyType)
+        {
+            var key = await _publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
+            var result = new GetEccPublicKeyResponse()
+            {
+                PublicKeyJwkBase64Url = key.PublicKeyJwkBase64Url(),
+                CRC32c = key.crc32c,
+                Expiration = key.expiration.milliseconds
+            };
+
+            return result;
         }
     }
 }
