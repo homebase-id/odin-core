@@ -67,7 +67,8 @@ public class SendFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<(Guid versionTag, Guid globalTransitId)> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext,
+    private async Task<(Guid versionTag, Guid globalTransitId)> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem,
+        IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -106,12 +107,13 @@ public class SendFileOutboxWorkerAsync(
             Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
         var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, shouldSendPayload, odinContext, options.OverrideRemoteGlobalTransitId);
+        var (metaDataStream, payloadStreams) =
+            await PackageFileStreamsAsync(header, shouldSendPayload, odinContext, options.OverrideRemoteGlobalTransitId);
 
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
-        
+
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
             var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
@@ -147,7 +149,13 @@ public class SendFileOutboxWorkerAsync(
         {
             var e = ex.InnerException;
 
-            logger.LogDebug(e, "Failed while sending file from outbox. Message {e}", e.Message);
+            logger.LogDebug(e, "Failed processing outbox item (type={t}) from outbox. Message {e}", FileItem.Type, e.Message);
+
+            if (e is HttpRequestException httpRequestException)
+            {
+                logger.LogDebug("HttpRequestException Error {e} and status code: {status}", httpRequestException.HttpRequestError,
+                    httpRequestException.StatusCode);
+            }
 
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
@@ -167,16 +175,15 @@ public class SendFileOutboxWorkerAsync(
     protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
-
         var update = new UpdateTransferHistoryData()
         {
             IsInOutbox = true,
             LatestTransferStatus = e.TransferStatus,
             VersionTag = null
         };
-        
+
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
-        
+
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.  Next Run Time {nrt}", e.File,
             e.TransferStatus,
             nextRunTime.milliseconds);
