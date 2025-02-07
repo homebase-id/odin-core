@@ -34,7 +34,7 @@ public sealed class VersionUpgradeScheduler(
             return;
         }
         
-        var (upgradeRequired, _) = await RequiresUpgradeAsync();
+        var (upgradeRequired, _, _) = await RequiresUpgradeAsync();
         if (!upgradeRequired)
         {
             return;
@@ -62,7 +62,7 @@ public sealed class VersionUpgradeScheduler(
         });
     }
 
-    public async Task<(bool requiresUpgrade, int tenantVersion)> RequiresUpgradeAsync()
+    public async Task<(bool requiresUpgrade, int tenantVersion, FailedUpgradeVersionInfo failureInfo)> RequiresUpgradeAsync()
     {
         var currentVersion = (await configService.GetVersionInfoAsync()).DataVersionNumber;
         var failure = await configService.GetVersionFailureInfoAsync();
@@ -78,17 +78,17 @@ public sealed class VersionUpgradeScheduler(
             upgradeRequired = versionTooLow && failure.BuildVersion != Version.VersionText;
         }
 
-        if (upgradeRequired)
-        {
-            logger.LogDebug("Upgrade test indicated that upgrade is required.  It will be scheduled only when you are running as owner " +
-                            "Current Version: v{cv}, release version: v{rv} " +
-                            "(previously failed build version: {failure})",
-                currentVersion,
-                Version.DataVersionNumber,
-                failure?.BuildVersion ?? "none");
-        }
+        // if (upgradeRequired)
+        // {
+        //     logger.LogDebug("Upgrade test indicated that upgrade is required.  It will be scheduled only when you are running as owner " +
+        //                     "Current Version: v{cv}, release version: v{rv} " +
+        //                     "(previously failed build version: {failure})",
+        //         currentVersion,
+        //         Version.DataVersionNumber,
+        //         failure?.BuildVersion ?? "none");
+        // }
 
-        return (upgradeRequired, currentVersion);
+        return (upgradeRequired, currentVersion, failure);
     }
 
     public static void SetRequiresUpgradeResponse(HttpContext context)

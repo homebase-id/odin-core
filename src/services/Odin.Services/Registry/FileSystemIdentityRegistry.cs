@@ -460,14 +460,20 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 var identityDatabase = scope.Resolve<IdentityDatabase>();
                 await identityDatabase.CreateDatabaseAsync(false);
 
-                var (requiresUpgrade, tenantVersion) = await scope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
+                var (requiresUpgrade, tenantVersion, _) = await scope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
                 if (requiresUpgrade)
                 {
                     _logger.LogError("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
                         registration.PrimaryDomainName,
                         tenantVersion,
                         Version.DataVersionNumber);
-                } 
+                }
+                else
+                {
+                    _logger.LogDebug("{tenant} is on latest data version number v{latestVersion}",
+                        registration.PrimaryDomainName,
+                        Version.DataVersionNumber);
+                }
 
                 _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
                 await CacheIdentity(registration);
