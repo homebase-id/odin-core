@@ -127,10 +127,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
                 else if (inboxItem.InstructionType == TransferInstructionType.ReadReceipt)
                 {
-                    logger.LogDebug("Processing Inbox -> ReadReceipt (gtid: {gtid} gtid as hex x'{gtidHex}') marker/popstamp:[{maker}]",
+                    logger.LogDebug("Processing Inbox -> ReadReceipt (gtid: {gtid} gtid as hex x'{gtidHex}') marker/popstamp:[{maker}] " +
+                                    "InboxAdded Time(ms) {added}",
                         inboxItem.GlobalTransitId,
                         Utilities.BytesToHexString(inboxItem.GlobalTransitId.ToByteArray()),
-                        Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                        Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
+                        inboxItem.AddedTimestamp.milliseconds);
 
                     await writer.MarkFileAsRead(fs, inboxItem, odinContext);
                     logger.LogDebug(ReadReceiptItemMarkedComplete);
