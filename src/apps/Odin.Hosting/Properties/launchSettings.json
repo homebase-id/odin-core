@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": "--transferhistory /Users/todd/tmp/dotyou/tenants"
+      "commandLineArgs": ""
     }
   }
 }
