@@ -110,6 +110,8 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         catch (TryRetryException ex)
         {
             var e = ex.InnerException;
+            logger.LogDebug(e, "Failed while sending file from outbox. Message {e}", e.Message);
+
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
                 : LatestTransferStatus.UnknownServerError;
