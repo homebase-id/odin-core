@@ -340,6 +340,7 @@ namespace Odin.Hosting
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
+            app.UseMiddleware<LinkPreviewMiddleware>();
 
             app.UseEndpoints(endpoints =>
             {
