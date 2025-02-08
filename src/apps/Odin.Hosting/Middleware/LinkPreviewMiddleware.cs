@@ -69,8 +69,8 @@ namespace Odin.Hosting.Middleware
             await httpContext.Response.WriteAsync($"""
                                                   <head>
                                                       <meta property="og:title" content="The post id is {uid.ToString()}" />
-                                                      <meta property="og:description" content="I can see you're not a browser so here's a picture of an apple" />
-                                                      <meta property="og:image" content="https://unsplash.com/photos/one-red-apple-CoqJGsFVJtM" />
+                                                      <meta property="og:description" content="I can see you're not a browser so here's a picture of a waterfal" />
+                                                      <meta property="og:image" content="https://frodobaggins.me/api/guest/v1/drive/files/thumb?alias=e8475dc4-6cb4-b665-1c2d-0dbd0f3aad5f&type=8f448716e34cedf9014145e043ca6612&fileId=4c3d4919-90e7-5100-0246-9cc5286c4871&payloadKey=pst_mdi0&width=259&height=194&lastModified=1737646985617&xfst=Standard&iac=true" />
                                                       <meta property="og:url" content="{httpContext.Request.GetDisplayUrl()}" />
                                                       <meta property="og:type" content="website" />
                                                   </head>
