@@ -50,6 +50,7 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Hosting.PersonMetadata;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 
@@ -341,7 +342,6 @@ namespace Odin.Hosting
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
-            app.UseMiddleware<LinkPreviewMiddleware>();
 
             app.UseEndpoints(endpoints =>
             {
@@ -384,38 +384,29 @@ namespace Odin.Hosting
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
                 //HACK during development, note I didn't use launchsetting becuase #pain in setting up production locally
-                // if (env.WebRootPath.Contains("todd"))
-                // {
-                //     app.MapWhen(ctx => true,
-                //         homeApp =>
-                //         {
-                //             var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-                //
-                //             homeApp.UseStaticFiles(new StaticFileOptions()
-                //             {
-                //                 FileProvider = new PhysicalFileProvider(publicPath),
-                //                 // RequestPath = "/"
-                //             });
-                //
-                //             //Main pages = / and /links and /about and /connections 
-                //             homeApp.Run(async context =>
-                //             {
-                //                 var indexFile = Path.Combine(publicPath, "index.html");
-                //                 var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
-                //                 var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase.id")
-                //                     .Replace("@@description@@", "Homebase is your home on the Internet with secure storage, safe " +
-                //                                                 "communication, and personal social networking. Own your data and fully " +
-                //                                                 "control your digital life.")
-                //                     .Replace("@@link-preview-image@@", $"{context.Request.Scheme}://{context.Request.Host}/pub/image")
-                //                     .Replace("@@link-preview-url@@", context.Request.GetDisplayUrl())
-                //                     .Replace("@@link-preview-type@@", "website");
-                //
-                //                 context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                //                 await context.Response.WriteAsync(updatedContent);
-                //             });
-                //         });
-                // }
-                // else
+                if (env.WebRootPath.Contains("todd") || env.WebRootPath.Contains("taud"))
+                {
+                    app.MapWhen(ctx => true,
+                        homeApp =>
+                        {
+                            var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
+
+                            homeApp.UseStaticFiles(new StaticFileOptions()
+                            {
+                                FileProvider = new PhysicalFileProvider(publicPath),
+                                // RequestPath = "/"
+                            });
+
+                            homeApp.Run(async context =>
+                            {
+                                var indexFile = Path.Combine(publicPath, "index.html");
+                                var updatedContent = await IndexMetadata.InjectIdentityMetadata(indexFile, context);
+                                context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                                await context.Response.WriteAsync(updatedContent);
+                            });
+                        });
+                }
+                else
                 {
                     // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                     app.MapWhen(ctx => true,
@@ -529,46 +520,10 @@ namespace Odin.Hosting
                             // RequestPath = "/"
                         });
 
-                        //Main pages = / and /links and /about and /connections 
                         homeApp.Run(async context =>
                         {
-                            const string tag = "@@identifier-content@@";
-                            
-                            /*
-                             <title>@@title@@</title>
-                               <meta property="description" content="@@description@@" />
-
-                               <meta property="og:type" content="@@link-preview-type@@" />
-                               <meta property="og:title" content="@@title@@" />
-                               <meta property="og:description" content="@@description@@" />
-                               <meta property="og:image" content="@@link-preview-image@@" />
-                               <meta property="og:url" content="@@link-preview-url@@" />
-                               <meta property="og:url" content="@@link-preview-url@@" />
-                               <meta property="og:site_name" content="@@sitename@@" />
-
-                               <!-- Profile-specific Open Graph fields -->
-                               <meta property="profile:first_name" content="@@firstname@@" />
-                               <meta property="profile:last_name" content="@@lastname@@" />
-                               <meta property="profile:username" content="@@username@@" />
-
-                               <link rel="webfinger" href="@@webfinger@@" />
-
-                               <!-- Schema.org for structured data -->
-                               <script type="application/ld+json">
-                                 @@ld-json@@
-                               </script>
-                                
-                             */
                             var indexFile = Path.Combine(publicPath, "index.html");
-                            var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
-                            var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase.id")
-                                .Replace("@@description@@", "Homebase is your home on the Internet with secure storage, safe " +
-                                                            "communication, and personal social networking. Own your data and fully " +
-                                                            "control your digital life.")
-                                .Replace("@@link-preview-image@@", $"{context.Request.Scheme}://{context.Request.Host}/pub/image")
-                                .Replace("@@link-preview-url@@", context.Request.GetDisplayUrl())
-                                .Replace("@@link-preview-type@@", "website");
-
+                            var updatedContent = await IndexMetadata.InjectIdentityMetadata(indexFile, context);
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
                             await context.Response.WriteAsync(updatedContent);
                         });
@@ -629,6 +584,8 @@ namespace Odin.Hosting
                 services.ShutdownSystemBackgroundServices().BlockingWait();
             });
         }
+
+        
 
         private void PrepareEnvironment(OdinConfiguration cfg)
         {
