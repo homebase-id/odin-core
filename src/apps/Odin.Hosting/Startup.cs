@@ -386,16 +386,21 @@ namespace Odin.Hosting
                 //HACK during development, note I didn't use launchsetting becuase #pain in setting up production locally
                 // if (env.WebRootPath.Contains("todd"))
                 // {
-                //     //TODO: use a cache here for the static file contents
                 //     app.MapWhen(ctx => true,
                 //         homeApp =>
                 //         {
                 //             var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-                //             var indexFile = Path.Combine(publicPath, "index.html");
+                //
+                //             homeApp.UseStaticFiles(new StaticFileOptions()
+                //             {
+                //                 FileProvider = new PhysicalFileProvider(publicPath),
+                //                 // RequestPath = "/"
+                //             });
                 //
                 //             //Main pages = / and /links and /about and /connections 
                 //             homeApp.Run(async context =>
                 //             {
+                //                 var indexFile = Path.Combine(publicPath, "index.html");
                 //                 var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
                 //                 var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase.id")
                 //                     .Replace("@@description@@", "Homebase is your home on the Internet with secure storage, safe " +
@@ -410,7 +415,7 @@ namespace Odin.Hosting
                 //             });
                 //         });
                 // }
-                else
+                // else
                 {
                     // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                     app.MapWhen(ctx => true,
@@ -513,25 +518,6 @@ namespace Odin.Hosting
                         });
                     });
 
-                // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
-                // app.MapWhen(ctx => true,
-                //     homeApp =>
-                //     {
-                //         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-                //
-                //         homeApp.UseStaticFiles(new StaticFileOptions()
-                //         {
-                //             FileProvider = new PhysicalFileProvider(publicPath),
-                //             // RequestPath = "/"
-                //         });
-                //
-                //         homeApp.Run(async context =>
-                //         {
-                //             await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                //             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                //         });
-                //     });
-                //
                 app.MapWhen(ctx => true,
                     homeApp =>
                     {
@@ -542,7 +528,7 @@ namespace Odin.Hosting
                             FileProvider = new PhysicalFileProvider(publicPath),
                             // RequestPath = "/"
                         });
-                        
+
                         //Main pages = / and /links and /about and /connections 
                         homeApp.Run(async context =>
                         {
