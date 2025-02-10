@@ -11,6 +11,7 @@ using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -252,7 +253,7 @@ namespace Odin.Hosting
         {
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
-           
+
             builder.AddSystemBackgroundServices();
             builder.AddJobManagerServices();
 
@@ -382,13 +383,42 @@ namespace Odin.Hosting
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
-                // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
-                app.MapWhen(ctx => true,
-                    homeApp =>
-                    {
-                        homeApp.UseSpa(
-                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
-                    });
+                //HACK during development, note I didn't use launchsetting becuase #pain in setting up production locally
+                // if (env.WebRootPath.Contains("todd"))
+                // {
+                //     //TODO: use a cache here for the static file contents
+                //     app.MapWhen(ctx => true,
+                //         homeApp =>
+                //         {
+                //             var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
+                //             var indexFile = Path.Combine(publicPath, "index.html");
+                //
+                //             //Main pages = / and /links and /about and /connections 
+                //             homeApp.Run(async context =>
+                //             {
+                //                 var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
+                //                 var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase")
+                //                     .Replace("@@description@@",
+                //                         "Homebase is your home on the Internet with secure storage, safe communication, and personal social networking. Own your data and fully control your digital life.")
+                //                     .Replace("@@link-preview-image@@", $"{context.Request.Scheme}://{context.Request.Host}/pub/image")
+                //                     .Replace("@@link-preview-url@@", context.Request.GetDisplayUrl())
+                //                     .Replace("@@link-preview-type@@", "website");
+                //
+                //                 context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                //                 await context.Response.WriteAsync(updatedContent);
+                //             });
+                //         });
+                // }
+                // else
+                {
+                    // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
+                    app.MapWhen(ctx => true,
+                        homeApp =>
+                        {
+                            homeApp.UseSpa(
+                                spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
+                        });
+                }
             }
             else
             {
@@ -487,17 +517,22 @@ namespace Odin.Hosting
                     homeApp =>
                     {
                         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
+                        var indexFile = Path.Combine(publicPath, "index.html");
 
-                        homeApp.UseStaticFiles(new StaticFileOptions()
-                        {
-                            FileProvider = new PhysicalFileProvider(publicPath),
-                            // RequestPath = "/"
-                        });
-
+                        //Main pages = / and /links and /about and /connections 
                         homeApp.Run(async context =>
                         {
+                            var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
+                            var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase.id")
+                                .Replace("@@description@@", "Homebase is your home on the Internet with secure storage, safe " +
+                                                            "communication, and personal social networking. Own your data and fully " +
+                                                            "control your digital life.")
+                                .Replace("@@link-preview-image@@", $"{context.Request.Scheme}://{context.Request.Host}/pub/image")
+                                .Replace("@@link-preview-url@@", context.Request.GetDisplayUrl())
+                                .Replace("@@link-preview-type@@", "website");
+
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                            await context.Response.WriteAsync(updatedContent);
                         });
                     });
             }
