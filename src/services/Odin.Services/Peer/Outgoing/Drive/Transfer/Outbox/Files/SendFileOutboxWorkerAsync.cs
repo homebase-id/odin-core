@@ -116,9 +116,17 @@ public class SendFileOutboxWorkerAsync(
 
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-            var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payloadStreams.ToArray());
-            return response;
+            try
+            {
+                var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
+                var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payloadStreams.ToArray());
+                return response;
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "ERR SendOutboxFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                throw;
+            }
         }
 
         try
