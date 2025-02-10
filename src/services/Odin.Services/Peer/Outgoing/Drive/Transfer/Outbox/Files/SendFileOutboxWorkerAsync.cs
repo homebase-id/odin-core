@@ -118,8 +118,10 @@ public class SendFileOutboxWorkerAsync(
         {
             try
             {
+                logger.LogDebug("Before SendHostToHost");
                 var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
                 var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payloadStreams.ToArray());
+                logger.LogDebug("After SendHostToHost");
                 return response;
             }
             catch (Exception e)
