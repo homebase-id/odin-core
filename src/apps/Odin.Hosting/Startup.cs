@@ -397,9 +397,10 @@ namespace Odin.Hosting
                 //             homeApp.Run(async context =>
                 //             {
                 //                 var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
-                //                 var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase")
-                //                     .Replace("@@description@@",
-                //                         "Homebase is your home on the Internet with secure storage, safe communication, and personal social networking. Own your data and fully control your digital life.")
+                //                 var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase.id")
+                //                     .Replace("@@description@@", "Homebase is your home on the Internet with secure storage, safe " +
+                //                                                 "communication, and personal social networking. Own your data and fully " +
+                //                                                 "control your digital life.")
                 //                     .Replace("@@link-preview-image@@", $"{context.Request.Scheme}://{context.Request.Host}/pub/image")
                 //                     .Replace("@@link-preview-url@@", context.Request.GetDisplayUrl())
                 //                     .Replace("@@link-preview-type@@", "website");
@@ -409,7 +410,7 @@ namespace Odin.Hosting
                 //             });
                 //         });
                 // }
-                // else
+                else
                 {
                     // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                     app.MapWhen(ctx => true,
@@ -513,15 +514,39 @@ namespace Odin.Hosting
                     });
 
                 // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
+                // app.MapWhen(ctx => true,
+                //     homeApp =>
+                //     {
+                //         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
+                //
+                //         homeApp.UseStaticFiles(new StaticFileOptions()
+                //         {
+                //             FileProvider = new PhysicalFileProvider(publicPath),
+                //             // RequestPath = "/"
+                //         });
+                //
+                //         homeApp.Run(async context =>
+                //         {
+                //             await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                //             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                //         });
+                //     });
+                //
                 app.MapWhen(ctx => true,
                     homeApp =>
                     {
                         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-                        var indexFile = Path.Combine(publicPath, "index.html");
 
+                        homeApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(publicPath),
+                            // RequestPath = "/"
+                        });
+                        
                         //Main pages = / and /links and /about and /connections 
                         homeApp.Run(async context =>
                         {
+                            var indexFile = Path.Combine(publicPath, "index.html");
                             var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
                             var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase.id")
                                 .Replace("@@description@@", "Homebase is your home on the Internet with secure storage, safe " +
