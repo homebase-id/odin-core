@@ -532,6 +532,33 @@ namespace Odin.Hosting
                         //Main pages = / and /links and /about and /connections 
                         homeApp.Run(async context =>
                         {
+                            const string tag = "@@identifier-content@@";
+                            
+                            /*
+                             <title>@@title@@</title>
+                               <meta property="description" content="@@description@@" />
+
+                               <meta property="og:type" content="@@link-preview-type@@" />
+                               <meta property="og:title" content="@@title@@" />
+                               <meta property="og:description" content="@@description@@" />
+                               <meta property="og:image" content="@@link-preview-image@@" />
+                               <meta property="og:url" content="@@link-preview-url@@" />
+                               <meta property="og:url" content="@@link-preview-url@@" />
+                               <meta property="og:site_name" content="@@sitename@@" />
+
+                               <!-- Profile-specific Open Graph fields -->
+                               <meta property="profile:first_name" content="@@firstname@@" />
+                               <meta property="profile:last_name" content="@@lastname@@" />
+                               <meta property="profile:username" content="@@username@@" />
+
+                               <link rel="webfinger" href="@@webfinger@@" />
+
+                               <!-- Schema.org for structured data -->
+                               <script type="application/ld+json">
+                                 @@ld-json@@
+                               </script>
+                                
+                             */
                             var indexFile = Path.Combine(publicPath, "index.html");
                             var content = await File.ReadAllTextAsync(indexFile, context.RequestAborted);
                             var updatedContent = content.Replace("@@title@@", $"{context.Request.Host} on Homebase.id")
