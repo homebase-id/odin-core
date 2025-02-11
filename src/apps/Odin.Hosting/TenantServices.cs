@@ -59,6 +59,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Fingering;
 using Odin.Services.LinkMetaExtractor;
+using Odin.Services.LinkPreview;
 using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
@@ -308,6 +309,7 @@ public static class TenantServices
 
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
+        cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
 
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);

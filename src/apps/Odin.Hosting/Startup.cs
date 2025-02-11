@@ -383,39 +383,13 @@ namespace Odin.Hosting
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                     homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
-                //HACK during development, note I didn't use launchsetting becuase #pain in setting up production locally
-                if (env.WebRootPath.Contains("todd") || env.WebRootPath.Contains("taud"))
-                {
-                    app.MapWhen(ctx => true,
-                        homeApp =>
-                        {
-                            var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-
-                            homeApp.UseStaticFiles(new StaticFileOptions()
-                            {
-                                FileProvider = new PhysicalFileProvider(publicPath),
-                                // RequestPath = "/"
-                            });
-
-                            homeApp.Run(async context =>
-                            {
-                                var indexFile = Path.Combine(publicPath, "index.html");
-                                var updatedContent = await IndexMetadata.InjectIdentityMetadata(indexFile, context);
-                                context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                                await context.Response.WriteAsync(updatedContent);
-                            });
-                        });
-                }
-                else
-                {
-                    // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
-                    app.MapWhen(ctx => true,
-                        homeApp =>
-                        {
-                            homeApp.UseSpa(
-                                spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
-                        });
-                }
+                // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
+                app.MapWhen(ctx => true,
+                    homeApp =>
+                    {
+                        homeApp.UseSpa(
+                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
+                    });
             }
             else
             {
@@ -585,7 +559,6 @@ namespace Odin.Hosting
             });
         }
 
-        
 
         private void PrepareEnvironment(OdinConfiguration cfg)
         {
