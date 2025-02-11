@@ -74,6 +74,14 @@ public class SendIntroductionOutboxWorker(
         catch (TryRetryException ex)
         {
             var e = ex.InnerException;
+            logger.LogDebug(e, "Failed processing outbox item (type={t}) from outbox. Message {e}", FileItem.Type, e.Message);
+
+            if (e is HttpRequestException httpRequestException)
+            {
+                logger.LogDebug("HttpRequestException Error {e} and status code: {status}", httpRequestException.HttpRequestError,
+                    httpRequestException.StatusCode);
+            }
+
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
                 : LatestTransferStatus.UnknownServerError;

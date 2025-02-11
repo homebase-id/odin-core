@@ -267,11 +267,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyValueRecord();
-            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.keyNoLengthCheck = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.keyNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key?.Length < 16)
                 throw new Exception("Too little data in key...");
-            item.dataNoLengthCheck = rdr.IsDBNull(2) ? null : (byte[])(rdr[2]);
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -316,7 +316,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyValueRecord();
             item.identityId = identityId;
             item.key = key;
-            item.dataNoLengthCheck = rdr.IsDBNull(0) ? null : (byte[])(rdr[0]);
+            item.dataNoLengthCheck = (rdr[0] == DBNull.Value) ? null : (byte[])(rdr[0]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

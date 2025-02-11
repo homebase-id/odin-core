@@ -91,10 +91,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             Guid fileId,
             OdinId recipient)
         {
+            _logger.LogDebug("InitiateTransferHistoryAsync for file: {f} on drive: {d}", fileId, driveId);
+            
             await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
             var added = await _tableDriveTransferHistory.TryAddInitialRecordAsync(driveId, fileId, recipient);
             if (!added)
             {
+                _logger.LogDebug("InitiateTransferHistoryAsync: Insert failed, now updating for file: {f} on drive: {d}", fileId, driveId);
+
                 var affectedRows = await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
                     latestTransferStatus: null,
                     latestSuccessfullyDeliveredVersionTag: null,
@@ -121,6 +125,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             OdinValidationUtils.AssertNotNull(updateData, nameof(updateData));
 
+            _logger.LogDebug("Begin Transaction for SaveTransferHistoryAsync file: {f}, driveId {d}. UpdateData: {u}", fileId, driveId,
+                updateData.ToDebug());
+            
             await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
 
             await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
@@ -132,6 +139,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var (history, modified) = await UpdateTransferHistorySummary(driveId, fileId);
 
             tx.Commit();
+            
+            _logger.LogDebug("End Transaction for SaveTransferHistoryAsync file: {f}, driveId {d}", fileId, driveId);
 
             return (history, modified);
         }

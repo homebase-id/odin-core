@@ -36,7 +36,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             _ss = ss;
             _publicPrivateKeyService = publicPrivateKeyService;
             _logger = logger;
-            
         }
 
         [HttpGet("verifyToken")]
@@ -45,8 +44,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
             if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
             {
-                
                 var isValid = await _authService.IsValidTokenAsync(result.Id);
+                if (isValid)
+                {
+                    await base.AddUpgradeRequiredHeaderAsync();
+                }
+
                 return new JsonResult(isValid);
             }
 
@@ -81,7 +84,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("extend")]
         public async Task<NoResultResponse> Extend(Guid token)
         {
-            
             await _authService.ExtendTokenLifeAsync(token, 100);
             return new NoResultResponse(true);
         }
@@ -96,7 +98,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpGet]
         public async Task<bool> IsValid(Guid token)
         {
-            
             var isValid = await _authService.IsValidTokenAsync(token);
             return isValid;
         }
@@ -104,7 +105,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpGet("nonce")]
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
-            
             var result = await _authService.GenerateAuthenticationNonceAsync();
             return result;
         }
@@ -112,7 +112,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("passwd")]
         public async Task<NoResultResponse> SetNewPassword([FromBody] PasswordReply reply)
         {
-            
             await _ss.SetNewPasswordAsync(reply);
             return new NoResultResponse(true);
         }
@@ -122,7 +121,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             try
             {
-                
                 await _ss.ResetPasswordUsingRecoveryKeyAsync(reply, WebOdinContext);
             }
             catch (BIP39Exception e)
@@ -137,14 +135,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpPost("ispasswordset")]
         public async Task<bool> IsMasterPasswordSet()
         {
-            
             return await _ss.IsMasterPasswordSetAsync();
         }
 
         [HttpGet("getsalts")]
         public async Task<NonceData> GenerateSalts()
         {
-            
             var salts = await _ss.GenerateNewSaltsAsync();
             return salts;
         }
@@ -174,6 +170,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
 
             return result;
         }
-
     }
 }

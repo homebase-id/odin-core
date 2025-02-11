@@ -515,10 +515,12 @@ public class ScopedConnectionFactory<T>(
                 {
                     if (instance._commit)
                     {
+                        instance.LogTrace("Committing transaction");
                         await instance._transaction!.CommitAsync();
                     }
                     else
                     {
+                        instance._logger.LogDebug("Rolling back transaction");
                         await instance._transaction!.RollbackAsync();
                         instance._cache.ClearCache();
                     }

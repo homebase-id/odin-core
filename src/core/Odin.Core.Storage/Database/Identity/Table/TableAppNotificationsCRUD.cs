@@ -322,8 +322,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = rdr.GetInt64(0);
-                   long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
+                   long created = (long) rdr[0];
+                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                    item.created = new UnixTimeUtcUnique(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtcUnique((long)modified);
@@ -427,16 +427,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AppNotificationsRecord();
-            item.identityId = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.notificationId = rdr.IsDBNull(1) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.unread = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.senderIdNoLengthCheck = rdr.IsDBNull(3) ? null : (string)rdr[3];
-            item.timestamp = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.dataNoLengthCheck = rdr.IsDBNull(5) ? null : (byte[])(rdr[5]);
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.notificationId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.unread = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.senderIdNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (string)rdr[3];
+            item.timestamp = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.dataNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
-            item.created = rdr.IsDBNull(6) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
-            item.modified = rdr.IsDBNull(7) ? null : new UnixTimeUtcUnique((long)rdr[7]);
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[7]);
             return item;
        }
 
@@ -473,14 +473,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new AppNotificationsRecord();
             item.identityId = identityId;
             item.notificationId = notificationId;
-            item.unread = rdr.IsDBNull(0) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
-            item.senderIdNoLengthCheck = rdr.IsDBNull(1) ? null : (string)rdr[1];
-            item.timestamp = rdr.IsDBNull(2) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.dataNoLengthCheck = rdr.IsDBNull(3) ? null : (byte[])(rdr[3]);
+            item.unread = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
+            item.senderIdNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (string)rdr[1];
+            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
-            item.created = rdr.IsDBNull(4) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[4]);
-            item.modified = rdr.IsDBNull(5) ? null : new UnixTimeUtcUnique((long)rdr[5]);
+            item.created = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[4]);
+            item.modified = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[5]);
             return item;
        }
 

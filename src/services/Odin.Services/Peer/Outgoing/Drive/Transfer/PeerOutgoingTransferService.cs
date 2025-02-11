@@ -369,9 +369,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
                 }
             };
-
+            
             await peerOutbox.AddItemAsync(outboxItem, useUpsert: true);
 
+            logger.LogDebug("Enqueued Read-receipt for GTID: {g}", header.FileMetadata.GlobalTransitId);
             return new SendReadReceiptResultRecipientStatusItem()
             {
                 Recipient = recipient,
