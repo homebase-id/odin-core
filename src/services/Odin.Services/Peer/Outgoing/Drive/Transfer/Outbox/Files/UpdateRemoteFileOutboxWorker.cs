@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -104,22 +105,55 @@ public class UpdateRemoteFileOutboxWorker(
         redactedAcl?.OdinIdList?.Clear();
         instructionSet.OriginalAcl = redactedAcl;
 
-        var transferKeyHeaderStream = new StreamPart(
-            new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()),
-            "transferInstructionSet.encrypted", "application/json",
-            Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
-
-        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, true, odinContext);
-
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-            var response = await client.UpdatePeerFile(transferKeyHeaderStream, metaDataStream, payloadStreams.ToArray());
-            return response;
+            Stream transferKeyHeaderMemory = null;
+            Stream metaDataStream = null;
+            List<Stream> payloadStreams = [];
+
+            try
+            {
+                logger.LogDebug("UpdatePeerFile BEGIN");
+
+                transferKeyHeaderMemory =
+                    new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+                var transferKeyHeaderStreamPart = new StreamPart(
+                    transferKeyHeaderMemory,
+                    "transferInstructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+
+                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) =
+                    await PackageFileStreamsAsync(header, true, odinContext);
+
+                var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
+                    recipient, clientAuthToken);
+
+                var response = await client.UpdatePeerFile(
+                    transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray());
+
+                logger.LogDebug("UpdatePeerFile END");
+
+                return response;
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "ERR SendUpdatedFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                throw;
+            }
+            finally
+            {
+                transferKeyHeaderMemory?.Dispose();
+                metaDataStream?.Dispose();
+                foreach (var stream in payloadStreams)
+                {
+                    stream?.Dispose();
+                }
+            }
         }
 
         try
