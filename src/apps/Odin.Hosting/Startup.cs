@@ -53,6 +53,7 @@ using Odin.Hosting.Multitenant;
 using Odin.Hosting.PersonMetadata;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
+using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting
 {
@@ -496,10 +497,13 @@ namespace Odin.Hosting
 
                         homeApp.Run(async context =>
                         {
-                            var indexFile = Path.Combine(publicPath, "index.html");
-                            var updatedContent = await IndexMetadata.InjectIdentityMetadata(indexFile, context);
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.WriteAsync(updatedContent);
+                                                            
+                            var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                            var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
+
+                            var indexFile = Path.Combine(publicPath, "index.html");
+                            await svc.WriteIndexFileAsync(indexFile, odinContext);
                         });
                     });
             }
