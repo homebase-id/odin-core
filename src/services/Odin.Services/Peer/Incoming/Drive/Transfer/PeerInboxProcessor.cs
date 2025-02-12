@@ -281,8 +281,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var updateInstructionSet =
                 OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
             var decryptedKeyHeader =
-                await DecryptedKeyHeaderAsync(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
-            await writer.UpdateFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext);
+                await DecryptedKeyHeaderAsync(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
+            await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext);
         }
 
         private async Task HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext)

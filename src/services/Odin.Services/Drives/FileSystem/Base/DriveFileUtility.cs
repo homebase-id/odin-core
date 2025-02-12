@@ -27,7 +27,8 @@ public static class DriveFileUtility
     public const string TransitThumbnailKeyDelimiter = "|";
 
     public const int MaxAppDataContentLength = 10 * 1024;
-    public const int MaxTinyThumbLength = 10 * 1024;
+    public const int MaxLocalAppDataContentLength = 4 * 1024;
+    public const int MaxTinyThumbLength = 1 * 1024;
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -292,6 +293,12 @@ public static class DriveFileUtility
     }
 
     public static void AssertValidAppContentLength(string content)
+    {
+        OdinValidationUtils.AssertMaxStringLength(content, MaxAppDataContentLength,
+            $"local app content is too long; max length is {MaxAppDataContentLength}");
+    }
+    
+    public static void AssertValidLocalAppContentLength(string content)
     {
         OdinValidationUtils.AssertMaxStringLength(content, MaxAppDataContentLength,
             $"local app content is too long; max length is {MaxAppDataContentLength}");

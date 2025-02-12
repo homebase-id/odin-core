@@ -74,8 +74,9 @@ public static class SamplePayloadDefinitions
         };
     }
 
-    public static TestPayloadDefinition GetPayloadDefinition2 =
-        new()
+    public static TestPayloadDefinition GetPayloadDefinition2()
+    {
+        return new()
         {
             Key = "pknt0002",
             ContentType = "text/plain",
@@ -84,4 +85,5 @@ public static class SamplePayloadDefinitions
             PreviewThumbnail = default,
             Thumbnails = new List<ThumbnailContent>()
         };
+    }
 }

@@ -33,7 +33,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
 
         /// <summary>
         /// A temp file name for use while storing the temporary metadata file being uploaded
-        /// This is not the same as the final target file.
+        /// This is not the same as the final target file and is only used to avoid conflicts
+        /// while uploading metadata
         /// </summary>
         public InternalDriveFileId TempMetadataFile { get; }
 

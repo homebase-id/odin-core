@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
@@ -10,7 +11,7 @@ public class BatchUpdateManifest
     /// </summary>
     public Guid NewVersionTag { get; init; }
 
-    public byte[] KeyHeaderIv { get; set; }
+    public KeyHeader KeyHeader { get; set; }
 
     public FileMetadata FileMetadata { get; init; }
 

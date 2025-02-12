@@ -174,7 +174,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Writes a new file header w/o checking for an existing one
         /// </summary>
         public async Task WriteNewFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            bool raiseEvent = false)
+            bool raiseEvent = false, bool keepSameVersionTag = false)
         {
             if (!header.IsValid())
             {
@@ -191,7 +191,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.Created = header.FileMetadata.Created != 0 ? header.FileMetadata.Created : UnixTimeUtc.Now().milliseconds;
             metadata.FileState = FileState.Active;
 
-            await WriteFileHeaderInternal(header);
+            await WriteFileHeaderInternal(header, keepSameVersionTag: keepSameVersionTag);
 
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
 
@@ -517,7 +517,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
             ServerMetadata serverMetadata,
-            bool? ignorePayload, IOdinContext odinContext)
+            bool? ignorePayload, IOdinContext odinContext, bool keepSameVersionTag = false)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
@@ -554,7 +554,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, metadata, serverMetadata, odinContext);
 
-            await WriteNewFileHeader(targetFile, serverHeader, odinContext);
+            await WriteNewFileHeader(targetFile, serverHeader, odinContext, keepSameVersionTag: keepSameVersionTag);
 
             //clean up temp storage
             await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
@@ -1009,10 +1009,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        public async Task UpdateBatchAsync(InternalDriveFileId tempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
+        public async Task UpdateBatchAsync(InternalDriveFileId sourceTempFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
+
+            var metadata = manifest.FileMetadata;
+            DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
+            DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
 
             //
             // Validations
@@ -1023,11 +1027,26 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(manifest.FileMetadata.VersionTag, existingHeader.FileMetadata.VersionTag);
-            var metadata = manifest.FileMetadata;
-            DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
-            DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
+            DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
+          
+            if (existingHeader.FileMetadata.IsEncrypted)
+            {
+                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
+                var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+                
+                if(!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
+                {
+                    throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
+                                                  "invalidate one or more payloads.  Re-upload the entire file if you wish " +
+                                                  "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
+                }
 
+                if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
+                {
+                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
+                }
+            }
+            
             //
             // For the payloads, we have two sources and one set of operations
             // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
@@ -1057,7 +1076,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 // Move the payload from the temp folder to the long term folder
                 var payloadExtension = DriveFileUtility.GetPayloadFileExtension(newDescriptor.Key, newDescriptor.Uid);
-                var sourceFile = await tempStorageManager.GetPath(drive, tempFile.FileId, payloadExtension);
+                var sourceFile = await tempStorageManager.GetPath(drive, sourceTempFile.FileId, payloadExtension);
                 await longTermStorageManager.MovePayloadToLongTerm(drive, targetFile.FileId, newDescriptor, sourceFile);
 
                 // Process thumbnails
@@ -1068,7 +1087,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     var extension = DriveFileUtility.GetThumbnailFileExtension(newDescriptor.Key, newDescriptor.Uid, thumb.PixelWidth,
                         thumb.PixelHeight);
-                    var sourceThumbnail = await tempStorageManager.GetPath(drive, tempFile.FileId, extension);
+                    var sourceThumbnail = await tempStorageManager.GetPath(drive, sourceTempFile.FileId, extension);
                     await longTermStorageManager.MoveThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, newDescriptor,
                         thumb);
                 }
@@ -1104,7 +1123,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
 
-            await OverwriteMetadataInternal(manifest.KeyHeaderIv, existingHeader, manifest.FileMetadata,
+            await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
                 manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
 
             if (await ShouldRaiseDriveEventAsync(targetFile))
@@ -1171,7 +1190,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            DriveFileUtility.AssertValidAppContentLength(newContent);
+            DriveFileUtility.AssertValidLocalAppContentLength(newContent);
 
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
@@ -1338,11 +1357,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             return header;
         }
 
-        private async Task OverwriteMetadataInternal(byte[] newKeyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
+        private async Task OverwriteMetadataInternal(byte[] keyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
             IOdinContext odinContext, Guid? newVersionTag = null)
         {
-            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(newKeyHeaderIv))
+            if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(keyHeaderIv))
             {
                 throw new OdinClientException("KeyHeader Iv is not specified or is too weak");
             }
@@ -1391,7 +1410,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var existingDecryptedKeyHeader = existingServerHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
                 var newKeyHeader = new KeyHeader()
                 {
-                    Iv = newKeyHeaderIv,
+                    Iv = keyHeaderIv,
                     AesKey = existingDecryptedKeyHeader.AesKey
                 };
 
