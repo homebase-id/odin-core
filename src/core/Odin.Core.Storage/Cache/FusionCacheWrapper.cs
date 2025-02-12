@@ -14,6 +14,10 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
+    public string CacheKeyPrefix => cacheKeyPrefix;
+
+    //
+
     public TValue? GetOrDefault<TValue>(
         string key,
         TValue? defaultValue = default,

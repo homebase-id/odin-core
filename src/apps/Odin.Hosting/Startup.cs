@@ -273,8 +273,8 @@ namespace Odin.Hosting
                     throw new OdinSystemException("Unsupported database type");
             }
 
-            // System cache services
-            builder.AddCacheLevels("system");
+            // Global cache services
+            builder.AddGlobalCaches();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -522,7 +522,7 @@ namespace Odin.Hosting
                 }
 
                 // Sanity ping cache
-                var cache = services.GetRequiredService<ILevel2Cache>();
+                var cache = services.GetRequiredService<IGlobalLevel2Cache>();
                 cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
                 var pong = cache.TryGet<string>("ping");
                 if (pong != "pong")
