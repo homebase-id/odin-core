@@ -11,6 +11,12 @@ namespace Odin.Core.Storage.Cache;
 public interface IFusionCacheWrapper
 {
     //
+    // Keys
+    //
+
+    string CacheKeyPrefix { get; }
+
+    //
     // Getters
     //
 

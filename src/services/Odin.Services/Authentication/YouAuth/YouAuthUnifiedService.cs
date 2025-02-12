@@ -27,13 +27,13 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
     private readonly CircleNetworkService _circleNetwork;
-    private readonly ILevel2Cache<YouAuthUnifiedService> _level2Cache;
+    private readonly ITenantLevel2Cache<YouAuthUnifiedService> _level2Cache;
 
     public YouAuthUnifiedService(
         IAppRegistrationService appRegistrationService,
         YouAuthDomainRegistrationService domainRegistrationService,
         CircleNetworkService circleNetwork,
-        ILevel2Cache<YouAuthUnifiedService> level2Cache)
+        ITenantLevel2Cache<YouAuthUnifiedService> level2Cache)
     {
         _appRegistrationService = appRegistrationService;
 
