@@ -35,7 +35,7 @@ public class TableKeyValueCacheTests : IocTestBase
         record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
         Assert.IsNotNull(record);
 
-        var cache = scope.Resolve<ILevel1Cache<TableKeyValueCache>>();
+        var cache = scope.Resolve<ITenantLevel1Cache<TableKeyValueCache>>();
         Assert.IsTrue(await cache.ContainsAsync(TableKeyValueCache.CacheKey(k1)));
 
         await cache.RemoveAsync(TableKeyValueCache.CacheKey(k1));

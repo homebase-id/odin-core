@@ -110,7 +110,8 @@ public abstract class IocTestBase
                 throw new Exception("Unsupported database type");
         }
 
-        builder.AddCacheLevels(IdentityId.ToString());
+        builder.AddGlobalCaches();
+        builder.AddTenantCaches(IdentityId.ToString());
 
         Services = builder.Build();
 

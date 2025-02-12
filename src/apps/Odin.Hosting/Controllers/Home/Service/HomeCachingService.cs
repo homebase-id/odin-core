@@ -31,13 +31,13 @@ namespace Odin.Hosting.Controllers.Home.Service
         public const int ChannelFileType = 103;
 
         private readonly int[] _fileTypesCausingCacheReset = { PostFileType, ChannelFileType };
-        private readonly ILevel1Cache<HomeCachingService> _cache;
+        private readonly ITenantLevel1Cache<HomeCachingService> _cache;
 
         public HomeCachingService(
             DriveManager driveManager,
             OdinConfiguration config,
             FileSystemHttpRequestResolver fsResolver,
-            ILevel1Cache<HomeCachingService> cache)
+            ITenantLevel1Cache<HomeCachingService> cache)
         {
             _driveManager = driveManager;
             _config = config;

@@ -9,7 +9,7 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 #nullable enable
 
 public class TableKeyValueCache(
-    ILevel1Cache<TableKeyValueCache> cache,
+    ITenantLevel1Cache<TableKeyValueCache> cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     TableKeyValue table)
 {
