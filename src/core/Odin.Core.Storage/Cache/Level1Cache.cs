@@ -12,13 +12,13 @@ public interface ILevel1Cache<T> : ILevel1Cache
     // This space is intentionally left blank
 }
 
-public class Level1Cache : FusionCacheWrapper, ILevel1Cache
+public abstract class Level1Cache : FusionCacheWrapper, ILevel1Cache
 {
     private readonly FusionCacheEntryOptions _defaultOptions;
 
     //
 
-    public Level1Cache(CacheKeyPrefix prefix, IFusionCache cache) : base(prefix, cache)
+    protected Level1Cache(string prefix, IFusionCache cache) : base(prefix + ":L1", cache)
     {
         _defaultOptions = cache.DefaultEntryOptions.Duplicate();
         _defaultOptions.SkipDistributedCacheRead = true;
@@ -32,9 +32,8 @@ public class Level1Cache : FusionCacheWrapper, ILevel1Cache
     //
 }
 
-public class Level1Cache<T>(CacheKeyPrefix prefix, IFusionCache cache) :
-    Level1Cache(new CacheKeyPrefix(prefix + ":L1:" + typeof(T).FullName), cache),
-    ILevel1Cache<T>
+public abstract class Level1Cache<T>(string prefix, IFusionCache cache) :
+    Level1Cache(prefix + ":" + typeof(T).FullName, cache), ILevel1Cache<T>
 {
     // This space is intentionally left blank
 }

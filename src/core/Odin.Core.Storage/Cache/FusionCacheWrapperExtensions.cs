@@ -61,18 +61,29 @@ public static class FusionCacheWrapperExtensions
 
     //
 
-    public static ContainerBuilder AddCacheLevels(this ContainerBuilder cb, string odinCacheKeyPrefix)
+    public static ContainerBuilder AddGlobalCaches(this ContainerBuilder cb)
+    {
+        cb.RegisterType<GlobalLevel1Cache>().As<IGlobalLevel1Cache>().SingleInstance();
+        cb.RegisterType<GlobalLevel2Cache>().As<IGlobalLevel2Cache>().SingleInstance();
+        cb.RegisterGeneric(typeof(GlobalLevel1Cache<>)).As(typeof(IGlobalLevel1Cache<>)).SingleInstance();
+        cb.RegisterGeneric(typeof(GlobalLevel2Cache<>)).As(typeof(IGlobalLevel2Cache<>)).SingleInstance();
+        return cb;
+    }
+
+    //
+
+    public static ContainerBuilder AddTenantCaches(this ContainerBuilder cb, string odinCacheKeyPrefix)
     {
         ArgumentException.ThrowIfNullOrEmpty(odinCacheKeyPrefix, nameof(odinCacheKeyPrefix));
 
         cb.RegisterInstance(new CacheKeyPrefix(odinCacheKeyPrefix)).SingleInstance();
 
-        cb.RegisterType<Level1Cache>().As<ILevel1Cache>().SingleInstance();
-        cb.RegisterType<Level2Cache>().As<ILevel2Cache>().SingleInstance();
-
-        cb.RegisterGeneric(typeof(Level1Cache<>)).As(typeof(ILevel1Cache<>)).SingleInstance();
-        cb.RegisterGeneric(typeof(Level2Cache<>)).As(typeof(ILevel2Cache<>)).SingleInstance();
+        cb.RegisterType<TenantLevel1Cache>().As<ITenantLevel1Cache>().SingleInstance();
+        cb.RegisterType<TenantLevel2Cache>().As<ITenantLevel2Cache>().SingleInstance();
+        cb.RegisterGeneric(typeof(TenantLevel1Cache<>)).As(typeof(ITenantLevel1Cache<>)).SingleInstance();
+        cb.RegisterGeneric(typeof(TenantLevel2Cache<>)).As(typeof(ITenantLevel2Cache<>)).SingleInstance();
 
         return cb;
     }
+
 }

@@ -13,7 +13,7 @@ namespace Odin.Core.Storage.Tests.Cache;
 
 #nullable enable
 
-public class Level2CacheTests
+public class LevelXCacheTests
 {
     private RedisContainer? _redisContainer;
     private ILifetimeScope? _services;
@@ -66,9 +66,46 @@ public class Level2CacheTests
 
         var builder = new ContainerBuilder();
         builder.Populate(services);
-        builder.AddCacheLevels("some-prefix");
+        builder.AddGlobalCaches();
+        builder.AddTenantCaches("frodo.me");
 
         _services = builder.Build();
+    }
+
+    //
+
+    [Test]
+    [TestCase(Level2CacheType.None)]
+#if RUN_REDIS_TESTS
+    [TestCase(Level2CacheType.Redis)]
+#endif
+    public async Task ItShouldCreateCorrectCacheKeys(Level2CacheType level2CacheType)
+    {
+        await RegisterServicesAsync(level2CacheType);
+
+        var globalLevel1Cache = _services!.Resolve<IGlobalLevel1Cache>();
+        Assert.That(globalLevel1Cache.CacheKeyPrefix, Is.EqualTo("global:L1"));
+
+        var globalLevel2Cache = _services!.Resolve<IGlobalLevel2Cache>();
+        Assert.That(globalLevel2Cache.CacheKeyPrefix, Is.EqualTo("global:L2"));
+
+        var globalLevel1CacheGeneric = _services!.Resolve<IGlobalLevel1Cache<LevelXCacheTests>>();
+        Assert.That(globalLevel1CacheGeneric.CacheKeyPrefix, Is.EqualTo($"global:{GetType().FullName}:L1"));
+
+        var globalLevel2CacheGeneric = _services!.Resolve<IGlobalLevel2Cache<LevelXCacheTests>>();
+        Assert.That(globalLevel2CacheGeneric.CacheKeyPrefix, Is.EqualTo($"global:{GetType().FullName}:L2"));
+
+        var tenantLevel1Cache = _services!.Resolve<ITenantLevel1Cache>();
+        Assert.That(tenantLevel1Cache.CacheKeyPrefix, Is.EqualTo("frodo.me:L1"));
+
+        var tenantLevel2Cache = _services!.Resolve<ITenantLevel2Cache>();
+        Assert.That(tenantLevel2Cache.CacheKeyPrefix, Is.EqualTo("frodo.me:L2"));
+
+        var tenantLevel1CacheGeneric = _services!.Resolve<ITenantLevel1Cache<LevelXCacheTests>>();
+        Assert.That(tenantLevel1CacheGeneric.CacheKeyPrefix, Is.EqualTo($"frodo.me:{GetType().FullName}:L1"));
+
+        var tenantLevel2CacheGeneric = _services!.Resolve<ITenantLevel2Cache<LevelXCacheTests>>();
+        Assert.That(tenantLevel2CacheGeneric.CacheKeyPrefix, Is.EqualTo($"frodo.me:{GetType().FullName}:L2"));
     }
 
     //
@@ -82,7 +119,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
 
@@ -103,7 +140,7 @@ public class Level2CacheTests
         Assert.That(record1.Uuid, Is.EqualTo(record2.Uuid));
 
         var cacheKeyPrefix = _services!.Resolve<CacheKeyPrefix>();
-        var key = $"{cacheKeyPrefix.Prefix}:poco:{id}";
+        var key = $"{cacheKeyPrefix.Prefix}:L2:poco:{id}";
         var fusion = _services!.Resolve<IFusionCache>();
         var record3 = fusion.TryGet<PocoA?>(key);
 
@@ -123,7 +160,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache<Level2CacheTests>>();
+        var cache = _services!.Resolve<ITenantLevel2Cache<LevelXCacheTests>>();
 
         var id = Guid.NewGuid();
 
@@ -144,7 +181,7 @@ public class Level2CacheTests
         Assert.That(record1.Uuid, Is.EqualTo(record2.Uuid));
 
         var cacheKeyPrefix = _services!.Resolve<CacheKeyPrefix>();
-        var key = $"{cacheKeyPrefix.Prefix}:L2:{GetType().FullName}:poco:{id}";
+        var key = $"{cacheKeyPrefix.Prefix}:{GetType().FullName}:L2:poco:{id}";
         var fusion = _services!.Resolve<IFusionCache>();
         var record3 = fusion.TryGet<PocoA?>(key);
 
@@ -164,7 +201,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
 
@@ -194,7 +231,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
 
@@ -231,7 +268,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
         var key = $"poco:{id}";
@@ -259,7 +296,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
         var key = $"poco:{id}";
@@ -300,7 +337,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
         var key = $"poco:{id}";
@@ -333,7 +370,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
         var key = $"poco:{id}";
@@ -365,7 +402,7 @@ public class Level2CacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var cache = _services!.Resolve<ILevel2Cache>();
+        var cache = _services!.Resolve<ITenantLevel2Cache>();
 
         var id = Guid.NewGuid();
         var key = $"poco:{id}";
