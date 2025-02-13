@@ -60,6 +60,7 @@ public class LinkPreviewService(
 
             if (!context.Request.Path.StartsWithSegments("/posts"))
             {
+                logger.LogDebug("Path is not a posts path; falling back");
                 return false;
             }
 
@@ -67,6 +68,7 @@ public class LinkPreviewService(
             var segments = path?.TrimEnd('/').Split('/');
             if (segments == null || segments.Length < 3)
             {
+                logger.LogDebug("Posts path has too few segments; falling back");
                 return false;
             }
 
@@ -83,9 +85,20 @@ public class LinkPreviewService(
             string odinId = context.Request.Host.Host;
             var person = await GeneratePersonSchema();
 
-            title ??= $"{person?.Name ?? odinId} | Homebase";
-            description ??= "Decentralized identity powered by Homebase.id";
-            imageUrl ??= person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+            if (string.IsNullOrEmpty(title))
+            {
+                title  = $"{person?.Name ?? odinId} | Homebase";
+            }
+
+            if (string.IsNullOrEmpty(imageUrl))
+            {
+                imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+            }
+
+            if (string.IsNullOrEmpty(description))
+            {
+                description = "Decentralized identity powered by Homebase.id";
+            }
 
             var content = await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, context.RequestAborted);
 
@@ -114,6 +127,7 @@ public class LinkPreviewService(
         var postFile = await FindPost(postKey, odinContext, targetDrive);
         if (null == postFile)
         {
+            logger.LogDebug("File for post with postKey {pk} not found", postKey);
             return (false, null, null, null);
         }
 
@@ -129,6 +143,7 @@ public class LinkPreviewService(
         if (payloadHeader == null)
         {
             content = OdinSystemSerializer.Deserialize<PostContent>(postFile.FileMetadata.AppData.Content);
+            logger.LogDebug("Post content used from AppData.Content");
         }
         else
         {
@@ -136,6 +151,7 @@ public class LinkPreviewService(
             var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
             content = await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken);
             payloadStream.Stream.Close();
+            logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
         }
 
         var context = httpContextAccessor.HttpContext;
@@ -159,6 +175,8 @@ public class LinkPreviewService(
                                       ?? false;
             if (hasUsableThumbnail)
             {
+                logger.LogDebug("Post has usable thumbnail");
+
                 StringBuilder b = new StringBuilder(100);
                 b.Append($"&alias={targetDrive.Alias}");
                 b.Append($"&type={targetDrive.Type}");
@@ -179,6 +197,12 @@ public class LinkPreviewService(
             }
         }
 
+        logger.LogDebug("Returning post content.  " +
+                        "title:[{title}], description: {desc} imageUrl:{img}",
+                        content.Caption,
+                        imageUrl,
+                        content.Abstract);
+        
         return (true, content.Caption, imageUrl, content.Abstract);
     }
 
@@ -191,11 +215,14 @@ public class LinkPreviewService(
         if (Guid.TryParse(postKey, out var postIdAsTag))
         {
             postFile = await QueryBatchFirstFile(targetDrive, odinContext, postIdAsTag);
+            logger.LogDebug("Post with key [{pk}] found using postIdAsTag: {tag}", postKey, postIdAsTag);
         }
         else
         {
             // postKey is a slug so we need to mdf
-            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, ToGuidId(postKey), odinContext);
+            var uid = ToGuidId(postKey);
+            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
+            logger.LogDebug("Post with key [{pk}] found using post as Slug: {uid}", postKey, uid);
         }
 
         return postFile;
@@ -276,6 +303,7 @@ public class LinkPreviewService(
             return (false, null, null);
         }
 
+        logger.LogDebug("TargetDrive {td} found by channelKey: {ck}", targetDrive.ToString(), channelKey);
         return (true, targetDrive, driveId);
     }
 
