@@ -147,11 +147,11 @@ public class LinkPreviewService(
                 "api/guest/v1/drive/files/thumb");
 
             StringBuilder b = new StringBuilder(200);
-            b.Append($"alias={targetDrive.Alias}");
-            b.Append($"type={targetDrive.Type}");
-            b.Append($"fileId={postFile.FileId}");
-            b.Append($"payloadKey={content.PrimaryMediaFile.FileKey}");
-            b.Append($"&width=1200&height=650");
+            b.Append($"&alias={targetDrive.Alias}");
+            b.Append($"&type={targetDrive.Type}");
+            b.Append($"&fileId={postFile.FileId}");
+            b.Append($"&payloadKey={content.PrimaryMediaFile.FileKey}");
+            b.Append("&width=1200&height=650");
             b.Append(
                 $"&lastModified={postFile.FileMetadata.Payloads.SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey)?.LastModified}");
             b.Append($"&xfst=Standard"); // note: Not comment support
