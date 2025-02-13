@@ -15,6 +15,7 @@ using Odin.Services.DataSubscription;
 using Odin.Services.Drives.Management;
 using Odin.Services.Tenant;
 using Odin.Hosting.Authentication.Peer;
+using Odin.Services.Drives;
 
 namespace Odin.Hosting.Middleware
 {
@@ -41,7 +42,7 @@ namespace Odin.Hosting.Middleware
 
             if (string.IsNullOrEmpty(authType))
             {
-                odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
+                await LoadAnonymousContextAsync(httpContext, odinContext);
                 await _next(httpContext);
                 return;
             }
@@ -213,6 +214,48 @@ namespace Odin.Hosting.Middleware
                 ));
 
             odinContext.SetAuthContext(PeerAuthConstants.PublicTransitAuthScheme);
+        }
+        
+        private async Task LoadAnonymousContextAsync(HttpContext httpContext, IOdinContext odinContext)
+        {
+            odinContext.Caller = new CallerContext(
+                odinId: default,
+                masterKey: null,
+                securityLevel: SecurityGroupType.Anonymous);
+
+            var driveManager = httpContext.RequestServices.GetRequiredService<DriveManager>();
+            var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
+
+            if (!anonymousDrives.Results.Any())
+            {
+                throw new OdinClientException(
+                    "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                    OdinClientErrorCode.NotInitialized);
+            }
+
+            //TODO: need to put this behind a class and cache
+
+            var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
+            {
+                DriveId = d.Id,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = d.TargetDriveInfo,
+                    Permission = DrivePermission.Read
+                }
+            }).ToList();
+
+            var permissionGroupMap = new Dictionary<string, PermissionGroup>
+            {
+                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null) },
+            };
+
+            odinContext.SetPermissionContext(
+                new PermissionContext(
+                    permissionGroupMap,
+                    sharedSecretKey: null
+                ));
+
         }
     }
 }

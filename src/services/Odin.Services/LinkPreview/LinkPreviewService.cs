@@ -68,8 +68,8 @@ public class LinkPreviewService(
                 return false;
             }
 
-            string channelKey = segments[1];
-            string postKey = segments[2];
+            string channelKey = segments[2];
+            string postKey = segments[3];
 
             var (success, title, imageUrl, description) = await TryParsePostFile(channelKey, postKey, odinContext, context.RequestAborted);
 
@@ -138,25 +138,31 @@ public class LinkPreviewService(
 
         var context = httpContextAccessor.HttpContext;
 
-        UriBuilder builder = new UriBuilder(context.Request.Scheme,
-            context.Request.Host.Host,
-            context.Request.Host.Port.GetValueOrDefault(),
-            "api/guest/v1/drive/files/thumb");
+        string imageUrl = null;
+        if (content.PrimaryMediaFile?.FileKey != null)
+        {
+            UriBuilder builder = new UriBuilder(context.Request.Scheme,
+                context.Request.Host.Host,
+                context.Request.Host.Port.GetValueOrDefault(),
+                "api/guest/v1/drive/files/thumb");
 
-        StringBuilder b = new StringBuilder(200);
-        b.Append($"alias={targetDrive.Alias}");
-        b.Append($"type={targetDrive.Type}");
-        b.Append($"fileId={postFile.FileId}");
-        b.Append($"payloadKey={content.PrimaryMediaFile.FileKey}");
-        b.Append($"&width=1200&height=650");
-        b.Append(
-            $"&lastModified={postFile.FileMetadata.Payloads.SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey)?.LastModified}");
-        b.Append($"&xfst=Standard"); // note: Not comment support
-        b.Append($"&iac=true");
+            StringBuilder b = new StringBuilder(200);
+            b.Append($"alias={targetDrive.Alias}");
+            b.Append($"type={targetDrive.Type}");
+            b.Append($"fileId={postFile.FileId}");
+            b.Append($"payloadKey={content.PrimaryMediaFile.FileKey}");
+            b.Append($"&width=1200&height=650");
+            b.Append(
+                $"&lastModified={postFile.FileMetadata.Payloads.SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey)?.LastModified}");
+            b.Append($"&xfst=Standard"); // note: Not comment support
+            b.Append($"&iac=true");
 
-        builder.Query = b.ToString();
+            builder.Query = b.ToString();
 
-        return (true, content.Caption, builder.ToString(), content.Abstract);
+            imageUrl = builder.ToString();
+        }
+
+        return (true, content.Caption, imageUrl, content.Abstract);
     }
 
     private async Task<SharedSecretEncryptedFileHeader> FindPost(string postKey, IOdinContext odinContext, TargetDrive targetDrive)
@@ -253,7 +259,7 @@ public class LinkPreviewService(
             return (false, null, null);
         }
 
-        return (false, targetDrive, driveId);
+        return (true, targetDrive, driveId);
     }
 
     private async Task WriteGenericPreview(string indexFilePath)
