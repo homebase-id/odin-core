@@ -4,8 +4,10 @@ using System.Linq;
 using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using AngleSharp.Io;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -138,30 +140,43 @@ public class LinkPreviewService(
 
         var context = httpContextAccessor.HttpContext;
 
+        const int idealWidth = 1200;
+        const int idealHeight = 650;
+
+        const int minThumbWidth = 200;
+        const int minThumbHeight = 200;
+
         string imageUrl = null;
+
         if (content.PrimaryMediaFile?.FileKey != null)
         {
-            UriBuilder builder = new UriBuilder(context.Request.Scheme,
-                context.Request.Host.Host,
-                context.Request.Host.Port.GetValueOrDefault(443),
-                "api/guest/v1/drive/files/thumb");
+            var mediaPayload = postFile.FileMetadata.Payloads
+                .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
 
-            StringBuilder b = new StringBuilder(200);
-            b.Append($"&alias={targetDrive.Alias}");
-            b.Append($"&type={targetDrive.Type}");
-            b.Append($"&fileId={postFile.FileId}");
-            b.Append($"&payloadKey={content.PrimaryMediaFile.FileKey}");
-            b.Append("&width=1200&height=650");
-            b.Append(
-                $"&lastModified={postFile.FileMetadata.Payloads
-                    .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey)?
-                    .LastModified.milliseconds}");
-            b.Append($"&xfst=Standard"); // note: Not comment support
-            b.Append($"&iac=true");
+            bool hasUsableThumbnail = mediaPayload?.Thumbnails
+                                          .Any(t => t.PixelHeight > minThumbHeight
+                                                    && t.PixelWidth > minThumbWidth)
+                                      ?? false;
+            if (hasUsableThumbnail)
+            {
+                StringBuilder b = new StringBuilder(100);
+                b.Append($"&alias={targetDrive.Alias}");
+                b.Append($"&type={targetDrive.Type}");
+                b.Append($"&fileId={postFile.FileId}");
+                b.Append($"&payloadKey={content.PrimaryMediaFile.FileKey}");
+                b.Append($"&width={idealWidth}&height={idealHeight}");
+                b.Append($"&lastModified={mediaPayload?.LastModified.milliseconds}");
+                b.Append($"&xfst=Standard"); // note: No comment support
+                b.Append($"&iac=true");
 
-            builder.Query = b.ToString();
+                var builder = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
+                {
+                    Path = "api/guest/v1/drive/files/thumb",
+                    Query = b.ToString()
+                };
 
-            imageUrl = builder.ToString();
+                imageUrl = builder.ToString();
+            }
         }
 
         return (true, content.Caption, imageUrl, content.Abstract);
@@ -298,6 +313,9 @@ public class LinkPreviewService(
 
         StringBuilder b = new StringBuilder(500);
 
+        title = HttpUtility.UrlEncode(title);
+        description = HttpUtility.HtmlEncode(description);
+
         b.Append($"<title>{title}</title>");
         b.Append($"<meta property='description' content='{description}'/>\n");
 
@@ -341,7 +359,11 @@ public class LinkPreviewService(
     private string GetDisplayUrl()
     {
         var request = httpContextAccessor.HttpContext.Request;
-        return $"{request.Scheme}://{request.Host}/{request.Path}/?{request.QueryString}";
+        return new UriBuilder(request.Scheme, request.Host.Host)
+        {
+            Path = request.Path,
+            Query = request.QueryString.Value
+        }.ToString();
     }
 
     private async Task<PersonSchema> GeneratePersonSchema()
