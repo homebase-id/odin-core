@@ -39,13 +39,23 @@ public class LinkPreviewService(
     private const string IndexFileKey = "link-preview-service-index-file";
     private const string GenericLinkPreviewCacheKey = "link-preview-service-index-file";
     private const string DefaultPayloadKey = "dflt_key";
+    const string IndexPlaceholder = "@@identifier-content@@";
+
     private const int ChannelDefinitionFileType = 103;
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
     {
-        if (!await TryWritePostPreview(indexFilePath, odinContext))
+        try
         {
-            await WriteGenericPreview(indexFilePath);
+            if (!await TryWritePostPreview(indexFilePath, odinContext))
+            {
+                await WriteGenericPreview(indexFilePath);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Total Failure creating link-preview.  Writing plain index");
+            await WritePlainIndex(indexFilePath);
         }
     }
 
@@ -87,7 +97,7 @@ public class LinkPreviewService(
 
             if (string.IsNullOrEmpty(title))
             {
-                title  = $"{person?.Name ?? odinId} | Homebase";
+                title = $"{person?.Name ?? odinId} | Homebase";
             }
 
             if (string.IsNullOrEmpty(imageUrl))
@@ -199,10 +209,10 @@ public class LinkPreviewService(
 
         logger.LogDebug("Returning post content.  " +
                         "title:[{title}], description: {desc} imageUrl:{img}",
-                        content.Caption,
-                        imageUrl,
-                        content.Abstract);
-        
+            content.Caption,
+            imageUrl,
+            content.Abstract);
+
         return (true, content.Caption, imageUrl, content.Abstract);
     }
 
@@ -320,6 +330,32 @@ public class LinkPreviewService(
         await WriteAsync(cache, context.RequestAborted);
     }
 
+
+    private async Task WritePlainIndex(string indexFilePath)
+    {
+        var context = httpContextAccessor.HttpContext;
+
+        var cache = await tenantCache.GetOrSetAsync(
+            GenericLinkPreviewCacheKey,
+            _ => PrepareEmptyIndex(indexFilePath, context.RequestAborted),
+            TimeSpan.FromSeconds(30)
+        );
+
+        await WriteAsync(cache, context.RequestAborted);
+    }
+
+    private async Task<string> PrepareEmptyIndex(string indexFilePath, CancellationToken cancellationToken)
+    {
+        var indexTemplate = await globalCache.GetOrSetAsync(
+            IndexFileKey,
+            _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
+            TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
+
+        var updatedContent = indexTemplate.Replace(IndexPlaceholder, "<title></title>");
+        return updatedContent;
+    }
+
+
     private async Task<string> PrepareGenericPreview(string indexFilePath, CancellationToken cancellationToken)
     {
         var context = httpContextAccessor.HttpContext;
@@ -337,8 +373,6 @@ public class LinkPreviewService(
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
         PersonSchema person, CancellationToken cancellationToken)
     {
-        const string placeholder = "@@identifier-content@@";
-
         StringBuilder b = new StringBuilder(500);
 
         title = HttpUtility.HtmlEncode(title);
@@ -362,7 +396,7 @@ public class LinkPreviewService(
             _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
             TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
 
-        var updatedContent = indexTemplate.Replace(placeholder, b.ToString());
+        var updatedContent = indexTemplate.Replace(IndexPlaceholder, b.ToString());
         return updatedContent;
     }
 
