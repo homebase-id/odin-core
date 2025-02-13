@@ -128,7 +128,7 @@ public class LinkPreviewService(
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
-        logger.LogDebug("Try int parse post file with channel key: [{ck}] postKey: [{pk}]", channelKey, postKey);
+        logger.LogDebug("Try parse post file with channel key: [{ck}] postKey: [{pk}]", channelKey, postKey);
 
         var (success, targetDrive, driveId) = await TryGetChannelDrive(channelKey, odinContext);
         if (!success)
@@ -154,8 +154,9 @@ public class LinkPreviewService(
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.Key == DefaultPayloadKey);
         if (payloadHeader == null)
         {
-            content = OdinSystemSerializer.Deserialize<PostContent>(postFile.FileMetadata.AppData.Content);
-            logger.LogDebug("Post content used from AppData.Content");
+            var json = postFile.FileMetadata.AppData.Content;
+            logger.LogDebug("Using content used from AppData.Content. [{json}]", json);
+            content = OdinSystemSerializer.Deserialize<PostContent>(json);
         }
         else
         {
@@ -227,20 +228,29 @@ public class LinkPreviewService(
         if (Guid.TryParse(postKey, out var postIdAsTag))
         {
             postFile = await QueryBatchFirstFile(targetDrive, odinContext, postIdAsTag);
-            logger.LogDebug("Post with key [{pk}] found using postIdAsTag: [{tag}] result:  {result}",
+            logger.LogDebug("Searching for post with key [{pk}] using postIdAsTag: [{tag}] result:  {result}",
                 postKey,
                 postIdAsTag,
-                postFile == null ? "found" : "not found");
+                postFile == null ? "not found" : "found");
         }
         else
         {
             // postKey is a slug so we need to md5
             var uid = ToGuidId(postKey);
-            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
-            logger.LogDebug("Post with key [{pk}] found using post as Slug: {uid}] result: {result}",
+            var options = new ResultOptions
+            {
+                MaxRecords = 1,
+                IncludeHeaderContent = true,
+                ExcludePreviewThumbnail = true,
+                ExcludeServerMetaData = true,
+                IncludeTransferHistory = false
+            };
+            
+            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, options, odinContext);
+            logger.LogDebug("Searching for post with key [{pk}] using post as Slug: {uid}] result: {result}",
                 postKey,
                 uid,
-                postFile == null ? "found" : "not found");
+                postFile == null ? "not found" : "found");
         }
 
         return postFile;
