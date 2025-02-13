@@ -33,10 +33,7 @@ public class PostContent
     [JsonProperty("abstract")] public string Abstract { get; set; }
 
     [JsonProperty("slug")] public string Slug { get; set; }
-
-    [JsonProperty("body")]
-    //body: string | Record<string, unknown>[];
-    public string Body { get; set; }
+    
 
     [JsonProperty("type")]
     //type: 'Article' | 'Media' | 'Tweet';

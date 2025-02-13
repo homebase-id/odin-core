@@ -154,9 +154,8 @@ public class LinkPreviewService(
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.Key == DefaultPayloadKey);
         if (payloadHeader == null)
         {
-            var json = postFile.FileMetadata.AppData.Content;
-            logger.LogDebug("Using content used from AppData.Content. [{json}]", json);
-            content = OdinSystemSerializer.Deserialize<PostContent>(json);
+            logger.LogDebug("Using content used from AppData.Content");
+            content = OdinSystemSerializer.Deserialize<PostContent>(postFile.FileMetadata.AppData.Content);
         }
         else
         {
