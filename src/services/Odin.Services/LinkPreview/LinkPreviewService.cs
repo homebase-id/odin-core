@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
@@ -8,13 +9,17 @@ using System.Threading.Tasks;
 using AngleSharp.Io;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Hosting.PersonMetadata;
 using Odin.Hosting.PersonMetadata.SchemaDotOrg;
+using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
 
@@ -26,11 +31,13 @@ public class LinkPreviewService(
     StaticFileContentService staticFileContentService,
     IHttpContextAccessor httpContextAccessor,
     StandardFileSystem fileSystem,
+    DriveManager driveManager,
     ILogger<LinkPreviewService> logger)
 {
     private const string IndexFileKey = "link-preview-service-index-file";
     private const string GenericLinkPreviewCacheKey = "link-preview-service-index-file";
     private const string DefaultPayloadKey = "dflt_key";
+    private const int ChannelDefinitionFileType = 103;
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
     {
@@ -90,30 +97,23 @@ public class LinkPreviewService(
         }
     }
 
-    private async Task<(bool success, string title, string imageUrl, string description)> TryParsePostFile(string channelKey,
+    private async Task<(bool success, string title, string imageUrl, string description)> TryParsePostFile(
+        string channelKey,
         string postKey,
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
-        var targetDrive = new TargetDrive()
+        var (success, targetDrive, driveId) = await TryGetChannelDrive(channelKey, odinContext);
+        if (!success)
         {
-            Alias = ToGuidId(channelKey),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-
-        if (!odinContext.PermissionsContext.HasDriveId(targetDrive, out var driveId))
-        {
-            logger.LogDebug("link preview does not have access to drive for channel-key: {ck}; " +
-                            "falling back to generic preview", channelKey);
             return (false, null, null, null);
         }
 
-        if (Guid.TryParse(postKey, out var postUid))
+        var postFile = await FindPost(postKey, odinContext, targetDrive);
+        if (null == postFile)
         {
-            postUid = ToGuidId(postKey);
+            return (false, null, null, null);
         }
-
-        var postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId.GetValueOrDefault(), postUid, odinContext);
 
         var fileId = new InternalDriveFileId()
         {
@@ -121,29 +121,139 @@ public class LinkPreviewService(
             FileId = postFile.FileId
         };
 
-        var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-        var content = await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken);
-        payloadStream.Stream.Close();
 
-        // type is tweet or article data is small enough, there is no payload for the content.
-        // so you must read the json header and the payload with key 'dflt_key'
-
-
-        if (content.IsPostType(PostType.Article))
+        PostContent content = null;
+        var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.Key == DefaultPayloadKey);
+        if (payloadHeader == null)
         {
-            var title = "";
-            var imageUrl = ""; //TODO: lookup primary media file
-            return (true, title, imageUrl, content.Abstract);
+            content = OdinSystemSerializer.Deserialize<PostContent>(postFile.FileMetadata.AppData.Content);
+        }
+        else
+        {
+            // if there is a default payload, then all content is there;
+            var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
+            content = await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken);
+            payloadStream.Stream.Close();
         }
 
-        if (content.IsPostType(PostType.Tweet))
+        var context = httpContextAccessor.HttpContext;
+
+        UriBuilder builder = new UriBuilder(context.Request.Scheme,
+            context.Request.Host.Host,
+            context.Request.Host.Port.GetValueOrDefault(),
+            "api/guest/v1/drive/files/thumb");
+
+        StringBuilder b = new StringBuilder(200);
+        b.Append($"alias={targetDrive.Alias}");
+        b.Append($"type={targetDrive.Type}");
+        b.Append($"fileId={postFile.FileId}");
+        b.Append($"payloadKey={content.PrimaryMediaFile.FileKey}");
+        b.Append($"&width=1200&height=650");
+        b.Append(
+            $"&lastModified={postFile.FileMetadata.Payloads.SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey)?.LastModified}");
+        b.Append($"&xfst=Standard"); // note: Not comment support
+        b.Append($"&iac=true");
+
+        builder.Query = b.ToString();
+
+        return (true, content.Caption, builder.ToString(), content.Abstract);
+    }
+
+    private async Task<SharedSecretEncryptedFileHeader> FindPost(string postKey, IOdinContext odinContext, TargetDrive targetDrive)
+    {
+        var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
+
+        SharedSecretEncryptedFileHeader postFile;
+        // if post is a guid, it is the Tag on a file
+        if (Guid.TryParse(postKey, out var postIdAsTag))
         {
-            var title = "";
-            var imageUrl = ""; //TODO: lookup primary media file
-            return (true, title, imageUrl, content.Body);
+            postFile = await QueryBatchFirstFile(targetDrive, odinContext, postIdAsTag);
+        }
+        else
+        {
+            // postKey is a slug so we need to mdf
+            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, ToGuidId(postKey), odinContext);
         }
 
-        return (false, null, null, null);
+        return postFile;
+    }
+
+    private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
+        Guid? postIdAsTag = null, int? fileType = null)
+    {
+        var qp = new FileQueryParams
+        {
+            TargetDrive = targetDrive,
+            TagsMatchAtLeastOne = postIdAsTag == null ? default : [postIdAsTag.GetValueOrDefault()],
+            FileType = fileType == null ? default : [fileType.GetValueOrDefault()]
+        };
+
+        var options = new QueryBatchResultOptions
+        {
+            MaxRecords = 1,
+            IncludeHeaderContent = true,
+            ExcludePreviewThumbnail = true,
+            ExcludeServerMetaData = true,
+            IncludeTransferHistory = false,
+        };
+
+        var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
+        var result = await fileSystem.Query.GetBatch(driveId, qp, options, odinContext);
+        return result.SearchResults.FirstOrDefault();
+    }
+
+    private async Task<(bool success, TargetDrive targetDrive, Guid? driveId)> TryGetChannelDrive(string channelKey,
+        IOdinContext odinContext)
+    {
+        TargetDrive targetDrive = null;
+        if (Guid.TryParse(channelKey, out var channelId))
+        {
+            // fetch by id; use the channelId directly as drive alias
+            targetDrive = new TargetDrive()
+            {
+                Alias = channelId,
+                Type = SystemDriveConstants.ChannelDriveType
+            };
+        }
+        else
+        {
+            //look up slug
+            // get the channel drive on all drives of type SystemDriveConstants.ChannelDriveType 
+            //chnl.fileMetadata.appData.content.slug === channelKey
+
+            var channelDrivesPaging = await driveManager.GetDrivesAsync(
+                SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
+
+            foreach (var drive in channelDrivesPaging.Results)
+            {
+                var file = await QueryBatchFirstFile(drive.TargetDriveInfo, odinContext, fileType: ChannelDefinitionFileType);
+                if (null != file)
+                {
+                    var postContent = OdinSystemSerializer.Deserialize<PostContent>(file.FileMetadata.AppData.Content);
+                    if (channelKey!.Equals(postContent.Slug, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        targetDrive = file.TargetDrive;
+                        break;
+                    }
+                }
+            }
+
+            // slug was not found
+            if (targetDrive == null)
+            {
+                logger.LogDebug("Channel key {ck} was not found on any channel drives", channelKey);
+                return (false, null, null);
+            }
+        }
+        
+        if (!odinContext.PermissionsContext.HasDriveId(targetDrive, out var driveId))
+        {
+            logger.LogDebug("link preview does not have access to drive for channel-key: {ck}; " +
+                            "falling back to generic preview", channelKey);
+            return (false, null, null);
+        }
+
+        return (false, targetDrive, driveId);
     }
 
     private async Task WriteGenericPreview(string indexFilePath)
@@ -177,8 +287,6 @@ public class LinkPreviewService(
         PersonSchema person, CancellationToken cancellationToken)
     {
         const string placeholder = "@@identifier-content@@";
-
-        var context = httpContextAccessor.HttpContext;
 
         StringBuilder b = new StringBuilder(500);
 
