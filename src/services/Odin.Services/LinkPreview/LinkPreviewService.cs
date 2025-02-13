@@ -128,6 +128,8 @@ public class LinkPreviewService(
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
+        logger.LogDebug("Try int parse post file with channel key: [{ck}] postKey: [{pk}]", channelKey, postKey);
+
         var (success, targetDrive, driveId) = await TryGetChannelDrive(channelKey, odinContext);
         if (!success)
         {
@@ -137,7 +139,7 @@ public class LinkPreviewService(
         var postFile = await FindPost(postKey, odinContext, targetDrive);
         if (null == postFile)
         {
-            logger.LogDebug("File for post with postKey {pk} not found", postKey);
+            logger.LogDebug("File for channelKey:[{ck}] and with postKey {pk} not found", channelKey, postKey);
             return (false, null, null, null);
         }
 
@@ -225,14 +227,20 @@ public class LinkPreviewService(
         if (Guid.TryParse(postKey, out var postIdAsTag))
         {
             postFile = await QueryBatchFirstFile(targetDrive, odinContext, postIdAsTag);
-            logger.LogDebug("Post with key [{pk}] found using postIdAsTag: {tag}", postKey, postIdAsTag);
+            logger.LogDebug("Post with key [{pk}] found using postIdAsTag: [{tag}] result:  {result}",
+                postKey,
+                postIdAsTag,
+                postFile == null ? "found" : "not found");
         }
         else
         {
-            // postKey is a slug so we need to mdf
+            // postKey is a slug so we need to md5
             var uid = ToGuidId(postKey);
             postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
-            logger.LogDebug("Post with key [{pk}] found using post as Slug: {uid}", postKey, uid);
+            logger.LogDebug("Post with key [{pk}] found using post as Slug: {uid}] result: {result}",
+                postKey,
+                uid,
+                postFile == null ? "found" : "not found");
         }
 
         return postFile;
@@ -488,12 +496,10 @@ public class LinkPreviewService(
 
     private static Guid ToGuidId(string input)
     {
-        using (MD5 md5 = MD5.Create())
-        {
-            byte[] hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
+        using MD5 md5 = MD5.Create();
+        byte[] hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
 
-            // Convert first 16 bytes of the hash into a GUID
-            return new Guid(hashBytes);
-        }
+        var b = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+        return new Guid(b);
     }
 }
