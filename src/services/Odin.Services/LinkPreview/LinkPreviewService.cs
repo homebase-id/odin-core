@@ -313,7 +313,7 @@ public class LinkPreviewService(
 
         StringBuilder b = new StringBuilder(500);
 
-        title = HttpUtility.UrlEncode(title);
+        title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
 
         b.Append($"<title>{title}</title>");
