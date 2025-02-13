@@ -238,8 +238,8 @@ public class LinkPreviewService(
         var person = new PersonSchema
         {
             Name = profile?.Name,
-            GivenName = profile?.Name,
-            FamilyName = profile?.Name,
+            GivenName = profile?.GiveName,
+            FamilyName = profile?.Surname,
             Email = "",
             Description = profile?.Bio,
             BirthDate = "",
