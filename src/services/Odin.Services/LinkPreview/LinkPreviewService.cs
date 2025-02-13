@@ -153,7 +153,9 @@ public class LinkPreviewService(
             b.Append($"&payloadKey={content.PrimaryMediaFile.FileKey}");
             b.Append("&width=1200&height=650");
             b.Append(
-                $"&lastModified={postFile.FileMetadata.Payloads.SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey)?.LastModified}");
+                $"&lastModified={postFile.FileMetadata.Payloads
+                    .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey)?
+                    .LastModified.milliseconds}");
             b.Append($"&xfst=Standard"); // note: Not comment support
             b.Append($"&iac=true");
 
@@ -251,7 +253,7 @@ public class LinkPreviewService(
                 return (false, null, null);
             }
         }
-        
+
         if (!odinContext.PermissionsContext.HasDriveId(targetDrive, out var driveId))
         {
             logger.LogDebug("link preview does not have access to drive for channel-key: {ck}; " +
