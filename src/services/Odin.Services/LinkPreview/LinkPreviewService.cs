@@ -143,7 +143,7 @@ public class LinkPreviewService(
         {
             UriBuilder builder = new UriBuilder(context.Request.Scheme,
                 context.Request.Host.Host,
-                context.Request.Host.Port.GetValueOrDefault(),
+                context.Request.Host.Port.GetValueOrDefault(443),
                 "api/guest/v1/drive/files/thumb");
 
             StringBuilder b = new StringBuilder(200);
