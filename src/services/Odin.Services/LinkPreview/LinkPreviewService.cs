@@ -42,26 +42,59 @@ public class LinkPreviewService(
 
     private async Task<bool> TryWritePostPreview(string indexFilePath, IOdinContext odinContext)
     {
-        var context = httpContextAccessor.HttpContext;
-
-        // React route is 
-        // <Route path="posts/:channelKey/:postKey" element={<PostDetail />} />
-
-        if (!context.Request.Path.StartsWithSegments("/posts"))
+        try
         {
+            var context = httpContextAccessor.HttpContext;
+
+            // React route is 
+            // <Route path="posts/:channelKey/:postKey" element={<PostDetail />} />
+
+            if (!context.Request.Path.StartsWithSegments("/posts"))
+            {
+                return false;
+            }
+
+            string path = context.Request.Path.Value;
+            var segments = path?.TrimEnd('/').Split('/');
+            if (segments == null || segments.Length < 3)
+            {
+                return false;
+            }
+
+            string channelKey = segments[1];
+            string postKey = segments[2];
+
+            var (success, title, imageUrl, description) = await TryParsePostFile(channelKey, postKey, odinContext, context.RequestAborted);
+
+            if (!success)
+            {
+                return false;
+            }
+
+            string odinId = context.Request.Host.Host;
+            var person = await GeneratePersonSchema();
+
+            title ??= $"{person?.Name ?? odinId} | Homebase";
+            description ??= "Decentralized identity powered by Homebase.id";
+            imageUrl ??= person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+
+            var content = await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, context.RequestAborted);
+
+            await WriteAsync(content, context.RequestAborted);
+            return true;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to parse post");
             return false;
         }
+    }
 
-        string path = context.Request.Path.Value;
-        var segments = path?.TrimEnd('/').Split('/');
-        if (segments == null || segments.Length < 3)
-        {
-            return false;
-        }
-
-        string channelKey = segments[1];
-        string postKey = segments[2];
-
+    private async Task<(bool success, string title, string imageUrl, string description)> TryParsePostFile(string channelKey,
+        string postKey,
+        IOdinContext odinContext,
+        CancellationToken cancellationToken)
+    {
         var targetDrive = new TargetDrive()
         {
             Alias = ToGuidId(channelKey),
@@ -72,36 +105,15 @@ public class LinkPreviewService(
         {
             logger.LogDebug("link preview does not have access to drive for channel-key: {ck}; " +
                             "falling back to generic preview", channelKey);
-            return false;
+            return (false, null, null, null);
         }
 
-
-        var (success, title, imageUrl, description) = await TryParsePostFile(driveId, postKey, odinContext, context.RequestAborted);
-
-        if (!success)
+        if (Guid.TryParse(postKey, out var postUid))
         {
-            return false;
+            postUid = ToGuidId(postKey);
         }
 
-        string odinId = context.Request.Host.Host;
-        var person = await GeneratePersonSchema();
-
-        title ??= $"{person?.Name ?? odinId} | Homebase";
-        description ??= "Decentralized identity powered by Homebase.id";
-        imageUrl ??= person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
-
-        var content = await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, context.RequestAborted);
-
-        await WriteAsync(content, context.RequestAborted);
-        return true;
-    }
-
-    private async Task<(bool success, string title, string imageUrl, string description)> TryParsePostFile(Guid? driveId, string postKey,
-        IOdinContext odinContext,
-        CancellationToken cancellationToken)
-    {
-        var postUid = ToGuidId(postKey);
-        var postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId.GetValueOrDefault(), postUid, odinContext, true);
+        var postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId.GetValueOrDefault(), postUid, odinContext);
 
         var fileId = new InternalDriveFileId()
         {
@@ -119,11 +131,9 @@ public class LinkPreviewService(
 
         if (content.IsPostType(PostType.Article))
         {
-
             var title = "";
             var imageUrl = ""; //TODO: lookup primary media file
             return (true, title, imageUrl, content.Abstract);
-
         }
 
         if (content.IsPostType(PostType.Tweet))
@@ -132,9 +142,8 @@ public class LinkPreviewService(
             var imageUrl = ""; //TODO: lookup primary media file
             return (true, title, imageUrl, content.Body);
         }
-        
-        return (false, null, null, null);
 
+        return (false, null, null, null);
     }
 
     private async Task WriteGenericPreview(string indexFilePath)
