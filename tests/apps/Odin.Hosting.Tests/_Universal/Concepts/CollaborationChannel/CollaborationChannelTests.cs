@@ -20,6 +20,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Refit;
 
@@ -72,7 +73,8 @@ public class CollaborationChannelTests
 
     public static IEnumerable AppWithOnlyUseTransitWrite()
     {
-        yield return new object[] { new AppPermissionKeysOnly(new TestPermissionKeyList(PermissionKeys.UseTransitWrite)), HttpStatusCode.OK };
+        yield return new object[]
+            { new AppPermissionKeysOnly(new TestPermissionKeyList(PermissionKeys.UseTransitWrite)), HttpStatusCode.OK };
     }
 
     public static IEnumerable GuestNotAllowed()
@@ -99,7 +101,10 @@ public class CollaborationChannelTests
 
         await SetupScenario(collabChannel, member1, member2, collabChannelDrive);
 
-        var (response, firstFileUploadMetadata, payload1) = await AwaitPostNewEncryptedFileOverPeerDirect(member1, collabChannelDrive, collabChannel);
+        var keyHeader = KeyHeader.NewRandom16();
+
+        var (response, firstFileUploadMetadata, payload1) =
+            await AwaitPostNewEncryptedFileOverPeerDirect(member1, collabChannelDrive, collabChannel, keyHeader);
         Assert.IsTrue(response.IsSuccessStatusCode);
 
         // The collab channel gets the file then will redistribute to its followers' feeds
@@ -117,8 +122,9 @@ public class CollaborationChannelTests
         // Update the file from Pippin's feed app (then wait for the outbox to process)
         //
         var (updateFileResponse, updatedFileMetadata, updatedEncryptedMetadataContent64) =
-            await AwaitUpdateFile(callerContext, member2, firstFileUploadMetadata, remoteTargetFile, collabChannel, payload1);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
+            await AwaitUpdateFile(callerContext, member2, firstFileUploadMetadata, remoteTargetFile, collabChannel, payload1, keyHeader);
+        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
@@ -126,13 +132,14 @@ public class CollaborationChannelTests
             //
             // Assert collab channel has the updated file
             //
-            var updatedFileInCollabChannelResponse = await collabChannel.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
+            var updatedFileInCollabChannelResponse =
+                await collabChannel.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
             var updatedFileInCollabChannel = updatedFileInCollabChannelResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsTrue(updatedFileInCollabChannel!.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
             Assert.IsTrue(updatedFileInCollabChannel!.FileMetadata.OriginalAuthor == member1.OdinId);
 
             //
-            // The collab channel gets the file then will redistribute to it's followers' feeds
+            // The collab channel gets the file then will redistribute to its followers' feeds
             //
             await collabChannel.DriveRedux.WaitForFeedOutboxDistribution(collabChannelDrive);
 
@@ -208,7 +215,8 @@ public class CollaborationChannelTests
         };
 
         //Pippin sends a file to the recipient
-        var response = await member1_OwnerClient.PeerDirect.TransferNewFile(collabChannelDrive, uploadedFileMetadata, [collabChannel], null, uploadManifest,
+        var response = await member1_OwnerClient.PeerDirect.TransferNewFile(collabChannelDrive, uploadedFileMetadata, [collabChannel], null,
+            uploadManifest,
             testPayloads);
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(response.IsSuccessStatusCode);
@@ -264,7 +272,8 @@ public class CollaborationChannelTests
 
         var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
+        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // the collab channel we get the file from the UpdateFile and we need to wait for it to send it out to all followers
         await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
@@ -281,7 +290,8 @@ public class CollaborationChannelTests
             //
             // Recipient should have the updated file
             //
-            var getHeaderResponse = await collabChannelOwnerClient.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
+            var getHeaderResponse =
+                await collabChannelOwnerClient.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
             Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content.SearchResults.SingleOrDefault();
             Assert.IsNotNull(header);
@@ -290,7 +300,8 @@ public class CollaborationChannelTests
             Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
             Assert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payload1.Key), "payload 1 should have been removed");
             Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payload2.Key), "payload 2 should remain");
-            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key), "payloadToAdd should have been, well, added :)");
+            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
+                "payloadToAdd should have been, well, added :)");
 
             // file should be on the feed of those connected
             var globalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
@@ -310,8 +321,10 @@ public class CollaborationChannelTests
 
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
             Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
-            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == member1, $"original author was {theFileOnFeedDrive.FileMetadata.OriginalAuthor}");
+            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel,
+                $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
+            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == member1,
+                $"original author was {theFileOnFeedDrive.FileMetadata.OriginalAuthor}");
         }
 
         await callerContext.Cleanup();
@@ -327,9 +340,11 @@ public class CollaborationChannelTests
     }
 
 
-    private static async Task<(ApiResponse<UploadPayloadResult> updateFileResponse, UploadFileMetadata updatedFile, string updatedEncryptedMetadataContent64)>
-        AwaitUpdateFile(IApiClientContext callerContext, OwnerApiClientRedux sender, UploadFileMetadata uploadedFileMetadata, FileIdentifier remoteTargetFile,
-            OwnerApiClientRedux collabChannel, TestPayloadDefinition payload1)
+    private static async Task<(ApiResponse<UploadPayloadResult> updateFileResponse, UploadFileMetadata updatedFile, string
+            updatedEncryptedMetadataContent64)>
+        AwaitUpdateFile(IApiClientContext callerContext, OwnerApiClientRedux sender, UploadFileMetadata uploadedFileMetadata,
+            FileIdentifier remoteTargetFile,
+            OwnerApiClientRedux collabChannel, TestPayloadDefinition payload1, KeyHeader keyHeader)
     {
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
@@ -366,10 +381,12 @@ public class CollaborationChannelTests
             }
         };
 
+        keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
         await callerContext.Initialize(sender);
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
-        var (updateFileResponse, updatedEncryptedMetadataContent64) = await callerDriveClient.UpdateEncryptedFile(
-            updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+        var (updateFileResponse, updatedEncryptedMetadataContent64, uploadedPayloads, uploadedThumbnails) =
+            await callerDriveClient.UpdateEncryptedFile(
+                updateInstructionSet, updatedFileMetadata, [payloadToAdd], keyHeader);
 
         if (updateFileResponse.IsSuccessStatusCode)
         {
@@ -379,7 +396,8 @@ public class CollaborationChannelTests
         return (updateFileResponse, updatedFileMetadata, updatedEncryptedMetadataContent64);
     }
 
-    private static async Task AssertHasFileInFeed(OwnerApiClientRedux recipient, Guid globalTransitId, UploadFileMetadata expectedFileMetadata)
+    private static async Task AssertHasFileInFeed(OwnerApiClientRedux recipient, Guid globalTransitId,
+        UploadFileMetadata expectedFileMetadata)
     {
         await recipient.DriveRedux.ProcessInbox(SystemDriveConstants.FeedDrive, Int32.MaxValue);
         await recipient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
@@ -402,7 +420,8 @@ public class CollaborationChannelTests
     private static async Task<(ApiResponse<TransitResult> response, UploadFileMetadata uploadedMetadata, TestPayloadDefinition payload1)>
         AwaitPostNewEncryptedFileOverPeerDirect(
             OwnerApiClientRedux sender, TargetDrive collabChannelDrive,
-            OwnerApiClientRedux collabChannel)
+            OwnerApiClientRedux collabChannel,
+            KeyHeader keyHeader)
     {
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "some content here";
@@ -433,7 +452,7 @@ public class CollaborationChannelTests
             //Pippin sends a file to the recipient
             (response, _) = await sender.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
                 uploadedFileMetadata, [collabChannel.OdinId], null, uploadManifest,
-                testPayloads);
+                testPayloads, keyHeader: keyHeader);
         }
 
         await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
@@ -474,7 +493,9 @@ public class CollaborationChannelTests
         await member1.Connections.DisconnectFrom(collabChannel.OdinId);
         await member2.Connections.DisconnectFrom(collabChannel.OdinId);
 
-        Assert.IsTrue((await member1.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode, "member1 failed to unfollow collab channel");
-        Assert.IsTrue((await member2.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode, "member2 failed to unfollow collab channel");
+        Assert.IsTrue((await member1.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode,
+            "member1 failed to unfollow collab channel");
+        Assert.IsTrue((await member2.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode,
+            "member2 failed to unfollow collab channel");
     }
 }

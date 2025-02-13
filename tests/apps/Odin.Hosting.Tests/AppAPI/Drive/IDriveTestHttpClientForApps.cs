@@ -32,10 +32,6 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
         [Post(RootEndpoint + "/files/upload")]
         Task<ApiResponse<UploadResult>> Upload(StreamPart[] streamdata);
         
-        [Multipart]
-        [Post(RootEndpoint + "/files/uploadpayload")]
-        Task<ApiResponse<UploadPayloadResult>> UploadPayloads(StreamPart[] streamdata);
-
         
         [Post(RootEndpoint + "/files/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);

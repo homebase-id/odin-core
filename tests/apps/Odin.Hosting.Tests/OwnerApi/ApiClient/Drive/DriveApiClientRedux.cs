@@ -45,7 +45,8 @@ public class TestPayloadDefinition
 
     public List<ThumbnailContent> Thumbnails { get; set; }
 
-    public UploadManifestPayloadDescriptor ToPayloadDescriptor()
+    public UploadManifestPayloadDescriptor ToPayloadDescriptor(
+        PayloadUpdateOperationType updateOperationType = PayloadUpdateOperationType.None)
     {
         var t = this.Thumbnails?.Select(thumb => new UploadedManifestThumbnailDescriptor()
         {
@@ -54,13 +55,15 @@ public class TestPayloadDefinition
             PixelHeight = thumb.PixelHeight
         });
 
-        return new UploadManifestPayloadDescriptor()
+        return new UploadManifestPayloadDescriptor
         {
             Iv = this.Iv,
             PayloadKey = this.Key,
             DescriptorContent = this.DescriptorContent,
             PreviewThumbnail = this.PreviewThumbnail,
-            Thumbnails = t
+            Thumbnails = t,
+            PayloadUpdateOperationType = updateOperationType,
+            ContentType = this.ContentType
         };
     }
 }

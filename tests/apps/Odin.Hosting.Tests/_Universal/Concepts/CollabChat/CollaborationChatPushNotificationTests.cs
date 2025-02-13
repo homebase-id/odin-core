@@ -182,12 +182,14 @@ public class CollaborationChatPushNotificationTests
             // UnEncryptedMessage = null
         };
 
+        var keyHeader = KeyHeader.NewRandom16();
         var (response, uploadedFileMetadata, _) = await AwaitPostNewEncryptedFileOverPeerDirect(
             member1,
             collabChatDrive,
             collabChatIdentity,
             chatCircleId,
-            notificationOptions);
+            notificationOptions,
+            keyHeader);
         Assert.IsTrue(response.IsSuccessStatusCode);
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
@@ -231,12 +233,11 @@ public class CollaborationChatPushNotificationTests
     }
 
     private static async Task<(ApiResponse<TransitResult> response, UploadFileMetadata uploadedMetadata, TestPayloadDefinition payload1)>
-        AwaitPostNewEncryptedFileOverPeerDirect(
-            OwnerApiClientRedux sender,
+        AwaitPostNewEncryptedFileOverPeerDirect(OwnerApiClientRedux sender,
             TargetDrive collabChannelDrive,
             OwnerApiClientRedux collabChannel,
             Guid chatCircleId,
-            AppNotificationOptions notificationOptions)
+            AppNotificationOptions notificationOptions, KeyHeader keyHeader)
     {
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "some content here";
@@ -270,7 +271,7 @@ public class CollaborationChatPushNotificationTests
         //Pippin sends a file to the recipient
         (response, _) = await sender.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
             uploadedFileMetadata, [collabChannel.OdinId], null, uploadManifest,
-            testPayloads, notificationOptions);
+            testPayloads, notificationOptions, keyHeader: keyHeader);
 
         await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
@@ -359,7 +360,8 @@ public class CollaborationChatPushNotificationTests
         var appPermissions = new PermissionSetGrantRequest
         {
             Drives = [],
-            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead, PermissionKeys.SendPushNotifications)
+            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead,
+                PermissionKeys.SendPushNotifications)
         };
 
         var member1AppToken = await client.AppManager.RegisterAppAndClient(appId, appPermissions);

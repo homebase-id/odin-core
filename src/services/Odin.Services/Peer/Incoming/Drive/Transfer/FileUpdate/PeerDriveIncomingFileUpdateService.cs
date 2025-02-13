@@ -149,12 +149,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
-            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeaderIvOnly, odinContext);
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
 
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await updateWriter.UpdateFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext);
+                await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext);
                 return true;
             }
 
@@ -162,13 +162,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             if (metadata.IsEncrypted)
             {
                 // Next determine if we can direct write the file
-                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(_tempFile.DriveId, out var _);
+                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(_tempFile.DriveId, out _);
 
                 //S1200
                 if (hasStorageKey)
                 {
                     //S1205
-                    await updateWriter.UpdateFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext);
+                    await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext);
                     return true;
                 }
 

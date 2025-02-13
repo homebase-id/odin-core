@@ -16,6 +16,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Refit;
 
@@ -144,12 +145,15 @@ public class PeerAppPushNotificationTests
             // UnEncryptedMessage = null
         };
 
+        var keyHeader = KeyHeader.NewRandom16();
+
         var (response, uploadedFileMetadata, _) = await AwaitPostNewEncryptedFileOverPeerDirect(
             member1,
             collabChatDrive,
             collabChatIdentity,
             chatCircleId,
-            notificationOptions);
+            notificationOptions,
+            keyHeader);
         Assert.IsTrue(response.IsSuccessStatusCode);
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
@@ -199,7 +203,8 @@ public class PeerAppPushNotificationTests
             TargetDrive collabChannelDrive,
             OwnerApiClientRedux collabChannel,
             Guid chatCircleId,
-            AppNotificationOptions notificationOptions)
+            AppNotificationOptions notificationOptions,
+            KeyHeader keyHeader)
     {
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "some content here";
@@ -233,7 +238,7 @@ public class PeerAppPushNotificationTests
         //Pippin sends a file to the recipient
         (response, _) = await sender.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
             uploadedFileMetadata, [collabChannel.OdinId], null, uploadManifest,
-            testPayloads, notificationOptions);
+            testPayloads, notificationOptions, keyHeader:keyHeader);
 
         await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 

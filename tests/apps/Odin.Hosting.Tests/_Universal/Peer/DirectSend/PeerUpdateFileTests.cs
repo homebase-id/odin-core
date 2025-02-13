@@ -19,6 +19,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer.Encryption;
 
 namespace Odin.Hosting.Tests._Universal.Peer.DirectSend;
 
@@ -336,10 +337,11 @@ public class PeerUpdateFileTests
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
+        var keyHeader = KeyHeader.NewRandom16();
         //Pippin sends a file to the recipient
         var (response, firstEncryptedMetadataContent64) = await member1_OwnerClient.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
             uploadedFileMetadata, [collabChannel], null, uploadManifest,
-            testPayloads);
+            testPayloads, keyHeader: keyHeader);
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(response.IsSuccessStatusCode);
 
@@ -389,8 +391,9 @@ public class PeerUpdateFileTests
             }
         };
 
-        var (updateFileResponse, updatedEncryptedMetadataContent64) =
-            await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+        keyHeader.Iv = ByteArrayUtil.GetRndByteArray(16);
+        var (updateFileResponse, updatedEncryptedMetadataContent64, _, _) =
+            await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd], keyHeader);
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
         Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
@@ -434,7 +437,7 @@ public class PeerUpdateFileTests
         Assert.IsTrue((await collabChannelOwnerClient.Connections.DisconnectFrom(member1)).IsSuccessStatusCode);
         Assert.IsTrue((await collabChannelOwnerClient.Connections.DisconnectFrom(member2)).IsSuccessStatusCode);
 
-        Assert.IsTrue(( await member1_OwnerClient.Follower.UnfollowIdentity(collabChannel)).IsSuccessStatusCode);
+        Assert.IsTrue((await member1_OwnerClient.Follower.UnfollowIdentity(collabChannel)).IsSuccessStatusCode);
         Assert.IsTrue((await member2_OwnerClient.Follower.UnfollowIdentity(collabChannel)).IsSuccessStatusCode);
     }
 
