@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -42,14 +44,28 @@ namespace Odin.Hosting.Middleware
 
             if (string.IsNullOrEmpty(authType))
             {
-                await LoadAnonymousContextAsync(httpContext, odinContext);
-                await _next(httpContext);
+                var logger = httpContext.RequestServices.GetService<ILogger<OdinContextMiddleware>>();
+
+                try
+                {
+                    await LoadAnonymousContextAsync(httpContext, odinContext);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed loading anonymous context.  Note: the code execution continues on since this " +
+                                       "was only created to support link-preview. however, have a look and fix me.  error message [{msg}]",
+                        e.Message);
+                }
+                finally
+                {
+                    await _next(httpContext);
+                }
+
                 return;
             }
 
             if (authType == PeerAuthConstants.TransitCertificateAuthScheme)
             {
-                
                 await LoadTransitContextAsync(httpContext, odinContext);
                 await _next(httpContext);
                 return;
@@ -57,7 +73,6 @@ namespace Odin.Hosting.Middleware
 
             if (authType == PeerAuthConstants.FeedAuthScheme)
             {
-                
                 await LoadIdentitiesIFollowContextAsync(httpContext, odinContext);
                 await _next(httpContext);
                 return;
@@ -73,7 +88,6 @@ namespace Odin.Hosting.Middleware
 
             if (authType == PeerAuthConstants.PublicTransitAuthScheme)
             {
-                
                 await LoadPublicTransitContextAsync(httpContext, odinContext);
                 await _next(httpContext);
                 return;
@@ -98,7 +112,7 @@ namespace Odin.Hosting.Middleware
                     var user = httpContext.User;
                     var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
                     var callerOdinId = (OdinId)user.Identity!.Name;
-                    var ctx = await transitRegService.GetDotYouContextAsync(callerOdinId, clientAuthToken,odinContext);
+                    var ctx = await transitRegService.GetDotYouContextAsync(callerOdinId, clientAuthToken, odinContext);
 
                     if (ctx != null)
                     {
@@ -177,7 +191,7 @@ namespace Odin.Hosting.Middleware
                 securityLevel: SecurityGroupType.Authenticated);
 
             var driveManager = httpContext.RequestServices.GetRequiredService<DriveManager>();
-            var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All,odinContext);
+            var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
 
             if (!anonymousDrives.Results.Any())
             {
@@ -215,7 +229,7 @@ namespace Odin.Hosting.Middleware
 
             odinContext.SetAuthContext(PeerAuthConstants.PublicTransitAuthScheme);
         }
-        
+
         private async Task LoadAnonymousContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
             odinContext.Caller = new CallerContext(
@@ -228,9 +242,7 @@ namespace Odin.Hosting.Middleware
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new OdinClientException(
-                    "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
-                    OdinClientErrorCode.NotInitialized);
+                return;
             }
 
             //TODO: need to put this behind a class and cache
@@ -255,7 +267,6 @@ namespace Odin.Hosting.Middleware
                     permissionGroupMap,
                     sharedSecretKey: null
                 ));
-
         }
     }
 }
