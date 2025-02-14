@@ -48,6 +48,7 @@ namespace Odin.Hosting.Middleware
                 
                 try
                 {
+                    odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                     await LoadLinkPreviewContextAsync(httpContext, odinContext);
                 }
                 catch (Exception e)
@@ -232,15 +233,7 @@ namespace Odin.Hosting.Middleware
 
         private async Task LoadLinkPreviewContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
-            if (!httpContext.Request.Path.StartsWithSegments("/posts"))
-            {
-                return;
-            }
-            
-            odinContext.Caller = new CallerContext(
-                odinId: default,
-                masterKey: null,
-                securityLevel: SecurityGroupType.Anonymous);
+           
 
             var driveManager = httpContext.RequestServices.GetRequiredService<DriveManager>();
             var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
