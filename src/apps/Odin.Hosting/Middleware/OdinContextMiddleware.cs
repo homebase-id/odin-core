@@ -45,10 +45,10 @@ namespace Odin.Hosting.Middleware
             if (string.IsNullOrEmpty(authType))
             {
                 var logger = httpContext.RequestServices.GetService<ILogger<OdinContextMiddleware>>();
-
+                
                 try
                 {
-                    await LoadAnonymousContextAsync(httpContext, odinContext);
+                    await LoadLinkPreviewContextAsync(httpContext, odinContext);
                 }
                 catch (Exception e)
                 {
@@ -230,8 +230,13 @@ namespace Odin.Hosting.Middleware
             odinContext.SetAuthContext(PeerAuthConstants.PublicTransitAuthScheme);
         }
 
-        private async Task LoadAnonymousContextAsync(HttpContext httpContext, IOdinContext odinContext)
+        private async Task LoadLinkPreviewContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
+            if (!httpContext.Request.Path.StartsWithSegments("/posts"))
+            {
+                return;
+            }
+            
             odinContext.Caller = new CallerContext(
                 odinId: default,
                 masterKey: null,
