@@ -59,6 +59,12 @@ public class LinkPreviewService(
         }
     }
 
+    public bool IsPostPath()
+    {
+        var context = httpContextAccessor.HttpContext;
+        return context.Request.Path.StartsWithSegments("/posts");
+    }
+    
     private async Task<bool> TryWritePostPreview(string indexFilePath, IOdinContext odinContext)
     {
         try
@@ -68,7 +74,7 @@ public class LinkPreviewService(
             // React route is
             // <Route path="posts/:channelKey/:postKey" element={<PostDetail />} />
 
-            if (!context.Request.Path.StartsWithSegments("/posts"))
+            if (!IsPostPath())
             {
                 logger.LogDebug("Path is not a posts path; falling back");
                 return false;

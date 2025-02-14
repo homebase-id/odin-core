@@ -18,6 +18,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Tenant;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Services.Drives;
+using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting.Middleware
 {
@@ -45,7 +46,7 @@ namespace Odin.Hosting.Middleware
             if (string.IsNullOrEmpty(authType))
             {
                 var logger = httpContext.RequestServices.GetService<ILogger<OdinContextMiddleware>>();
-                
+
                 try
                 {
                     odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
@@ -233,7 +234,12 @@ namespace Odin.Hosting.Middleware
 
         private async Task LoadLinkPreviewContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
-           
+            var svc = httpContext.RequestServices.GetRequiredService<LinkPreviewService>();
+
+            if (!svc.IsPostPath())
+            {
+                return;
+            }
 
             var driveManager = httpContext.RequestServices.GetRequiredService<DriveManager>();
             var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
