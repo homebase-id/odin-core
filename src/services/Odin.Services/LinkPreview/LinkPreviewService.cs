@@ -39,7 +39,7 @@ public class LinkPreviewService(
     private const string IndexFileKey = "link-preview-service-index-file";
     private const string GenericLinkPreviewCacheKey = "link-preview-service-index-file";
     private const string DefaultPayloadKey = "dflt_key";
-    const string IndexPlaceholder = "@@identifier-content@@";
+    const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
 
     private const int ChannelDefinitionFileType = 103;
 
@@ -65,7 +65,7 @@ public class LinkPreviewService(
         {
             var context = httpContextAccessor.HttpContext;
 
-            // React route is 
+            // React route is
             // <Route path="posts/:channelKey/:postKey" element={<PostDetail />} />
 
             if (!context.Request.Path.StartsWithSegments("/posts"))
@@ -244,7 +244,7 @@ public class LinkPreviewService(
                 ExcludeServerMetaData = true,
                 IncludeTransferHistory = false
             };
-            
+
             postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, options, odinContext);
             logger.LogDebug("Searching for post with key [{pk}] using post as Slug: {uid}] result: {result}",
                 postKey,
@@ -295,7 +295,7 @@ public class LinkPreviewService(
         else
         {
             //look up slug
-            // get the channel drive on all drives of type SystemDriveConstants.ChannelDriveType 
+            // get the channel drive on all drives of type SystemDriveConstants.ChannelDriveType
             //chnl.fileMetadata.appData.content.slug === channelKey
 
             var channelDrivesPaging = await driveManager.GetDrivesAsync(
