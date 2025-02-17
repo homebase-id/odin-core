@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -64,7 +63,7 @@ public class LinkPreviewService(
         var context = httpContextAccessor.HttpContext;
         return context.Request.Path.StartsWithSegments("/posts");
     }
-    
+
     private async Task<bool> TryWritePostPreview(string indexFilePath, IOdinContext odinContext)
     {
         try
@@ -116,6 +115,9 @@ public class LinkPreviewService(
                 description = "Decentralized identity powered by Homebase.id";
             }
 
+            /*
+               /posts = Michael Seifert | Posts
+             */
             var content = await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, context.RequestAborted);
 
             await WriteAsync(content, context.RequestAborted);
@@ -387,6 +389,12 @@ public class LinkPreviewService(
 
         var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
 
+        /*
+          / = Michael Seifert | Homebase.id
+          /links = Michael Seifert | Links
+          /about = Michael Seifert | About
+          /connections = Michael Seifert | Connections
+        */
         var description = person?.Description ?? "Decentralized identity powered by Homebase.id";
         var title = $"{person?.Name ?? odinId} | Homebase";
 
@@ -404,6 +412,7 @@ public class LinkPreviewService(
         b.Append($"<title>{title}</title>");
         b.Append($"<meta property='description' content='{description}'/>\n");
 
+        b.Append($"<meta name='robots' content='index, follow'>");
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
 
