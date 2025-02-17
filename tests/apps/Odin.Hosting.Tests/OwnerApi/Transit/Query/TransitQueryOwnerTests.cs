@@ -1747,7 +1747,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
 
             var senderApiRedux = _scaffold.CreateOwnerApiClientRedux(sender);
-            await senderApiRedux.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            await senderApiRedux.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             // query the file
             var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
