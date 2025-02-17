@@ -58,7 +58,7 @@ namespace Odin.Services.Base
             //This is only exist to ensure we only set permissions in the DotYouContextMiddleware
             if (null != PermissionsContext)
             {
-                throw new OdinSecurityException("Cannot set permission context");
+                throw new OdinSecurityException("Cannot set permission context since it is already set");
             }
 
             PermissionsContext = pc;

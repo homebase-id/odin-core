@@ -91,8 +91,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
-            IOdinContext odinContext,
-            bool excludePreviewThumbnail = true)
+            ResultOptions options, IOdinContext odinContext)
         {
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
@@ -103,6 +102,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            var headers = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext);
+            return headers.SingleOrDefault();
+        }
+
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
+            IOdinContext odinContext,
+            bool excludePreviewThumbnail = true)
+        {
             var options = new ResultOptions()
             {
                 MaxRecords = 10,
@@ -110,8 +117,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = excludePreviewThumbnail
             };
 
-            var headers = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext);
-            return headers.SingleOrDefault();
+            return await GetFileByClientUniqueId(driveId, clientUniqueId, options, odinContext);
         }
 
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext,

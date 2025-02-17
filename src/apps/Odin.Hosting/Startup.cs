@@ -11,6 +11,7 @@ using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,8 +50,10 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Hosting.PersonMetadata;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
+using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting
 {
@@ -252,7 +255,7 @@ namespace Odin.Hosting
         {
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
-           
+
             builder.AddSystemBackgroundServices();
             builder.AddJobManagerServices();
 
@@ -388,6 +391,29 @@ namespace Odin.Hosting
                         homeApp.UseSpa(
                             spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
                     });
+                
+                // app.MapWhen(ctx => true,
+                //     homeApp =>
+                //     {
+                //         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
+                //
+                //         homeApp.UseStaticFiles(new StaticFileOptions()
+                //         {
+                //             FileProvider = new PhysicalFileProvider(publicPath),
+                //             // RequestPath = "/"
+                //         });
+                //
+                //         homeApp.Run(async context =>
+                //         {
+                //             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                //                                             
+                //             var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                //             var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
+                //
+                //             var indexFile = Path.Combine(publicPath, "index.html");
+                //             await svc.WriteIndexFileAsync(indexFile, odinContext);
+                //         });
+                //     });
             }
             else
             {
@@ -481,7 +507,6 @@ namespace Odin.Hosting
                         });
                     });
 
-                // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                 app.MapWhen(ctx => true,
                     homeApp =>
                     {
@@ -496,7 +521,12 @@ namespace Odin.Hosting
                         homeApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                                                            
+                            var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                            var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
+
+                            var indexFile = Path.Combine(publicPath, "index.html");
+                            await svc.WriteIndexFileAsync(indexFile, odinContext);
                         });
                     });
             }
@@ -555,6 +585,7 @@ namespace Odin.Hosting
                 services.ShutdownSystemBackgroundServices().BlockingWait();
             });
         }
+
 
         private void PrepareEnvironment(OdinConfiguration cfg)
         {
