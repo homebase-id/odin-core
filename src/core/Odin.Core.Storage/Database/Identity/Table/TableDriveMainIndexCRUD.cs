@@ -456,7 +456,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"uniqueId BYTEA , "
                    +"byteCount BIGINT NOT NULL, "
                    +"hdrEncryptedKeyHeader TEXT NOT NULL, "
-                   +"hdrVersionTag BYTEA NOT NULL UNIQUE, "
+                   +"hdrVersionTag BYTEA NOT NULL, "
                    +"hdrAppData TEXT NOT NULL, "
                    +"hdrLocalVersionTag BYTEA , "
                    +"hdrLocalAppData TEXT , "
@@ -472,6 +472,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", PRIMARY KEY (identityId,driveId,fileId)"
                    +", UNIQUE(identityId,driveId,uniqueId)"
                    +", UNIQUE(identityId,driveId,globalTransitId)"
+                   +", UNIQUE(identityId,hdrVersionTag)"
                    +");"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
                    ;
