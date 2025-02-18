@@ -194,9 +194,9 @@ public static class CommandLine
         //    launchSettings.json :"commandLineArgs": "--transferhistory /Users/taud/tmp/dotyou/tenants/"
         //
         
-        if (args.Length == 2 && args[0] == "--transferhistory")
+        if (args.Length == 2 && args[0] == "--addcorrelationid")
         {
-            TransferHistoryMigration.Execute(args[1]);
+            CreateCorrelationIdOnInboxAndOutbox.Execute(args[1]);
             return (true, 0);
         }
         

@@ -86,7 +86,7 @@ public class TableOutbox(
                                           ORDER BY priority ASC, nextRunTime ASC
                                           LIMIT 1
                                     );
-                                    SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified
+                                    SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified
                                     FROM outbox
                                     WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp;
                                     """;
