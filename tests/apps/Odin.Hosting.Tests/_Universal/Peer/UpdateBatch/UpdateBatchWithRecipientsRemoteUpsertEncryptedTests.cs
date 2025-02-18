@@ -122,7 +122,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             keyHeader);
 
         Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -195,7 +195,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             Assert.IsNotNull(updateFileResponse.Content);
-            await callerDriveClient.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
@@ -322,7 +322,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             keyHeader);
 
         Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -395,7 +395,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             Assert.IsNotNull(updateFileResponse.Content);
-            await callerDriveClient.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
@@ -517,7 +517,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             testPayloads);
 
         Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -611,7 +611,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             Assert.IsNotNull(updateFileResponse.Content);
-            await callerDriveClient.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
