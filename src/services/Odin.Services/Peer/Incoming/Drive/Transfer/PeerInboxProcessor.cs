@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
 using Odin.Services.Base;
@@ -31,8 +32,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         ILogger<PeerInboxProcessor> logger,
         PublicPrivateKeyService keyService,
         DriveManager driveManager,
-        ReactionContentService reactionContentService)
+        ReactionContentService reactionContentService,
+        ICorrelationContext correlationContext)
     {
+        private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "INBX");
+
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
         public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
@@ -76,6 +80,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         private async Task ProcessInboxItemAsync(TransferInboxItem inboxItem, IOdinContext odinContext)
         {
+            correlationContext.Id = inboxItem.CorrelationId ?? FallbackCorrelationId;
+            logger.LogDebug("Begin processing Inbox item");
+
             PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
 
             // await db.CreateCommitUnitOfWorkAsync(async () =>

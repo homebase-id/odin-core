@@ -140,7 +140,7 @@ public class SendFileOutboxWorkerAsync(
             }
             catch (Exception e)
             {
-                logger.LogDebug(e, "ERR SendOutboxFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                logger.LogDebug(e, "SendOutboxFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
                 throw;
             }
             finally
