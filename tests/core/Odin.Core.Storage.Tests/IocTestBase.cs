@@ -6,6 +6,7 @@ using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Cache;
+using Odin.Core.Logging;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
@@ -92,6 +93,7 @@ public abstract class IocTestBase
             .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, logEventLevel))
             .SingleInstance();
 
+        builder.RegisterModule(new LoggingAutofacModule());
         builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
 
         builder.AddDatabaseCacheServices();

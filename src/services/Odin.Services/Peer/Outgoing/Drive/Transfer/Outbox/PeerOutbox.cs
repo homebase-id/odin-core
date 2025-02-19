@@ -145,7 +145,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             OutboxItemState state;
             state = OdinSystemSerializer.DeserializeOrThrow<OutboxItemState>(record.value.ToStringFromUtf8Bytes());
 
-            var item = new OutboxFileItem()
+            var item = new OutboxFileItem
             {
                 File = new InternalDriveFileId()
                 {
@@ -160,7 +160,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 AttemptCount = record.checkOutCount,
                 Marker = record.checkOutStamp.GetValueOrDefault(),
-                State = state
+                State = state,
+                CorrelationId = record.correlationId,
             };
 
             return item;

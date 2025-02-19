@@ -23,8 +23,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Autofac" Version="8.2.0" />
-        <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
         <PackageReference Include="HttpClientFactoryLite" Version="0.4.0"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="9.0.1" />
         <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="9.0.1" />
