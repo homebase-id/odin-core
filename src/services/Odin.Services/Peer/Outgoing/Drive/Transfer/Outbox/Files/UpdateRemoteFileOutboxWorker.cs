@@ -142,7 +142,7 @@ public class UpdateRemoteFileOutboxWorker(
             }
             catch (Exception e)
             {
-                logger.LogDebug(e, "ERR SendUpdatedFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                logger.LogDebug(e, "SendUpdatedFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
                 throw;
             }
             finally
