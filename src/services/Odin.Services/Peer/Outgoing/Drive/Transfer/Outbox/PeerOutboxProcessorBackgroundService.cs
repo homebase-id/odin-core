@@ -39,7 +39,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILoggerFactory loggerFactory,
         TenantContext tenantContext) : AbstractBackgroundService(logger)
     {
-        private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "xxxx");
+        private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "OUBX");
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
