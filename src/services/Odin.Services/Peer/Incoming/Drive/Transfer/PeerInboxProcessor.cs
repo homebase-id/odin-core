@@ -22,6 +22,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
+using static Org.BouncyCastle.Bcpg.Attr.ImageAttrib;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -120,21 +121,31 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         logger.LogInformation(
                             "Found inbox item of type CommandMessage; these are now obsolete (gtid: {gtid} InstructionType:{it}); Action: Marking Complete",
                             inboxItem.GlobalTransitId, inboxItem.InstructionType);
+                        return true;
                     }
-                    else if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeedViaTransit)
+                    
+                    if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeedViaTransit)
                     {
                         //this was a file sent over transit (fully encrypted for connected identities but targeting the feed drive)
                         await ProcessFeedItemViaTransit(inboxItem, odinContext, writer, tempFile, fs);
+                        return true;
                     }
-                    else if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed) //older path
+                    
+                    if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed) //older path
                     {
                         await ProcessEccEncryptedFeedInboxItem(inboxItem, writer, tempFile, fs, odinContext);
+                        return true;
+                    }
+
+                    if (inboxItem.TransferFileType == TransferFileType.Normal)
+                    {
+                        await ProcessNormalFileSaveOperation(inboxItem, odinContext, writer, tempFile, fs);
+                        return true;
                     }
                     else
                     {
-                        await ProcessNormalFileSaveOperation(inboxItem, odinContext, writer, tempFile, fs);
+                        throw new OdinClientException("Invalid TransferFileType in SaveFile", OdinClientErrorCode.InvalidTransferType);
                     }
-                    return true;
                 }
 
                 if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
