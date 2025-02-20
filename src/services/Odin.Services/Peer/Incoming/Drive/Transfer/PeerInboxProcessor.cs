@@ -319,15 +319,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = inboxItem.DriveId
             };
 
-            string reaction;
-            try
-            {
-                reaction = DecryptUsingSharedSecret<string>(request.Payload);
-            }
-            catch (Exception ex)
-            {
-                throw new OdinClientException("HandleReaction -> Failed to decrypt reaction payload", ex);
-            }
+            string reaction = DecryptUsingSharedSecret<string>(request.Payload);
 
             switch (inboxItem.InstructionType)
             {
