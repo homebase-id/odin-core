@@ -142,10 +142,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         await ProcessNormalFileSaveOperation(inboxItem, odinContext, writer, tempFile, fs);
                         return true;
                     }
-                    else
-                    {
-                        throw new OdinClientException("Invalid TransferFileType in SaveFile", OdinClientErrorCode.InvalidTransferType);
-                    }
+
+                    throw new OdinClientException("Invalid TransferFileType in SaveFile", OdinClientErrorCode.InvalidTransferType);
                 }
 
                 if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
@@ -175,11 +173,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     await HandleReaction(inboxItem, fs, odinContext);
                     return true;
                 }
-                else
-                {
-                    throw new OdinClientException("Invalid transfer type or not specified", OdinClientErrorCode.InvalidTransferType);
-                }
-                // Unreachable code here
+
+                throw new OdinClientException("Invalid transfer type or not specified", OdinClientErrorCode.InvalidTransferType);
             }
             catch (OdinRemoteIdentityException ex)
             {
