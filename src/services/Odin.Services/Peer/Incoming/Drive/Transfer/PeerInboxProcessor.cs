@@ -84,6 +84,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     await transitInboxBoxStorage.MarkFailureAsync(tempFile, inboxItem.Marker);
                     logger.LogDebug(ex, "Failed processing inbox item for drive {driveId}", driveId);
+                    throw;
                 }
             }
 
@@ -170,7 +171,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinRemoteIdentityException)
             {
-                await transitInboxBoxStorage.MarkFailureAsync(tempFile, inboxItem.Marker);
                 throw;
             }
             catch (OdinFileWriteException ofwe)
