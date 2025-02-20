@@ -326,7 +326,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to decrypt reaction payload for gtid: {gtid}", inboxItem.GlobalTransitId);
                 throw new OdinClientException("HandleReaction -> Failed to decrypt reaction payload", ex);
             }
 
