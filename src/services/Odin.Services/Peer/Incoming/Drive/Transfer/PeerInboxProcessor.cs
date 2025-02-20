@@ -68,33 +68,25 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
                 logger.LogDebug("Processing Inbox (no call to CUOWA) item with marker/popStamp [{marker}]", inboxItem.Marker);
 
-
                 var tempFile = new InternalDriveFileId() { DriveId = inboxItem.DriveId, FileId = inboxItem.FileId };
+                var b = await ProcessInboxItemAsync(inboxItem, odinContext);
 
-                try
-                {
-                    var b = await ProcessInboxItemAsync(inboxItem, odinContext);
-
-                    if (b == true)
-                        await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
-                    else
-                        await transitInboxBoxStorage.MarkFailureAsync(tempFile, inboxItem.Marker);
-                }
-                catch (Exception ex)
-                {
+                if (b == true)
+                    await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
+                else
                     await transitInboxBoxStorage.MarkFailureAsync(tempFile, inboxItem.Marker);
-                    logger.LogDebug(ex, "Failed processing inbox item for drive {driveId}", driveId);
-                    throw;
-                }
             }
 
             return await GetPendingCountAsync(targetDrive, driveId);
         }
 
+
         /// <summary>
         /// Processes incoming transfers by converting their transfer
         /// keys and moving files to long term storage.  Returns the number of items in the inbox
-        /// return true: The item is "complete", false: the item is failed.
+        /// return true: The item is "complete" and should be removed from the inbox, 
+        /// return false: the item is failed and we should retry later
+        /// This function should never throw an exception, only return true / false
         /// </summary>
         private async Task<bool> ProcessInboxItemAsync(TransferInboxItem inboxItem, IOdinContext odinContext)
         {
@@ -169,9 +161,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 return true;
             }
-            catch (OdinRemoteIdentityException)
+            catch (OdinRemoteIdentityException ex)
             {
-                throw;
+                logger.LogError(ex, "Remote identity exception.");
+                return false;
             }
             catch (OdinFileWriteException ofwe)
             {
@@ -242,7 +235,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                return true;
+                return false; // TODD TODO IMPORTANT. THIS WAS TRUE - BUT SHOULDN'T IT BE FALSE?
             }
         }
 
