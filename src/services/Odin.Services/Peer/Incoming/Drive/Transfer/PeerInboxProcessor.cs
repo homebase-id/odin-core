@@ -106,11 +106,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             try
             {
                 var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
+
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
                     await HandleUpdateFileAsync(inboxItem, odinContext);
+                    return true;
                 }
-                else if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
+
+                if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                 {
                     if (inboxItem.TransferFileType == TransferFileType.CommandMessage)
                     {
@@ -131,14 +134,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         await ProcessNormalFileSaveOperation(inboxItem, odinContext, writer, tempFile, fs);
                     }
+                    return true;
                 }
-                else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
+
+                if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                 {
                     logger.LogDebug("Processing Inbox -> DeleteFile marker/popstamp:[{maker}]",
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                     await writer.DeleteFile(fs, inboxItem, odinContext);
+                    return true;
                 }
-                else if (inboxItem.InstructionType == TransferInstructionType.ReadReceipt)
+
+                if (inboxItem.InstructionType == TransferInstructionType.ReadReceipt)
                 {
                     logger.LogDebug("Processing Inbox -> ReadReceipt (gtid: {gtid} gtid as hex x'{gtidHex}') marker/popstamp:[{maker}] " +
                                     "InboxAdded Time(ms) {added}",
@@ -149,17 +156,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                     await writer.MarkFileAsRead(fs, inboxItem, odinContext);
                     logger.LogDebug(ReadReceiptItemMarkedComplete);
+                    return true;
                 }
-                else if (inboxItem.InstructionType is TransferInstructionType.AddReaction or TransferInstructionType.DeleteReaction)
+
+                if (inboxItem.InstructionType is TransferInstructionType.AddReaction or TransferInstructionType.DeleteReaction)
                 {
                     await HandleReaction(inboxItem, fs, odinContext);
+                    return true;
                 }
                 else
                 {
                     throw new OdinClientException("Invalid transfer type or not specified", OdinClientErrorCode.InvalidTransferType);
                 }
-
-                return true;
+                // Unreachable code here
             }
             catch (OdinRemoteIdentityException ex)
             {
