@@ -463,7 +463,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 var (requiresUpgrade, tenantVersion, _) = await scope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
                 if (requiresUpgrade)
                 {
-                    _logger.LogError("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
+                    _logger.LogDebug("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
                         registration.PrimaryDomainName,
                         tenantVersion,
                         Version.DataVersionNumber);
