@@ -136,7 +136,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         public async Task AutoFixCircleGrantsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
             await using var tx = await db.BeginStackedTransactionAsync();
 

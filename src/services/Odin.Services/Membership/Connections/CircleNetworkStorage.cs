@@ -147,12 +147,11 @@ public class CircleNetworkStorage
         tx.Commit();
     }
 
-    public async Task<(IEnumerable<IdentityConnectionRegistration>, UnixTimeUtc? nextCursor, long nextRowIdCursor)> GetListAsync(int count,
-        UnixTimeUtc? cursor, long rowIdCursor,
+    public async Task<(IEnumerable<IdentityConnectionRegistration>, string cursor)> GetListAsync(int count,
+        string cursor,
         ConnectionStatus connectionStatus)
     {
-        string adjustedCursor = cursor == null ? null : cursor.ToString()+","+rowIdCursor.ToString();
-        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
+        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, cursor);
 
         // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
         // single db connection that is not thread safe.
@@ -162,11 +161,7 @@ public class CircleNetworkStorage
             mappedRecords.Add(await MapFromStorageAsync(record));
         }
 
-        UnixTimeUtc? utc = null;
-        if (MainIndexMeta.TryParseModifiedCursor(nextCursor, out var ts, out var rowId))
-            utc = new UnixTimeUtc(ts);
-
-        return (mappedRecords, utc, rowId);
+        return (mappedRecords, nextCursor);
     }
 
     /// <summary>

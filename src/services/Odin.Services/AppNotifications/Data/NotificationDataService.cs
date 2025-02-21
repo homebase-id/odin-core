@@ -86,7 +86,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var nr = new NotificationsListResult()
         {
-            Cursor = cursor, // Or should null be empty string ""?
+            Cursor = cursor ?? "",
             Results = list.ToList()
         };
 
