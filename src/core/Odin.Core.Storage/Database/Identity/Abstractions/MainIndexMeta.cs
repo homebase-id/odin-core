@@ -641,7 +641,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             /* if (tmp > 1L << 42)
                 tmp = tmp >> 16; // It's ms plus 16 bit counter, convert to just ms utc unixtime*/
 
-            listWhereAnd.Add($"modified >= {modifiedTimeCursor} AND rowId > {rowIdCursor}");
+            listWhereAnd.Add($"modified >= {modifiedTimeCursor} AND driveMainIndex.rowId > {rowIdCursor}");
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
@@ -653,7 +653,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 fileSystemType, driveId);
 
             // string selectOutputFields =  "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC, rowId ASC LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC, driveMainIndex.rowId ASC LIMIT {noOfItems + 1}";
             // string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
