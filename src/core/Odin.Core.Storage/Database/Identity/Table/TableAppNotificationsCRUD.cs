@@ -541,7 +541,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (inCursor == null)
                 inCursor = new UnixTimeUtc(long.MaxValue);
             if (rowid == null)
-                rowid = long.MaxValue-1;
+                rowid = long.MaxValue;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging7Command = cn.CreateCommand();
