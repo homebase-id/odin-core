@@ -58,7 +58,7 @@ public class TableConnections(
         UnixTimeUtc? utc = null;
 
         if (MainIndexMeta.TryParseModifiedCursor(cursor, out var ts, out var rowId))
-            utc = new UnixTimeUtc(ts);
+            utc = new UnixTimeUtc(ts!.Value);
 
         var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, utc, rowId);
 
@@ -70,7 +70,7 @@ public class TableConnections(
         UnixTimeUtc? utc = null;
 
         if (MainIndexMeta.TryParseModifiedCursor(cursor, out var ts, out var rowId))
-            utc = new UnixTimeUtc(ts);
+            utc = new UnixTimeUtc(ts!.Value);
 
         var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, utc, rowId);
 

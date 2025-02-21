@@ -566,27 +566,29 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
 
         /// <summary>
-        /// Cursor format is a string of "timestamp,rowid" and old cursors will just be "timestamp" with no ",rowid"
+        /// Cursor format is a string of "timestamp,rowid" but old cursors will just be "timestamp" with no ",rowid"
         /// </summary>
-        /// <returns>true if parsed successfully, if false, both out are set to zero</returns>
-        public static bool TryParseModifiedCursor(string cursor, out long timestamp, out long rowId)
+        /// <returns>true if parsed successfully, if false, return longs are null if can't be parsed</returns>
+        public static bool TryParseModifiedCursor(string cursor, out long? timestamp, out long? rowId)
         {
-            timestamp = 0;
-            rowId = 0;
+            timestamp = null;
+            rowId = null;
 
             if (cursor == null)
                 return false;
 
             var parts = cursor.Split(',');
 
-            if (parts.Length == 1 && long.TryParse(parts[0], out timestamp))
+            if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
             {
+                timestamp = ts >> 16;  // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
                 return true;
             }
             else if (parts.Length == 2 &&
-                     long.TryParse(parts[0], out timestamp) &&
+                     long.TryParse(parts[0], out long ts2) &&
                      long.TryParse(parts[1], out long parsedRowId))
             {
+                timestamp = ts2;
                 rowId = parsedRowId;
                 return true;
             }
@@ -640,6 +642,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var listWhereAnd = new List<string>();
 
             TryParseModifiedCursor(cursor, out var modifiedTimeCursor, out var rowIdCursor);
+
+            if (modifiedTimeCursor == null)
+                modifiedTimeCursor = 0;
+
+            if (rowIdCursor == null)
+                rowIdCursor = 0;
 
             /* if (tmp > 1L << 42)
                 tmp = tmp >> 16; // It's ms plus 16 bit counter, convert to just ms utc unixtime*/

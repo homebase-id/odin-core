@@ -640,17 +640,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtc? inCursor, long rowid)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtc? inCursor, long? rowid)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (count == int.MaxValue)
                 count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
-            {
                 inCursor = new UnixTimeUtc(long.MaxValue);
+            if (rowid == null)
                 rowid = long.MaxValue-1;
-            }
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging7Command = cn.CreateCommand();
@@ -707,17 +706,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtc? inCursor, long rowid)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtc? inCursor, long? rowid)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (count == int.MaxValue)
                 count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
-            {
                 inCursor = new UnixTimeUtc(long.MaxValue);
+            if (rowid == null)
                 rowid = long.MaxValue-1;
-            }
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging7Command = cn.CreateCommand();
