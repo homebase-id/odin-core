@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class DriveMainIndexRecord
     {
+        private Int64 _rowid;
+        public Int64 rowid
+        {
+           get {
+                   return _rowid;
+               }
+           set {
+                  _rowid = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -1083,6 +1093,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowid");
             sl.Add("identityId");
             sl.Add("driveId");
             sl.Add("fileId");
@@ -1134,7 +1145,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
+        // SELECT rowid,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
         protected DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
@@ -1143,35 +1154,36 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveMainIndexRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.fileId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.globalTransitId = (rdr[3] == DBNull.Value) ? null : new Guid((byte[])rdr[3]);
-            item.fileState = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.requiredSecurityGroup = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.fileSystemType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.userDate = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.fileType = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-            item.dataType = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-            item.archivalStatus = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
-            item.historyStatus = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[11];
-            item.senderIdNoLengthCheck = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
-            item.groupId = (rdr[13] == DBNull.Value) ? null : new Guid((byte[])rdr[13]);
-            item.uniqueId = (rdr[14] == DBNull.Value) ? null : new Guid((byte[])rdr[14]);
-            item.byteCount = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[15];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
-            item.hdrVersionTag = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[17]);
-            item.hdrAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[18];
-            item.hdrLocalVersionTag = (rdr[19] == DBNull.Value) ? null : new Guid((byte[])rdr[19]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
-            item.hdrServerDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[23] == DBNull.Value) ? null : (string)rdr[23];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[24];
-            item.hdrTmpDriveAlias = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[25]);
-            item.hdrTmpDriveType = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[26]);
-            item.created = (rdr[27] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[27]);
-            item.modified = (rdr[28] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[28]);
+            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.globalTransitId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
+            item.fileState = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.requiredSecurityGroup = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.fileSystemType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.userDate = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.fileType = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.dataType = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
+            item.archivalStatus = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[11];
+            item.historyStatus = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[12];
+            item.senderIdNoLengthCheck = (rdr[13] == DBNull.Value) ? null : (string)rdr[13];
+            item.groupId = (rdr[14] == DBNull.Value) ? null : new Guid((byte[])rdr[14]);
+            item.uniqueId = (rdr[15] == DBNull.Value) ? null : new Guid((byte[])rdr[15]);
+            item.byteCount = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[16];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
+            item.hdrVersionTag = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[18]);
+            item.hdrAppDataNoLengthCheck = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
+            item.hdrLocalVersionTag = (rdr[20] == DBNull.Value) ? null : new Guid((byte[])rdr[20]);
+            item.hdrLocalAppDataNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrReactionSummaryNoLengthCheck = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
+            item.hdrServerDataNoLengthCheck = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
+            item.hdrTransferHistoryNoLengthCheck = (rdr[24] == DBNull.Value) ? null : (string)rdr[24];
+            item.hdrFileMetaDataNoLengthCheck = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[25];
+            item.hdrTmpDriveAlias = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[26]);
+            item.hdrTmpDriveType = (rdr[27] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[27]);
+            item.created = (rdr[28] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[28]);
+            item.modified = (rdr[29] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[29]);
             return item;
        }
 
@@ -1211,32 +1223,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.uniqueId = uniqueId;
-            item.fileId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.globalTransitId = (rdr[1] == DBNull.Value) ? null : new Guid((byte[])rdr[1]);
-            item.fileState = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.requiredSecurityGroup = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.fileSystemType = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.userDate = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.fileType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.dataType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-            item.archivalStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-            item.historyStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-            item.senderIdNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
-            item.groupId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
-            item.byteCount = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-            item.hdrVersionTag = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
-            item.hdrAppDataNoLengthCheck = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
-            item.hdrLocalVersionTag = (rdr[16] == DBNull.Value) ? null : new Guid((byte[])rdr[16]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
-            item.hdrServerDataNoLengthCheck = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
-            item.hdrTmpDriveAlias = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
-            item.hdrTmpDriveType = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
-            item.created = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[24]);
-            item.modified = (rdr[25] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[25]);
+            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.globalTransitId = (rdr[2] == DBNull.Value) ? null : new Guid((byte[])rdr[2]);
+            item.fileState = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.requiredSecurityGroup = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.fileSystemType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.userDate = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.fileType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.dataType = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.archivalStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.historyStatus = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
+            item.senderIdNoLengthCheck = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
+            item.groupId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
+            item.byteCount = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.hdrVersionTag = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
+            item.hdrAppDataNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrLocalVersionTag = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
+            item.hdrLocalAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
+            item.hdrReactionSummaryNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrServerDataNoLengthCheck = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistoryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
+            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[26]);
             return item;
        }
 
@@ -1245,7 +1258,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get0Command.CommandText = "SELECT rowid,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
@@ -1285,32 +1298,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.globalTransitId = globalTransitId;
-            item.fileId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.fileState = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.requiredSecurityGroup = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.fileSystemType = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.userDate = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.fileType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.dataType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.archivalStatus = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-            item.historyStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-            item.senderIdNoLengthCheck = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
-            item.groupId = (rdr[10] == DBNull.Value) ? null : new Guid((byte[])rdr[10]);
-            item.uniqueId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
-            item.byteCount = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-            item.hdrVersionTag = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
-            item.hdrAppDataNoLengthCheck = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
-            item.hdrLocalVersionTag = (rdr[16] == DBNull.Value) ? null : new Guid((byte[])rdr[16]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
-            item.hdrServerDataNoLengthCheck = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
-            item.hdrTmpDriveAlias = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
-            item.hdrTmpDriveType = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
-            item.created = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[24]);
-            item.modified = (rdr[25] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[25]);
+            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.fileState = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.requiredSecurityGroup = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.fileSystemType = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.userDate = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.fileType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.dataType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.archivalStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.historyStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.senderIdNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
+            item.groupId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
+            item.uniqueId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
+            item.byteCount = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.hdrVersionTag = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
+            item.hdrAppDataNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrLocalVersionTag = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
+            item.hdrLocalAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
+            item.hdrReactionSummaryNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrServerDataNoLengthCheck = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistoryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
+            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[26]);
             return item;
        }
 
@@ -1319,7 +1333,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get1Command.CommandText = "SELECT rowid,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
@@ -1358,33 +1372,34 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new DriveMainIndexRecord();
             item.identityId = identityId;
             item.driveId = driveId;
-            item.fileId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.globalTransitId = (rdr[1] == DBNull.Value) ? null : new Guid((byte[])rdr[1]);
-            item.fileState = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.requiredSecurityGroup = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.fileSystemType = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.userDate = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.fileType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.dataType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-            item.archivalStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-            item.historyStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-            item.senderIdNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
-            item.groupId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
-            item.uniqueId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
-            item.byteCount = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
-            item.hdrVersionTag = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
-            item.hdrAppDataNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
-            item.hdrLocalVersionTag = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
-            item.hdrServerDataNoLengthCheck = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
-            item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
-            item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
-            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
-            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[26]);
+            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.globalTransitId = (rdr[2] == DBNull.Value) ? null : new Guid((byte[])rdr[2]);
+            item.fileState = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.requiredSecurityGroup = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.fileSystemType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.userDate = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.fileType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.dataType = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.archivalStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.historyStatus = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
+            item.senderIdNoLengthCheck = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
+            item.groupId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
+            item.uniqueId = (rdr[13] == DBNull.Value) ? null : new Guid((byte[])rdr[13]);
+            item.byteCount = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[14];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
+            item.hdrVersionTag = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[16]);
+            item.hdrAppDataNoLengthCheck = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
+            item.hdrLocalVersionTag = (rdr[18] == DBNull.Value) ? null : new Guid((byte[])rdr[18]);
+            item.hdrLocalAppDataNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrReactionSummaryNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
+            item.hdrServerDataNoLengthCheck = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
+            item.hdrTransferHistoryNoLengthCheck = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
+            item.hdrFileMetaDataNoLengthCheck = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
+            item.hdrTmpDriveAlias = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+            item.hdrTmpDriveType = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[25]);
+            item.created = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[26]);
+            item.modified = (rdr[27] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[27]);
             return item;
        }
 
@@ -1393,7 +1408,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get2Command.CommandText = "SELECT rowid,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Param1.ParameterName = "@identityId";
@@ -1429,32 +1444,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.fileId = fileId;
-            item.globalTransitId = (rdr[0] == DBNull.Value) ? null : new Guid((byte[])rdr[0]);
-            item.fileState = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.requiredSecurityGroup = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.fileSystemType = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.userDate = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.fileType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.dataType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.archivalStatus = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-            item.historyStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-            item.senderIdNoLengthCheck = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
-            item.groupId = (rdr[10] == DBNull.Value) ? null : new Guid((byte[])rdr[10]);
-            item.uniqueId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
-            item.byteCount = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[12];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-            item.hdrVersionTag = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[14]);
-            item.hdrAppDataNoLengthCheck = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
-            item.hdrLocalVersionTag = (rdr[16] == DBNull.Value) ? null : new Guid((byte[])rdr[16]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
-            item.hdrServerDataNoLengthCheck = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
-            item.hdrTmpDriveAlias = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[22]);
-            item.hdrTmpDriveType = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
-            item.created = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[24]);
-            item.modified = (rdr[25] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[25]);
+            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.globalTransitId = (rdr[1] == DBNull.Value) ? null : new Guid((byte[])rdr[1]);
+            item.fileState = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.requiredSecurityGroup = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.fileSystemType = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.userDate = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.fileType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.dataType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.archivalStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.historyStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.senderIdNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
+            item.groupId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
+            item.uniqueId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
+            item.byteCount = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.hdrVersionTag = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
+            item.hdrAppDataNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrLocalVersionTag = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
+            item.hdrLocalAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
+            item.hdrReactionSummaryNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrServerDataNoLengthCheck = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistoryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
+            item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
+            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[26]);
             return item;
        }
 
@@ -1463,7 +1479,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
-                get3Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get3Command.CommandText = "SELECT rowid,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
                 var get3Param1 = get3Command.CreateParameter();
                 get3Param1.ParameterName = "@identityId";

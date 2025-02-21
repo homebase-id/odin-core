@@ -34,9 +34,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 TableDriveMainIndex.GetColumnNames()
                     .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
                                 && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
-                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase)
-                                    ? "driveMainIndex.fileId"
-                                    : name));
+                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.fileId" :
+                                    name.Equals("rowId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.rowId" :
+                                    name));
         }
 
         public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
@@ -564,6 +564,33 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return (result, moreRows, refCursor);
         }
 
+
+        /// <summary>
+        /// Cursor format is a string of "timestamp,rowid" and old cursors will just be "timestamp" with no ",rowid"
+        /// </summary>
+        /// <returns>true if parsed successfully, if false, both out are set to zero</returns>
+        private bool ParseModifiedCursor(string cursor, out long timestamp, out long rowId)
+        {
+            timestamp = 0;
+            rowId = 0;
+
+            string[] parts = cursor.Split(',');
+
+            if (parts.Length == 1 && long.TryParse(parts[0], out timestamp))
+            {
+                return true;
+            }
+            else if (parts.Length == 2 &&
+                     long.TryParse(parts[0], out timestamp) &&
+                     long.TryParse(parts[1], out long parsedRowId))
+            {
+                rowId = parsedRowId;
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
         /// </summary>
@@ -609,11 +636,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var listWhereAnd = new List<string>();
 
-            UnixTimeUtcUnique realCursor;
 
-            realCursor = new UnixTimeUtcUnique(Convert.ToInt64(cursor));
+            //
+            // 
+            //
+            ParseModifiedCursor(cursor, out var updateTimeCursor, out var rowIdCursor);
+            /* if (tmp > 1L << 42)
+                tmp = tmp >> 16; // It's ms plus 16 bit counter, convert to just ms utc unixtime*/
 
-            listWhereAnd.Add($"modified > {realCursor.uniqueTime}");
+            listWhereAnd.Add($"modified > {updateTimeCursor}");
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
@@ -640,6 +671,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 int i = 0;
                 long ts = 0;
+                long rid = 0;
 
                 while (await rdr.ReadAsync())
                 {
@@ -647,13 +679,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     _fileId = r.fileId.ToByteArray();
                     result.Add(r);
                     ts = (long) r.modified?.uniqueTime; // XXX
+                    rid = (long)r.rowid;
                     i++;
                     if (i >= noOfItems)
                         break;
                 }
 
                 if (i > 0)
-                    cursor = ts.ToString();
+                    cursor = ts.ToString(); //  +","+rid.ToString();
 
                 return (result, await rdr.ReadAsync(), cursor);
             } // using rdr
