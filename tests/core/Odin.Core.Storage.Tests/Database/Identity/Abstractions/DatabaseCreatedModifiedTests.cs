@@ -106,7 +106,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(loaded.modified == item1.modified);
             ClassicAssert.IsTrue(loaded.created == item1.created);
 
-
             var copyModified = item1.modified;
             Thread.Sleep(1000);
             await tblConnections.UpdateAsync(item1);
