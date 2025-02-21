@@ -333,8 +333,6 @@ public class TableOutbox(
         return (totalCount, poppedCount, utc);
     }
 
-
-
     /// <summary>
     /// Status on the box
     /// </summary>
