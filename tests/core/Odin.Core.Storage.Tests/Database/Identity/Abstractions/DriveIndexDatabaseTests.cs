@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Docker.DotNet.Models;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -2884,7 +2885,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(md.dataType == 6);
             Debug.Assert(md.userDate == new UnixTimeUtc(42));
 
-            Assert.True(md.requiredSecurityGroup == 333);
+            ClassicAssert.True(md.requiredSecurityGroup == 333);
 
             // UInt64 tmpCursor = UnixTime.UnixTimeMillisecondsUnique();
             // Now check that we can't find the one modified item with a newer cursor 

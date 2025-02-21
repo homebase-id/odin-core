@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -35,18 +36,18 @@ public class ThreeKeyValueStorageTests : IocTestBase
 
         const string expectedValue1 = "some value";
         await kvp1.UpsertAsync(tblKeyThreeValue, pk, dataTypeKey, dataCategoryKey, expectedValue1);
-        Assert.IsTrue(await kvp1.GetAsync<string>(tblKeyThreeValue, pk) == expectedValue1);
+        ClassicAssert.IsTrue(await kvp1.GetAsync<string>(tblKeyThreeValue, pk) == expectedValue1);
 
         await kvp1.DeleteAsync(tblKeyThreeValue, pk);
-        Assert.IsTrue(await kvp1.GetAsync<string>(tblKeyThreeValue, pk) == null);
+        ClassicAssert.IsTrue(await kvp1.GetAsync<string>(tblKeyThreeValue, pk) == null);
 
         var contextKey2 = Guid.NewGuid();
         var kvp2 = new ThreeKeyValueStorage(contextKey2);
         const string expectedValue2 = "another value";
         await kvp2.UpsertAsync(tblKeyThreeValue, pk, dataTypeKey, dataCategoryKey, expectedValue2);
-        Assert.IsTrue(await kvp2.GetAsync<string>(tblKeyThreeValue, pk) == expectedValue2);
+        ClassicAssert.IsTrue(await kvp2.GetAsync<string>(tblKeyThreeValue, pk) == expectedValue2);
 
         await kvp2.DeleteAsync(tblKeyThreeValue, pk);
-        Assert.IsTrue(await kvp2.GetAsync<string>(tblKeyThreeValue, pk) == null);
+        ClassicAssert.IsTrue(await kvp2.GetAsync<string>(tblKeyThreeValue, pk) == null);
     }
 }

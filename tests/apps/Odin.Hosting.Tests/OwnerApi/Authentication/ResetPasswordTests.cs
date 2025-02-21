@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authentication.Owner;
@@ -62,20 +63,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             //Ensure we can login using the first password
             var firstLoginResponse = await this.Login(identity.OdinId, password, clientEccFullKey);
-            Assert.IsTrue(firstLoginResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(firstLoginResponse.IsSuccessStatusCode);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
             var resetPasswordResponse = await ownerClient.Security.ResetPassword(password, newPassword);
-            Assert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key");
+            ClassicAssert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key");
 
             //login with the password
             var secondLogin = await this.Login(identity.OdinId, newPassword, clientEccFullKey);
-            Assert.IsTrue(secondLogin.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(secondLogin.IsSuccessStatusCode);
             
             //fail to login with the old password
             var thirdLogin = await this.Login(identity.OdinId, password, clientEccFullKey);
-            Assert.IsFalse(thirdLogin.IsSuccessStatusCode, "Should have failed to login with old password");
+            ClassicAssert.IsFalse(thirdLogin.IsSuccessStatusCode, "Should have failed to login with old password");
 
             // Additional tests
             // Test that I can access data in drives as owner; this shows the master key is the same
@@ -95,16 +96,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             //Ensure we can login using the first password
             var firstLoginResponse = await this.Login(identity.OdinId, password, clientEccFullKey);
-            Assert.IsTrue(firstLoginResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(firstLoginResponse.IsSuccessStatusCode);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
             var resetPasswordResponse = await ownerClient.Security.ResetPassword(invalidOldPassword, newPassword);
-            Assert.IsFalse(resetPasswordResponse.IsSuccessStatusCode, $"Should have failed to reset password using invalid old password");
+            ClassicAssert.IsFalse(resetPasswordResponse.IsSuccessStatusCode, $"Should have failed to reset password using invalid old password");
 
             //Ensure we can still login using the first password
             var secondLogin = await this.Login(identity.OdinId, password, clientEccFullKey);
-            Assert.IsTrue(secondLogin.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(secondLogin.IsSuccessStatusCode);
         }
 
         private async Task<ApiResponse<OwnerAuthenticationResult>> Login(OdinId identity, string password, EccFullKeyData clientEccFullKey)

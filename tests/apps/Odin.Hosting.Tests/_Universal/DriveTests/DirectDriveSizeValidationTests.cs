@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -93,7 +94,7 @@ public class DirectDriveSizeValidationTests
         var response = await callerDriveClient.UploadNewMetadata(targetDrive, uploadedFileMetadata);
 
         // Assert
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
     }
 
     [Test]
@@ -125,7 +126,7 @@ public class DirectDriveSizeValidationTests
         var response = await callerDriveClient.UploadNewMetadata(targetDrive, uploadedFileMetadata);
 
         // Assert
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
     }
 
     [Test]
@@ -148,13 +149,13 @@ public class DirectDriveSizeValidationTests
         var originalKeyHeader = KeyHeader.NewRandom16();
         var (response, _) = await ownerApiClient.DriveRedux
             .UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, originalKeyHeader);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
         // Act
 
         var uploadResult = response.Content;
         var getHeaderResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
         var uploadedFile1 = getHeaderResponse1.Content;
 
         await callerContext.Initialize(ownerApiClient);
@@ -174,7 +175,7 @@ public class DirectDriveSizeValidationTests
         var (updateResponse, _) = await callerDriveClient
             .UpdateExistingEncryptedMetadata(uploadResult.File, newKeyHeader, updatedMetadata);
 
-        Assert.IsTrue(updateResponse.StatusCode == HttpStatusCode.BadRequest);
+        ClassicAssert.IsTrue(updateResponse.StatusCode == HttpStatusCode.BadRequest);
     }
 
 
@@ -244,7 +245,7 @@ public class DirectDriveSizeValidationTests
             uploadManifest,
             testPayloads);
         await originalAuthor_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
         // wait for the collab channel to distribute feed
         await collabChannelOwnerClient.DriveRedux.ProcessInbox(collabChannelDrive);
@@ -298,7 +299,7 @@ public class DirectDriveSizeValidationTests
         };
 
         var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
-        Assert.IsTrue(updateFileResponse.StatusCode == HttpStatusCode.BadRequest);
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == HttpStatusCode.BadRequest);
 
         await originalAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);
         await secondaryAuthor_OwnerClient.Connections.DisconnectFrom(collabChannel);

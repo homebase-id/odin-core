@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -66,17 +67,17 @@ public class PeerQueryTests
         // Assert
         // Sam queries frodo over peer (as he would from his owner feed)
         var samOwnerClientQueryResponse = await samOwnerClient.PeerQuery.GetBatch(peerQueryBatchRequest);
-        Assert.IsTrue(samOwnerClientQueryResponse.IsSuccessStatusCode);
-        Assert.IsTrue(samOwnerClientQueryResponse.Content.SearchResults.Count() == 2);
+        ClassicAssert.IsTrue(samOwnerClientQueryResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(samOwnerClientQueryResponse.Content.SearchResults.Count() == 2);
 
         // Pippin queries frodo over peer (as he would from his owner feed)
         var pippinOwnerClientQueryResponse = await pippinOwnerClient.PeerQuery.GetBatch(peerQueryBatchRequest);
-        Assert.IsTrue(pippinOwnerClientQueryResponse.IsSuccessStatusCode);
-        Assert.IsFalse(pippinOwnerClientQueryResponse.Content.SearchResults.Any());
+        ClassicAssert.IsTrue(pippinOwnerClientQueryResponse.IsSuccessStatusCode);
+        ClassicAssert.IsFalse(pippinOwnerClientQueryResponse.Content.SearchResults.Any());
 
         // Merry queries frodo over peer (as he would from his owner feed)
         var merryOwnerClientQueryResponse = await merryOwnerClient.PeerQuery.GetBatch(peerQueryBatchRequest);
-        Assert.IsTrue(merryOwnerClientQueryResponse.IsSuccessStatusCode);
-        Assert.IsFalse(merryOwnerClientQueryResponse.Content.SearchResults.Any());
+        ClassicAssert.IsTrue(merryOwnerClientQueryResponse.IsSuccessStatusCode);
+        ClassicAssert.IsFalse(merryOwnerClientQueryResponse.Content.SearchResults.Any());
     }
 }

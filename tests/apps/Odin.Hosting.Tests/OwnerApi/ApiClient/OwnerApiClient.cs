@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
@@ -93,11 +94,11 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
 
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
             var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
-            Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
             var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
-            Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
+            ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.Content);
         }
     }
 }

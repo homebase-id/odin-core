@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Configuration;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
@@ -61,8 +62,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
 
             var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
-            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSettingsResponse.Content.AuthenticatedIdentitiesCanReactOnAnonymousDrives);
+            ClassicAssert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getSettingsResponse.Content.AuthenticatedIdentitiesCanReactOnAnonymousDrives);
         }
         
         
@@ -74,8 +75,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
 
             var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
-            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
-            Assert.IsFalse(getSettingsResponse.Content.AuthenticatedIdentitiesCanCommentOnAnonymousDrives);
+            ClassicAssert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            ClassicAssert.IsFalse(getSettingsResponse.Content.AuthenticatedIdentitiesCanCommentOnAnonymousDrives);
         }
     }
 }

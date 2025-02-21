@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Configuration.Eula;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
@@ -46,8 +47,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
 
             var eulaResponse = await ownerClient.Configuration.IsEulaSignatureRequired();
-            Assert.IsTrue(eulaResponse.IsSuccessStatusCode);
-            Assert.IsTrue(eulaResponse.Content);
+            ClassicAssert.IsTrue(eulaResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(eulaResponse.Content);
 
             const string version = EulaSystemInfo.RequiredVersion;
             var signature = Guid.NewGuid().ToByteArray();
@@ -58,22 +59,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             });
 
             var eulaResponse2 = await ownerClient.Configuration.IsEulaSignatureRequired();
-            Assert.IsTrue(eulaResponse2.IsSuccessStatusCode);
-            Assert.IsFalse(eulaResponse2.Content);
+            ClassicAssert.IsTrue(eulaResponse2.IsSuccessStatusCode);
+            ClassicAssert.IsFalse(eulaResponse2.Content);
 
 
             var getHistoryResponse = await ownerClient.Configuration.GetEulaSignatureHistory();
-            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
 
             var history = getHistoryResponse.Content;
-            Assert.IsNotNull(history);
+            ClassicAssert.IsNotNull(history);
             var eulaSignature = history.SingleOrDefault(s => s.Version == EulaSystemInfo.RequiredVersion);
-            Assert.IsNotNull(eulaSignature);
+            ClassicAssert.IsNotNull(eulaSignature);
             
-            Assert.IsTrue(eulaSignature.SignatureBytes.Length == signature.Length);
+            ClassicAssert.IsTrue(eulaSignature.SignatureBytes.Length == signature.Length);
 
             var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            Assert.IsTrue(eulaSignature.SignatureDate < nowMs);
+            ClassicAssert.IsTrue(eulaSignature.SignatureDate < nowMs);
         }
 
         [Test]
@@ -88,7 +89,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 SignatureBytes = Guid.NewGuid().ToByteArray()
             });
 
-            Assert.IsTrue(markSignedResponse.StatusCode == HttpStatusCode.BadRequest);
+            ClassicAssert.IsTrue(markSignedResponse.StatusCode == HttpStatusCode.BadRequest);
         }
     }
 }

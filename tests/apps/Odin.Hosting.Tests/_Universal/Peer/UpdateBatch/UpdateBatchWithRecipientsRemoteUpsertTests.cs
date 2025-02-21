@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -107,7 +108,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
         var transitOptions = new TransitOptions { };
 
         var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
@@ -140,26 +141,26 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
 
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            Assert.IsNotNull(updateFileResponse.Content);
+            ClassicAssert.IsNotNull(updateFileResponse.Content);
             await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-            Assert.IsFalse(header.FileMetadata.Payloads.Any());
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
 
             // Ensure we find the file on the recipient
             // 
@@ -173,10 +174,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
 
             // ensure the recipients get the file
 
@@ -186,11 +187,11 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                 var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
                 var remoteFileHeader = recipientFileResponse.Content.SearchResults.FirstOrDefault();
 
-                Assert.IsNotNull(remoteFileHeader);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-                Assert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
+                ClassicAssert.IsNotNull(remoteFileHeader);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+                ClassicAssert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
             }
         }
 
@@ -232,7 +233,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
         };
 
         var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
@@ -265,26 +266,26 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
 
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            Assert.IsNotNull(updateFileResponse.Content);
+            ClassicAssert.IsNotNull(updateFileResponse.Content);
             await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-            Assert.IsFalse(header.FileMetadata.Payloads.Any());
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
 
             // Ensure we find the file on the recipient
             // 
@@ -298,10 +299,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
 
             // ensure the recipients get the file
 
@@ -311,11 +312,11 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                 var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
                 var remoteFileHeader = recipientFileResponse.Content.SearchResults.FirstOrDefault();
 
-                Assert.IsNotNull(remoteFileHeader);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-                Assert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
+                ClassicAssert.IsNotNull(remoteFileHeader);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+                ClassicAssert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
             }
         }
 
@@ -363,7 +364,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
 
         var uploadNewFileResponse =
             await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads, transitOptions);
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
@@ -403,26 +404,26 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
 
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            Assert.IsNotNull(updateFileResponse.Content);
+            ClassicAssert.IsNotNull(updateFileResponse.Content);
             await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-            Assert.IsFalse(header.FileMetadata.Payloads.Any());
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
 
             // Ensure we find the file on the recipient
             // 
@@ -436,10 +437,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
 
             // ensure the recipients get the file
 
@@ -449,11 +450,11 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                 var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
                 var remoteFileHeader = recipientFileResponse.Content.SearchResults.FirstOrDefault();
 
-                Assert.IsNotNull(remoteFileHeader);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-                Assert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
+                ClassicAssert.IsNotNull(remoteFileHeader);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+                ClassicAssert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
 
                 var getPayloadResponse = await client.DriveRedux.GetPayload(new ExternalFileIdentifier()
                 {
@@ -461,7 +462,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                     TargetDrive = targetGlobalTransitIdFileIdentifier.TargetDrive
                 }, testPayloads.Single().Key);
 
-                Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+                ClassicAssert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
             }
         }
 
@@ -480,7 +481,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
             var client = _scaffold.CreateOwnerApiClientRedux(recipient);
             await client.Configuration.DisableAutoAcceptIntroductions(true);
 
-            Assert.IsTrue((await client.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true,
+            ClassicAssert.IsTrue((await client.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true,
                     attributes: new() { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } }
                 ))
                 .IsSuccessStatusCode);
@@ -504,9 +505,9 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
                 PermissionSet = null
             };
 
-            Assert.IsTrue((await client.Network.CreateCircle(circleId, "some circle", grant)).IsSuccessStatusCode);
-            Assert.IsTrue((await client.Connections.SendConnectionRequest(sender.OdinId, [circleId])).IsSuccessStatusCode);
-            Assert.IsTrue((await senderClient.Connections.AcceptConnectionRequest(recipient.OdinId, [])).IsSuccessStatusCode);
+            ClassicAssert.IsTrue((await client.Network.CreateCircle(circleId, "some circle", grant)).IsSuccessStatusCode);
+            ClassicAssert.IsTrue((await client.Connections.SendConnectionRequest(sender.OdinId, [circleId])).IsSuccessStatusCode);
+            ClassicAssert.IsTrue((await senderClient.Connections.AcceptConnectionRequest(recipient.OdinId, [])).IsSuccessStatusCode);
         }
     }
 

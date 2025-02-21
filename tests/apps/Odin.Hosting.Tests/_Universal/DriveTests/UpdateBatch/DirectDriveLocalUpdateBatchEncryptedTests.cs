@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -88,7 +89,7 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
         var keyHeader = KeyHeader.NewRandom16();
         var (uploadNewFileResponse, _) =
             await ownerApiClient.DriveRedux.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, keyHeader);
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -124,7 +125,7 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
             updatedFileMetadata,
             [], keyHeader);
 
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
@@ -134,13 +135,13 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
             // Get the updated file and test it
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.IsEncrypted);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsFalse(header.FileMetadata.Payloads.Any());
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.IsEncrypted);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
@@ -152,10 +153,10 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
         }
     }
 
@@ -187,7 +188,7 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
         var keyHeader = KeyHeader.NewRandom16();
         var (uploadNewFileResponse, _, _, _) = await ownerApiClient.DriveRedux.UploadNewEncryptedFile(targetDrive, keyHeader,
             uploadedFileMetadata, uploadManifest, [payloadThatWillBeDeleted]);
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
 
         var uploadResult = uploadNewFileResponse.Content;
 
@@ -234,7 +235,7 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
         var (updateFileResponse, updatedEncryptedMetadataContent64, encryptedPayloads, encryptedThumbnails) =
             await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd], keyHeader);
         
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
@@ -244,16 +245,16 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
             // Get the updated file and test it
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.IsEncrypted);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count() == 1);
-            Assert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payloadThatWillBeDeleted.Key),
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.IsEncrypted);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Count() == 1);
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payloadThatWillBeDeleted.Key),
                 "payload 1 should have been removed");
-            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
                 "payloadToAdd should have been, well, added :)");
 
 
@@ -261,12 +262,12 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
             // Ensure payloadToAdd add is added
             //
             var getPayloadToAddResponse = await ownerApiClient.DriveRedux.GetPayload(targetFile, payloadToAdd.Key);
-            Assert.IsTrue(getPayloadToAddResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getPayloadToAddResponse.ContentHeaders!.LastModified.HasValue);
-            Assert.IsTrue(getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+            ClassicAssert.IsTrue(getPayloadToAddResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getPayloadToAddResponse.ContentHeaders!.LastModified.HasValue);
+            ClassicAssert.IsTrue(getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
 
             var content = (await getPayloadToAddResponse.Content.ReadAsStreamAsync()).ToByteArray();
-            Assert.IsTrue(content.ToBase64() == encryptedPayloads.Single(p => p.Key == payloadToAdd.Key).EncryptedContent64);
+            ClassicAssert.IsTrue(content.ToBase64() == encryptedPayloads.Single(p => p.Key == payloadToAdd.Key).EncryptedContent64);
 
             
             // Check all the thumbnails
@@ -275,12 +276,12 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
                 var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(targetFile, thumbnail.PixelWidth,
                     thumbnail.PixelHeight, payloadToAdd.Key);
 
-                Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+                ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
+                ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
 
                 var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                Assert.IsTrue(thumbContent.ToBase64() == encryptedThumbnails.Single(p => p.Key == payloadToAdd.Key).EncryptedContent64);
+                ClassicAssert.IsTrue(thumbContent.ToBase64() == encryptedThumbnails.Single(p => p.Key == payloadToAdd.Key).EncryptedContent64);
 
             }
 
@@ -288,7 +289,7 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
             // Ensure we get 404 for the payload1
             //
             var getPayload1Response = await ownerApiClient.DriveRedux.GetPayload(targetFile, payloadThatWillBeDeleted.Key);
-            Assert.IsTrue(getPayload1Response.StatusCode == HttpStatusCode.NotFound);
+            ClassicAssert.IsTrue(getPayload1Response.StatusCode == HttpStatusCode.NotFound);
 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
@@ -300,10 +301,10 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
         }
     }
 }

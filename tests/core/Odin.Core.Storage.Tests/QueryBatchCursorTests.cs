@@ -1,5 +1,6 @@
 ﻿using System;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests
@@ -84,11 +85,11 @@ namespace Odin.Core.Storage.Tests
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);
             var bytes = Convert.FromBase64String(base64);
-            Assert.AreEqual(bytes.Length, 16+16+16);
+            ClassicAssert.AreEqual(bytes.Length, 16+16+16);
 
             var c264 = new QueryBatchCursor(base64).ToState();
 
-            Assert.AreEqual(c264, base64);
+            ClassicAssert.AreEqual(c264, base64);
             Assert.Pass();
         }
 
@@ -107,10 +108,10 @@ namespace Odin.Core.Storage.Tests
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);
             var bytes = Convert.FromBase64String(base64);
-            Assert.AreEqual(bytes.Length, 16 + 16 + 16 + 3 * 1 + 3 * 8);
+            ClassicAssert.AreEqual(bytes.Length, 16 + 16 + 16 + 3 * 1 + 3 * 8);
 
             var c2base64 = new QueryBatchCursor(base64).ToState();
-            Assert.AreEqual(base64, c2base64);
+            ClassicAssert.AreEqual(base64, c2base64);
 
             cursor.userDateNextBoundaryCursor = null;
             cursor.userDatePagingCursor = null;
@@ -119,7 +120,7 @@ namespace Odin.Core.Storage.Tests
             Assert.That(base64, Is.Not.Null);
             bytes = Convert.FromBase64String(base64);
             c2base64 = new QueryBatchCursor(base64).ToState();
-            Assert.AreEqual(base64, c2base64);
+            ClassicAssert.AreEqual(base64, c2base64);
 
             Assert.Pass();
         }

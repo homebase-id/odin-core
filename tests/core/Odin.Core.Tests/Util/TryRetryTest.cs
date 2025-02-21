@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 
 namespace Odin.Core.Tests.Util;
@@ -28,7 +29,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -45,7 +46,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -65,8 +66,8 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
-        Assert.AreEqual(42, result);
+        ClassicAssert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -85,8 +86,8 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
-        Assert.AreEqual(42, result);
+        ClassicAssert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -111,7 +112,7 @@ public class TryRetryTest
 
         // Assert
 
-        Assert.AreEqual(attempt, attempts);
+        ClassicAssert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(100));
     }
 
@@ -134,7 +135,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(attempt, attempts);
+        ClassicAssert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
     }
 
@@ -159,7 +160,7 @@ public class TryRetryTest
         var attempts = await TryRetry.WithDelayAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, Operation);
 
         // Assert
-        Assert.AreEqual(attempt, attempts);
+        ClassicAssert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
     }
 
@@ -183,7 +184,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        ClassicAssert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
@@ -211,7 +212,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        ClassicAssert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
@@ -241,7 +242,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        ClassicAssert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
@@ -270,7 +271,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        ClassicAssert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
@@ -299,7 +300,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        ClassicAssert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(200));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(300));
@@ -329,7 +330,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempt);
+        ClassicAssert.AreEqual(1, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
         Assert.That(exception?.Message, Is.EqualTo("oh no"));
         Assert.That(exception.InnerException, Is.Null);
@@ -354,7 +355,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempt);
+        ClassicAssert.AreEqual(1, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
         Assert.That(exception?.Message, Is.EqualTo("oh no"));
         Assert.That(exception.InnerException, Is.Null);
@@ -383,7 +384,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -400,7 +401,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(1, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -420,8 +421,8 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
-        Assert.AreEqual(42, result);
+        ClassicAssert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -440,8 +441,8 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempts);
-        Assert.AreEqual(42, result);
+        ClassicAssert.AreEqual(1, attempts);
+        ClassicAssert.AreEqual(42, result);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
     }
 
@@ -465,7 +466,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(attempt, attempts);
+        ClassicAssert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
@@ -491,7 +492,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(attempt, attempts);
+        ClassicAssert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
@@ -519,7 +520,7 @@ public class TryRetryTest
         var attempts = await TryRetry.WithBackoffAsync(10, TimeSpan.FromMilliseconds(100), CancellationToken.None, Operation);
 
         // Assert
-        Assert.AreEqual(attempt, attempts);
+        ClassicAssert.AreEqual(attempt, attempts);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
@@ -546,7 +547,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(4, attempt);
+        ClassicAssert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
@@ -574,7 +575,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(4, attempt);
+        ClassicAssert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
@@ -604,7 +605,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(4, attempt);
+        ClassicAssert.AreEqual(4, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(700));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(850));
@@ -633,7 +634,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        ClassicAssert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(300));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(400));
@@ -662,7 +663,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(3, attempt);
+        ClassicAssert.AreEqual(3, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(300));
 #if !CI_GITHUB
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(400));
@@ -692,7 +693,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempt);
+        ClassicAssert.AreEqual(1, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
         Assert.That(exception?.Message, Is.EqualTo("oh no"));
         Assert.That(exception.InnerException, Is.Null);
@@ -717,7 +718,7 @@ public class TryRetryTest
         });
 
         // Assert
-        Assert.AreEqual(1, attempt);
+        ClassicAssert.AreEqual(1, attempt);
         Assert.That(ts.ElapsedMilliseconds, Is.LessThan(100));
         Assert.That(exception?.Message, Is.EqualTo("oh no"));
         Assert.That(exception.InnerException, Is.Null);

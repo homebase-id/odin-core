@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -66,7 +67,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             };
 
             var n = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord);
-            Assert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
+            ClassicAssert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
 
             //
             // Act 
@@ -79,20 +80,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // 
             // Assert
             //
-            Assert.IsTrue(affectedCount == 1, "Upsert failed: Expected affected count of 1");
+            ClassicAssert.IsTrue(affectedCount == 1, "Upsert failed: Expected affected count of 1");
 
             var updatedRecord = await tblDriveMainIndex.GetAsync(driveId, fileId);
 
-<<<<<<< Updated upstream
-            Assert.AreEqual(updatedRecord.hdrLocalAppData, localMetadataContent, "local app data not updated");
-            Assert.AreEqual(updatedRecord.hdrLocalVersionTag, localVersionTag1, "version tag not updated");
-            Assert.IsTrue(updatedRecord.modified.GetValueOrDefault().ToUnixTimeUtc() > modifiedTime.ToUnixTimeUtc(),
-                "modified time not updated");
-=======
             ClassicAssert.AreEqual(updatedRecord.hdrLocalAppData, localMetadataContent, "local app data not updated");
             ClassicAssert.AreEqual(updatedRecord.hdrLocalVersionTag, localVersionTag1, "version tag not updated");
             ClassicAssert.IsTrue(updatedRecord.modified > modifiedTime, "modified time not updated");
->>>>>>> Stashed changes
         }
 
 
@@ -149,7 +143,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             };
 
             var n = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord);
-            Assert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
+            ClassicAssert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
 
             //
             // Act 

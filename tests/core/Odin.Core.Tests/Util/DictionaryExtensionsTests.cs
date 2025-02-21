@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 
 namespace Odin.Core.Tests.Util;
@@ -22,7 +23,7 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key1", -1);
 
         // Assert
-        Assert.AreEqual(10, result);
+        ClassicAssert.AreEqual(10, result);
     }
 
     [Test]
@@ -39,7 +40,7 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key3", -1);
 
         // Assert
-        Assert.AreEqual(-1, result);
+        ClassicAssert.AreEqual(-1, result);
     }
 
     [Test]
@@ -56,7 +57,7 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key1", -1);
 
         // Assert
-        Assert.AreEqual(10, result);
+        ClassicAssert.AreEqual(10, result);
     }
 
     [Test]
@@ -73,7 +74,7 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key2", -1);
 
         // Assert
-        Assert.IsNull(result);
+        ClassicAssert.IsNull(result);
     }
 
     [Test]
@@ -90,7 +91,7 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key3", -1);
 
         // Assert
-        Assert.AreEqual(-1, result);
+        ClassicAssert.AreEqual(-1, result);
     }
 
     [Test]
@@ -107,7 +108,7 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key1", "default");
 
         // Assert
-        Assert.AreEqual("value1", result);
+        ClassicAssert.AreEqual("value1", result);
     }
 
     [Test]
@@ -124,7 +125,7 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key3", "default");
 
         // Assert
-        Assert.AreEqual("default", result);
+        ClassicAssert.AreEqual("default", result);
     }
 
     [Test]
@@ -141,6 +142,6 @@ public class DictionaryExtensionsTests
         var result = dictionary.GetOrDefault("key2", "default");
 
         // Assert
-        Assert.IsNull(result);
+        ClassicAssert.IsNull(result);
     }
 }

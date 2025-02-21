@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
@@ -74,15 +75,15 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
         // Get the header before we make changes so we have a baseline
         //
         var getHeaderBeforeUploadResponse = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
-        Assert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
-        Assert.IsNotNull(headerBeforeUpload);
+        ClassicAssert.IsNotNull(headerBeforeUpload);
 
         await PerformanceFramework.ThreadedTestAsync(maxThreads: 20, iterations: 50, OverwriteFile);
         Console.WriteLine($"Success Count: {_successCount}");
         Console.WriteLine($"Bad Request Count: {_serverErrorCount}");
 
-        Assert.IsTrue(_serverErrorCount == 0, $"Server error count was {_serverErrorCount}");
+        ClassicAssert.IsTrue(_serverErrorCount == 0, $"Server error count was {_serverErrorCount}");
     }
 
     private async Task<(long, long[])> OverwriteFile(int threadNumber, int iterations)
@@ -103,7 +104,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
             if (tag.HasValue)
             {
                 newVersionTag = tag.GetValueOrDefault();
-                Assert.IsTrue(prevTag != newVersionTag, "version tag did not change");
+                ClassicAssert.IsTrue(prevTag != newVersionTag, "version tag did not change");
             }
 
             // Finished doing all the work
@@ -142,7 +143,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
         {
             _successCount++;
             // if it 
-            Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
+            ClassicAssert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
             return uploadPayloadResponse.Content!.NewVersionTag;
         }
 
@@ -170,9 +171,9 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
             uploadedFileMetadata,
             keyHeader: keyHeader);
 
-        Assert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
         var uploadResult = uploadNewMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         return (uploadResult, keyHeader);
     }

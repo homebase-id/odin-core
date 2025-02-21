@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.Apps;
@@ -61,18 +62,18 @@ public class DriveApiClient
                 Attributes = attributes
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
 
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
 
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
-            Assert.NotNull(page);
+            ClassicAssert.NotNull(page);
             var theDrive = page.Results.SingleOrDefault(drive =>
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
-            Assert.NotNull(theDrive);
+            ClassicAssert.NotNull(theDrive);
 
             return theDrive;
         }
@@ -128,9 +129,9 @@ public class DriveApiClient
             };
 
             var response = await svc.GetBatch(request);
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var batch = response.Content;
-            Assert.IsNotNull(batch);
+            ClassicAssert.IsNotNull(batch);
 
             return batch;
         }

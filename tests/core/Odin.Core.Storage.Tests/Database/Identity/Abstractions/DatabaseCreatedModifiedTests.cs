@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -94,18 +95,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblConnections.UpdateAsync(item1);
 
             // Validate that UPDATE has a value in modified and created was unchanged
-<<<<<<< Updated upstream
-            Assert.IsTrue(item1.modified != null);
-            Assert.IsTrue(item1.modified?.ToUnixTimeUtc() <= UnixTimeUtc.Now());
-            Assert.IsTrue(item1.modified?.ToUnixTimeUtc() > UnixTimeUtc.Now().AddSeconds(-1));
-            Assert.IsTrue(item1.created.uniqueTime == copyCreated.uniqueTime);
-
-            // Load it and be sure the values are the same
-            var loaded = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(loaded.modified != null);
-            Assert.IsTrue(loaded.modified?.uniqueTime == item1.modified?.uniqueTime);
-            Assert.IsTrue(loaded.created.uniqueTime == item1.created.uniqueTime);
-=======
             ClassicAssert.IsTrue(item1.modified != null);
             ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
             ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
@@ -116,7 +105,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(loaded.modified != null);
             ClassicAssert.IsTrue(loaded.modified == item1.modified);
             ClassicAssert.IsTrue(loaded.created == item1.created);
->>>>>>> Stashed changes
 
 
             var copyModified = item1.modified;
@@ -124,18 +112,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblConnections.UpdateAsync(item1);
 
             // Validate that UPDATE is cuurent and as expected
-<<<<<<< Updated upstream
-            Assert.IsTrue(item1.modified != null);
-            Assert.IsTrue(item1.modified?.ToUnixTimeUtc() <= UnixTimeUtc.Now());
-            Assert.IsTrue(item1.modified?.ToUnixTimeUtc() > UnixTimeUtc.Now().AddSeconds(-1));
-            Assert.IsTrue(item1.modified?.uniqueTime != copyModified?.uniqueTime);
-
-=======
             ClassicAssert.IsTrue(item1.modified != null);
             ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
             ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
             ClassicAssert.IsTrue(item1.modified != copyModified);
->>>>>>> Stashed changes
         }
 
         // Using the connections table just because it happens to have FinallyAddCreatedModified();
@@ -173,19 +153,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             await tblConnections.UpsertAsync(item1);
             // Validate the Upsert behaves as an UPDATE for the next calls
-<<<<<<< Updated upstream
-            Assert.IsTrue(item1.modified != null);
-            Assert.IsTrue(item1.modified?.ToUnixTimeUtc() <= UnixTimeUtc.Now());
-            Assert.IsTrue(item1.modified?.ToUnixTimeUtc() > UnixTimeUtc.Now().AddSeconds(-1));
-            Assert.IsTrue(item1.created.uniqueTime == copyCreated.uniqueTime);
-
-            var loaded = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            // Validate that it loads the same values
-            Assert.IsTrue(loaded.modified != null);
-            Assert.IsTrue(loaded.modified?.uniqueTime == item1.modified?.uniqueTime);
-            Assert.IsTrue(loaded.created.uniqueTime == item1.created.uniqueTime);
-
-=======
             ClassicAssert.IsTrue(item1.modified != null);
             ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
             ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
@@ -196,7 +163,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(loaded.modified != null);
             ClassicAssert.IsTrue(loaded.modified == item1.modified);
             ClassicAssert.IsTrue(loaded.created == item1.created);
->>>>>>> Stashed changes
         }
     }
 }

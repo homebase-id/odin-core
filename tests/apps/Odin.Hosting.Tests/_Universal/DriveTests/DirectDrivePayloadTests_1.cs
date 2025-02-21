@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.Base;
@@ -81,20 +82,20 @@ public class DirectDrivePayloadTests_1
 
         var response = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
 
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         // get the file header
         var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
         var header = getHeaderResponse.Content;
-        Assert.IsNotNull(header);
-        Assert.IsTrue(header.FileMetadata.Payloads.Count() == 1);
+        ClassicAssert.IsNotNull(header);
+        ClassicAssert.IsTrue(header.FileMetadata.Payloads.Count() == 1);
 
         var payloadFromHeader = header.FileMetadata.GetPayloadDescriptor(uploadedPayloadDefinition.Key);
-        Assert.IsNotNull(payloadFromHeader, "payload not found in header");
-        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadFromHeader.Iv, uploadedPayloadDefinition.Iv));
+        ClassicAssert.IsNotNull(payloadFromHeader, "payload not found in header");
+        ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadFromHeader.Iv, uploadedPayloadDefinition.Iv));
 
         await callerContext.Initialize(ownerApiClient);
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
@@ -102,31 +103,31 @@ public class DirectDrivePayloadTests_1
         // Get the payload and check the headers
         var getPayloadKey1Response = await uniDriveClient.GetPayload(uploadResult.File, uploadedPayloadDefinition.Key);
 
-        Assert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode);
+        ClassicAssert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode);
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
-            Assert.IsNotNull(getPayloadKey1Response.ContentHeaders);
-            Assert.IsNotNull(getPayloadKey1Response.Headers);
+            ClassicAssert.IsNotNull(getPayloadKey1Response.ContentHeaders);
+            ClassicAssert.IsNotNull(getPayloadKey1Response.Headers);
 
-            Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
-            Assert.IsFalse(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
+            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues.Single()));
 
-            Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            Assert.IsTrue(payloadKeyValues.Single() == uploadedPayloadDefinition.Key);
-            Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            Assert.IsTrue(contentTypeValues.Single() == uploadedPayloadDefinition.ContentType);
+            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
+            ClassicAssert.IsTrue(payloadKeyValues.Single() == uploadedPayloadDefinition.Key);
+            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
+            ClassicAssert.IsTrue(contentTypeValues.Single() == uploadedPayloadDefinition.ContentType);
 
-            Assert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var encryptedHeader64Values));
+            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var encryptedHeader64Values));
 
             var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
-            Assert.IsNotNull(payloadEkh);
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, uploadedPayloadDefinition.Iv));
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey, header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
+            ClassicAssert.IsNotNull(payloadEkh);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, uploadedPayloadDefinition.Iv));
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey, header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
 
-            Assert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders, out var lastModifiedHeaderValue));
+            ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders, out var lastModifiedHeaderValue));
             //Note commented as I'm having some conversion issues i think
-            Assert.IsTrue(lastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
+            ClassicAssert.IsTrue(lastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
         }
     }
     
@@ -145,9 +146,9 @@ public class DirectDrivePayloadTests_1
 
         var uploadNewMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
 
-        Assert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
         var uploadResult = uploadNewMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         var targetFile = uploadResult.File;
         var targetVersionTag = uploadResult.NewVersionTag;
@@ -156,9 +157,9 @@ public class DirectDrivePayloadTests_1
         // Get the header before we make changes so we have a baseline
         //
         var getHeaderBeforeUploadResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
-        Assert.IsNotNull(headerBeforeUpload);
+        ClassicAssert.IsNotNull(headerBeforeUpload);
 
         //
         // Now add a payload
@@ -178,37 +179,37 @@ public class DirectDrivePayloadTests_1
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         var uploadPayloadResponse = await uniDriveClient.UploadPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads);
-        Assert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode);
+        ClassicAssert.IsTrue(uploadPayloadResponse.StatusCode == expectedStatusCode);
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
-            Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
+            ClassicAssert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
 
             // Get the latest file header
             var getHeaderAfterPayloadUploadedResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderAfterPayloadUploadedResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderAfterPayloadUploadedResponse.IsSuccessStatusCode);
             var headerAfterPayloadWasUploaded = getHeaderAfterPayloadUploadedResponse.Content;
-            Assert.IsNotNull(headerAfterPayloadWasUploaded);
+            ClassicAssert.IsNotNull(headerAfterPayloadWasUploaded);
 
-            Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.VersionTag == uploadPayloadResponse.Content.NewVersionTag,
+            ClassicAssert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.VersionTag == uploadPayloadResponse.Content.NewVersionTag,
                 "Version tag should match the one set by uploading the new payload");
 
             // Payload should be listed 
-            Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Count() == 1);
+            ClassicAssert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Count() == 1);
             var thePayloadDescriptor = headerAfterPayloadWasUploaded.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
-            Assert.IsNotNull(thePayloadDescriptor);
-            Assert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
+            ClassicAssert.IsNotNull(thePayloadDescriptor);
+            ClassicAssert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
             CollectionAssert.AreEquivalent(thePayloadDescriptor.Thumbnails, uploadedPayloadDefinition.Thumbnails);
-            Assert.IsTrue(thePayloadDescriptor.BytesWritten == uploadedPayloadDefinition.Content.Length);
+            ClassicAssert.IsTrue(thePayloadDescriptor.BytesWritten == uploadedPayloadDefinition.Content.Length);
 
             // Last modified should be changed
-            Assert.IsTrue(thePayloadDescriptor.LastModified > headerBeforeUpload.FileMetadata.Updated);
+            ClassicAssert.IsTrue(thePayloadDescriptor.LastModified > headerBeforeUpload.FileMetadata.Updated);
 
             // Get the payload
             var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(targetFile, uploadedPayloadDefinition.Key);
-            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
             var payloadBytes = await getPayloadResponse.Content.ReadAsByteArrayAsync();
-            Assert.IsTrue(payloadBytes.Length == thePayloadDescriptor.BytesWritten);
+            ClassicAssert.IsTrue(payloadBytes.Length == thePayloadDescriptor.BytesWritten);
         }
     }
 
@@ -236,9 +237,9 @@ public class DirectDrivePayloadTests_1
         };
 
         var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
         var uploadResult = uploadNewFileResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         var targetFile = uploadResult.File;
         var targetVersionTag = uploadResult.NewVersionTag;
@@ -247,49 +248,49 @@ public class DirectDrivePayloadTests_1
 
         // Get the latest file header
         var getHeaderBeforeDeletingPayloadResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderBeforeDeletingPayloadResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderBeforeDeletingPayloadResponse.IsSuccessStatusCode);
         var headerBeforePayloadDeleted = getHeaderBeforeDeletingPayloadResponse.Content;
-        Assert.IsNotNull(headerBeforePayloadDeleted);
+        ClassicAssert.IsNotNull(headerBeforePayloadDeleted);
 
         // Payload should be listed 
-        Assert.IsTrue(headerBeforePayloadDeleted.FileMetadata.Payloads.Count() == 1);
+        ClassicAssert.IsTrue(headerBeforePayloadDeleted.FileMetadata.Payloads.Count() == 1);
         var thePayloadDescriptor = headerBeforePayloadDeleted.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
-        Assert.IsNotNull(thePayloadDescriptor);
-        Assert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
+        ClassicAssert.IsNotNull(thePayloadDescriptor);
+        ClassicAssert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
         CollectionAssert.AreEquivalent(thePayloadDescriptor.Thumbnails, uploadedPayloadDefinition.Thumbnails);
-        Assert.IsTrue(thePayloadDescriptor.BytesWritten == uploadedPayloadDefinition.Content.Length);
+        ClassicAssert.IsTrue(thePayloadDescriptor.BytesWritten == uploadedPayloadDefinition.Content.Length);
 
         await callerContext.Initialize(ownerApiClient);
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         // Delete the payload
         var deletePayloadResponse = await uniDriveClient.DeletePayload(targetFile, targetVersionTag, uploadedPayloadDefinition.Key);
-        Assert.IsTrue(deletePayloadResponse.StatusCode == expectedStatusCode);
+        ClassicAssert.IsTrue(deletePayloadResponse.StatusCode == expectedStatusCode);
 
         // Test More
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var deletePayloadResult = deletePayloadResponse.Content;
-            Assert.IsNotNull(deletePayloadResult);
+            ClassicAssert.IsNotNull(deletePayloadResult);
 
-            Assert.IsTrue(deletePayloadResult.NewVersionTag != targetVersionTag, "version tag should have changed");
-            Assert.IsTrue(deletePayloadResult.NewVersionTag != Guid.Empty);
+            ClassicAssert.IsTrue(deletePayloadResult.NewVersionTag != targetVersionTag, "version tag should have changed");
+            ClassicAssert.IsTrue(deletePayloadResult.NewVersionTag != Guid.Empty);
 
             // Get the latest file header
             var getHeaderAfterPayloadUploadedResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderAfterPayloadUploadedResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderAfterPayloadUploadedResponse.IsSuccessStatusCode);
             var headerAfterPayloadWasUploaded = getHeaderAfterPayloadUploadedResponse.Content;
-            Assert.IsNotNull(headerAfterPayloadWasUploaded);
+            ClassicAssert.IsNotNull(headerAfterPayloadWasUploaded);
 
-            Assert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.VersionTag == deletePayloadResult.NewVersionTag,
+            ClassicAssert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.VersionTag == deletePayloadResult.NewVersionTag,
                 "Version tag should match the one set by deleting the payload");
 
             // Payload should not be in header
-            Assert.IsFalse(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Any());
+            ClassicAssert.IsFalse(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Any());
 
             // Payload should return 404
             var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(targetFile, uploadedPayloadDefinition.Key);
-            Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+            ClassicAssert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -51,10 +52,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d2 = Guid.NewGuid().ToByteArray();
 
             var i = await tblAppGrants.TryInsertAsync(new AppGrantsRecord() { identityId = identityKey, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
-            Assert.IsTrue(i);
+            ClassicAssert.IsTrue(i);
 
             i = await tblAppGrants.TryInsertAsync(new AppGrantsRecord() { identityId = identityKey, appId = c1, circleId = c2, data = d1, odinHashId = c3 });
-            Assert.IsFalse(i);
+            ClassicAssert.IsFalse(i);
         }
     }
 }

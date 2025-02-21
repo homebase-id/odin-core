@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -91,9 +92,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var tshi = UnixTimeUtc.Now();
 
             var (tot, pop, poptime) = await tblInbox.PopStatusAsync();
-            Assert.AreEqual(5, tot);
-            Assert.AreEqual(0, pop);
-            Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
+            ClassicAssert.AreEqual(5, tot);
+            ClassicAssert.AreEqual(0, pop);
+            ClassicAssert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
 
 
             // pop one item from the inbox
@@ -104,8 +105,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 Assert.Fail();
 
             (tot, pop, poptime) = await tblInbox.PopStatusAsync();
-            Assert.AreEqual(5, tot);
-            Assert.AreEqual(1, pop);
+            ClassicAssert.AreEqual(5, tot);
+            ClassicAssert.AreEqual(1, pop);
             if (poptime < tbefore) // We can't have popped before we popped
                 Assert.Fail();
             if (poptime > tafter) // We can't have popped after we popped
@@ -430,9 +431,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblInbox.InsertAsync(new InboxRecord() { identityId = identityKey, boxId = b2, fileId = f5, priority = 10, value = v1 });
 
             var (tot, pop, poptime) = await tblInbox.PopStatusSpecificBoxAsync(b1);
-            Assert.AreEqual(2, tot);
-            Assert.AreEqual(0, pop);
-            Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
+            ClassicAssert.AreEqual(2, tot);
+            ClassicAssert.AreEqual(0, pop);
+            ClassicAssert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
             var tbefore = new UnixTimeUtc();
 
             // Pop the oldest record from the inbox 1
@@ -443,8 +444,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var tafter = new UnixTimeUtc();
             (tot, pop, poptime) = await tblInbox.PopStatusSpecificBoxAsync(b1);
-            Assert.AreEqual(2, tot);
-            Assert.AreEqual(2, pop);
+            ClassicAssert.AreEqual(2, tot);
+            ClassicAssert.AreEqual(2, pop);
             if (poptime < tbefore) // We can't have popped before we popped
                 Assert.Fail();
             if (poptime > tafter) // We can't have popped after we popped

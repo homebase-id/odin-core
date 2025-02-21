@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -42,27 +43,27 @@ namespace Odin.Core.Storage.Tests
                 data = Guid.NewGuid().ToByteArray()
             };
 
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Get a non-existing row, it'll cause inserting of a new cache null entry
             var r1 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 1);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Get a non-existing row, but now it's in the cache. We get +1 for get and +1 for hits
             var r2 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 2);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 1);
 
             // Get a non-existing row, that's not in the cache, just to be sure it's different
             var r3 = await tblConnections.GetAsync(new OdinId("sam.gamgee.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 3);
-            Assert.IsTrue(cache.GetCacheSets() == 2);
-            Assert.IsTrue(cache.GetCacheHits() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 3);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 1);
         }
 
         // Test the Get() cache handling of Inserting
@@ -87,30 +88,30 @@ namespace Odin.Core.Storage.Tests
                 data = Guid.NewGuid().ToByteArray()
             };
 
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Insert a new item
             var n = await tblConnections.InsertAsync(item1);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Get the inserted item
             var r1 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 1);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 1);
-            Assert.IsTrue(EqualRecords(item1, r1));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 1);
+            ClassicAssert.IsTrue(EqualRecords(item1, r1));
 
             // Encore
             var r2 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 2);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 2);
-            Assert.IsTrue(EqualRecords(item1, r2));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 2);
+            ClassicAssert.IsTrue(EqualRecords(item1, r2));
 
         }
 
@@ -137,52 +138,52 @@ namespace Odin.Core.Storage.Tests
                 data = Guid.NewGuid().ToByteArray()
             };
 
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Upsert a new item
             var n = await tblConnections.UpsertAsync(item1);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Get the upserted item
             var r1 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 1);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 1);
-            Assert.IsTrue(EqualRecords(item1, r1));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 1);
+            ClassicAssert.IsTrue(EqualRecords(item1, r1));
 
             // Encore
             var r2 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 2);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 2);
-            Assert.IsTrue(EqualRecords(item1, r2));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 2);
+            ClassicAssert.IsTrue(EqualRecords(item1, r2));
 
             item1.status = 7;
             // Upsert the updated item
             n = await tblConnections.UpsertAsync(item1);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 2);
-            Assert.IsTrue(cache.GetCacheSets() == 2);
-            Assert.IsTrue(cache.GetCacheHits() == 2);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 2);
 
             // Get the upserted item, one get one hit
             var r3 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 3);
-            Assert.IsTrue(cache.GetCacheSets() == 2);
-            Assert.IsTrue(cache.GetCacheHits() == 3);
-            Assert.IsTrue(EqualRecords(item1, r3));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 3);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 3);
+            ClassicAssert.IsTrue(EqualRecords(item1, r3));
 
             // Get the upserted item, one get one hit
             var r4 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 4);
-            Assert.IsTrue(cache.GetCacheSets() == 2);
-            Assert.IsTrue(cache.GetCacheHits() == 4);
-            Assert.IsTrue(EqualRecords(item1, r3));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 4);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 4);
+            ClassicAssert.IsTrue(EqualRecords(item1, r3));
 
         }
 
@@ -209,38 +210,38 @@ namespace Odin.Core.Storage.Tests
                 data = Guid.NewGuid().ToByteArray()
             };
 
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Insert a new item
             var n = await tblConnections.InsertAsync(item1);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Update the item
             item1.status = 7;
             n = await tblConnections.UpdateAsync(item1);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 2);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Get the updated item, one get one hit
             var r1 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 1);
-            Assert.IsTrue(cache.GetCacheSets() == 2);
-            Assert.IsTrue(cache.GetCacheHits() == 1);
-            Assert.IsTrue(EqualRecords(item1, r1));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 1);
+            ClassicAssert.IsTrue(EqualRecords(item1, r1));
 
             // Get the updated item, one get one hit
             var r2 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 2);
-            Assert.IsTrue(cache.GetCacheSets() == 2);
-            Assert.IsTrue(cache.GetCacheHits() == 2);
-            Assert.IsTrue(EqualRecords(item1, r2));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 2);
+            ClassicAssert.IsTrue(EqualRecords(item1, r2));
 
         }
 
@@ -267,18 +268,18 @@ namespace Odin.Core.Storage.Tests
                 data = Guid.NewGuid().ToByteArray()
             };
 
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
-            Assert.IsTrue(cache.GetCacheRemove() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheRemove() == 0);
 
             // Delete a non-existing item
             var n = await tblConnections.DeleteAsync(item1.identity);
-            Assert.IsTrue(n == 0);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
-            Assert.IsTrue(cache.GetCacheRemove() == 0);
+            ClassicAssert.IsTrue(n == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheRemove() == 0);
 
         }
 
@@ -304,33 +305,33 @@ namespace Odin.Core.Storage.Tests
                 data = Guid.NewGuid().ToByteArray()
             };
 
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Insert a new item
             var n = await tblConnections.InsertAsync(item1);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
-            Assert.IsTrue(cache.GetCacheRemove() == 0);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheRemove() == 0);
 
             // Delete the item
             n = await tblConnections.DeleteAsync(item1.identity);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
-            Assert.IsTrue(cache.GetCacheRemove() == 1);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheRemove() == 1);
 
             // Encore
             n = await tblConnections.DeleteAsync(item1.identity);
-            Assert.IsTrue(n == 0);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
-            Assert.IsTrue(cache.GetCacheRemove() == 1);
+            ClassicAssert.IsTrue(n == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheRemove() == 1);
 
         }
 
@@ -357,36 +358,36 @@ namespace Odin.Core.Storage.Tests
                 data = Guid.NewGuid().ToByteArray()
             };
 
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             // Insert a new item
             var n = await tblConnections.InsertAsync(item1);
-            Assert.IsTrue(n == 1);
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
             cache.ClearCache();
-            Assert.IsTrue(cache.GetCacheGets() == 0);
-            Assert.IsTrue(cache.GetCacheSets() == 0);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 0);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
 
 
             // The cache is now empty, the item is in the database, let's fetch it
             var r1 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 1);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 0);
-            Assert.IsTrue(EqualRecords(item1, r1));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 0);
+            ClassicAssert.IsTrue(EqualRecords(item1, r1));
 
             // Encore
             var r2 = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Assert.IsTrue(cache.GetCacheGets() == 2);
-            Assert.IsTrue(cache.GetCacheSets() == 1);
-            Assert.IsTrue(cache.GetCacheHits() == 1);
-            Assert.IsTrue(EqualRecords(item1, r2));
+            ClassicAssert.IsTrue(cache.GetCacheGets() == 2);
+            ClassicAssert.IsTrue(cache.GetCacheSets() == 1);
+            ClassicAssert.IsTrue(cache.GetCacheHits() == 1);
+            ClassicAssert.IsTrue(EqualRecords(item1, r2));
 
         }
 

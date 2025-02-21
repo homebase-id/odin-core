@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -207,15 +208,15 @@ TaskPerformanceTest
             if (!publishResponse.IsSuccessStatusCode)
                 Console.WriteLine("staticFileSvc.Publish(publishRequest): " + publishResponse.ReasonPhrase);
 
-            Assert.True(publishResponse.IsSuccessStatusCode, publishResponse.ReasonPhrase);
-            Assert.NotNull(publishResponse.Content);
+            ClassicAssert.True(publishResponse.IsSuccessStatusCode, publishResponse.ReasonPhrase);
+            ClassicAssert.NotNull(publishResponse.Content);
 
             pubResult = publishResponse.Content;
 
-            Assert.AreEqual(pubResult.Filename, publishRequest.Filename);
-            Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
-            Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
-            Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
+            ClassicAssert.AreEqual(pubResult.Filename, publishRequest.Filename);
+            ClassicAssert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
+            ClassicAssert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
+            ClassicAssert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
             _getUniversalStaticFileSvc = client.StaticFilePublisher;
 
@@ -274,12 +275,12 @@ TaskPerformanceTest
                 var getFileResponse = await _getUniversalStaticFileSvc.GetStaticFile(publishRequest.Filename);
                 if (!getFileResponse.IsSuccessStatusCode)
                     Console.WriteLine("GetStaticFile(): " + getFileResponse.ReasonPhrase);
-                Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
-                Assert.IsNotNull(getFileResponse.Content);
+                ClassicAssert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
+                ClassicAssert.IsNotNull(getFileResponse.Content);
 
-                Assert.IsTrue(getFileResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var values));
-                Assert.IsNotNull(values);
-                Assert.IsTrue(values.Single() == "*");
+                ClassicAssert.IsTrue(getFileResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var values));
+                ClassicAssert.IsNotNull(values);
+                ClassicAssert.IsTrue(values.Single() == "*");
 
                 //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
                 var json = await getFileResponse.Content.ReadAsStringAsync();
@@ -288,9 +289,9 @@ TaskPerformanceTest
 
                 var sectionOutputArray = OdinSystemSerializer.Deserialize<SectionOutput[]>(json);
 
-                Assert.IsNotNull(sectionOutputArray);
-                Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
-                Assert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
+                ClassicAssert.IsNotNull(sectionOutputArray);
+                ClassicAssert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
+                ClassicAssert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
 
                 //
                 // Suggestion that you first simply try to load a static URL here.
@@ -390,7 +391,7 @@ TaskPerformanceTest
 
                 Assert.That(uploadResult.File, Is.Not.Null);
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
                 Assert.That(uploadResult.RecipientStatus, Is.Null);
                 var uploadedFile = uploadResult.File;
@@ -418,11 +419,11 @@ TaskPerformanceTest
 
                 if (payloadContent?.Any() ?? false)
                 {
-                    Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
+                    ClassicAssert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
                 }
                 else
                 {
-                    Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 0);
+                    ClassicAssert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 0);
                 }
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
@@ -433,17 +434,17 @@ TaskPerformanceTest
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType ==
+                ClassicAssert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType ==
                               clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight ==
+                ClassicAssert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight ==
                               clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth ==
+                ClassicAssert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth ==
                               clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(
                     descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
                     clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey).Thumbnails.Count() == (additionalThumbs?.Count ?? 0));
+                ClassicAssert.IsTrue(clientFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey).Thumbnails.Count() == (additionalThumbs?.Count ?? 0));
 
                 //
                 // If payload was uploaded, get the payload that was uploaded, test it
@@ -471,9 +472,9 @@ TaskPerformanceTest
                     for (int i = 0; i < additionalThumbs.Count - 1; i++)
                     {
                         var thumbnailInDescriptor = additionalThumbs[i];
-                        Assert.IsTrue(thumbnailInDescriptor.ContentType == clientFileHeaderList[i].ContentType);
-                        Assert.IsTrue(thumbnailInDescriptor.PixelWidth == clientFileHeaderList[i].PixelWidth);
-                        Assert.IsTrue(thumbnailInDescriptor.PixelHeight == clientFileHeaderList[i].PixelHeight);
+                        ClassicAssert.IsTrue(thumbnailInDescriptor.ContentType == clientFileHeaderList[i].ContentType);
+                        ClassicAssert.IsTrue(thumbnailInDescriptor.PixelWidth == clientFileHeaderList[i].PixelWidth);
+                        ClassicAssert.IsTrue(thumbnailInDescriptor.PixelHeight == clientFileHeaderList[i].PixelHeight);
 
                         var thumbnailResponse = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                         {
@@ -483,10 +484,10 @@ TaskPerformanceTest
                             PayloadKey = WebScaffold.PAYLOAD_KEY
                         });
 
-                        Assert.IsTrue(thumbnailResponse.IsSuccessStatusCode);
-                        Assert.IsNotNull(thumbnailResponse.Content);
+                        ClassicAssert.IsTrue(thumbnailResponse.IsSuccessStatusCode);
+                        ClassicAssert.IsNotNull(thumbnailResponse.Content);
 
-                        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnailInDescriptor.Content,
+                        ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnailInDescriptor.Content,
                             await thumbnailResponse!.Content!.ReadAsByteArrayAsync()));
                     }
                 }

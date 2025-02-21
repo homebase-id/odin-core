@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 
 namespace Odin.Core.Tests
@@ -16,41 +17,41 @@ namespace Odin.Core.Tests
         [Test(Description = "Label cannot be empty")]
         public void LabelEmptyTest()
         {
-            Assert.IsFalse(AsciiDomainNameValidator.TryValidateDomain(".aaa"));
-            Assert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("aaa."));
+            ClassicAssert.IsFalse(AsciiDomainNameValidator.TryValidateDomain(".aaa"));
+            ClassicAssert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("aaa."));
         }
 
         [Test(Description = "Test 63 character label is OK")]
         public void LabelLengthOKTest()
         {
-            Assert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aaa"));
+            ClassicAssert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aaa"));
         }
 
         [Test(Description = "Test 64 character label fails")]
         public void LabelLengthFailTest()
         {
-            Assert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aaa"));
+            ClassicAssert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aaa"));
         }
 
         [Test(Description = "Test first char isn't a dash")]
         public void LabelStartDashFailTest()
         {
-            Assert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("-a.aaa"));
-            Assert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("aa.-aaa"));
+            ClassicAssert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("-a.aaa"));
+            ClassicAssert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("aa.-aaa"));
         }
 
 
         [Test(Description = "Test last char isn't a dash")]
         public void LabelLastDashFailTest()
         {
-            Assert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("a-.aaa"));
-            Assert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("aa.aaa-"));
+            ClassicAssert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("a-.aaa"));
+            ClassicAssert.IsFalse(AsciiDomainNameValidator.TryValidateDomain("aa.aaa-"));
         }
 
         [Test(Description = "Test 'a' is OK as a label")]
         public void LabelPassTest()
         {
-            Assert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("a.a"));
+            ClassicAssert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("a.a"));
         }
 
         [Test(Description = "Test shortest valid domain")]
@@ -243,14 +244,14 @@ namespace Odin.Core.Tests
 
             // Now we have a 250 character long dom.
             // 
-            Assert.IsTrue(dom.Length == 250);
+            ClassicAssert.IsTrue(dom.Length == 250);
 
             dom = "a" + dom + "como";
-            Assert.IsTrue(dom.Length == 255);
+            ClassicAssert.IsTrue(dom.Length == 255);
             AsciiDomainNameValidator.AssertValidDomain(dom);
 
             dom = "a" + dom;
-            Assert.IsTrue(dom.Length == 256);
+            ClassicAssert.IsTrue(dom.Length == 256);
 
             try
             {
