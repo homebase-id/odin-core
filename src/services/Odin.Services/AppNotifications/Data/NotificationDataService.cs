@@ -60,8 +60,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        Int64.TryParse(request.Cursor, out var c);
-        var (results, cursor, cursorRowId) = await db.AppNotifications.PagingByCreatedAsync(request.Count, c == 0 ? null : new UnixTimeUtc(c), 0);
+        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, request.Cursor);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -87,7 +86,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var nr = new NotificationsListResult()
         {
-            Cursor = cursor.HasValue ? cursor.Value.milliseconds.ToString() : "",
+            Cursor = cursor, // Or should null be empty string ""?
             Results = list.ToList()
         };
 
@@ -101,7 +100,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var (results, _, _) = await db.AppNotifications.PagingByCreatedAsync(int.MaxValue, null, 0);
+        var (results, _) = await db.AppNotifications.PagingByCreatedAsync(int.MaxValue, null);
 
         var list = results.Select(r => new AppNotification()
         {

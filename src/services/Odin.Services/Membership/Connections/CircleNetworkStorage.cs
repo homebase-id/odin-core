@@ -11,6 +11,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
@@ -150,8 +151,8 @@ public class CircleNetworkStorage
         UnixTimeUtc? cursor, long rowIdCursor,
         ConnectionStatus connectionStatus)
     {
-        var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().milliseconds == 0 ? null : cursor : null;
-        var (records, nextCursor, nextRowIdCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor, rowIdCursor);
+        string adjustedCursor = cursor == null ? null : cursor.ToString()+","+rowIdCursor.ToString();
+        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
 
         // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
         // single db connection that is not thread safe.
@@ -161,7 +162,11 @@ public class CircleNetworkStorage
             mappedRecords.Add(await MapFromStorageAsync(record));
         }
 
-        return (mappedRecords, nextCursor, nextRowIdCursor);
+        UnixTimeUtc? utc = null;
+        if (MainIndexMeta.TryParseModifiedCursor(nextCursor, out var ts, out var rowId))
+            utc = new UnixTimeUtc(ts);
+
+        return (mappedRecords, utc, rowId);
     }
 
     /// <summary>

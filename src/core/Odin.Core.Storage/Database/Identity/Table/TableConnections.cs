@@ -53,13 +53,27 @@ public class TableConnections(
     }
 
 
-    public async Task<(List<ConnectionsRecord>, UnixTimeUtc?, long)> PagingByCreatedAsync(int count, Int32 status, UnixTimeUtc? inCursor, long rowId)
+    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, Int32 status, string cursor)
     {
-        return await base.PagingByCreatedAsync(count, identityKey, status, inCursor, rowId);
+        UnixTimeUtc? utc = null;
+
+        if (MainIndexMeta.TryParseModifiedCursor(cursor, out var ts, out var rowId))
+            utc = new UnixTimeUtc(ts);
+
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, utc, rowId);
+
+        return (r, tsc == null ? null : tsc.ToString() + "," + ri.ToString());
     }
 
-    public async Task<(List<ConnectionsRecord>, UnixTimeUtc?, long)> PagingByCreatedAsync(int count, UnixTimeUtc? inCursor, long rowId)
+    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursor)
     {
-        return await base.PagingByCreatedAsync(count, identityKey, inCursor, rowId);
+        UnixTimeUtc? utc = null;
+
+        if (MainIndexMeta.TryParseModifiedCursor(cursor, out var ts, out var rowId))
+            utc = new UnixTimeUtc(ts);
+
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, utc, rowId);
+
+        return (r, tsc == null ? null : tsc.ToString() + "," + ri.ToString());
     }
 }
