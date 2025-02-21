@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Configuration;
 using Odin.Services.Membership.Circles;
@@ -71,18 +72,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Circles = null
             });
 
-            Assert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
-            Assert.IsTrue(frodoInitResponse.Content);
+            ClassicAssert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(frodoInitResponse.Content);
 
 
             await frodoOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections, bool.TrueString);
 
             var getSystemCircleResponse1 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
-            Assert.IsTrue(getSystemCircleResponse1.IsSuccessStatusCode);
-            Assert.IsNotNull(getSystemCircleResponse1.Content);
+            ClassicAssert.IsTrue(getSystemCircleResponse1.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getSystemCircleResponse1.Content);
 
             var systemCircle1 = getSystemCircleResponse1.Content;
-            Assert.IsTrue(systemCircle1.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+            ClassicAssert.IsTrue(systemCircle1.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
 
             //
             // Disable ability to read connections
@@ -93,10 +94,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             // system circle should not have permissions
             //
             var getSystemCircleResponse2 = await frodoOwnerClient.Membership.GetCircleDefinition(SystemCircleConstants.ConfirmedConnectionsCircleId);
-            Assert.IsTrue(getSystemCircleResponse2.IsSuccessStatusCode);
-            Assert.IsNotNull(getSystemCircleResponse2.Content);
+            ClassicAssert.IsTrue(getSystemCircleResponse2.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getSystemCircleResponse2.Content);
             var systemCircle = getSystemCircleResponse2.Content;
-            Assert.IsFalse(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+            ClassicAssert.IsFalse(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
         }
         
         [Test]
@@ -107,8 +108,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
 
             var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
-            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
+            ClassicAssert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
         }
         
         [Test]
@@ -119,8 +120,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
 
             var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
-            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
+            ClassicAssert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanReactOnAnonymousDrives);
         }
         
         
@@ -132,8 +133,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             await merryOwnerClient.Configuration.InitializeIdentity(new InitialSetupRequest());
 
             var getSettingsResponse  = await merryOwnerClient.Configuration.GetTenantSettings();
-            Assert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanCommentOnAnonymousDrives);
+            ClassicAssert.IsTrue(getSettingsResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getSettingsResponse.Content.ConnectedIdentitiesCanCommentOnAnonymousDrives);
         }
     }
 }

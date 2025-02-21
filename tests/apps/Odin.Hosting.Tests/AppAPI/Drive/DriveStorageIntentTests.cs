@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -71,7 +72,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //upload normal
             var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
             var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
+            ClassicAssert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
             //validate normal
 
             //update the content
@@ -80,11 +81,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var updateResult = await appApiClient.Drive.UpdateMetadata(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
 
-            Assert.IsTrue(updateResult.NewVersionTag != uploadResult.NewVersionTag);
+            ClassicAssert.IsTrue(updateResult.NewVersionTag != uploadResult.NewVersionTag);
             var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
-            Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
+            ClassicAssert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
+            ClassicAssert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
         }
 
         [Test]
@@ -110,7 +111,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //upload normal
             var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
             var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
+            ClassicAssert.IsTrue(firstHeader.FileMetadata.AppData.Content == content1);
             //validate normal
 
             //update the content; indicate the payload changed
@@ -119,14 +120,14 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
 
-            Assert.IsTrue(updateResultResponse.IsSuccessStatusCode);
-            Assert.IsTrue(updateResultResponse.Content.NewVersionTag != uploadResult.NewVersionTag);
+            ClassicAssert.IsTrue(updateResultResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(updateResultResponse.Content.NewVersionTag != uploadResult.NewVersionTag);
 
             var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
-            Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
-            Assert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
+            ClassicAssert.IsTrue(updatedHeader.FileMetadata.AppData.Content == content2);
+            ClassicAssert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
+            ClassicAssert.IsTrue(updatedHeader.FileMetadata.Payloads.Count == 0);
         }
         
         // 

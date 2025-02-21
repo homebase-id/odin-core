@@ -3,6 +3,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography.Crypto;
 using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
 
@@ -111,7 +112,7 @@ namespace Odin.Core.Cryptography.Tests
             var cipher1 = AesGcm.Encrypt(testData1, mysk, iv);
             var cipher2 = AesGcm.Encrypt(testData2, mysk, iv);
 
-            Assert.AreNotEqual(cipher1, cipher2, "Ciphertexts with reused IVs should not match.");
+            ClassicAssert.AreNotEqual(cipher1, cipher2, "Ciphertexts with reused IVs should not match.");
         }
 
         [Test]
@@ -126,7 +127,7 @@ namespace Odin.Core.Cryptography.Tests
             var (IV, cipher) = AesGcm.Encrypt(testData, mysk);
             var roundtrip = AesGcm.Decrypt(cipher, mysk, IV);
 
-            Assert.IsTrue(testData.SequenceEqual(roundtrip), "Large data encryption/decryption failed.");
+            ClassicAssert.IsTrue(testData.SequenceEqual(roundtrip), "Large data encryption/decryption failed.");
         }
 
         [Test]
@@ -140,7 +141,7 @@ namespace Odin.Core.Cryptography.Tests
             var (IV, cipher) = AesGcm.Encrypt(testData, mysk);
             var roundtrip = AesGcm.Decrypt(cipher, mysk, IV);
 
-            Assert.IsTrue(testData.SequenceEqual(roundtrip), "Binary data encryption/decryption failed.");
+            ClassicAssert.IsTrue(testData.SequenceEqual(roundtrip), "Binary data encryption/decryption failed.");
         }
 
     }

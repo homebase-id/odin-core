@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.DataSubscription.Follower;
@@ -115,11 +116,11 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
         var originalFile = batch.SearchResults.First();
-        Assert.IsTrue(originalFile.FileState == FileState.Active);
-        Assert.IsTrue(originalFile.FileMetadata.AppData.Content == uploadedContent);
-        Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == firstUploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(originalFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(originalFile.FileMetadata.AppData.Content == uploadedContent);
+        ClassicAssert.IsTrue(originalFile.FileMetadata.GlobalTransitId == firstUploadResult.GlobalTransitId);
 
         //Now change the file as if someone edited a post
         var updatedContent = "No really, I'm Frodo Baggins";
@@ -137,17 +138,17 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
         //Sam should have changes; note - we're using the same query params intentionally
         var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch2.SearchResults.Count() == 1, $"Count should be 1 but was {batch2.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch2.SearchResults.Count() == 1, $"Count should be 1 but was {batch2.SearchResults.Count()}");
         var updatedFile = batch2.SearchResults.First();
-        Assert.IsTrue(updatedFile.FileState == FileState.Active);
-        Assert.IsTrue(updatedFile.FileMetadata.Created == originalFile.FileMetadata.Created);
-        Assert.IsTrue(updatedFile.FileMetadata.Updated > originalFile.FileMetadata.Updated);
-        Assert.IsTrue(updatedFile.FileMetadata.AppData.Content == updatedContent);
-        Assert.IsTrue(updatedFile.FileMetadata.AppData.Content != originalFile.FileMetadata.AppData.Content);
-        Assert.IsTrue(updatedFile.FileMetadata.GlobalTransitId == originalFile.FileMetadata.GlobalTransitId);
-        Assert.IsTrue(updatedFile.FileMetadata.ReactionPreview == null, "ReactionPreview should be null on initial file upload; even tho it was updated");
+        ClassicAssert.IsTrue(updatedFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(updatedFile.FileMetadata.Created == originalFile.FileMetadata.Created);
+        ClassicAssert.IsTrue(updatedFile.FileMetadata.Updated > originalFile.FileMetadata.Updated);
+        ClassicAssert.IsTrue(updatedFile.FileMetadata.AppData.Content == updatedContent);
+        ClassicAssert.IsTrue(updatedFile.FileMetadata.AppData.Content != originalFile.FileMetadata.AppData.Content);
+        ClassicAssert.IsTrue(updatedFile.FileMetadata.GlobalTransitId == originalFile.FileMetadata.GlobalTransitId);
+        ClassicAssert.IsTrue(updatedFile.FileMetadata.ReactionPreview == null, "ReactionPreview should be null on initial file upload; even tho it was updated");
 
-        // Assert.IsTrue(updatedFile.FileMetadata.ReactionPreview.TotalCommentCount == originalFile.FileMetadata.ReactionPreview.TotalCommentCount);
+        // ClassicAssert.IsTrue(updatedFile.FileMetadata.ReactionPreview.TotalCommentCount == originalFile.FileMetadata.ReactionPreview.TotalCommentCount);
         // CollectionAssert.AreEquivalent(updatedFile.FileMetadata.ReactionPreview.Reactions, originalFile.FileMetadata.ReactionPreview.Reactions);
         // CollectionAssert.AreEquivalent(updatedFile.FileMetadata.ReactionPreview.Comments, originalFile.FileMetadata.ReactionPreview.Comments);
 
@@ -194,11 +195,11 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
-        Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
-        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(theFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
+        ClassicAssert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         //All done
 
@@ -246,11 +247,11 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
-        Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
-        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(theFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(theFile.FileMetadata.AppData.Content == uploadedContent);
+        ClassicAssert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         //All done
         await samOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -300,11 +301,11 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
-        Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.Content == encryptedJsonContent64);
-        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(theFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(theFile.FileMetadata.AppData.Content == encryptedJsonContent64);
+        ClassicAssert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         //All done
 
@@ -353,7 +354,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(!batch.SearchResults.Any(), $"Count should be 0 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(!batch.SearchResults.Any(), $"Count should be 0 but was {batch.SearchResults.Count()}");
 
         //All done
 
@@ -489,8 +490,8 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
         // Validate Frodo no longer has it
         var getDeletedFileResponse = await frodoOwnerClient.Drive.GetFileHeaderRaw(FileSystemType.Standard, uploadResult.File);
-        Assert.IsTrue(getDeletedFileResponse.IsSuccessStatusCode);
-        Assert.IsTrue(getDeletedFileResponse.Content.FileState == FileState.Deleted, "frodo's file should be marked deleted");
+        ClassicAssert.IsTrue(getDeletedFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getDeletedFileResponse.Content.FileState == FileState.Deleted, "frodo's file should be marked deleted");
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
@@ -565,11 +566,11 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
-        Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.Content == encryptedJsonContent64);
-        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(theFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(theFile.FileMetadata.AppData.Content == encryptedJsonContent64);
+        ClassicAssert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         //All done
 
@@ -587,17 +588,17 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
+        ClassicAssert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
 
     private async Task AssertFeedDriveHasFile(OwnerApiClient client, FileQueryParams queryParams, string expectedContent, UploadResult expectedUploadResult)
     {
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, queryParams);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
-        Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.Content == expectedContent);
-        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == expectedUploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(theFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(theFile.FileMetadata.AppData.Content == expectedContent);
+        ClassicAssert.IsTrue(theFile.FileMetadata.GlobalTransitId == expectedUploadResult.GlobalTransitId);
     }
 
     private async Task<UploadResult> UploadStandardUnencryptedFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent,

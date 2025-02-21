@@ -10,6 +10,7 @@ using Odin.Core.Util;
 using NodaTime;
 using Odin.Core.Time;
 using System.Globalization;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
 
@@ -133,12 +134,12 @@ namespace Odin.Tests
             envelope.CalculateContentHash(document);
 
             // Assert
-            Assert.IsNotNull(envelope.ContentHash);
-            Assert.IsNotNull(envelope.ContentNonce);
-            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
-            Assert.IsNotNull(envelope.TimeStamp);
-            Assert.AreEqual(document.Length, envelope.ContentLength);
-            Assert.AreEqual(additionalInfo, envelope.AdditionalInfo);
+            ClassicAssert.IsNotNull(envelope.ContentHash);
+            ClassicAssert.IsNotNull(envelope.ContentNonce);
+            ClassicAssert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
+            ClassicAssert.IsNotNull(envelope.TimeStamp);
+            ClassicAssert.AreEqual(document.Length, envelope.ContentLength);
+            ClassicAssert.AreEqual(additionalInfo, envelope.AdditionalInfo);
         }
 
         [Test]
@@ -152,12 +153,12 @@ namespace Odin.Tests
             envelope.CalculateContentHash(document);
 
             // Assert
-            Assert.IsNotNull(envelope.ContentHash);
-            Assert.IsNotNull(envelope.ContentNonce);
-            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
-            Assert.IsNotNull(envelope.TimeStamp);
-            Assert.AreEqual(document.Length, envelope.ContentLength);
-            Assert.AreEqual(null, envelope.AdditionalInfo);
+            ClassicAssert.IsNotNull(envelope.ContentHash);
+            ClassicAssert.IsNotNull(envelope.ContentNonce);
+            ClassicAssert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
+            ClassicAssert.IsNotNull(envelope.TimeStamp);
+            ClassicAssert.AreEqual(document.Length, envelope.ContentLength);
+            ClassicAssert.AreEqual(null, envelope.AdditionalInfo);
         }
 
         [Test]
@@ -174,12 +175,12 @@ namespace Odin.Tests
             envelope.CalculateContentHash(fileName);
 
             // Assert
-            Assert.IsNotNull(envelope.ContentHash);
-            Assert.IsNotNull(envelope.ContentNonce);
-            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
-            Assert.IsNotNull(envelope.TimeStamp);
-            Assert.AreEqual(new FileInfo(fileName).Length, envelope.ContentLength);
-            Assert.AreEqual(additionalInfo, envelope.AdditionalInfo);
+            ClassicAssert.IsNotNull(envelope.ContentHash);
+            ClassicAssert.IsNotNull(envelope.ContentNonce);
+            ClassicAssert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
+            ClassicAssert.IsNotNull(envelope.TimeStamp);
+            ClassicAssert.AreEqual(new FileInfo(fileName).Length, envelope.ContentLength);
+            ClassicAssert.AreEqual(additionalInfo, envelope.AdditionalInfo);
 
             // Clean up
             File.Delete(fileName);

@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -76,7 +77,7 @@ public class TransitBadCATDetectionTests
         Assert.That(getPublicPayloadTransitResponse1.Content, Is.Not.Null);
 
         var remotePublicPayload1 = await getPublicPayloadTransitResponse1.Content.ReadAsStringAsync();
-        Assert.IsTrue(remotePublicPayload1 == publicPayloadContent);
+        ClassicAssert.IsTrue(remotePublicPayload1 == publicPayloadContent);
 
         var getSecuredPayloadTransitResponse1 =
             await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, securedFileUploadResult.File);
@@ -84,7 +85,7 @@ public class TransitBadCATDetectionTests
         Assert.That(getSecuredPayloadTransitResponse1.Content, Is.Not.Null);
 
         var remoteSecuredPayload1 = await getSecuredPayloadTransitResponse1.Content.ReadAsStringAsync();
-        Assert.IsTrue(remoteSecuredPayload1 == securedPayloadContent);
+        ClassicAssert.IsTrue(remoteSecuredPayload1 == securedPayloadContent);
 
         //
         // Merry gets mad and disconnects from Pippin, pippin leaves for Gondor with Gandalf 🧙‍🐎
@@ -105,20 +106,20 @@ public class TransitBadCATDetectionTests
         Assert.That(getPublicPayloadTransitResponse2.Content, Is.Not.Null);
 
         var remotePublicPayload2 = await getPublicPayloadTransitResponse2.Content.ReadAsStringAsync();
-        Assert.IsTrue(remotePublicPayload2 == publicPayloadContent);
+        ClassicAssert.IsTrue(remotePublicPayload2 == publicPayloadContent);
 
 
         // Call to secure should fail with 403
         var getSecurePayloadTransitResponse2 =
             await pippinOwnerClient.Transit.GetPayloadOverTransit(merryOwnerClient.Identity.OdinId, securedFileUploadResult.File);
-        Assert.IsTrue(getSecurePayloadTransitResponse2.StatusCode == HttpStatusCode.Forbidden,
+        ClassicAssert.IsTrue(getSecurePayloadTransitResponse2.StatusCode == HttpStatusCode.Forbidden,
             $"Status code was {getSecurePayloadTransitResponse2.StatusCode}");
 
         //
         // Validate there is no longer a connection with merry/pippin
         //
         var merryConnectionOnPippin = await pippinOwnerClient.Network.GetConnectionInfo(TestIdentities.Merry);
-        Assert.IsTrue(merryConnectionOnPippin.Status == ConnectionStatus.None);
+        ClassicAssert.IsTrue(merryConnectionOnPippin.Status == ConnectionStatus.None);
     }
 
     private async Task<(UploadResult uploadResult, string securedPayloadContent)> MerryPostSecureFileAndAuthorizePippin()

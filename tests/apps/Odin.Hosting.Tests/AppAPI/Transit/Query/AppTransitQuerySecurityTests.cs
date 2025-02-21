@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -58,16 +59,16 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             await merryOwnerClient.Network.AcceptConnectionRequest(pippinOwnerClient.Identity);
 
             var allPippinDrivesResponse = await pippinOwnerClient.Drive.GetDrives(1, 200);
-            Assert.IsTrue(allPippinDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(allPippinDrivesResponse.IsSuccessStatusCode);
             var allPippinDrives = allPippinDrivesResponse.Content;
-            Assert.IsNotNull(allPippinDrives);
+            ClassicAssert.IsNotNull(allPippinDrives);
 
             var expectedAnonymousDrives = allPippinDrives.Results.Where(drive => drive.AllowAnonymousReads);
 
             var remoteDotYouContextResponse = await merryAppClient.TransitQuery.GetRemoteDotYouContext(new TransitGetSecurityContextRequest() { OdinId = pippinOwnerClient.Identity.OdinId });
-            Assert.IsTrue(remoteDotYouContextResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(remoteDotYouContextResponse.IsSuccessStatusCode);
             var remoteContext = remoteDotYouContextResponse.Content;
-            Assert.IsNotNull(remoteContext);
+            ClassicAssert.IsNotNull(remoteContext);
             var groups = remoteContext.PermissionContext.PermissionGroups;
             
             var allDrivesFound = expectedAnonymousDrives.All(ownerAnonDrive =>
@@ -77,7 +78,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     dg.PermissionedDrive.Permission.HasFlag(DrivePermission.React) && 
                     dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Comment))));
             
-            Assert.IsTrue(allDrivesFound);
+            ClassicAssert.IsTrue(allDrivesFound);
         }
 
         [Test]
@@ -89,7 +90,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             {
                 OdinId = TestIdentities.Pippin.OdinId
             });
-            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+            ClassicAssert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
         [Test]
@@ -102,7 +103,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 OdinId = TestIdentities.Merry.OdinId,
             });
 
-            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+            ClassicAssert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
 
@@ -121,7 +122,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 }
             });
 
-            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+            ClassicAssert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
         [Test]
@@ -140,7 +141,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Key = WebScaffold.PAYLOAD_KEY
             });
 
-            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+            ClassicAssert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
 
@@ -159,7 +160,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 }
             });
 
-            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+            ClassicAssert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
         [Test]
@@ -181,7 +182,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 }
             });
 
-            Assert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
+            ClassicAssert.IsTrue(getBatchResponse.StatusCode == HttpStatusCode.Forbidden, $"status code was {getBatchResponse.StatusCode}");
         }
 
         //

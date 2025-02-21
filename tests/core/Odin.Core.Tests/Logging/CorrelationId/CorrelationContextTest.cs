@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Logging.CorrelationId;
 
 namespace Odin.Core.Tests.Logging.CorrelationId;
@@ -20,42 +21,42 @@ public class CorrelationContextTest
             Task.Run(() =>
             {
                 var cc1 = new CorrelationContext(new CorrelationUniqueIdGenerator());
-                Assert.False(string.IsNullOrEmpty(cc1.Id));
+                ClassicAssert.False(string.IsNullOrEmpty(cc1.Id));
                 id1 = cc1.Id;
             }),
             Task.Run(() =>
             {
                 var cc2 = new CorrelationContext(new CorrelationUniqueIdGenerator());
-                Assert.False(string.IsNullOrEmpty(cc2.Id));
+                ClassicAssert.False(string.IsNullOrEmpty(cc2.Id));
                 id2 = cc2.Id;
 
                 var thread = new Thread(() =>
                 {
                     var cc3 = new CorrelationContext(new CorrelationUniqueIdGenerator());
-                    Assert.False(string.IsNullOrEmpty(cc3.Id));
-                    Assert.AreEqual(id2, cc3.Id);
+                    ClassicAssert.False(string.IsNullOrEmpty(cc3.Id));
+                    ClassicAssert.AreEqual(id2, cc3.Id);
 
                     Task.Run(() =>
                     {
                         var cc4 = new CorrelationContext(new CorrelationUniqueIdGenerator());
-                        Assert.False(string.IsNullOrEmpty(cc4.Id));
-                        Assert.AreEqual(id2, cc4.Id);
+                        ClassicAssert.False(string.IsNullOrEmpty(cc4.Id));
+                        ClassicAssert.AreEqual(id2, cc4.Id);
                     }).Wait();
 
                     var flow = ExecutionContext.SuppressFlow();
                     Task.Run(() =>
                     {
                         var cc5 = new CorrelationContext(new CorrelationUniqueIdGenerator());
-                        Assert.False(string.IsNullOrEmpty(cc5.Id));
-                        Assert.AreNotEqual(id2, cc5.Id);
+                        ClassicAssert.False(string.IsNullOrEmpty(cc5.Id));
+                        ClassicAssert.AreNotEqual(id2, cc5.Id);
                     }).Wait();
                     flow.Undo();
 
                     Task.Run(() =>
                     {
                         var cc6 = new CorrelationContext(new CorrelationUniqueIdGenerator());
-                        Assert.False(string.IsNullOrEmpty(cc6.Id));
-                        Assert.AreEqual(id2, cc6.Id);
+                        ClassicAssert.False(string.IsNullOrEmpty(cc6.Id));
+                        ClassicAssert.AreEqual(id2, cc6.Id);
                     }).Wait();
 
                 });
@@ -65,7 +66,7 @@ public class CorrelationContextTest
         };
 
         await Task.WhenAll(tasks);
-        Assert.AreNotEqual(id1, id2);
+        ClassicAssert.AreNotEqual(id1, id2);
     }
 
     //
@@ -88,9 +89,9 @@ public class CorrelationContextTest
         };
 
         await Task.WhenAll(tasks);
-        Assert.AreEqual(cc0.Id, "000");
-        Assert.AreEqual(id1, "111");
-        Assert.AreEqual(id2, "222");
+        ClassicAssert.AreEqual(cc0.Id, "000");
+        ClassicAssert.AreEqual(id1, "111");
+        ClassicAssert.AreEqual(id2, "222");
 
         return;
 

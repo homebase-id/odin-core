@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -84,12 +85,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             };
 
             var response = await svc.GetBatch(request);
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var batch = response.Content;
 
-            Assert.IsNotNull(batch);
-            Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
-            Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadResult.File.FileId);
+            ClassicAssert.IsNotNull(batch);
+            ClassicAssert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
+            ClassicAssert.True(batch.SearchResults.Single().FileId == anonymousFileUploadResult.File.FileId);
         }
 
         [Test]
@@ -139,12 +140,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             var svc = RestService.For<IRefitGuestDriveQuery>(client);
             var response = await svc.GetBatch(request);
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var batch = response.Content;
 
-            Assert.IsNotNull(batch);
-            Assert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
-            Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadResult.File.FileId);
+            ClassicAssert.IsNotNull(batch);
+            ClassicAssert.True(batch.SearchResults.Count() == 1); //should only be the anonymous file we uploaded
+            ClassicAssert.True(batch.SearchResults.Single().FileId == anonymousFileUploadResult.File.FileId);
         }
 
         [Test]
@@ -195,12 +196,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 };
 
                 var getModifiedResponse = await svc.GetModified(request);
-                Assert.IsTrue(getModifiedResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getModifiedResponse.StatusCode}");
+                ClassicAssert.IsTrue(getModifiedResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getModifiedResponse.StatusCode}");
                 var batch = getModifiedResponse.Content;
 
-                Assert.IsNotNull(batch);
-                Assert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
-                Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.uploadResult.File.FileId);
+                ClassicAssert.IsNotNull(batch);
+                ClassicAssert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
+                ClassicAssert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.uploadResult.File.FileId);
             }
         }
 
@@ -234,11 +235,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 };
 
                 var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
-                Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => t == tag)));
+                ClassicAssert.IsNotNull(batch);
+                ClassicAssert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => t == tag)));
             }
         }
 
@@ -272,26 +273,26 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
                 var response = await svc.GetBatch(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
-                Assert.IsNotNull(batch);
+                ClassicAssert.IsNotNull(batch);
 
                 //TODO: what to test here?
-                Assert.IsTrue(batch.SearchResults.Any());
-                Assert.IsNotNull(batch.CursorState);
-                Assert.IsNotEmpty(batch.CursorState);
+                ClassicAssert.IsTrue(batch.SearchResults.Any());
+                ClassicAssert.IsNotNull(batch.CursorState);
+                ClassicAssert.IsNotEmpty(batch.CursorState);
 
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
-                Assert.NotNull(firstResult.FileMetadata.AppData.Content);
-                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
+                ClassicAssert.NotNull(firstResult.FileMetadata.AppData.Content);
+                ClassicAssert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
 
-                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.FileMetadata.SenderOdinId == identity.OdinId);
-                Assert.IsTrue(firstResult.FileMetadata.OriginalAuthor == identity.OdinId);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.SenderOdinId == identity.OdinId);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.OriginalAuthor == identity.OdinId);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -329,10 +330,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 var response = await svc.GetBatch(request);
 
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
-                Assert.IsNotNull(batch);
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)), "One or more items had content");
+                ClassicAssert.IsNotNull(batch);
+                ClassicAssert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)), "One or more items had content");
             }
         }
 

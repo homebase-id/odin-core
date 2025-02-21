@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -105,7 +106,7 @@ public class CollaborationChannelTests
 
         var (response, firstFileUploadMetadata, payload1) =
             await AwaitPostNewEncryptedFileOverPeerDirect(member1, collabChannelDrive, collabChannel, keyHeader);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
         // The collab channel gets the file then will redistribute to its followers' feeds
         await collabChannel.DriveRedux.WaitForFeedOutboxDistribution(collabChannelDrive);
@@ -123,7 +124,7 @@ public class CollaborationChannelTests
         //
         var (updateFileResponse, updatedFileMetadata, updatedEncryptedMetadataContent64) =
             await AwaitUpdateFile(callerContext, member2, firstFileUploadMetadata, remoteTargetFile, collabChannel, payload1, keyHeader);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
@@ -135,8 +136,8 @@ public class CollaborationChannelTests
             var updatedFileInCollabChannelResponse =
                 await collabChannel.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
             var updatedFileInCollabChannel = updatedFileInCollabChannelResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsTrue(updatedFileInCollabChannel!.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(updatedFileInCollabChannel!.FileMetadata.OriginalAuthor == member1.OdinId);
+            ClassicAssert.IsTrue(updatedFileInCollabChannel!.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(updatedFileInCollabChannel!.FileMetadata.OriginalAuthor == member1.OdinId);
 
             //
             // The collab channel gets the file then will redistribute to its followers' feeds
@@ -144,7 +145,7 @@ public class CollaborationChannelTests
             await collabChannel.DriveRedux.WaitForFeedOutboxDistribution(collabChannelDrive);
 
             var uploadResult = updateFileResponse.Content;
-            Assert.IsNotNull(uploadResult);
+            ClassicAssert.IsNotNull(uploadResult);
 
 
             //
@@ -219,7 +220,7 @@ public class CollaborationChannelTests
             uploadManifest,
             testPayloads);
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
         // the collab channel we get the file from the TransferNewFile and we need to wait for it to send it out to all followers
         await collabChannelOwnerClient.DriveRedux.WaitForEmptyOutbox(collabChannelDrive); //waiting for distribution to occur
@@ -272,7 +273,7 @@ public class CollaborationChannelTests
 
         var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
         await member1_OwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive, TimeSpan.FromMinutes(30));
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // the collab channel we get the file from the UpdateFile and we need to wait for it to send it out to all followers
@@ -282,7 +283,7 @@ public class CollaborationChannelTests
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var uploadResult = updateFileResponse.Content;
-            Assert.IsNotNull(uploadResult);
+            ClassicAssert.IsNotNull(uploadResult);
 
             // handle any incoming feed items
             await collabChannelOwnerClient.DriveRedux.WaitForEmptyInbox(remoteTargetFile.TargetDrive);
@@ -292,15 +293,15 @@ public class CollaborationChannelTests
             //
             var getHeaderResponse =
                 await collabChannelOwnerClient.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
-            Assert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payload1.Key), "payload 1 should have been removed");
-            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payload2.Key), "payload 2 should remain");
-            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.All(pd => pd.Key != payload1.Key), "payload 1 should have been removed");
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payload2.Key), "payload 2 should remain");
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
                 "payloadToAdd should have been, well, added :)");
 
             // file should be on the feed of those connected
@@ -315,15 +316,15 @@ public class CollaborationChannelTests
             await member2_OwnerClient.DriveRedux.WaitForEmptyInbox(SystemDriveConstants.FeedDrive);
 
             var channelOnMembersFeedDrive = await member2_OwnerClient.DriveRedux.QueryByGlobalTransitId(globalTransitIdFileIdentifier);
-            Assert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(channelOnMembersFeedDrive.IsSuccessStatusCode);
             var theFileOnFeedDrive = channelOnMembersFeedDrive.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileOnFeedDrive);
+            ClassicAssert.IsNotNull(theFileOnFeedDrive);
 
-            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
-            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel,
+            ClassicAssert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(theFileOnFeedDrive.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(theFileOnFeedDrive.FileMetadata.SenderOdinId == collabChannel,
                 $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
-            Assert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == member1,
+            ClassicAssert.IsTrue(theFileOnFeedDrive.FileMetadata.OriginalAuthor == member1,
                 $"original author was {theFileOnFeedDrive.FileMetadata.OriginalAuthor}");
         }
 
@@ -410,11 +411,11 @@ public class CollaborationChannelTests
         var getFileByGtidResponse = await recipient.DriveRedux.QueryByGlobalTransitId(fileOnFeed.ToGlobalTransitIdFileIdentifier());
         var theFile = getFileByGtidResponse.Content.SearchResults.SingleOrDefault();
 
-        Assert.IsNotNull(theFile, $"{recipient.OdinId} is missing file in the feed");
-        Assert.IsTrue(theFile.FileMetadata.AppData.DataType == expectedFileMetadata.AppData.DataType);
-        // Assert.IsTrue(theFile.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
-        // Assert.IsTrue(theFile.FileMetadata.SenderOdinId == collabChannel, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
-        // Assert.IsTrue(theFile.FileMetadata.OriginalAuthor == member1, $"original author was {theFileOnFeedDrive.FileMetadata.OriginalAuthor}");
+        ClassicAssert.IsNotNull(theFile, $"{recipient.OdinId} is missing file in the feed");
+        ClassicAssert.IsTrue(theFile.FileMetadata.AppData.DataType == expectedFileMetadata.AppData.DataType);
+        // ClassicAssert.IsTrue(theFile.FileMetadata.AppData.Content == updatedEncryptedMetadataContent64);
+        // ClassicAssert.IsTrue(theFile.FileMetadata.SenderOdinId == collabChannel, $"sender was {theFileOnFeedDrive.FileMetadata.SenderOdinId}");
+        // ClassicAssert.IsTrue(theFile.FileMetadata.OriginalAuthor == member1, $"original author was {theFileOnFeedDrive.FileMetadata.OriginalAuthor}");
     }
 
     private static async Task<(ApiResponse<TransitResult> response, UploadFileMetadata uploadedMetadata, TestPayloadDefinition payload1)>
@@ -493,9 +494,9 @@ public class CollaborationChannelTests
         await member1.Connections.DisconnectFrom(collabChannel.OdinId);
         await member2.Connections.DisconnectFrom(collabChannel.OdinId);
 
-        Assert.IsTrue((await member1.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode,
+        ClassicAssert.IsTrue((await member1.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode,
             "member1 failed to unfollow collab channel");
-        Assert.IsTrue((await member2.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode,
+        ClassicAssert.IsTrue((await member2.Follower.UnfollowIdentity(collabChannel.OdinId)).IsSuccessStatusCode,
             "member2 failed to unfollow collab channel");
     }
 }

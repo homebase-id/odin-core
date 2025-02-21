@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -27,26 +28,26 @@ public class TableKeyValueCacheTests : IocTestBase
         var v1 = Guid.NewGuid().ToByteArray();
 
         var record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
-        Assert.IsNull(record);
+        ClassicAssert.IsNull(record);
 
         record = new KeyValueRecord { key = k1, data = v1 };
         await tblKeyValueCache.InsertAsync(record, TimeSpan.FromSeconds(1));
 
         record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
-        Assert.IsNotNull(record);
+        ClassicAssert.IsNotNull(record);
 
         var cache = scope.Resolve<ITenantLevel1Cache<TableKeyValueCache>>();
-        Assert.IsTrue(await cache.ContainsAsync(TableKeyValueCache.CacheKey(k1)));
+        ClassicAssert.IsTrue(await cache.ContainsAsync(TableKeyValueCache.CacheKey(k1)));
 
         await cache.RemoveAsync(TableKeyValueCache.CacheKey(k1));
-        Assert.IsFalse(await cache.ContainsAsync(TableKeyValueCache.CacheKey(k1)));
+        ClassicAssert.IsFalse(await cache.ContainsAsync(TableKeyValueCache.CacheKey(k1)));
 
         record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
-        Assert.IsNotNull(record);
+        ClassicAssert.IsNotNull(record);
 
         await tblKeyValueCache.DeleteAsync(k1);
         record = await tblKeyValueCache.GetAsync(k1, TimeSpan.FromSeconds(1));
-        Assert.IsNull(record);
+        ClassicAssert.IsNull(record);
     }
 
 }

@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
@@ -128,10 +129,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 Assert.That(uploadResult.File, Is.Not.Null);
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
                 // Assert.That(uploadResult.RecipientStatus, Is.Not.Null);
-                // Assert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
+                // ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 0, "Too many recipient results returned");
 
                 //
 
@@ -154,7 +155,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
-                Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
+                ClassicAssert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
@@ -223,7 +224,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             AppTransitTestUtilsContext ctx = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(TestIdentities.Frodo, fileMetadata, options);
 
-            Assert.IsNotNull(ctx.Thumbnails.SingleOrDefault());
+            ClassicAssert.IsNotNull(ctx.Thumbnails.SingleOrDefault());
             var appContext = ctx.TestAppContext;
             var fileToDelete = ctx.UploadedFile;
 
@@ -241,13 +242,13 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     }
                 });
 
-                Assert.IsTrue(fileIsInIndexResponse?.Content?.SearchResults?.SingleOrDefault()?.FileMetadata?.AppData?.FileType == SomeFileType);
+                ClassicAssert.IsTrue(fileIsInIndexResponse?.Content?.SearchResults?.SingleOrDefault()?.FileMetadata?.AppData?.FileType == SomeFileType);
 
                 // delete the file
                 var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest() { File = fileToDelete });
-                Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(deleteFileResponse.Content);
-                Assert.IsTrue(deleteFileResponse.Content.LocalFileDeleted);
+                ClassicAssert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(deleteFileResponse.Content);
+                ClassicAssert.IsTrue(deleteFileResponse.Content.LocalFileDeleted);
 
                 //
                 // Should still be in index
@@ -261,8 +262,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     }
                 });
 
-                Assert.IsTrue(qbResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(qbResponse.Content);
+                ClassicAssert.IsTrue(qbResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(qbResponse.Content);
                 var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
                 OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry);
 
@@ -276,16 +277,16 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     }
                 });
 
-                Assert.IsTrue(queryModifiedResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryModifiedResponse.Content);
+                ClassicAssert.IsTrue(queryModifiedResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryModifiedResponse.Content);
                 var queryModifiedDeletedEntry = qbResponse.Content.SearchResults.SingleOrDefault();
-                Assert.IsNotNull(queryModifiedDeletedEntry);
+                ClassicAssert.IsNotNull(queryModifiedDeletedEntry);
                 OdinTestAssertions.FileHeaderIsMarkedDeleted(queryModifiedDeletedEntry);
 
                 // get file directly
                 var getFileHeaderResponse = await svc.GetFileHeaderAsPost(fileToDelete);
-                Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getFileHeaderResponse.Content);
+                ClassicAssert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getFileHeaderResponse.Content);
                 var deletedFileHeader = getFileHeaderResponse.Content;
                 OdinTestAssertions.FileHeaderIsMarkedDeleted(deletedFileHeader);
 
@@ -298,11 +299,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     Width = thumb.PixelWidth,
                     PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
-                Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound, $"code was {getThumbnailResponse.StatusCode}");
+                ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound, $"code was {getThumbnailResponse.StatusCode}");
 
                 //there should not be a payload
                 var getPayloadResponse = await svc.GetPayloadAsPost(new GetPayloadRequest() { File = fileToDelete, Key = WebScaffold.PAYLOAD_KEY });
-                Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+                ClassicAssert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
             }
         }
 

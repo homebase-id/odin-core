@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
@@ -152,38 +153,38 @@ public class CircleNetworkServiceAppTests
 
         // Get Sam's connection info on Frodo's identity
         var samConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
-        Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
+        ClassicAssert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+        ClassicAssert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
         // ReSharper disable once PossibleMultipleEnumeration
-        Assert.IsTrue(chatAppCircleGrants.Count() == 2, "There should be two app circle grants(chat friends and document sharing");
+        ClassicAssert.IsTrue(chatAppCircleGrants.Count() == 2, "There should be two app circle grants(chat friends and document sharing");
         // ReSharper disable once PossibleMultipleEnumeration
         var chatFriendCircleGrant = chatAppCircleGrants.Single(c => c.CircleId == chatFriendsCircle.Id);
-        Assert.IsTrue(chatFriendCircleGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(chatFriendCircleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
-        Assert.IsTrue(chatFriendCircleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(chatFriendCircleGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(chatFriendCircleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
+        ClassicAssert.IsTrue(chatFriendCircleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = chatFriendCircleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
         //Test document sharing circle
         var documentSharingCircleGrant = chatAppCircleGrants.Single(c => c.CircleId == documentSharingCircle.Id);
-        Assert.IsTrue(documentSharingCircleGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(documentSharingCircleGrant.CircleId == documentSharingCircle.Id, "the circle id of the grant should match the chat friends circle");
-        Assert.IsTrue(documentSharingCircleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(documentSharingCircleGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(documentSharingCircleGrant.CircleId == documentSharingCircle.Id, "the circle id of the grant should match the chat friends circle");
+        ClassicAssert.IsTrue(documentSharingCircleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = documentSharingCircleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
 
@@ -284,26 +285,26 @@ public class CircleNetworkServiceAppTests
 
         // Get Sam's connection info on Frodo's identity
         var samConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
-        Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
+        ClassicAssert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+        ClassicAssert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
         // ReSharper disable once PossibleMultipleEnumeration
-        Assert.IsTrue(chatAppCircleGrants.Count() == 1, "There should be only one circle grant");
+        ClassicAssert.IsTrue(chatAppCircleGrants.Count() == 1, "There should be only one circle grant");
         // ReSharper disable once PossibleMultipleEnumeration
         var singleGrant = chatAppCircleGrants.First();
-        Assert.IsTrue(singleGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(singleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
-        Assert.IsTrue(singleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(singleGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(singleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
+        ClassicAssert.IsTrue(singleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = singleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
         //TODO: test circle grants:         samConnectionInfo.AccessGrant.CircleGrants
@@ -406,27 +407,27 @@ public class CircleNetworkServiceAppTests
 
         // Get Sam's connection info on Frodo's identity
         var samConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+        ClassicAssert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
 
-        Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
+        ClassicAssert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
         // ReSharper disable once PossibleMultipleEnumeration
-        Assert.IsTrue(chatAppCircleGrants.Count() == 1, "There should be only one circle grant");
+        ClassicAssert.IsTrue(chatAppCircleGrants.Count() == 1, "There should be only one circle grant");
         // ReSharper disable once PossibleMultipleEnumeration
         var singleGrant = chatAppCircleGrants.First();
-        Assert.IsTrue(singleGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(singleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
-        Assert.IsTrue(singleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(singleGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(singleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
+        ClassicAssert.IsTrue(singleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = singleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
 
@@ -462,40 +463,40 @@ public class CircleNetworkServiceAppTests
 
         // Test
         var updatedApp = await frodoOwnerClient.Apps.GetAppRegistration(appRegistration.AppId);
-        Assert.IsNotNull(updatedApp, $"Could not retrieve the app {appId}");
+        ClassicAssert.IsNotNull(updatedApp, $"Could not retrieve the app {appId}");
 
         CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, newAuthorizedCircles, "Updated authorized circles are incorrect");
-        Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet,
+        ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet,
             "updated app cirlce grant permission set did not match");
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = updatedApp.CircleMemberPermissionSetGrantRequest.Drives.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the app's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the app's circle member granted drive");
         }
 
         // Test sam's identity to have new circle
 
         // Get Sam's connection info on Frodo's identity
         var updatedSamConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants2 = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.IsTrue(appGrants2.Count == 3, "There should be 3 app grants because we added one and deleted one; plus the two built-in grants");
-        Assert.IsTrue(appGrants2.TryGetValue(appKey, out var updatedChatAppCircleGrants), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(updatedChatAppCircleGrants, "chatAppCircleGrants2 != null");
+        ClassicAssert.IsTrue(appGrants2.Count == 3, "There should be 3 app grants because we added one and deleted one; plus the two built-in grants");
+        ClassicAssert.IsTrue(appGrants2.TryGetValue(appKey, out var updatedChatAppCircleGrants), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(updatedChatAppCircleGrants, "chatAppCircleGrants2 != null");
 
         // ReSharper disable once PossibleMultipleEnumeration
-        Assert.IsTrue(updatedChatAppCircleGrants.Count() == 1, "There should be only one circle grant");
+        ClassicAssert.IsTrue(updatedChatAppCircleGrants.Count() == 1, "There should be only one circle grant");
         // ReSharper disable once PossibleMultipleEnumeration
         var updatedGrant = updatedChatAppCircleGrants.First();
-        Assert.IsTrue(updatedGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(updatedGrant.CircleId == someNewCircle.Id, "the circle id of the grant should match the 'some new circle' circle");
-        Assert.IsTrue(updatedGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(updatedGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(updatedGrant.CircleId == someNewCircle.Id, "the circle id of the grant should match the 'some new circle' circle");
+        ClassicAssert.IsTrue(updatedGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = updatedGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
         // All done
@@ -595,29 +596,29 @@ public class CircleNetworkServiceAppTests
 
         // Get Sam's connection info on Frodo's identity
         var samConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
-        Assert.IsTrue(appGrants.TryGetValue(SystemAppConstants.MailAppId, out _));
-        Assert.IsTrue(appGrants.TryGetValue(SystemAppConstants.ChatAppId, out _));
-        Assert.IsTrue(appGrants.TryGetValue(appId, out _));
-        Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
+        ClassicAssert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+        ClassicAssert.IsTrue(appGrants.TryGetValue(SystemAppConstants.MailAppId, out _));
+        ClassicAssert.IsTrue(appGrants.TryGetValue(SystemAppConstants.ChatAppId, out _));
+        ClassicAssert.IsTrue(appGrants.TryGetValue(appId, out _));
+        ClassicAssert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrants), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(chatAppCircleGrants, "chatAppCircleGrants != null");
 
         // ReSharper disable once PossibleMultipleEnumeration
-        Assert.IsTrue(chatAppCircleGrants.Count() == 1, "There should be only one circle grant");
+        ClassicAssert.IsTrue(chatAppCircleGrants.Count() == 1, "There should be only one circle grant");
         // ReSharper disable once PossibleMultipleEnumeration
         var singleGrant = chatAppCircleGrants.First();
-        Assert.IsTrue(singleGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(singleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
-        Assert.IsTrue(singleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(singleGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(singleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
+        ClassicAssert.IsTrue(singleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = singleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
 
@@ -653,39 +654,39 @@ public class CircleNetworkServiceAppTests
 
         // Test
         var updatedApp = await frodoOwnerClient.Apps.GetAppRegistration(appRegistration.AppId);
-        Assert.IsNotNull(updatedApp, $"Could not retrieve the app {appId}");
+        ClassicAssert.IsNotNull(updatedApp, $"Could not retrieve the app {appId}");
         CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, newAuthorizedCircles, "Updated authorized circles are incorrect");
-        Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet,
+        ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet,
             "updated app cirlce grant permission set did not match");
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = updatedApp.CircleMemberPermissionSetGrantRequest.Drives.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the app's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the app's circle member granted drive");
         }
 
         // Test sam's identity to have new circle
 
         // Get Sam's connection info on Frodo's identity
         var updatedSamConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants2 = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.IsTrue(appGrants2.Count == 3, "There should be 3 app grants because we added one and deleted one; and the two built-in grants (mail and chat)");
-        Assert.IsTrue(appGrants2.TryGetValue(appKey, out var updatedChatAppCircleGrants), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(updatedChatAppCircleGrants, "chatAppCircleGrants2 != null");
+        ClassicAssert.IsTrue(appGrants2.Count == 3, "There should be 3 app grants because we added one and deleted one; and the two built-in grants (mail and chat)");
+        ClassicAssert.IsTrue(appGrants2.TryGetValue(appKey, out var updatedChatAppCircleGrants), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(updatedChatAppCircleGrants, "chatAppCircleGrants2 != null");
 
         // ReSharper disable once PossibleMultipleEnumeration
-        Assert.IsTrue(updatedChatAppCircleGrants.Count() == 1, "There should be only one circle grant");
+        ClassicAssert.IsTrue(updatedChatAppCircleGrants.Count() == 1, "There should be only one circle grant");
         // ReSharper disable once PossibleMultipleEnumeration
         var updatedGrant = updatedChatAppCircleGrants.First();
-        Assert.IsTrue(updatedGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(updatedGrant.CircleId == someNewCircle.Id, "the circle id of the grant should match the 'some new circle' circle");
-        Assert.IsTrue(updatedGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(updatedGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(updatedGrant.CircleId == someNewCircle.Id, "the circle id of the grant should match the 'some new circle' circle");
+        ClassicAssert.IsTrue(updatedGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = updatedGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
         // All done
@@ -801,40 +802,40 @@ public class CircleNetworkServiceAppTests
 
         // Get Sam's connection info on Frodo's identity
         var samConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(samConnectionInfo.Status == ConnectionStatus.Connected);
 
         var appGrants = samConnectionInfo.AccessGrant.AppGrants;
         var appKey = appRegistration.AppId.Value;
-        Assert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
+        ClassicAssert.IsTrue(appGrants.Count == 3, "there should be 3 app grants; mail, chat, and the app created in this test");
 
-        Assert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrantList), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(chatAppCircleGrantList, "chatAppCircleGrants != null");
+        ClassicAssert.IsTrue(appGrants.TryGetValue(appKey, out var chatAppCircleGrantList), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(chatAppCircleGrantList, "chatAppCircleGrants != null");
         var chatAppCircleGrants = chatAppCircleGrantList.ToList();
 
-        Assert.IsTrue(chatAppCircleGrants.Count() == 2, "There should be two circle grant (chat friends and document share)");
+        ClassicAssert.IsTrue(chatAppCircleGrants.Count() == 2, "There should be two circle grant (chat friends and document share)");
         //Test chat friend's circle
         var chatFriendsCircleGrant = chatAppCircleGrants.Single(c => c.CircleId == chatFriendsCircle.Id);
-        Assert.IsTrue(chatFriendsCircleGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(chatFriendsCircleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
-        Assert.IsTrue(chatFriendsCircleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(chatFriendsCircleGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(chatFriendsCircleGrant.CircleId == chatFriendsCircle.Id, "the circle id of the grant should match the chat friends circle");
+        ClassicAssert.IsTrue(chatFriendsCircleGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = chatFriendsCircleGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
 
         //Test document sharing circle
         var documentSharingCircle = chatAppCircleGrants.Single(c => c.CircleId == documentShareCircle.Id);
-        Assert.IsTrue(documentSharingCircle.AppId == appRegistration.AppId);
-        Assert.IsTrue(documentSharingCircle.CircleId == documentShareCircle.Id, "the circle id of the grant should match the chat friends circle");
-        Assert.IsTrue(documentSharingCircle.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(documentSharingCircle.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(documentSharingCircle.CircleId == documentShareCircle.Id, "the circle id of the grant should match the chat friends circle");
+        ClassicAssert.IsTrue(documentSharingCircle.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = documentSharingCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
         //
@@ -852,24 +853,24 @@ public class CircleNetworkServiceAppTests
 
         // Get Sam's connection info on Frodo's identity
         var updatedSamConnectionInfo = await frodoOwnerClient.Network.GetConnectionInfo(samOwnerClient.Identity);
-        Assert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(updatedSamConnectionInfo.Status == ConnectionStatus.Connected);
 
         var updatedAppGrants = updatedSamConnectionInfo.AccessGrant.AppGrants;
-        Assert.IsTrue(updatedAppGrants.Count == 3, "There should still only be 3 app grants");
-        Assert.IsTrue(updatedAppGrants.TryGetValue(appKey, out var updatedChatAppCircleGrantList), "The single dictionary item's key should match the single registered app");
-        Assert.IsNotNull(updatedChatAppCircleGrantList, "chatAppCircleGrants2 != null");
+        ClassicAssert.IsTrue(updatedAppGrants.Count == 3, "There should still only be 3 app grants");
+        ClassicAssert.IsTrue(updatedAppGrants.TryGetValue(appKey, out var updatedChatAppCircleGrantList), "The single dictionary item's key should match the single registered app");
+        ClassicAssert.IsNotNull(updatedChatAppCircleGrantList, "chatAppCircleGrants2 != null");
         var updatedChatAppCircleGrants = updatedChatAppCircleGrantList.ToList();
 
-        Assert.IsTrue(updatedChatAppCircleGrants.Count == 1, "There should be one circle grant");
+        ClassicAssert.IsTrue(updatedChatAppCircleGrants.Count == 1, "There should be one circle grant");
         var updatedGrant = updatedChatAppCircleGrants.First();
-        Assert.IsTrue(updatedGrant.AppId == appRegistration.AppId);
-        Assert.IsTrue(updatedGrant.CircleId == documentShareCircle.Id, "the circle id should be the documentSharing circle");
-        Assert.IsTrue(updatedGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
+        ClassicAssert.IsTrue(updatedGrant.AppId == appRegistration.AppId);
+        ClassicAssert.IsTrue(updatedGrant.CircleId == documentShareCircle.Id, "the circle id should be the documentSharing circle");
+        ClassicAssert.IsTrue(updatedGrant.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet, "The circle should be granted the app's circle member grant");
 
         foreach (var d in appRegistration.CircleMemberPermissionSetGrantRequest.Drives)
         {
             var shouldBeOnlyOne = updatedGrant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive == d.PermissionedDrive);
-            Assert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
+            ClassicAssert.IsNotNull(shouldBeOnlyOne, "there should be one and only one drive matching the ap's circle member granted drive");
         }
 
         // All done

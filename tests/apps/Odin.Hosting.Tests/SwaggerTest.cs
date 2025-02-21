@@ -2,6 +2,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Hosting.Tests;
 
@@ -42,6 +43,6 @@ public class SwaggerTest
     {
         var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
         var result = await client.GetAsync("/swagger/v1/swagger.json");
-        Assert.AreEqual(HttpStatusCode.OK, result.StatusCode);
+        ClassicAssert.AreEqual(HttpStatusCode.OK, result.StatusCode);
     }    
 }

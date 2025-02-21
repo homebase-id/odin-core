@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
@@ -64,7 +65,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             }
 
             //Note: this now runs upsert so there should be no error
-            Assert.IsFalse(ok);
+            ClassicAssert.IsFalse(ok);
         }
 
 

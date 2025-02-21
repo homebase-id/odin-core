@@ -7,6 +7,7 @@ using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Dns;
 using Odin.Services.Dns.PowerDns;
 
@@ -49,11 +50,11 @@ public class PowerDnsRestClientTest
     public async Task ItShouldGetIdPubZone()
     {
         var zone = await _pdnsClient.GetZone("id.pub.");
-        Assert.AreEqual("id.pub.", zone.id);
-        Assert.AreEqual("Native", zone.kind);
-        Assert.AreEqual("id.pub.", zone.name);
+        ClassicAssert.AreEqual("id.pub.", zone.id);
+        ClassicAssert.AreEqual("Native", zone.kind);
+        ClassicAssert.AreEqual("id.pub.", zone.name);
         Assert.That(zone.url.EndsWith("zones/id.pub."), Is.True);
-        Assert.GreaterOrEqual(zone.rrsets.Count, 3);
+        ClassicAssert.GreaterOrEqual(zone.rrsets.Count, 3);
         
         // Test SOA record
         var soaRecords = zone.rrsets.Where(x => x.type == "SOA").Single(x => x.name == "id.pub.");
@@ -62,12 +63,12 @@ public class PowerDnsRestClientTest
         // Test ns1 A record
         var ns1RrsetARecords = zone.rrsets.Where(x => x.type == "A").Single(x => x.name == Ns1);
         var ns1IpAddress = ns1RrsetARecords.records.Single().content; 
-        Assert.AreEqual(IpNs1, ns1IpAddress);
+        ClassicAssert.AreEqual(IpNs1, ns1IpAddress);
 
         // Test ns2 A record
         var ns2RrsetARecords = zone.rrsets.Where(x => x.type == "A").Single(x => x.name == Ns2);
         var ns2IpAddress = ns2RrsetARecords.records.Single().content;
-        Assert.AreEqual(IpNs2, ns2IpAddress);
+        ClassicAssert.AreEqual(IpNs2, ns2IpAddress);
         
         // Test NS records
         var nsRecords = zone.rrsets.Single(x => x.type == "NS" && x.name == "id.pub.");
@@ -88,9 +89,9 @@ public class PowerDnsRestClientTest
         //
         var newZone = await _pdnsClient.CreateZone(zoneId, new [] { Ns1, Ns2 }, "sebbarg@gmail.com");
         
-        Assert.AreEqual(zoneId, newZone.name);
-        Assert.AreEqual(zoneId, newZone.id);
-        Assert.AreEqual(2, newZone.rrsets.Count); // 1 SOA, 2 NS
+        ClassicAssert.AreEqual(zoneId, newZone.name);
+        ClassicAssert.AreEqual(zoneId, newZone.id);
+        ClassicAssert.AreEqual(2, newZone.rrsets.Count); // 1 SOA, 2 NS
         
         //
         // Verify SOA is present using our own primary name server
@@ -99,8 +100,8 @@ public class PowerDnsRestClientTest
             var client = new LookupClient(IPAddress.Parse(IpNs1));
             var result = await client.QueryAsync(zoneId, QueryType.SOA);
             var records = result.Answers.SoaRecords().ToList();
-            Assert.AreEqual(1, records.Count);
-            Assert.AreEqual(zoneId, records[0].DomainName.ToString());
+            ClassicAssert.AreEqual(1, records.Count);
+            ClassicAssert.AreEqual(zoneId, records[0].DomainName.ToString());
         }
         
         //
@@ -115,7 +116,7 @@ public class PowerDnsRestClientTest
             var client = new LookupClient(IPAddress.Parse(IpNs1));
             var result = await client.QueryAsync(zoneId, QueryType.SOA);
             var records = result.Answers.SoaRecords().ToList();
-            Assert.AreEqual(0, records.Count);
+            ClassicAssert.AreEqual(0, records.Count);
         }
     }
     
@@ -141,7 +142,7 @@ public class PowerDnsRestClientTest
                 var client = new LookupClient(IPAddress.Parse(IpNs1));
                 var result = await client.QueryAsync(fqRecordName, QueryType.A);
                 var records = result.Answers.ARecords().ToList();
-                Assert.AreEqual(2, records.Count);
+                ClassicAssert.AreEqual(2, records.Count);
             }
             
             await _pdnsClient.DeleteARecords(zoneId, recordName);
@@ -153,7 +154,7 @@ public class PowerDnsRestClientTest
                 var client = new LookupClient(IPAddress.Parse(IpNs1));
                 var result = await client.QueryAsync(fqRecordName, QueryType.A);
                 var records = result.Answers.ARecords().ToList();
-                Assert.AreEqual(0, records.Count);
+                ClassicAssert.AreEqual(0, records.Count);
             }
         }
         finally
@@ -184,7 +185,7 @@ public class PowerDnsRestClientTest
                 var client = new LookupClient(IPAddress.Parse(IpNs1));
                 var result = await client.QueryAsync(fqRecordName, QueryType.CNAME);
                 var records = result.Answers.CnameRecords().ToList();
-                Assert.AreEqual(1, records.Count);
+                ClassicAssert.AreEqual(1, records.Count);
             }
             
             await _pdnsClient.DeleteCnameRecords(zoneId, recordName);
@@ -196,7 +197,7 @@ public class PowerDnsRestClientTest
                 var client = new LookupClient(IPAddress.Parse(IpNs1));
                 var result = await client.QueryAsync(fqRecordName, QueryType.CNAME);
                 var records = result.Answers.CnameRecords().ToList();
-                Assert.AreEqual(0, records.Count);
+                ClassicAssert.AreEqual(0, records.Count);
             }
         }
         finally

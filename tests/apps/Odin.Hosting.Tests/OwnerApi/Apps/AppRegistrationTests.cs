@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authorization.Apps;
@@ -82,20 +83,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 };
 
                 var response = await svc.RegisterApp(request);
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
 
                 var registeredApp = appResponse.Content;
-                Assert.IsNotNull(registeredApp, "App should exist");
+                ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should have use transit read permission");
-                Assert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
+                ClassicAssert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should have use transit read permission");
+                ClassicAssert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
 
                 var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-                Assert.IsNotNull(transientDriveGrant);
-                Assert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
+                ClassicAssert.IsNotNull(transientDriveGrant);
+                ClassicAssert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
             }
         }
 
@@ -119,20 +120,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 };
 
                 var response = await svc.RegisterApp(request);
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
 
                 var registeredApp = appResponse.Content;
-                Assert.IsNotNull(registeredApp, "App should exist");
+                ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should have use transit read permission");
-                Assert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
+                ClassicAssert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should have use transit read permission");
+                ClassicAssert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
 
                 var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-                Assert.IsNotNull(transientDriveGrant);
-                Assert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
+                ClassicAssert.IsNotNull(transientDriveGrant);
+                ClassicAssert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
             }
         }
 
@@ -155,19 +156,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 };
 
                 var response = await svc.RegisterApp(request);
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
 
                 var registeredApp = appResponse.Content;
-                Assert.IsNotNull(registeredApp, "App should exist");
+                ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should not have UseTransit");
-                Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+                ClassicAssert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should not have UseTransit");
+                ClassicAssert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
 
                 var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-                Assert.IsNull(transientDriveGrant);
+                ClassicAssert.IsNull(transientDriveGrant);
             }
         }
 
@@ -191,19 +192,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 };
 
                 var response = await svc.RegisterApp(request);
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
 
                 var registeredApp = appResponse.Content;
-                Assert.IsNotNull(registeredApp, "App should exist");
+                ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should not have UseTransit");
-                Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+                ClassicAssert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should not have UseTransit");
+                ClassicAssert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
 
                 var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-                Assert.IsNull(transientDriveGrant);
+                ClassicAssert.IsNull(transientDriveGrant);
             }
         }
 
@@ -225,21 +226,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             // Should not have icr or transient temp drive
             //
             var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(appReg);
-            Assert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
-            Assert.IsFalse(appReg.Grant.HasIcrKey);
-            Assert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
+            ClassicAssert.IsNotNull(appReg);
+            ClassicAssert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            ClassicAssert.IsFalse(appReg.Grant.HasIcrKey);
+            ClassicAssert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
 
             appPermissionsGrant.PermissionSet = new PermissionSet(new List<int>() {PermissionKeys.UseTransitWrite}); 
             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
 
             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(updatedAppReg);
-            Assert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
-            Assert.IsTrue(updatedAppReg.Grant.HasIcrKey);
+            ClassicAssert.IsNotNull(updatedAppReg);
+            ClassicAssert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            ClassicAssert.IsTrue(updatedAppReg.Grant.HasIcrKey);
 
             var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-            Assert.IsNotNull(transientDriveGrant);
+            ClassicAssert.IsNotNull(transientDriveGrant);
         }
 
         [Test]
@@ -260,21 +261,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             // Should not have icr or transient temp drive
             //
             var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(appReg);
-            Assert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
-            Assert.IsFalse(appReg.Grant.HasIcrKey);
-            Assert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
+            ClassicAssert.IsNotNull(appReg);
+            ClassicAssert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            ClassicAssert.IsFalse(appReg.Grant.HasIcrKey);
+            ClassicAssert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
 
             appPermissionsGrant.PermissionSet = new PermissionSet(new List<int>() {PermissionKeys.UseTransitRead}); 
             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
 
             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(updatedAppReg);
-            Assert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
-            Assert.IsTrue(updatedAppReg.Grant.HasIcrKey);
+            ClassicAssert.IsNotNull(updatedAppReg);
+            ClassicAssert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            ClassicAssert.IsTrue(updatedAppReg.Grant.HasIcrKey);
 
             var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-            Assert.IsNotNull(transientDriveGrant);
+            ClassicAssert.IsNotNull(transientDriveGrant);
         }
 
         [Test]
@@ -292,20 +293,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
 
             var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(appReg);
-            Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
-            Assert.IsTrue(appReg.Grant.HasIcrKey);
+            ClassicAssert.IsNotNull(appReg);
+            ClassicAssert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            ClassicAssert.IsTrue(appReg.Grant.HasIcrKey);
 
             appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
 
             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(updatedAppReg);
-            Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
-            Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
+            ClassicAssert.IsNotNull(updatedAppReg);
+            ClassicAssert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
+            ClassicAssert.IsFalse(updatedAppReg.Grant.HasIcrKey);
 
             var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-            Assert.IsNull(transientDriveGrant);
+            ClassicAssert.IsNull(transientDriveGrant);
         }
 
         [Test]
@@ -323,20 +324,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
 
             var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(appReg);
-            Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
-            Assert.IsTrue(appReg.Grant.HasIcrKey);
+            ClassicAssert.IsNotNull(appReg);
+            ClassicAssert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            ClassicAssert.IsTrue(appReg.Grant.HasIcrKey);
 
             appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
 
             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
-            Assert.IsNotNull(updatedAppReg);
-            Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
-            Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
+            ClassicAssert.IsNotNull(updatedAppReg);
+            ClassicAssert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
+            ClassicAssert.IsFalse(updatedAppReg.Grant.HasIcrKey);
 
             var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
-            Assert.IsNull(transientDriveGrant);
+            ClassicAssert.IsNull(transientDriveGrant);
         }
 
         // [Test]
@@ -366,12 +367,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsFalse(response.IsSuccessStatusCode, $"Should have failed to add app registration.  Status code was {response.StatusCode}");
+                ClassicAssert.IsFalse(response.IsSuccessStatusCode, $"Should have failed to add app registration.  Status code was {response.StatusCode}");
                 var appReg = response.Content;
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
-                Assert.IsNull(appResponse.Content, "There should be no app");
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                ClassicAssert.IsNull(appResponse.Content, "There should be no app");
             }
         }
 
@@ -396,13 +397,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
                 var appReg = response.Content;
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
-                Assert.IsNotNull(appResponse.Content, "There should be no app");
-                Assert.IsTrue(appResponse.Content.CorsHostName == corsHostName);
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                ClassicAssert.IsNotNull(appResponse.Content, "There should be no app");
+                ClassicAssert.IsTrue(appResponse.Content.CorsHostName == corsHostName);
             }
         }
 
@@ -427,12 +428,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsFalse(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
+                ClassicAssert.IsFalse(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
                 var appReg = response.Content;
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
-                Assert.IsNull(appResponse.Content, "There should be no app");
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                ClassicAssert.IsNull(appResponse.Content, "There should be no app");
             }
         }
 
@@ -486,23 +487,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
-                Assert.IsNotNull(appReg);
+                ClassicAssert.IsNotNull(appReg);
 
                 var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.AppId == request.AppId);
-                Assert.IsTrue(savedApp.Name == request.Name);
+                ClassicAssert.IsTrue(savedApp.AppId == request.AppId);
+                ClassicAssert.IsTrue(savedApp.Name == request.Name);
 
                 CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
 
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
                     request.Drives.Select(p => p.PermissionedDrive));
-                Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
                 CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
             }
         }
 
@@ -520,12 +521,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var revokeResponse = await svc.RevokeApp(new GetAppRequest() { AppId = appId });
 
-                Assert.IsTrue(revokeResponse.IsSuccessStatusCode);
-                Assert.IsTrue(revokeResponse.Content?.Success);
+                ClassicAssert.IsTrue(revokeResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(revokeResponse.Content?.Success);
 
                 var savedApp = await GetSampleApp(appId);
-                Assert.IsNotNull(savedApp);
-                Assert.IsTrue(savedApp.IsRevoked);
+                ClassicAssert.IsNotNull(savedApp);
+                ClassicAssert.IsTrue(savedApp.IsRevoked);
             }
         }
 
@@ -550,8 +551,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 };
 
                 var regResponse = await svc.RegisterAppOnClient(request);
-                Assert.IsTrue(regResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(regResponse.Content);
+                ClassicAssert.IsTrue(regResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
                 var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
@@ -563,13 +564,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 Assert.That(decryptedData.Length, Is.EqualTo(49));
 
                 var cat = ClientAccessToken.FromPortableBytes(decryptedData);
-                Assert.IsFalse(cat.Id == Guid.Empty);
-                Assert.IsNotNull(cat.AccessTokenHalfKey);
+                ClassicAssert.IsFalse(cat.Id == Guid.Empty);
+                ClassicAssert.IsNotNull(cat.AccessTokenHalfKey);
                 Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
-                Assert.IsTrue(cat.AccessTokenHalfKey.IsSet());
-                Assert.IsTrue(cat.IsValid());
+                ClassicAssert.IsTrue(cat.AccessTokenHalfKey.IsSet());
+                ClassicAssert.IsTrue(cat.IsValid());
 
-                Assert.IsNotNull(cat.SharedSecret);
+                ClassicAssert.IsNotNull(cat.SharedSecret);
                 Assert.That(cat.SharedSecret.GetKey().Length, Is.EqualTo(16));
             }
         }
@@ -633,23 +634,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
-                Assert.IsNotNull(appReg);
+                ClassicAssert.IsNotNull(appReg);
 
                 var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.AppId == request.AppId);
-                Assert.IsTrue(savedApp.Name == request.Name);
+                ClassicAssert.IsTrue(savedApp.AppId == request.AppId);
+                ClassicAssert.IsTrue(savedApp.Name == request.Name);
 
                 CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
 
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
                     request.Drives.Select(p => p.PermissionedDrive));
-                Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
                 CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
 
                 var updateRequest = new UpdateAppPermissionsRequest()
                 {
@@ -664,13 +665,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 // be sure the permissions are updated 
                 CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
                     updateRequest.Drives.Select(p => p.PermissionedDrive));
-                Assert.IsTrue(updatedApp.Grant.PermissionSet == updateRequest.PermissionSet);
+                ClassicAssert.IsTrue(updatedApp.Grant.PermissionSet == updateRequest.PermissionSet);
 
                 // be sure the other fields did not change
                 CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, request.AuthorizedCircles);
                 CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
             }
         }
 
@@ -737,23 +738,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
-                Assert.IsNotNull(appReg);
+                ClassicAssert.IsNotNull(appReg);
 
                 var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.AppId == request.AppId);
-                Assert.IsTrue(savedApp.Name == request.Name);
+                ClassicAssert.IsTrue(savedApp.AppId == request.AppId);
+                ClassicAssert.IsTrue(savedApp.Name == request.Name);
 
                 CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
 
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
                     request.Drives.Select(p => p.PermissionedDrive));
-                Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
                 CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
 
                 var updateRequest = new UpdateAuthorizedCirclesRequest()
                 {
@@ -774,12 +775,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     updateRequest.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
 
-                Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == updateRequest.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == updateRequest.CircleMemberPermissionGrant.PermissionSet);
                 // be sure the other fields did not change
 
                 CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
                     request.Drives.Select(p => p.PermissionedDrive));
-                Assert.IsTrue(updatedApp.Grant.PermissionSet == request.PermissionSet);
+                ClassicAssert.IsTrue(updatedApp.Grant.PermissionSet == request.PermissionSet);
             }
         }
 
@@ -799,14 +800,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
-                Assert.IsNotNull(appReg);
+                ClassicAssert.IsNotNull(appReg);
 
                 var savedApp = await GetSampleApp(applicationId);
-                Assert.IsTrue(savedApp.AppId == request.AppId);
-                Assert.IsTrue(savedApp.Name == request.Name);
-                Assert.IsTrue(savedApp.CorsHostName == request.CorsHostName);
+                ClassicAssert.IsTrue(savedApp.AppId == request.AppId);
+                ClassicAssert.IsTrue(savedApp.Name == request.Name);
+                ClassicAssert.IsTrue(savedApp.CorsHostName == request.CorsHostName);
 
                 return appReg;
             }
@@ -818,8 +819,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             {
                 var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
-                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
-                Assert.IsNotNull(appResponse.Content, $"Could not retrieve the app {appId}");
+                ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
+                ClassicAssert.IsNotNull(appResponse.Content, $"Could not retrieve the app {appId}");
                 var savedApp = appResponse.Content;
                 return savedApp;
             }

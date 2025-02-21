@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 
@@ -31,7 +32,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -41,7 +42,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
 
             try
@@ -52,7 +53,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -62,7 +63,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -72,7 +73,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -82,7 +83,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             Assert.Pass();
         }
@@ -115,13 +116,13 @@ namespace Odin.Core.Tests
             var json = OdinSystemSerializer.Serialize(value);
             var deserializedValue = OdinSystemSerializer.Deserialize<DateUtc>(json);
 
-            Assert.IsTrue(value.ToString() == deserializedValue.ToString());
+            ClassicAssert.IsTrue(value.ToString() == deserializedValue.ToString());
 
             value = new DateUtc(+9999, 12, 31);
             json = OdinSystemSerializer.Serialize(value);
             deserializedValue = OdinSystemSerializer.Deserialize<DateUtc>(json);
 
-            Assert.IsTrue(value.ToString() == deserializedValue.ToString());
+            ClassicAssert.IsTrue(value.ToString() == deserializedValue.ToString());
 
             Assert.Pass();
         }

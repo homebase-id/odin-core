@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -79,8 +80,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
-            Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
             await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
             //
             // Test results
@@ -98,15 +99,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             };
 
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
 
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == uploadedContent);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == uploadedContent);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
 
@@ -138,8 +139,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var (uploadResult, encryptedJsonContent64) = await this.SendStandardFile(senderOwnerClient,
                 targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
-            Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
             await senderOwnerClient.Transit.WaitForEmptyOutbox(targetDrive);
             
@@ -153,7 +154,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             };
 
             var emptyBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-            Assert.IsFalse(emptyBatch.SearchResults.Any());
+            ClassicAssert.IsFalse(emptyBatch.SearchResults.Any());
 
             //
             await recipientOwnerClient.Transit.ProcessInbox(targetDrive);
@@ -161,14 +162,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             // Now the File should be on recipient server and accessible by global transit id
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedJsonContent64);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+            ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted == isEncrypted);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedJsonContent64);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
 
@@ -201,8 +202,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
             var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
 
-            Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
             //
             // Test results
@@ -227,7 +228,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             };
 
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-            Assert.IsFalse(batch.SearchResults.Any());
+            ClassicAssert.IsFalse(batch.SearchResults.Any());
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
@@ -289,7 +290,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
             // Basic tests first which apply to all calls
             //
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 1);
 
             return (uploadResult, encryptedJsonContent64);
         }
@@ -358,7 +359,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 
             var senderConnectionInfo = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity);
 
-            Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            ClassicAssert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == recipientCircle.DriveGrants.Single().PermissionedDrive)));
 
             return recipientTargetDrive.TargetDriveInfo;
