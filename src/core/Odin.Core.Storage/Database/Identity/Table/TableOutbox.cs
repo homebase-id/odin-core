@@ -309,13 +309,14 @@ public class TableOutbox(
         cmd.Parameters.Add(param1);
         param1.Value = identityKey.ToByteArray();
 
+        int totalCount = 0;
+        int poppedCount = 0;
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
             // Read the total count
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
 
-            int totalCount = 0;
             if (!(rdr[0] == DBNull.Value))
                 totalCount = (int)(Int64) rdr[0];
 
@@ -325,14 +326,11 @@ public class TableOutbox(
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
 
-            int poppedCount = 0;
             if (!(rdr[0] == DBNull.Value))
                 poppedCount = (int)(Int64) rdr[0];
-
-            var utc = await NextScheduledItemAsync() ?? UnixTimeUtc.ZeroTime;
-
-            return (totalCount, poppedCount, utc);
         }
+        var utc = await NextScheduledItemAsync() ?? UnixTimeUtc.ZeroTime;
+        return (totalCount, poppedCount, utc);
     }
 
 
@@ -364,13 +362,14 @@ public class TableOutbox(
         param1.Value = driveId.ToByteArray();
         param2.Value = identityKey.ToByteArray();
 
+        int totalCount = 0;
+        int poppedCount = 0;
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
             // Read the total count
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
 
-            int totalCount = 0;
             if (!(rdr[0] == DBNull.Value))
                 totalCount = (int)(Int64) rdr[0];
 
@@ -380,13 +379,10 @@ public class TableOutbox(
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
 
-            int poppedCount = 0;
             if (!(rdr[0] == DBNull.Value))
                 poppedCount = (int)(Int64) rdr[0];
-
-            var utc = await NextScheduledItemAsync(driveId) ?? UnixTimeUtc.ZeroTime;
-
-            return (totalCount, poppedCount, utc);
         }
+        var utc = await NextScheduledItemAsync(driveId) ?? UnixTimeUtc.ZeroTime;
+        return (totalCount, poppedCount, utc);
     }
 }
