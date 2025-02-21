@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
@@ -291,7 +292,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 Assert.Fail();
 
             var singleRecord = await tblKeyThreeValue.GetByKeyTwoThreeAsync(i1, u2);
-            Assert.NotNull(singleRecord);
+            ClassicAssert.NotNull(singleRecord);
             if (ByteArrayUtil.muidcmp(singleRecord.Single().data, v2) != 0)
                 Assert.Fail();
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Configuration;
@@ -35,7 +36,7 @@ public class ConfigurationTestUtilities
             //be sure it's in the list of granted drives; use Single to be sure it's only in there once
             var result = actual.DriveGrants.SingleOrDefault(x =>
                 x.PermissionedDrive.Drive == circleDriveGrant.PermissionedDrive.Drive && x.PermissionedDrive.Permission == circleDriveGrant.PermissionedDrive.Permission);
-            Assert.NotNull(result);
+            ClassicAssert.NotNull(result);
         }
     }
 
@@ -43,11 +44,11 @@ public class ConfigurationTestUtilities
     {
         var circleMemberSvc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
         var getCircleMemberResponse = await circleMemberSvc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
-        Assert.IsTrue(getCircleMemberResponse.IsSuccessStatusCode, $"Actual status code {getCircleMemberResponse.StatusCode}");
+        ClassicAssert.IsTrue(getCircleMemberResponse.IsSuccessStatusCode, $"Actual status code {getCircleMemberResponse.StatusCode}");
         var members = getCircleMemberResponse.Content;
-        Assert.NotNull(members);
-        Assert.IsTrue(members.Any());
-        Assert.IsFalse(members.SingleOrDefault(m => m == expectedIdentity).DomainName == null);
+        ClassicAssert.NotNull(members);
+        ClassicAssert.IsTrue(members.Any());
+        ClassicAssert.IsFalse(members.SingleOrDefault(m => m == expectedIdentity).DomainName == null);
     }
 
     public async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
@@ -55,9 +56,9 @@ public class ConfigurationTestUtilities
         var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
         var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
-        Assert.IsNotNull(response.Content, $"No status for {odinId} found");
-        Assert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
+        ClassicAssert.IsNotNull(response.Content, $"No status for {odinId} found");
+        ClassicAssert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
     }
 
     public async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam()
@@ -88,8 +89,8 @@ public class ConfigurationTestUtilities
 
             var response = await svc.SendConnectionRequest(requestHeader);
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-            Assert.IsTrue(response.Content, "Failed sending the request");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+            ClassicAssert.IsTrue(response.Content, "Failed sending the request");
         }
 
         //check that sam got it
@@ -98,10 +99,10 @@ public class ConfigurationTestUtilities
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
             var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-            Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
-            Assert.IsTrue(response.Content.SenderOdinId == sender.Identity);
+            ClassicAssert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
+            ClassicAssert.IsTrue(response.Content.SenderOdinId == sender.Identity);
         }
 
         return (sender, recipient, requestHeader);
@@ -120,7 +121,7 @@ public class ConfigurationTestUtilities
             };
 
             var acceptResponse = await svc.AcceptConnectionRequest(header);
-            Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+            ClassicAssert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
             await AssertConnectionStatus(client, ownerSharedSecret, sender.Identity, ConnectionStatus.Connected);
         }
     }
@@ -132,10 +133,10 @@ public class ConfigurationTestUtilities
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
             var deleteResponse = await svc.DeletePendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
-            Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+            ClassicAssert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
             var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sam.Identity });
-            Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+            ClassicAssert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
         }
 
         client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
@@ -143,10 +144,10 @@ public class ConfigurationTestUtilities
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
             var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
-            Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+            ClassicAssert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
             var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sam.Identity });
-            Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+            ClassicAssert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
         }
     }
 
@@ -156,7 +157,7 @@ public class ConfigurationTestUtilities
         {
             var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
-            Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+            ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
             await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
         }
 
@@ -164,7 +165,7 @@ public class ConfigurationTestUtilities
         {
             var samConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var disconnectResponse = await samConnections.Disconnect(new OdinIdRequest() { OdinId = frodo.Identity });
-            Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+            ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
             await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
         }
     }
@@ -180,7 +181,7 @@ public class ConfigurationTestUtilities
                 Value = value
             });
 
-            Assert.IsTrue(updateFlagResponse.IsSuccessStatusCode, "system should return empty settings when first initialized");
+            ClassicAssert.IsTrue(updateFlagResponse.IsSuccessStatusCode, "system should return empty settings when first initialized");
         }
     }
 }

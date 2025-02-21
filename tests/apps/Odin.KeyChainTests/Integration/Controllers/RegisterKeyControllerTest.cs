@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
@@ -218,10 +219,10 @@ public class RegisterKeyControllerTest
         var (samPreviousHashBase64, samSignedEnvelope) = await BeginRegistration(samwiseDomain);
         var (gandalfPreviousHashBase64, gandalfSignedEnvelope) = await BeginRegistration(gandalfDomain);
 
-        Assert.IsTrue(frodoPreviousHashBase64 == samPreviousHashBase64);
-        Assert.IsTrue(frodoPreviousHashBase64 == gandalfPreviousHashBase64);
-        Assert.IsTrue(frodoSignedEnvelope.Envelope.ContentNonce.ToBase64() != samSignedEnvelope.Envelope.ContentNonce.ToBase64());
-        Assert.IsTrue(frodoSignedEnvelope.Envelope.ContentNonce.ToBase64() != gandalfSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        ClassicAssert.IsTrue(frodoPreviousHashBase64 == samPreviousHashBase64);
+        ClassicAssert.IsTrue(frodoPreviousHashBase64 == gandalfPreviousHashBase64);
+        ClassicAssert.IsTrue(frodoSignedEnvelope.Envelope.ContentNonce.ToBase64() != samSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        ClassicAssert.IsTrue(frodoSignedEnvelope.Envelope.ContentNonce.ToBase64() != gandalfSignedEnvelope.Envelope.ContentNonce.ToBase64());
 
         // We now have three simultaneous Begin requests all with the same previousHash
 
@@ -233,15 +234,15 @@ public class RegisterKeyControllerTest
         var r1 = await FinalizeRegistration(frodoDomain, frodoPreviousHashBase64, frodoSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
         frodoPreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
-        Assert.IsTrue(frodoPreviousHashBase64 != samPreviousHashBase64);
+        ClassicAssert.IsTrue(frodoPreviousHashBase64 != samPreviousHashBase64);
         // Let's leave it non-finalized
 
         // Let's finailize #3 but fail
         var r3 = await FinalizeRegistration(gandalfDomain, gandalfPreviousHashBase64, gandalfSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r3.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
         gandalfPreviousHashBase64 = await r3.Content.ReadAsStringAsync(); // Get the new hash to sign
-        Assert.IsTrue(samPreviousHashBase64 != gandalfPreviousHashBase64);
-        Assert.IsTrue(frodoPreviousHashBase64 == gandalfPreviousHashBase64);
+        ClassicAssert.IsTrue(samPreviousHashBase64 != gandalfPreviousHashBase64);
+        ClassicAssert.IsTrue(frodoPreviousHashBase64 == gandalfPreviousHashBase64);
 
         // Let's do it again for #3 to get it done
         r3 = await FinalizeRegistration(gandalfDomain, gandalfPreviousHashBase64, gandalfSignedEnvelope.Envelope.ContentNonce.ToBase64());
@@ -251,8 +252,8 @@ public class RegisterKeyControllerTest
         r1 = await FinalizeRegistration(frodoDomain, frodoPreviousHashBase64, frodoSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
         frodoPreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
-        Assert.IsTrue(frodoPreviousHashBase64 != samPreviousHashBase64);
-        Assert.IsTrue(frodoPreviousHashBase64 != gandalfPreviousHashBase64);
+        ClassicAssert.IsTrue(frodoPreviousHashBase64 != samPreviousHashBase64);
+        ClassicAssert.IsTrue(frodoPreviousHashBase64 != gandalfPreviousHashBase64);
 
         // So do it again
         r1 = await FinalizeRegistration(frodoDomain, frodoPreviousHashBase64, frodoSignedEnvelope.Envelope.ContentNonce.ToBase64());
@@ -261,7 +262,7 @@ public class RegisterKeyControllerTest
         var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
         using (var conn = db.CreateDisposableConnection())
         {
-            Assert.IsTrue(await KeyChainDatabaseUtil.VerifyEntireBlockChainAsync(db, conn));
+            ClassicAssert.IsTrue(await KeyChainDatabaseUtil.VerifyEntireBlockChainAsync(db, conn));
         }
     }
 
@@ -373,7 +374,7 @@ public class RegisterKeyControllerTest
         var content = await response.Content.ReadAsStringAsync();
         var verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.NotNull(verifyKeyResult);
+        ClassicAssert.NotNull(verifyKeyResult);
         var tb = new UnixTimeUtc(instant1);
         var te = new UnixTimeUtc(instant2);
         Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
@@ -385,7 +386,7 @@ public class RegisterKeyControllerTest
         content = await response.Content.ReadAsStringAsync();
         verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.NotNull(verifyKeyResult);
+        ClassicAssert.NotNull(verifyKeyResult);
         tb = new UnixTimeUtc(instant2);
         te = new UnixTimeUtc(instant3);
         Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
@@ -396,10 +397,10 @@ public class RegisterKeyControllerTest
         content = await response.Content.ReadAsStringAsync();
         verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.NotNull(verifyKeyResult);
+        ClassicAssert.NotNull(verifyKeyResult);
         tb = new UnixTimeUtc(instant3);
         Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
-        Assert.IsNull(verifyKeyResult.successorKeyCreatedTime);
+        ClassicAssert.IsNull(verifyKeyResult.successorKeyCreatedTime);
 
         RegisterKeyController.simulateTime = 0;
     }

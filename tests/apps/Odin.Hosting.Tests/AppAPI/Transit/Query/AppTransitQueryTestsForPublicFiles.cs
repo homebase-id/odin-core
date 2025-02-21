@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -86,9 +87,9 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             var getBatchResponse = await merryAppClient.TransitQuery.GetBatch(request);
-            Assert.IsTrue(getBatchResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(getBatchResponse.Content);
-            Assert.IsNotNull(getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId));
+            ClassicAssert.IsTrue(getBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getBatchResponse.Content);
+            ClassicAssert.IsNotNull(getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId));
         }
 
         [Test]
@@ -144,21 +145,21 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             var collectionResponse = await merryAppClient.TransitQuery.GetBatchCollection(request);
 
-            Assert.IsTrue(collectionResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(collectionResponse.Content);
-            Assert.IsTrue(collectionResponse.Content.Results.Count == 2);
+            ClassicAssert.IsTrue(collectionResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(collectionResponse.Content);
+            ClassicAssert.IsTrue(collectionResponse.Content.Results.Count == 2);
 
             var set1 = collectionResponse.Content.Results.SingleOrDefault(r => r.Name.ToLower() == testResult1.ToLower());
-            Assert.IsNotNull(set1);
+            ClassicAssert.IsNotNull(set1);
 
             var set1File1 = set1.SearchResults.SingleOrDefault(f => f.FileId == randomFile1.uploadResult.File.FileId);
-            Assert.IsNotNull(set1File1);
+            ClassicAssert.IsNotNull(set1File1);
 
             var set2 = collectionResponse.Content.Results.SingleOrDefault(r => r.Name.ToLower() == testResult2.ToLower());
-            Assert.IsNotNull(set2);
+            ClassicAssert.IsNotNull(set2);
 
             var set2File1 = set2.SearchResults.SingleOrDefault(f => f.FileId == randomFile2.uploadResult.File.FileId);
-            Assert.IsNotNull(set2File1);
+            ClassicAssert.IsNotNull(set2File1);
         }
 
         [Test]
@@ -175,8 +176,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 
             // Pippin now modifies that file
             var modifiedResult = await ModifyFile(pippinOwnerClient.Identity, randomFile.uploadResult.File);
-            Assert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
-            Assert.IsFalse(randomFile.uploadedMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content, "file was not modified");
+            ClassicAssert.IsTrue(randomFile.uploadResult.File == modifiedResult.uploadResult.File);
+            ClassicAssert.IsFalse(randomFile.uploadedMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content, "file was not modified");
 
             //
             // Merry uses transit query to get modified files (deleted files show up as modified)
@@ -193,11 +194,11 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             };
 
             var getBatchResponse = await merryAppClient.TransitQuery.GetModified(request);
-            Assert.IsTrue(getBatchResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(getBatchResponse.Content);
+            ClassicAssert.IsTrue(getBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getBatchResponse.Content);
             var theModifiedFile = getBatchResponse.Content.SearchResults.SingleOrDefault(sr => sr.FileId == randomFile.uploadResult.File.FileId);
-            Assert.IsNotNull(theModifiedFile);
-            Assert.IsTrue(theModifiedFile.FileMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content);
+            ClassicAssert.IsNotNull(theModifiedFile);
+            ClassicAssert.IsTrue(theModifiedFile.FileMetadata.AppData.Content == modifiedResult.modifiedMetadata.AppData.Content);
         }
 
         [Test]
@@ -218,9 +219,9 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 File = randomFile.uploadResult.File
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode);
-            Assert.IsNotNull(response.Content);
-            Assert.IsTrue(response.Content.FileMetadata.AppData.Content == randomFile.uploadedMetadata.AppData.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.Content.FileMetadata.AppData.Content == randomFile.uploadedMetadata.AppData.Content);
         }
 
         [Test]
@@ -244,10 +245,10 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 Key = WebScaffold.PAYLOAD_KEY
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode);
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(response.Content);
             var payload = await response.Content.ReadAsStringAsync();
-            Assert.IsTrue(payload == uploadedPayload);
+            ClassicAssert.IsTrue(payload == uploadedPayload);
         }
 
         [Test]
@@ -281,10 +282,10 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 DirectMatchOnly = true
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode);
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(response.Content);
             var thumbnailContent = await response.Content.ReadAsStringAsync();
-            Assert.True(thumbnail.Content.Length == thumbnailContent.Length);
+            ClassicAssert.True(thumbnail.Content.Length == thumbnailContent.Length);
         }
 
         [Test]
@@ -309,16 +310,16 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 DriveType = driveType
             });
 
-            Assert.IsTrue(getTransitDrives.IsSuccessStatusCode);
-            Assert.IsNotNull(getTransitDrives.Content);
+            ClassicAssert.IsTrue(getTransitDrives.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getTransitDrives.Content);
 
             var drivesOnRecipientIdentityAccessibleToSender = getTransitDrives.Content.Results;
 
-            Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == driveType));
-            Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.Count == 2);
-            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1.TargetDriveInfo));
-            Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2.TargetDriveInfo));
-            Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3.TargetDriveInfo));
+            ClassicAssert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == driveType));
+            ClassicAssert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.Count == 2);
+            ClassicAssert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive1.TargetDriveInfo));
+            ClassicAssert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive2.TargetDriveInfo));
+            ClassicAssert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == remoteDrive3.TargetDriveInfo));
         }
 
         //

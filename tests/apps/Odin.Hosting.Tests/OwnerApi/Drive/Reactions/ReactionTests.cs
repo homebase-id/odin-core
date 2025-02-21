@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -74,13 +75,13 @@ public class ReactionTests
         
         var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, comment, false);
 
-        Assert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult.File.TargetDrive);
+        ClassicAssert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult.File.TargetDrive);
 
         var commentFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
-        Assert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
-        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
-        Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == targetReferenceFile, "target reference file not referenced");
+        ClassicAssert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
+        ClassicAssert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
+        ClassicAssert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == targetReferenceFile, "target reference file not referenced");
     }
 
     [Test]
@@ -107,20 +108,20 @@ public class ReactionTests
         var comment = "Indeed, Indeed I am Mr. Underhill";
         var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, uploadedContentResult.GlobalTransitIdFileIdentifier, comment, false);
 
-        Assert.IsTrue(uploadedContentResult.File.TargetDrive == commentUploadResult.File.TargetDrive, "Drive for content file and reaction must match");
+        ClassicAssert.IsTrue(uploadedContentResult.File.TargetDrive == commentUploadResult.File.TargetDrive, "Drive for content file and reaction must match");
 
         var commentFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
-        Assert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
-        Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
-        Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == uploadedContentResult.GlobalTransitIdFileIdentifier, "target reference file not referenced");
+        ClassicAssert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
+        ClassicAssert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == comment);
+        ClassicAssert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == uploadedContentResult.GlobalTransitIdFileIdentifier, "target reference file not referenced");
 
         // Get the target file and validate reaction was updated
 
         var targetFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
-        Assert.IsNotNull(targetFileHeader);
-        Assert.IsNotNull(targetFileHeader.FileMetadata.ReactionPreview);
-        Assert.IsTrue(targetFileHeader.FileMetadata.ReactionPreview.Comments.Any(c => c.Content == comment));
+        ClassicAssert.IsNotNull(targetFileHeader);
+        ClassicAssert.IsNotNull(targetFileHeader.FileMetadata.ReactionPreview);
+        ClassicAssert.IsTrue(targetFileHeader.FileMetadata.ReactionPreview.Comments.Any(c => c.Content == comment));
     }
 
     [Test]
@@ -149,14 +150,14 @@ public class ReactionTests
         //
         var commentContent1 = "Indeed, Indeed I am Mr. Underhill";
         var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, commentContent1, false);
-        Assert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult.File.TargetDrive);
+        ClassicAssert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult.File.TargetDrive);
 
         //
         // Frodo posts the second
         //
         var commentContent2 = "Totes agreeing with myself";
         var commentUploadResult2 = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, commentContent2, false);
-        Assert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult2.File.TargetDrive);
+        ClassicAssert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult2.File.TargetDrive);
 
 
         //
@@ -170,9 +171,9 @@ public class ReactionTests
         //     // ReferenceToFile
         // });
         //
-        // Assert.IsTrue(feedbackSearchResults.SearchResults.Count() == 2);
-        // Assert.IsNotNull(feedbackSearchResults.SearchResults.SingleOrDefault(fb => fb.FileMetadata.AppData.JsonContent == feedbackContent1));
-        // Assert.IsNotNull(feedbackSearchResults.SearchResults.SingleOrDefault(fb => fb.FileMetadata.AppData.JsonContent == feedbackContent2));
+        // ClassicAssert.IsTrue(feedbackSearchResults.SearchResults.Count() == 2);
+        // ClassicAssert.IsNotNull(feedbackSearchResults.SearchResults.SingleOrDefault(fb => fb.FileMetadata.AppData.JsonContent == feedbackContent1));
+        // ClassicAssert.IsNotNull(feedbackSearchResults.SearchResults.SingleOrDefault(fb => fb.FileMetadata.AppData.JsonContent == feedbackContent2));
     }
 
     private async Task<UploadResult> UploadToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true)

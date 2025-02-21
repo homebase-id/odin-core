@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -86,7 +87,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             // Send the reaction - TODO: this fails because there's no default access to WriteReactionsAndComments for anonymous drives
             //
             var addReactionResponse = await merryAppClient.TransitReactionSender.AddReaction(request);
-            Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(addReactionResponse.IsSuccessStatusCode);
 
             //
             // Validate reaction exists
@@ -103,13 +104,13 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             });
 
 
-            Assert.IsTrue(getReactionsResponse.IsSuccessStatusCode, $"status code was {getReactionsResponse.StatusCode}");
-            Assert.IsNotNull(getReactionsResponse.Content);
+            ClassicAssert.IsTrue(getReactionsResponse.IsSuccessStatusCode, $"status code was {getReactionsResponse.StatusCode}");
+            ClassicAssert.IsNotNull(getReactionsResponse.Content);
             var theReaction = getReactionsResponse.Content.Reactions.SingleOrDefault(sr =>
                 sr.GlobalTransitIdFileIdentifier == targetFile.uploadResult.GlobalTransitIdFileIdentifier);
 
-            Assert.IsNotNull(theReaction);
-            Assert.IsTrue(theReaction.ReactionContent == reactionContent);
+            ClassicAssert.IsNotNull(theReaction);
+            ClassicAssert.IsTrue(theReaction.ReactionContent == reactionContent);
         }
 
         [Test]
@@ -145,7 +146,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             // Send the reaction
             //
             var addReactionResponse = await merryAppClient.TransitReactionSender.AddReaction(request);
-            Assert.IsTrue(addReactionResponse.StatusCode == HttpStatusCode.Forbidden, $"Status code was {addReactionResponse.StatusCode}");
+            ClassicAssert.IsTrue(addReactionResponse.StatusCode == HttpStatusCode.Forbidden, $"Status code was {addReactionResponse.StatusCode}");
         }
 
         [Test]
@@ -181,7 +182,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             // Send the reaction
             //
             var addReactionResponse = await merryAppClient.TransitReactionSender.AddReaction(request);
-            Assert.IsTrue(addReactionResponse.IsSuccessStatusCode, $"Status code was {addReactionResponse.StatusCode}");
+            ClassicAssert.IsTrue(addReactionResponse.IsSuccessStatusCode, $"Status code was {addReactionResponse.StatusCode}");
         }
         //
 
@@ -225,7 +226,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
 
             var response = await merryAppClient.TransitFileSender.TransferFile(commentFileMetadata, recipients, targetFile.uploadResult.File.TargetDrive,
                 fileSystemType: FileSystemType.Comment);
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
 
             var c = _scaffold.CreateOwnerApiClientRedux(merryAppClient.Identity);
             await c.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
@@ -241,8 +242,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             };
 
             var getTransitFileHeaderResponse = await merryAppClient.TransitQuery.GetFileHeader(remoteFile, FileSystemType.Comment);
-            Assert.IsTrue(getTransitFileHeaderResponse.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
-            Assert.IsTrue(getTransitFileHeaderResponse.Content.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(getTransitFileHeaderResponse.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
+            ClassicAssert.IsTrue(getTransitFileHeaderResponse.Content.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
         }
 
 
@@ -290,10 +291,10 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             var merryAppClient = await this.CreateAppAndClient(TestIdentities.Merry, PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead);
             var response = await merryAppClient.TransitFileSender.TransferFile(commentFileMetadata, recipients, remoteTargetDrive,
                 fileSystemType: FileSystemType.Comment);
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
             var transitResult = response.Content;
-            Assert.IsNotNull(transitResult);
-            Assert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+            ClassicAssert.IsNotNull(transitResult);
+            ClassicAssert.IsTrue(transitResult.RecipientStatus[pippinOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
 
             var c = _scaffold.CreateOwnerApiClientRedux(merryAppClient.Identity);
             await c.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
@@ -319,12 +320,12 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             };
 
             var getTransitBatchResponse = await merryAppClient.TransitQuery.GetBatch(request, FileSystemType.Comment);
-            Assert.IsTrue(getTransitBatchResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(getTransitBatchResponse.Content);
+            ClassicAssert.IsTrue(getTransitBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getTransitBatchResponse.Content);
 
             var theRemoteComment = getTransitBatchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theRemoteComment);
-            Assert.IsTrue(theRemoteComment.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
+            ClassicAssert.IsNotNull(theRemoteComment);
+            ClassicAssert.IsTrue(theRemoteComment.FileMetadata.AppData.Content == commentFileMetadata.AppData.Content);
 
             await pippinOwnerClient.Network.DisconnectFrom(merryOwnerClient.Identity);
         }

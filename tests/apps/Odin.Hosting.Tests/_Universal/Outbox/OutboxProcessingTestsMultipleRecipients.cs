@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Time;
@@ -99,22 +100,22 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             foreach (var recipient in recipients)
             {
-                Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-                Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+                ClassicAssert.IsTrue(uploadResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
                 var uploadResult = uploadResponse.Content;
-                Assert.IsTrue(uploadResult.RecipientStatus.Count == recipients.Count);
-                Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued);
+                ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == recipients.Count);
+                ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued);
 
                 // Assert: file that was sent has peer transfer status updated
                 var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
-                Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
                 var theHistory = getHistoryResponse.Content;
-                Assert.IsNotNull(theHistory);
+                ClassicAssert.IsNotNull(theHistory);
                 var recipientStatus = theHistory.GetHistoryItem(recipient.Identity.OdinId);
-                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-                Assert.IsFalse(recipientStatus.IsInOutbox);
-                Assert.IsFalse(recipientStatus.IsReadByRecipient);
-                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
+                ClassicAssert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                ClassicAssert.IsFalse(recipientStatus.IsInOutbox);
+                ClassicAssert.IsFalse(recipientStatus.IsReadByRecipient);
+                ClassicAssert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
             }
 
             await this.DeleteScenario(senderOwnerClient, recipients);
@@ -171,11 +172,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             foreach (var recipient in recipients)
             {
-                Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-                Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+                ClassicAssert.IsTrue(uploadResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
                 var uploadResult = uploadResponse.Content;
-                Assert.IsTrue(uploadResult.RecipientStatus.Count == recipients.Count);
-                Assert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued);
+                ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == recipients.Count);
+                ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipient.Identity.OdinId] == TransferStatus.Enqueued);
 
                 //Get modified to results ensure it will show up after a transfer
                 var queryModifiedResponse = await senderOwnerClient.DriveRedux.QueryModified(new QueryModifiedRequest()
@@ -192,12 +193,12 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                     }
                 });
 
-                Assert.IsTrue(queryModifiedResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(queryModifiedResponse.IsSuccessStatusCode);
                 var modifiedResults = queryModifiedResponse.Content;
                 var fileInResults = modifiedResults.SearchResults.SingleOrDefault(r => r.FileId == uploadResult.File.FileId);
-                Assert.IsNotNull(fileInResults);
+                ClassicAssert.IsNotNull(fileInResults);
 
-                Assert.IsNull(fileInResults.ServerMetadata.TransferHistory);
+                ClassicAssert.IsNull(fileInResults.ServerMetadata.TransferHistory);
             }
 
             await this.DeleteScenario(senderOwnerClient, recipients);
@@ -217,7 +218,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
 
             foreach (var recipient in recipients)
             {
@@ -243,7 +244,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
 
             //
             // Recipient creates a circle with target drive, read and write access
@@ -266,7 +267,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 }
             });
 
-            Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
 
             //
@@ -280,10 +281,10 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var getConnectionInfoResponse = await recipient.Network.GetConnectionInfo(sender);
 
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
             var senderConnectionInfo = getConnectionInfoResponse.Content;
 
-            Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            ClassicAssert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
         }
 

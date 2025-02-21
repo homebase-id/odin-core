@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
@@ -205,7 +206,7 @@ TaskPerformanceTest_Transit
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = recipientAppContext.TargetDrive });
-                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientAppContext.SharedSecret);
 
@@ -223,8 +224,8 @@ TaskPerformanceTest_Transit
                     }
                 });
 
-                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryBatchResponse.Content);
+                ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryBatchResponse.Content);
 
 
                 return queryBatchResponse.Content.SearchResults.ToList();
@@ -334,8 +335,8 @@ TaskPerformanceTest_Transit
                     new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(),
                         thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Actual code was {response.StatusCode}");
-                Assert.IsNotNull(response.Content);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Actual code was {response.StatusCode}");
+                ClassicAssert.IsNotNull(response.Content);
                 var uploadResult = response.Content;
 
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
@@ -344,7 +345,7 @@ TaskPerformanceTest_Transit
                         instructionSet.TransitOptions.Recipients.All(r =>
                             uploadResult.RecipientStatus[r] == TransferStatus.Enqueued);
 
-                    Assert.IsTrue(wasPutInOutboxForAll);
+                    ClassicAssert.IsTrue(wasPutInOutboxForAll);
                 }
 
 
@@ -361,15 +362,15 @@ TaskPerformanceTest_Transit
                 //
                 // Assert.That(uploadResult.File, Is.Not.Null);
                 // Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                // Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+                // ClassicAssert.IsTrue(uploadResult.File.TargetDrive.IsValid());
                 //
                 // var uploadedFile = uploadResult.File;
 
                 //
                 // foreach (var recipient in recipients)
                 // {
-                //     Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient), $"Message was not delivered to ${recipient}");
-                //     Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"Message was not delivered to ${recipient}");
+                //     ClassicAssert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient), $"Message was not delivered to ${recipient}");
+                //     ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"Message was not delivered to ${recipient}");
                 // }
                 //
                 //
@@ -406,15 +407,15 @@ TaskPerformanceTest_Transit
                 // var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
                 //
                 // Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                // Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
+                // ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
                 //
                 // //validate preview thumbnail
-                // Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                // Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
-                // Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                // Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                // ClassicAssert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                // ClassicAssert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                // ClassicAssert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
+                // ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
                 //
-                // Assert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == 2);
+                // ClassicAssert.IsTrue(clientFileHeader.FileMetadata.Thumbnails.Count() == 2);
                 //
                 //
                 // //
@@ -445,9 +446,9 @@ TaskPerformanceTest_Transit
                 // var clientFileHeaderList = clientFileHeader.FileMetadata.Thumbnails.ToList();
                 //
                 // //validate thumbnail 1
-                // Assert.IsTrue(descriptorList[0].ContentType == clientFileHeaderList[0].ContentType);
-                // Assert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
-                // Assert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
+                // ClassicAssert.IsTrue(descriptorList[0].ContentType == clientFileHeaderList[0].ContentType);
+                // ClassicAssert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
+                // ClassicAssert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
                 //
                 // var thumbnailResponse1 = await getFilesDriveSvc.GetThumbnail(
                 //     fileId: uploadedFile.FileId,
@@ -457,15 +458,15 @@ TaskPerformanceTest_Transit
                 //     thumbnail1.PixelWidth
                 // );
                 //
-                // Assert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
-                // Assert.IsNotNull(thumbnailResponse1.Content);
+                // ClassicAssert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
+                // ClassicAssert.IsNotNull(thumbnailResponse1.Content);
                 //
-                // Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, await thumbnailResponse1!.Content!.ReadAsByteArrayAsync()));
+                // ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, await thumbnailResponse1!.Content!.ReadAsByteArrayAsync()));
                 //
                 // //validate thumbnail 2
-                // Assert.IsTrue(descriptorList[1].ContentType == clientFileHeaderList[1].ContentType);
-                // Assert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
-                // Assert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
+                // ClassicAssert.IsTrue(descriptorList[1].ContentType == clientFileHeaderList[1].ContentType);
+                // ClassicAssert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
+                // ClassicAssert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
                 //
                 // var thumbnailResponse2 = await getFilesDriveSvc.GetThumbnail(
                 //     fileId: uploadedFile.FileId,
@@ -474,9 +475,9 @@ TaskPerformanceTest_Transit
                 //     thumbnail2.PixelHeight,
                 //     thumbnail2.PixelWidth);
                 //
-                // Assert.IsTrue(thumbnailResponse2.IsSuccessStatusCode);
-                // Assert.IsNotNull(thumbnailResponse2.Content);
-                // Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, await thumbnailResponse2.Content!.ReadAsByteArrayAsync()));
+                // ClassicAssert.IsTrue(thumbnailResponse2.IsSuccessStatusCode);
+                // ClassicAssert.IsNotNull(thumbnailResponse2.Content);
+                // ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, await thumbnailResponse2.Content!.ReadAsByteArrayAsync()));
                 //
                 // decryptedKeyHeader.AesKey.Wipe();
                 // keyHeader.AesKey.Wipe();

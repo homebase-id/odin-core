@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -120,13 +121,13 @@ public class ReactionPreviewTests
         // get the target blog file
         var blogPostHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
 
-        Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Comments.Count == 3);
-        Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Reactions.Count == 0);
-        Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.TotalCommentCount == 3);
+        ClassicAssert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Comments.Count == 3);
+        ClassicAssert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Reactions.Count == 0);
+        ClassicAssert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.TotalCommentCount == 3);
 
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile1.AppData.Content));
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile2.AppData.Content));
-        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile3.AppData.Content));
+        ClassicAssert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile1.AppData.Content));
+        ClassicAssert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile2.AppData.Content));
+        ClassicAssert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.Content == commentFile3.AppData.Content));
     }
 
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent)

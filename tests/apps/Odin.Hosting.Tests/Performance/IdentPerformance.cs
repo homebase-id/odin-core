@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests.Anonymous.Ident;
 using Refit;
 
@@ -92,8 +93,8 @@ namespace Odin.Hosting.Tests.Performance
 
                 var identResponse = await svc.GetIdent();
                 var ident = identResponse.Content;
-                Assert.IsFalse(string.IsNullOrEmpty(ident.OdinId));
-                Assert.IsTrue(ident.Version == 1.0);
+                ClassicAssert.IsFalse(string.IsNullOrEmpty(ident.OdinId));
+                ClassicAssert.IsTrue(ident.Version == 1.0);
 
                 timers[count] = sw.ElapsedMilliseconds;
             }
@@ -160,7 +161,7 @@ namespace Odin.Hosting.Tests.Performance
                 sw.Restart();
 
                 var context = await ownerClient.Security.GetSecurityContext();
-                Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
+                ClassicAssert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
 
                 timers[count] = sw.ElapsedMilliseconds;
             }

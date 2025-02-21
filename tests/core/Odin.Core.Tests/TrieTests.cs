@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Trie;
 using Odin.Test.Helpers.Benchmark;
 
@@ -25,7 +26,7 @@ namespace Odin.Core.Tests
             }
             catch (Exception ex)
             {
-                Assert.IsTrue(ex.Message.Contains("Empty guid key not allowed", StringComparison.OrdinalIgnoreCase));
+                ClassicAssert.IsTrue(ex.Message.Contains("Empty guid key not allowed", StringComparison.OrdinalIgnoreCase));
                 return;
             }
 
@@ -96,7 +97,7 @@ namespace Odin.Core.Tests
 
             try
             {
-                t.AddDomain("øa.com", Guid.NewGuid());
+                t.AddDomain("ï¿½a.com", Guid.NewGuid());
                 Assert.Fail();
             }
             catch
@@ -107,7 +108,7 @@ namespace Odin.Core.Tests
             t.AddDomain("aa.com", Guid.NewGuid());
             try
             {
-                var g = t.LookupExactName("åa.com");
+                var g = t.LookupExactName("ï¿½a.com");
                 Assert.Fail();
             }
             catch (Exception)
@@ -156,7 +157,7 @@ namespace Odin.Core.Tests
             }
             catch (Exception e)
             {
-                Assert.IsTrue(e.Message.Contains("Domain hierarchy not unique", StringComparison.OrdinalIgnoreCase));
+                ClassicAssert.IsTrue(e.Message.Contains("Domain hierarchy not unique", StringComparison.OrdinalIgnoreCase));
                 return;
             }
 

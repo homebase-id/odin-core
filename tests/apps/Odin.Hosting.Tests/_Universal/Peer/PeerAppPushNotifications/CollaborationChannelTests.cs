@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -154,7 +155,7 @@ public class PeerAppPushNotificationTests
             chatCircleId,
             notificationOptions,
             keyHeader);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         // Let's test more
@@ -169,10 +170,10 @@ public class PeerAppPushNotificationTests
             //
             var byGlobalTransitIdResponse =
                 await collabChatIdentity.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
-            Assert.IsTrue(byGlobalTransitIdResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(byGlobalTransitIdResponse.IsSuccessStatusCode);
             var theFile = byGlobalTransitIdResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFile);
-            Assert.IsTrue(theFile.FileMetadata.AppData.FileType == uploadedFileMetadata.AppData.FileType);
+            ClassicAssert.IsNotNull(theFile);
+            ClassicAssert.IsTrue(theFile.FileMetadata.AppData.FileType == uploadedFileMetadata.AppData.FileType);
 
             //
             // Assert: all notification recipients received a notification in their list (that shows in the owner console
@@ -181,13 +182,13 @@ public class PeerAppPushNotificationTests
             {
                 var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
-                Assert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 
                 //TODO: determine who the sender should actually be?
                 var notificationsFromCollabChat = getNotificationResponse.Content.Results
                     .Where(notification => notification.SenderId == member1.OdinId);
 
-                Assert.IsTrue(notificationsFromCollabChat.Any());
+                ClassicAssert.IsTrue(notificationsFromCollabChat.Any());
                 
                 //TODO: where do we check this? in the notifications or the log?
             }
@@ -285,7 +286,7 @@ public class PeerAppPushNotificationTests
         var member2AppToken = await client.AppManager.RegisterAppAndClient(appId, appPermissions);
         var member2AppClient = _scaffold.CreateAppApiClientRedux(client.OdinId, member2AppToken);
         var m2Response = await member2AppClient.PeerAppNotification.Subscribe(collabIdentity, peerSubscriptionId);
-        Assert.IsTrue(m2Response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(m2Response.IsSuccessStatusCode);
     }
 
     private async Task CleanupScenario(OwnerApiClientRedux collabChat, OwnerApiClientRedux member1, OwnerApiClientRedux member2)

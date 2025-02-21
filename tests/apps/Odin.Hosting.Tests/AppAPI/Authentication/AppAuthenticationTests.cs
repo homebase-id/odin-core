@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -72,13 +73,13 @@ namespace Odin.Hosting.Tests.AppAPI.Authentication
             var appApiClient = _scaffold.CreateAppClient(TestIdentities.Samwise, appId);
 
             var clients = await ownerClient.Apps.GetRegisteredClients(appId);
-            Assert.IsNotNull(clients.SingleOrDefault(c => c.AppId == appId && c.AccessRegistrationId == appApiClient.AccessRegistrationId));
+            ClassicAssert.IsNotNull(clients.SingleOrDefault(c => c.AppId == appId && c.AccessRegistrationId == appApiClient.AccessRegistrationId));
 
             await appApiClient.Logout();
 
             //log out the app
             var updatedClients = await ownerClient.Apps.GetRegisteredClients(appId);
-            Assert.IsTrue(!updatedClients.Any());
+            ClassicAssert.IsTrue(!updatedClients.Any());
         }
 
         [Test]
@@ -110,8 +111,8 @@ namespace Odin.Hosting.Tests.AppAPI.Authentication
 
             var response = await appApiClient.PreAuth();
             
-            Assert.IsTrue(response.Headers.TryGetValues("Set-Cookie", out var values));
-            Assert.IsTrue(values.Any(v=>v.StartsWith(YouAuthConstants.AppCookieName)));
+            ClassicAssert.IsTrue(response.Headers.TryGetValues("Set-Cookie", out var values));
+            ClassicAssert.IsTrue(values.Any(v=>v.StartsWith(YouAuthConstants.AppCookieName)));
         }
     }
 }

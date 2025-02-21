@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -55,7 +56,7 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(TestIdentities.Frodo, PermissionKeys.All.ToArray());
 
         var response = await appClient.CircleNetwork.GetDomainsInCircle(SystemCircleConstants.ConfirmedConnectionsCircleId);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
 
         await _scaffold.Scenarios.DisconnectHobbits();
     }
@@ -70,12 +71,12 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(identity, PermissionKeys.ReadCircleMembership);
 
         var response = await appClient.CircleNetwork.GetDomainsInCircle(ctx.Circles[identity.OdinId].Id);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var list = response.Content;
-        Assert.IsNotNull(list);
-        Assert.IsNotNull(list.SingleOrDefault(cdr => cdr.Domain.DomainName == TestIdentities.Samwise.OdinId));
-        Assert.IsNotNull(list.SingleOrDefault(cdr => cdr.Domain.DomainName == TestIdentities.Merry.OdinId));
-        Assert.IsNotNull(list.SingleOrDefault(cdr => cdr.Domain.DomainName == TestIdentities.Pippin.OdinId));
+        ClassicAssert.IsNotNull(list);
+        ClassicAssert.IsNotNull(list.SingleOrDefault(cdr => cdr.Domain.DomainName == TestIdentities.Samwise.OdinId));
+        ClassicAssert.IsNotNull(list.SingleOrDefault(cdr => cdr.Domain.DomainName == TestIdentities.Merry.OdinId));
+        ClassicAssert.IsNotNull(list.SingleOrDefault(cdr => cdr.Domain.DomainName == TestIdentities.Pippin.OdinId));
 
         await _scaffold.Scenarios.DisconnectHobbits();
     }
@@ -90,7 +91,7 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(identity, PermissionKeys.ReadConnections);
 
         var response = await appClient.CircleNetwork.GetDomainsInCircle(ctx.Circles[identity.OdinId].Id);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
 
         await _scaffold.Scenarios.DisconnectHobbits();
     }
@@ -104,10 +105,10 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(identity, PermissionKeys.ReadCircleMembership);
 
         var getDefinitionResponse = await appClient.CircleDefinitions.GetCircleDefinition(def.Id);
-        Assert.IsTrue(getDefinitionResponse.IsSuccessStatusCode);
-        Assert.IsNotNull(getDefinitionResponse.Content);
-        Assert.IsTrue(getDefinitionResponse.Content.Id == def.Id);
-        Assert.IsTrue(getDefinitionResponse.Content.Name == def.Name);
+        ClassicAssert.IsTrue(getDefinitionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsNotNull(getDefinitionResponse.Content);
+        ClassicAssert.IsTrue(getDefinitionResponse.Content.Id == def.Id);
+        ClassicAssert.IsTrue(getDefinitionResponse.Content.Name == def.Name);
     }
 
     [Test]
@@ -119,7 +120,7 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(identity);
 
         var getDefinitionResponse = await appClient.CircleDefinitions.GetCircleDefinition(def.Id);
-        Assert.IsTrue(getDefinitionResponse.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(getDefinitionResponse.StatusCode == HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -134,11 +135,11 @@ public class AppCircleDefinitionTests
         var def3 = await this.CreateRandomCircle(identity);
 
         var getDefinitionResponse = await appClient.CircleDefinitions.GetCircleDefinitions();
-        Assert.IsTrue(getDefinitionResponse.IsSuccessStatusCode);
-        Assert.IsNotNull(getDefinitionResponse.Content);
-        Assert.IsNotNull(getDefinitionResponse.Content.SingleOrDefault(d => d.Id == def1.Id));
-        Assert.IsNotNull(getDefinitionResponse.Content.SingleOrDefault(d => d.Id == def2.Id));
-        Assert.IsNotNull(getDefinitionResponse.Content.SingleOrDefault(d => d.Id == def3.Id));
+        ClassicAssert.IsTrue(getDefinitionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsNotNull(getDefinitionResponse.Content);
+        ClassicAssert.IsNotNull(getDefinitionResponse.Content.SingleOrDefault(d => d.Id == def1.Id));
+        ClassicAssert.IsNotNull(getDefinitionResponse.Content.SingleOrDefault(d => d.Id == def2.Id));
+        ClassicAssert.IsNotNull(getDefinitionResponse.Content.SingleOrDefault(d => d.Id == def3.Id));
     }
 
     [Test]
@@ -153,7 +154,7 @@ public class AppCircleDefinitionTests
         await this.CreateRandomCircle(identity);
 
         var getDefinitionResponse = await appClient.CircleDefinitions.GetCircleDefinitions();
-        Assert.IsTrue(getDefinitionResponse.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(getDefinitionResponse.StatusCode == HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -164,7 +165,7 @@ public class AppCircleDefinitionTests
         var def1 = await this.CreateRandomCircle(identity);
         def1.Name = "another name";
         var response = await appClient.CircleDefinitions.Update(def1);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -174,7 +175,7 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(identity, PermissionKeys.ReadCircleMembership);
         var def1 = await this.CreateRandomCircle(identity);
         var response = await appClient.CircleDefinitions.Delete(def1.Id);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -184,7 +185,7 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(identity, PermissionKeys.ReadCircleMembership);
         var def1 = await this.CreateRandomCircle(identity);
         var response = await appClient.CircleDefinitions.Disable(def1.Id);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -194,7 +195,7 @@ public class AppCircleDefinitionTests
         var appClient = await this.CreateAppAndClient(identity, PermissionKeys.ReadCircleMembership);
         var def1 = await this.CreateRandomCircle(identity);
         var response = await appClient.CircleDefinitions.Enable(def1.Id);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -210,7 +211,7 @@ public class AppCircleDefinitionTests
             Description = "test"
         });
 
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden);
     }
 
     private async Task<CircleDefinition> CreateRandomCircle(TestIdentity identity, params int[] permissionKeys)

@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography.Crypto;
 
 namespace Odin.Core.Cryptography.Tests
@@ -40,7 +41,7 @@ namespace Odin.Core.Cryptography.Tests
         {
             var key = HashUtil.Hkdf(_sharedEccSecret, _salt, 32);
 
-            Assert.AreEqual(32, key.Length);
+            ClassicAssert.AreEqual(32, key.Length);
         }
 
         [Test]
@@ -49,7 +50,7 @@ namespace Odin.Core.Cryptography.Tests
             var key1 = HashUtil.Hkdf(_sharedEccSecret, _salt, 32);
             var key2 = HashUtil.Hkdf(Encoding.ASCII.GetBytes("DifferentSecret"), _salt, 32);
 
-            Assert.AreNotEqual(key1, key2);
+            ClassicAssert.AreNotEqual(key1, key2);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Membership.Connections;
 using Odin.Hosting.Controllers;
@@ -134,9 +135,9 @@ public class ConnectionRequestTests
         await merryClient.Network.SendConnectionRequestTo(pippin);
 
         var pendingRequestFromMerry = await pippinClient.Network.GetIncomingRequestFrom(merry);
-        Assert.IsNotNull(pendingRequestFromMerry);
-        Assert.IsTrue(pendingRequestFromMerry.SenderOdinId == merryClient.Identity.OdinId);
-        Assert.IsTrue(pendingRequestFromMerry.Direction == ConnectionRequestDirection.Incoming);
+        ClassicAssert.IsNotNull(pendingRequestFromMerry);
+        ClassicAssert.IsTrue(pendingRequestFromMerry.SenderOdinId == merryClient.Identity.OdinId);
+        ClassicAssert.IsTrue(pendingRequestFromMerry.Direction == ConnectionRequestDirection.Incoming);
 
 
         //Now that Pippin has an incoming request
@@ -144,14 +145,14 @@ public class ConnectionRequestTests
 
         // Assert that we still have an outgoing request to merry and an incoming request from merry; two different requests
         var sentRequestToMerry = await pippinClient.Network.GetOutgoingSentRequestTo(merry);
-        Assert.IsNotNull(sentRequestToMerry);
-        Assert.IsTrue(sentRequestToMerry.Recipient == merryClient.Identity.OdinId);
-        Assert.IsTrue(sentRequestToMerry.Direction == ConnectionRequestDirection.Outgoing);
+        ClassicAssert.IsNotNull(sentRequestToMerry);
+        ClassicAssert.IsTrue(sentRequestToMerry.Recipient == merryClient.Identity.OdinId);
+        ClassicAssert.IsTrue(sentRequestToMerry.Direction == ConnectionRequestDirection.Outgoing);
 
         var pendingRequestFromMerry2 = await pippinClient.Network.GetIncomingRequestFrom(merry);
-        Assert.IsNotNull(pendingRequestFromMerry2);
-        Assert.IsTrue(pendingRequestFromMerry2.SenderOdinId == merryClient.Identity.OdinId);
-        Assert.IsTrue(pendingRequestFromMerry2.Direction == ConnectionRequestDirection.Incoming);
+        ClassicAssert.IsNotNull(pendingRequestFromMerry2);
+        ClassicAssert.IsTrue(pendingRequestFromMerry2.SenderOdinId == merryClient.Identity.OdinId);
+        ClassicAssert.IsTrue(pendingRequestFromMerry2.Direction == ConnectionRequestDirection.Incoming);
 
         // They try to reconnect again fully
         await Connect(merry, pippin);
@@ -211,10 +212,10 @@ public class ConnectionRequestTests
         //
 
         var merryInfo = await pippinClient.Network.GetConnectionInfo(merry);
-        Assert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
 
         var pippinInfo = await merryClient.Network.GetOutgoingSentRequestTo(pippin);
-        Assert.IsNotNull(pippinInfo);
+        ClassicAssert.IsNotNull(pippinInfo);
 
         //
         // They try to reconnect again fully
@@ -246,10 +247,10 @@ public class ConnectionRequestTests
         //
 
         var merryInfo = await pippinClient.Network.GetOutgoingSentRequestTo(merry);
-        Assert.IsNotNull(merryInfo);
+        ClassicAssert.IsNotNull(merryInfo);
 
         var pippinInfo = await merryClient.Network.GetOutgoingSentRequestTo(pippin);
-        Assert.IsNotNull(pippinInfo);
+        ClassicAssert.IsNotNull(pippinInfo);
 
         //
         // They try to reconnect again fully
@@ -276,10 +277,10 @@ public class ConnectionRequestTests
         //
 
         var pippinInfo = await merryClient.Network.GetOutgoingSentRequestTo(pippin);
-        Assert.IsNotNull(pippinInfo);
+        ClassicAssert.IsNotNull(pippinInfo);
 
         var merryInfo = await pippinClient.Network.GetIncomingRequestFrom(merry);
-        Assert.IsNotNull(merryInfo);
+        ClassicAssert.IsNotNull(merryInfo);
 
         //
         // They try to reconnect again fully
@@ -308,10 +309,10 @@ public class ConnectionRequestTests
         //
 
         var pippinInfo = await merryClient.Network.GetOutgoingSentRequestTo(pippin);
-        Assert.IsNotNull(pippinInfo);
+        ClassicAssert.IsNotNull(pippinInfo);
 
         var merryInfo = await pippinClient.Network.GetIncomingRequestFrom(merry);
-        Assert.IsNull(merryInfo);
+        ClassicAssert.IsNull(merryInfo);
 
         //
         // They try to reconnect again fully
@@ -342,10 +343,10 @@ public class ConnectionRequestTests
         //
 
         var pippinInfo = await merryClient.Network.GetIncomingRequestFrom(pippin);
-        Assert.IsNotNull(pippinInfo);
+        ClassicAssert.IsNotNull(pippinInfo);
 
         var merryInfo = await pippinClient.Network.GetConnectionInfo(merry);
-        Assert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
 
         //
         // Send the request; it should be auto-approved
@@ -380,18 +381,18 @@ public class ConnectionRequestTests
         //
 
         var pippinInfo = await merryClient.Network.GetIncomingRequestFrom(pippin);
-        Assert.IsNotNull(pippinInfo);
+        ClassicAssert.IsNotNull(pippinInfo);
 
         var merryInfo = await pippinClient.Network.GetConnectionInfo(merry);
-        Assert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(merryInfo.Status == ConnectionStatus.Connected);
 
         //
         // Send the request; it should be auto-approved but will fail because there is no outgoing request from pippin
         //
         var response = await merryClient.Network.SendConnectionRequestRaw(pippin, new List<GuidId>());
 
-        Assert.IsFalse(response.IsSuccessStatusCode);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+        ClassicAssert.IsFalse(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
         await Cleanup(merry, pippin);
     }
 
@@ -438,15 +439,15 @@ public class ConnectionRequestTests
         // Assert state is ready for test
         //
 
-        Assert.IsNotNull(await samClient.Network.GetIncomingRequestFrom(frodo));
-        Assert.IsNull(await samClient.Network.GetOutgoingSentRequestTo(frodo));
+        ClassicAssert.IsNotNull(await samClient.Network.GetIncomingRequestFrom(frodo));
+        ClassicAssert.IsNull(await samClient.Network.GetOutgoingSentRequestTo(frodo));
 
-        Assert.IsNull(await frodoClient.Network.GetIncomingRequestFrom(sam));
-        Assert.IsNull(await frodoClient.Network.GetOutgoingSentRequestTo(sam));
+        ClassicAssert.IsNull(await frodoClient.Network.GetIncomingRequestFrom(sam));
+        ClassicAssert.IsNull(await frodoClient.Network.GetOutgoingSentRequestTo(sam));
 
 
         var response = await samClient.Network.SendConnectionRequestRaw(frodo, new List<GuidId>());
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
 
         await samClient.Network.DeleteConnectionRequestFrom(frodo);
     }
@@ -473,7 +474,7 @@ public class ConnectionRequestTests
         // Assert state is ready for test
         //
 
-        Assert.IsTrue((await merryClient.Network.GetConnectionInfo(pippin)).Status == ConnectionStatus.None);
+        ClassicAssert.IsTrue((await merryClient.Network.GetConnectionInfo(pippin)).Status == ConnectionStatus.None);
 
         //
         // They try to reconnect again fully
@@ -503,11 +504,11 @@ public class ConnectionRequestTests
         // Assert state is ready for test
         //
 
-        Assert.IsNotNull(await pippinClient.Network.GetOutgoingSentRequestTo(merry));
-        Assert.IsNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
+        ClassicAssert.IsNotNull(await pippinClient.Network.GetOutgoingSentRequestTo(merry));
+        ClassicAssert.IsNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
 
-        Assert.IsNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
-        Assert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
+        ClassicAssert.IsNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
+        ClassicAssert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
 
         //
         // They try to reconnect again fully
@@ -534,11 +535,11 @@ public class ConnectionRequestTests
         // Assert state is ready for test
         //
 
-        Assert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
-        Assert.IsNull(await pippinClient.Network.GetOutgoingSentRequestTo(merry));
+        ClassicAssert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
+        ClassicAssert.IsNull(await pippinClient.Network.GetOutgoingSentRequestTo(merry));
 
-        Assert.IsNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
-        Assert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
+        ClassicAssert.IsNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
+        ClassicAssert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
 
         //
         // They try to reconnect again fully
@@ -565,8 +566,8 @@ public class ConnectionRequestTests
         await AssertConnected(merry, pippin);
 
         //
-        Assert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
-        Assert.IsNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
+        ClassicAssert.IsNull(await merryClient.Network.GetOutgoingSentRequestTo(pippin));
+        ClassicAssert.IsNull(await merryClient.Network.GetIncomingRequestFrom(pippin));
 
         await Cleanup(merry, pippin);
     }
@@ -601,10 +602,10 @@ public class ConnectionRequestTests
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
 
         await merryClient.Network.SendConnectionRequestTo(pippin);
-        Assert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
+        ClassicAssert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
 
         await merryClient.Network.SendConnectionRequestTo(pippin);
-        Assert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
+        ClassicAssert.IsNotNull(await pippinClient.Network.GetIncomingRequestFrom(merry));
     }
 
     // [Test]
@@ -636,18 +637,18 @@ public class ConnectionRequestTests
         //
 
         var senderConnectionInfoOnRecipientIdentity = await recipientOwnerClient.Network.GetConnectionInfo(sender);
-        Assert.IsTrue(senderConnectionInfoOnRecipientIdentity.Status == ConnectionStatus.Connected);
-        Assert.IsNull(await recipientOwnerClient.Network.GetIncomingRequestFrom(sender));
-        Assert.IsNull(await recipientOwnerClient.Network.GetOutgoingSentRequestTo(sender));
+        ClassicAssert.IsTrue(senderConnectionInfoOnRecipientIdentity.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsNull(await recipientOwnerClient.Network.GetIncomingRequestFrom(sender));
+        ClassicAssert.IsNull(await recipientOwnerClient.Network.GetOutgoingSentRequestTo(sender));
 
         //
         // Test recipient's record on sender server
         //
         var recipientConnectionInfo = await senderOwnerClient.Network.GetConnectionInfo(recipient);
-        Assert.IsTrue(recipientConnectionInfo.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(recipientConnectionInfo.Status == ConnectionStatus.Connected);
 
-        Assert.IsNull(await senderOwnerClient.Network.GetIncomingRequestFrom(recipient));
-        Assert.IsNull(await senderOwnerClient.Network.GetOutgoingSentRequestTo(recipient));
+        ClassicAssert.IsNull(await senderOwnerClient.Network.GetIncomingRequestFrom(recipient));
+        ClassicAssert.IsNull(await senderOwnerClient.Network.GetOutgoingSentRequestTo(recipient));
     }
 
     private async Task Cleanup(TestIdentity merry, TestIdentity pippin)

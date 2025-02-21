@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -118,7 +119,7 @@ public class CollaborationChatPushNotificationTests
             collabChatDrive,
             chatCircleId,
             notificationOptions);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
@@ -134,13 +135,13 @@ public class CollaborationChatPushNotificationTests
             {
                 var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
-                Assert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 
                 //TODO: determine who the sender should actually be?
                 var notificationsFromCollabChat = getNotificationResponse.Content.Results
                     .Where(notification => notification.SenderId == collabChatIdentity.OdinId);
 
-                Assert.IsTrue(notificationsFromCollabChat.Any());
+                ClassicAssert.IsTrue(notificationsFromCollabChat.Any());
                 //TODO: where do we check this? in the notifications or the log?
             }
         }
@@ -190,7 +191,7 @@ public class CollaborationChatPushNotificationTests
             chatCircleId,
             notificationOptions,
             keyHeader);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         // Let's test more
@@ -205,10 +206,10 @@ public class CollaborationChatPushNotificationTests
             //
             var byGlobalTransitIdResponse =
                 await collabChatIdentity.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
-            Assert.IsTrue(byGlobalTransitIdResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(byGlobalTransitIdResponse.IsSuccessStatusCode);
             var theFile = byGlobalTransitIdResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFile);
-            Assert.IsTrue(theFile.FileMetadata.AppData.FileType == uploadedFileMetadata.AppData.FileType);
+            ClassicAssert.IsNotNull(theFile);
+            ClassicAssert.IsTrue(theFile.FileMetadata.AppData.FileType == uploadedFileMetadata.AppData.FileType);
 
             //
             // Assert: all notification recipients received a notification in their list
@@ -217,13 +218,13 @@ public class CollaborationChatPushNotificationTests
             {
                 var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
-                Assert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 
                 //TODO: determine who the sender should actually be?
                 var notificationsFromCollabChat = getNotificationResponse.Content.Results
                     .Where(notification => notification.SenderId == member1.OdinId);
 
-                Assert.IsTrue(notificationsFromCollabChat.Any());
+                ClassicAssert.IsTrue(notificationsFromCollabChat.Any());
                 //TODO: where do we check this? in the notifications or the log?
             }
         }

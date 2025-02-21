@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Hosting.Tests;
 
@@ -38,7 +39,7 @@ public class AsyncAwaitExceptionHandling
         {
             ex = e;
         }
-        Assert.AreEqual("I'm a moon!", ex!.Message);
+        ClassicAssert.AreEqual("I'm a moon!", ex!.Message);
     }
     
     //
@@ -60,7 +61,7 @@ public class AsyncAwaitExceptionHandling
         {
             ex = e;
         }
-        Assert.AreEqual("I'm a moon!", ex!.Message);
+        ClassicAssert.AreEqual("I'm a moon!", ex!.Message);
     } 
     
     //
@@ -79,7 +80,7 @@ public class AsyncAwaitExceptionHandling
         {
             ex = e;
         }
-        Assert.AreEqual("I'm a moon!", ex!.Message);
+        ClassicAssert.AreEqual("I'm a moon!", ex!.Message);
     }
     
     //
@@ -101,7 +102,7 @@ public class AsyncAwaitExceptionHandling
             // This is probably not what you expected!
             ex = e;
         }
-        Assert.AreEqual("I'm a moon!", ex!.Message);
+        ClassicAssert.AreEqual("I'm a moon!", ex!.Message);
         
         // Now we await, which unexpectedly does not throw (see above)
         await task;
@@ -122,7 +123,7 @@ public class AsyncAwaitExceptionHandling
         {
             ex = e;
         }
-        Assert.AreEqual("I'm a moon!", ex!.Message);
+        ClassicAssert.AreEqual("I'm a moon!", ex!.Message);
     }
     
     //
@@ -144,7 +145,7 @@ public class AsyncAwaitExceptionHandling
         {
             ex = e;
         }
-        Assert.AreEqual("I'm a moon!", ex!.Message);
+        ClassicAssert.AreEqual("I'm a moon!", ex!.Message);
     } 
     
     //

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -86,9 +87,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             //find the drive grant 
             var actualCircleGrant = recipientConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive));
-            Assert.IsNotNull(actualCircleGrant, "actualPermissionedDrive != null");
-            Assert.IsTrue(actualCircleGrant.DriveGrants.Count == 1, "There should only be drive grant from the single circle we created");
-            Assert.IsFalse(actualCircleGrant.DriveGrants.Single().HasStorageKey, "the drive granted should not have a storage key");
+            ClassicAssert.IsNotNull(actualCircleGrant, "actualPermissionedDrive != null");
+            ClassicAssert.IsTrue(actualCircleGrant.DriveGrants.Count == 1, "There should only be drive grant from the single circle we created");
+            ClassicAssert.IsFalse(actualCircleGrant.DriveGrants.Single().HasStorageKey, "the drive granted should not have a storage key");
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
         }
@@ -137,9 +138,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             //find the drive grant 
             var actualCircleGrant = recipientConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive));
-            Assert.IsNotNull(actualCircleGrant, "actualPermissionedDrive != null");
-            Assert.IsTrue(actualCircleGrant.DriveGrants.Count == 1, "There should only be drive grant from the single circle we created");
-            Assert.IsTrue(actualCircleGrant.DriveGrants.Single().HasStorageKey, "the drive granted should have storage key");
+            ClassicAssert.IsNotNull(actualCircleGrant, "actualPermissionedDrive != null");
+            ClassicAssert.IsTrue(actualCircleGrant.DriveGrants.Count == 1, "There should only be drive grant from the single circle we created");
+            ClassicAssert.IsTrue(actualCircleGrant.DriveGrants.Single().HasStorageKey, "the drive granted should have storage key");
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
         }

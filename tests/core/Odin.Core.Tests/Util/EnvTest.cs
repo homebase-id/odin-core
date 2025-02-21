@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 
 namespace Odin.Core.Tests.Util;
@@ -13,15 +14,15 @@ public class EnvTest
         var original = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-        Assert.IsTrue(Env.IsDevelopment());
+        ClassicAssert.IsTrue(Env.IsDevelopment());
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "development");
-        Assert.IsTrue(Env.IsDevelopment());
+        ClassicAssert.IsTrue(Env.IsDevelopment());
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "DEVELOPMENT");
-        Assert.IsTrue(Env.IsDevelopment());
+        ClassicAssert.IsTrue(Env.IsDevelopment());
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
-        Assert.IsFalse(Env.IsDevelopment());
+        ClassicAssert.IsFalse(Env.IsDevelopment());
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "production");
-        Assert.IsFalse(Env.IsDevelopment());
+        ClassicAssert.IsFalse(Env.IsDevelopment());
 
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", original);
     }
@@ -33,8 +34,8 @@ public class EnvTest
         Env.IsDevelopment(); 
         
         var home = Environment.GetEnvironmentVariable("HOME");
-        Assert.IsNotNull(home);
-        Assert.IsNotEmpty(home);
+        ClassicAssert.IsNotNull(home);
+        ClassicAssert.IsNotEmpty(home);
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

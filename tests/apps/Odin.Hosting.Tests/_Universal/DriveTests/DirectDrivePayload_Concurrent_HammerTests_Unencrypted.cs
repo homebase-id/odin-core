@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -83,9 +84,9 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         // Get the header before we make changes so we have a baseline
         //
         var getHeaderBeforeUploadResponse = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
-        Assert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
-        Assert.IsNotNull(headerBeforeUpload);
+        ClassicAssert.IsNotNull(headerBeforeUpload);
 
         await PerformanceFramework.ThreadedTestAsync(maxThreads: 12, iterations: 100, OverwritePayload);
 
@@ -139,7 +140,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             if (tag.HasValue)
             {
                 newVersionTag = tag.GetValueOrDefault();
-                Assert.IsTrue(prevTag != newVersionTag, "version tag did not change");
+                ClassicAssert.IsTrue(prevTag != newVersionTag, "version tag did not change");
             }
             
             // Finished doing all the work
@@ -162,7 +163,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         {
             _successCount++;
             // if it 
-            Assert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
+            ClassicAssert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
             return uploadPayloadResponse.Content!.NewVersionTag;
         }
 
@@ -186,9 +187,9 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
 
         var uploadNewMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
 
-        Assert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadNewMetadataResponse.IsSuccessStatusCode);
         var uploadResult = uploadNewMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         return uploadResult;
     }
