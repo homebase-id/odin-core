@@ -17,14 +17,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class DriveMainIndexRecord
     {
-        private Int64 _rowid;
-        public Int64 rowid
+        private Int64 _rowId;
+        public Int64 rowId
         {
            get {
-                   return _rowid;
+                   return _rowId;
                }
            set {
-                  _rowid = value;
+                  _rowId = value;
                }
         }
         private Guid _identityId;
@@ -401,8 +401,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _hdrTmpDriveType = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private UnixTimeUtc _created;
+        public UnixTimeUtc created
         {
            get {
                    return _created;
@@ -411,8 +411,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private UnixTimeUtc? _modified;
+        public UnixTimeUtc? modified
         {
            get {
                    return _modified;
@@ -620,8 +620,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam25.Value = item.hdrFileMetaData;
                 insertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 insertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                var now = UnixTimeUtcUnique.Now();
-                insertParam28.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam28.Value = now.milliseconds;
                 item.modified = null;
                 insertParam29.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -765,8 +765,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam25.Value = item.hdrFileMetaData;
                 insertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 insertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                var now = UnixTimeUtcUnique.Now();
-                insertParam28.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam28.Value = now.milliseconds;
                 item.modified = null;
                 insertParam29.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -885,7 +885,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam29 = upsertCommand.CreateParameter();
                 upsertParam29.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam29);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.driveId.ToByteArray();
                 upsertParam3.Value = item.fileId.ToByteArray();
@@ -913,16 +913,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam25.Value = item.hdrFileMetaData;
                 upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                upsertParam28.Value = now.uniqueTime;
-                upsertParam29.Value = now.uniqueTime;
+                upsertParam28.Value = now.milliseconds;
+                upsertParam29.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtcUnique(created);
+                   item.created = new UnixTimeUtc(created);
                    if (modified != null)
-                      item.modified = new UnixTimeUtcUnique((long)modified);
+                      item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
                    return 1;
@@ -1036,7 +1036,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam29 = updateCommand.CreateParameter();
                 updateParam29.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam29);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.driveId.ToByteArray();
                 updateParam3.Value = item.fileId.ToByteArray();
@@ -1064,8 +1064,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam25.Value = item.hdrFileMetaData;
                 updateParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 updateParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                updateParam28.Value = now.uniqueTime;
-                updateParam29.Value = now.uniqueTime;
+                updateParam28.Value = now.milliseconds;
+                updateParam29.Value = now.milliseconds;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -1093,7 +1093,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
-            sl.Add("rowid");
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("driveId");
             sl.Add("fileId");
@@ -1145,7 +1145,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT rowid,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
+        // SELECT rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified
         protected DriveMainIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveMainIndexRecord>();
@@ -1154,7 +1154,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveMainIndexRecord();
-            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
@@ -1182,8 +1182,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.hdrFileMetaDataNoLengthCheck = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[25];
             item.hdrTmpDriveAlias = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[26]);
             item.hdrTmpDriveType = (rdr[27] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[27]);
-            item.created = (rdr[28] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[28]);
-            item.modified = (rdr[29] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[29]);
+            item.created = (rdr[28] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[28]);
+            item.modified = (rdr[29] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[29]);
             return item;
        }
 
@@ -1223,7 +1223,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.uniqueId = uniqueId;
-            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.globalTransitId = (rdr[2] == DBNull.Value) ? null : new Guid((byte[])rdr[2]);
             item.fileState = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
@@ -1248,8 +1248,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
             item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
             item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
-            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
-            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[26]);
+            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[25]);
+            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[26]);
             return item;
        }
 
@@ -1258,7 +1258,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowid,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get0Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
@@ -1298,7 +1298,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.globalTransitId = globalTransitId;
-            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.fileState = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.requiredSecurityGroup = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
@@ -1323,8 +1323,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
             item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
             item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
-            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
-            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[26]);
+            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[25]);
+            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[26]);
             return item;
        }
 
@@ -1333,7 +1333,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowid,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get1Command.CommandText = "SELECT rowId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
@@ -1372,7 +1372,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new DriveMainIndexRecord();
             item.identityId = identityId;
             item.driveId = driveId;
-            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.globalTransitId = (rdr[2] == DBNull.Value) ? null : new Guid((byte[])rdr[2]);
             item.fileState = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
@@ -1398,8 +1398,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.hdrFileMetaDataNoLengthCheck = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
             item.hdrTmpDriveAlias = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
             item.hdrTmpDriveType = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[25]);
-            item.created = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[26]);
-            item.modified = (rdr[27] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[27]);
+            item.created = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[26]);
+            item.modified = (rdr[27] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[27]);
             return item;
        }
 
@@ -1408,7 +1408,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT rowid,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get2Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Param1.ParameterName = "@identityId";
@@ -1444,7 +1444,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.driveId = driveId;
             item.fileId = fileId;
-            item.rowid = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.globalTransitId = (rdr[1] == DBNull.Value) ? null : new Guid((byte[])rdr[1]);
             item.fileState = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.requiredSecurityGroup = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
@@ -1469,8 +1469,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
             item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
             item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
-            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[25]);
-            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[26]);
+            item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[25]);
+            item.modified = (rdr[26] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[26]);
             return item;
        }
 
@@ -1479,7 +1479,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
-                get3Command.CommandText = "SELECT rowid,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
+                get3Command.CommandText = "SELECT rowId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
                 var get3Param1 = get3Command.CreateParameter();
                 get3Param1.ParameterName = "@identityId";

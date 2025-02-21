@@ -1139,10 +1139,10 @@ namespace Odin.Services.Membership.Connections
             ConnectionStatus status,
             IOdinContext odinContext)
         {
-            var (list, nextCursor) = await circleNetworkStorage.GetListAsync(count, new UnixTimeUtcUnique(cursor), status);
+            var (list, nextCursor, nextRowId) = await circleNetworkStorage.GetListAsync(count, new UnixTimeUtc(cursor), 0, status);
             return new CursoredResult<IdentityConnectionRegistration>()
             {
-                Cursor = nextCursor.GetValueOrDefault().uniqueTime.ToString(),
+                Cursor = nextCursor.GetValueOrDefault().milliseconds.ToString(),
                 Results = list
             };
         }

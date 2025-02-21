@@ -61,14 +61,14 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
         Int64.TryParse(request.Cursor, out var c);
-        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, c == 0 ? null : new UnixTimeUtcUnique(c));
+        var (results, cursor, cursorRowId) = await db.AppNotifications.PagingByCreatedAsync(request.Count, c == 0 ? null : new UnixTimeUtc(c), 0);
 
         var list = results.Select(r => new AppNotification()
         {
             Id = r.notificationId,
             SenderId = r.senderId,
             Unread = r.unread == 1,
-            Created = r.created.ToUnixTimeUtc(),
+            Created = r.created,
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 
@@ -87,7 +87,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var nr = new NotificationsListResult()
         {
-            Cursor = cursor.HasValue ? cursor.Value.uniqueTime.ToString() : "",
+            Cursor = cursor.HasValue ? cursor.Value.milliseconds.ToString() : "",
             Results = list.ToList()
         };
 
@@ -101,14 +101,14 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var (results, _) = await db.AppNotifications.PagingByCreatedAsync(int.MaxValue, null);
+        var (results, _, _) = await db.AppNotifications.PagingByCreatedAsync(int.MaxValue, null, 0);
 
         var list = results.Select(r => new AppNotification()
         {
             Id = r.notificationId,
             SenderId = r.senderId,
             Unread = r.unread == 1,
-            Created = r.created.ToUnixTimeUtc(),
+            Created = r.created,
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 

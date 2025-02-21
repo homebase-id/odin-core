@@ -265,8 +265,8 @@ namespace Odin.Core.Storage.Database.System.Table
                   _lastError = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private UnixTimeUtc _created;
+        public UnixTimeUtc created
         {
            get {
                    return _created;
@@ -275,8 +275,8 @@ namespace Odin.Core.Storage.Database.System.Table
                   _created = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private UnixTimeUtc? _modified;
+        public UnixTimeUtc? modified
         {
            get {
                    return _modified;
@@ -425,8 +425,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam15.Value = item.jobData ?? (object)DBNull.Value;
                 insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 insertParam17.Value = item.lastError ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam18.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam18.Value = now.milliseconds;
                 item.modified = null;
                 insertParam19.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -521,8 +521,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam15.Value = item.jobData ?? (object)DBNull.Value;
                 insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 insertParam17.Value = item.lastError ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam18.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam18.Value = now.milliseconds;
                 item.modified = null;
                 insertParam19.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -602,7 +602,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 var upsertParam19 = upsertCommand.CreateParameter();
                 upsertParam19.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam19);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.id.ToByteArray();
                 upsertParam2.Value = item.name;
                 upsertParam3.Value = item.state;
@@ -620,16 +620,16 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertParam15.Value = item.jobData ?? (object)DBNull.Value;
                 upsertParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
-                upsertParam18.Value = now.uniqueTime;
-                upsertParam19.Value = now.uniqueTime;
+                upsertParam18.Value = now.milliseconds;
+                upsertParam19.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtcUnique(created);
+                   item.created = new UnixTimeUtc(created);
                    if (modified != null)
-                      item.modified = new UnixTimeUtcUnique((long)modified);
+                      item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
                    return 1;
@@ -704,7 +704,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 var updateParam19 = updateCommand.CreateParameter();
                 updateParam19.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam19);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.id.ToByteArray();
                 updateParam2.Value = item.name;
                 updateParam3.Value = item.state;
@@ -722,8 +722,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateParam15.Value = item.jobData ?? (object)DBNull.Value;
                 updateParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 updateParam17.Value = item.lastError ?? (object)DBNull.Value;
-                updateParam18.Value = now.uniqueTime;
-                updateParam19.Value = now.uniqueTime;
+                updateParam18.Value = now.milliseconds;
+                updateParam19.Value = now.milliseconds;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -799,8 +799,8 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobDataNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
             item.jobHashNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
             item.lastErrorNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
-            item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[17]);
-            item.modified = (rdr[18] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[18]);
+            item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[17]);
+            item.modified = (rdr[18] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[18]);
             return item;
        }
 
@@ -846,8 +846,8 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobDataNoLengthCheck = (rdr[13] == DBNull.Value) ? null : (string)rdr[13];
             item.jobHashNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
             item.lastErrorNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
-            item.created = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[16]);
-            item.modified = (rdr[17] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[17]);
+            item.created = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[16]);
+            item.modified = (rdr[17] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[17]);
             return item;
        }
 

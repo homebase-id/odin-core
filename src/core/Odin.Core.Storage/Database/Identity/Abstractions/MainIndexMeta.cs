@@ -636,15 +636,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var listWhereAnd = new List<string>();
 
-
-            //
-            // 
-            //
             TryParseModifiedCursor(cursor, out var modifiedTimeCursor, out var rowIdCursor);
+
             /* if (tmp > 1L << 42)
                 tmp = tmp >> 16; // It's ms plus 16 bit counter, convert to just ms utc unixtime*/
 
-            listWhereAnd.Add($"modified > {modifiedTimeCursor}");
+            listWhereAnd.Add($"modified >= {modifiedTimeCursor} AND rowId > {rowIdCursor}");
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
@@ -656,7 +653,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 fileSystemType, driveId);
 
             // string selectOutputFields =  "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC, rowId ASC LIMIT {noOfItems + 1}";
             // string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -678,15 +675,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     var r = driveMainIndex.ReadAllColumns(rdr, driveId);
                     _fileId = r.fileId.ToByteArray();
                     result.Add(r);
-                    ts = (long) r.modified?.uniqueTime; // XXX
-                    rid = (long)r.rowid;
+                    ts = (long) r.modified?.milliseconds; // XXX
+                    rid = (long)r.rowId;
                     i++;
                     if (i >= noOfItems)
                         break;
                 }
 
                 if (i > 0)
-                    cursor = ts.ToString(); //  +","+rid.ToString();
+                    cursor = ts.ToString()+","+rid.ToString();
 
                 return (result, await rdr.ReadAsync(), cursor);
             } // using rdr

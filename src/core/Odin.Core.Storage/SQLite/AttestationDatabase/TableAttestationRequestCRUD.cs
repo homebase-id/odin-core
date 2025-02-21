@@ -339,7 +339,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var getPaging1Command = conn.db.CreateCommand())
             {
                 getPaging1Command.CommandText = "SELECT attestationId,requestEnvelope,timestamp FROM attestationRequest " +
-                                            "WHERE attestationId > @attestationId ORDER BY attestationId ASC LIMIT @count;";
+                                            "WHERE attestationId > @attestationId  ORDER BY attestationId ASC  LIMIT @count;";
                 var getPaging1Param1 = getPaging1Command.CreateParameter();
                 getPaging1Param1.ParameterName = "@attestationId";
                 getPaging1Command.Parameters.Add(getPaging1Param1);

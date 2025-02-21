@@ -30,9 +30,9 @@ public class TableAppNotifications(
         return await base.UpdateAsync(item);
     }
 
-    public async Task<(List<AppNotificationsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, UnixTimeUtcUnique? inCursor)
+    public async Task<(List<AppNotificationsRecord>, UnixTimeUtc? nextCursor, long rowid)> PagingByCreatedAsync(int count, UnixTimeUtc? inCursor, long rowid)
     {
-        return await base.PagingByCreatedAsync(count, identityKey, inCursor);
+        return await base.PagingByCreatedAsync(count, identityKey, inCursor, rowid);
     }
 
     public async Task<int> DeleteAsync(Guid notificationId)

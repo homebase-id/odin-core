@@ -53,13 +53,13 @@ public class TableConnections(
     }
 
 
-    public async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique?)> PagingByCreatedAsync(int count, Int32 status, UnixTimeUtcUnique? inCursor)
+    public async Task<(List<ConnectionsRecord>, UnixTimeUtc?, long)> PagingByCreatedAsync(int count, Int32 status, UnixTimeUtc? inCursor, long rowId)
     {
-        return await base.PagingByCreatedAsync(count, identityKey, status, inCursor);
+        return await base.PagingByCreatedAsync(count, identityKey, status, inCursor, rowId);
     }
 
-    public async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique?)> PagingByCreatedAsync(int count, UnixTimeUtcUnique? inCursor)
+    public async Task<(List<ConnectionsRecord>, UnixTimeUtc?, long)> PagingByCreatedAsync(int count, UnixTimeUtc? inCursor, long rowId)
     {
-        return await base.PagingByCreatedAsync(count, identityKey, inCursor);
+        return await base.PagingByCreatedAsync(count, identityKey, inCursor, rowId);
     }
 }

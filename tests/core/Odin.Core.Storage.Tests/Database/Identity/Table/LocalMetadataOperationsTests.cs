@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var driveId = Guid.NewGuid();
             var fileId = Guid.NewGuid();
-            var modifiedTime = UnixTimeUtcUnique.ZeroTime;
+            var modifiedTime = UnixTimeUtc.ZeroTime;
 
             //
             // Setup - Add a target record to drive main index
@@ -43,8 +43,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 hdrServerData = "",
                 hdrTransferHistory = "",
                 hdrFileMetaData = "",
-                created = UnixTimeUtcUnique.Now(),
-                modified = UnixTimeUtcUnique.ZeroTime,
+                created = UnixTimeUtc.Now(),
+                modified = UnixTimeUtc.ZeroTime,
                 fileSystemType = 1,
                 userDate = default,
                 fileType = 0,
@@ -83,10 +83,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var updatedRecord = await tblDriveMainIndex.GetAsync(driveId, fileId);
 
+<<<<<<< Updated upstream
             Assert.AreEqual(updatedRecord.hdrLocalAppData, localMetadataContent, "local app data not updated");
             Assert.AreEqual(updatedRecord.hdrLocalVersionTag, localVersionTag1, "version tag not updated");
             Assert.IsTrue(updatedRecord.modified.GetValueOrDefault().ToUnixTimeUtc() > modifiedTime.ToUnixTimeUtc(),
                 "modified time not updated");
+=======
+            ClassicAssert.AreEqual(updatedRecord.hdrLocalAppData, localMetadataContent, "local app data not updated");
+            ClassicAssert.AreEqual(updatedRecord.hdrLocalVersionTag, localVersionTag1, "version tag not updated");
+            ClassicAssert.IsTrue(updatedRecord.modified > modifiedTime, "modified time not updated");
+>>>>>>> Stashed changes
         }
 
 
@@ -120,8 +126,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 hdrServerData = "",
                 hdrTransferHistory = "",
                 hdrFileMetaData = "",
-                created = UnixTimeUtcUnique.Now(),
-                modified = UnixTimeUtcUnique.ZeroTime,
+                created = UnixTimeUtc.Now(),
+                modified = UnixTimeUtc.ZeroTime,
                 fileSystemType = 1,
                 userDate = default,
                 fileType = 0,

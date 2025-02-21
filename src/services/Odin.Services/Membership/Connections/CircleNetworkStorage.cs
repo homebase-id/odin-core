@@ -146,12 +146,12 @@ public class CircleNetworkStorage
         tx.Commit();
     }
 
-    public async Task<(IEnumerable<IdentityConnectionRegistration>, UnixTimeUtcUnique? nextCursor)> GetListAsync(int count,
-        UnixTimeUtcUnique? cursor,
+    public async Task<(IEnumerable<IdentityConnectionRegistration>, UnixTimeUtc? nextCursor, long nextRowIdCursor)> GetListAsync(int count,
+        UnixTimeUtc? cursor, long rowIdCursor,
         ConnectionStatus connectionStatus)
     {
-        var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
-        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
+        var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().milliseconds == 0 ? null : cursor : null;
+        var (records, nextCursor, nextRowIdCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor, rowIdCursor);
 
         // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
         // single db connection that is not thread safe.
@@ -161,7 +161,7 @@ public class CircleNetworkStorage
             mappedRecords.Add(await MapFromStorageAsync(record));
         }
 
-        return (mappedRecords, nextCursor);
+        return (mappedRecords, nextCursor, nextRowIdCursor);
     }
 
     /// <summary>
@@ -238,8 +238,8 @@ public class CircleNetworkStorage
         {
             OdinId = record.identity,
             Status = (ConnectionStatus)record.status,
-            Created = record.created.ToUnixTimeUtc().milliseconds,
-            LastUpdated = record.modified.HasValue ? record.modified.Value.ToUnixTimeUtc().milliseconds : 0,
+            Created = record.created.milliseconds,
+            LastUpdated = record.modified.HasValue ? record.modified.Value.milliseconds : 0,
             AccessGrant = data.AccessGrant,
             OriginalContactData = data.OriginalContactData,
             EncryptedClientAccessToken = data.EncryptedClientAccessToken == null
@@ -275,7 +275,7 @@ public class CircleNetworkStorage
         {
             identity = odinId,
             status = (int)status,
-            modified = UnixTimeUtcUnique.Now(),
+            modified = UnixTimeUtc.Now(),
             displayName = "",
             data = OdinSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
         };
