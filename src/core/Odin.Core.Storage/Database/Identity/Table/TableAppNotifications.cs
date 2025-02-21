@@ -30,9 +30,16 @@ public class TableAppNotifications(
         return await base.UpdateAsync(item);
     }
 
-    public async Task<(List<AppNotificationsRecord>, UnixTimeUtc? nextCursor, long rowid)> PagingByCreatedAsync(int count, UnixTimeUtc? inCursor, long rowid)
+    public async Task<(List<AppNotificationsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursor)
     {
-        return await base.PagingByCreatedAsync(count, identityKey, inCursor, rowid);
+        UnixTimeUtc? utc = null;
+
+        if (MainIndexMeta.TryParseModifiedCursor(cursor, out var ts, out var rowId))
+            utc = new UnixTimeUtc(ts);
+
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, utc, rowId);
+
+        return (r, tsc == null ? null : tsc.ToString() + "," +  ri.ToString()); 
     }
 
     public async Task<int> DeleteAsync(Guid notificationId)

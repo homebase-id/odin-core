@@ -86,12 +86,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             ClassicAssert.AreEqual(updatedRecord.hdrLocalAppData, localMetadataContent, "local app data not updated");
             ClassicAssert.AreEqual(updatedRecord.hdrLocalVersionTag, localVersionTag1, "version tag not updated");
-<<<<<<< HEAD
             ClassicAssert.IsTrue(updatedRecord.modified > modifiedTime, "modified time not updated");
-=======
-            ClassicAssert.IsTrue(updatedRecord.modified.GetValueOrDefault().ToUnixTimeUtc() > modifiedTime.ToUnixTimeUtc(),
-                "modified time not updated");
->>>>>>> main
         }
 
 

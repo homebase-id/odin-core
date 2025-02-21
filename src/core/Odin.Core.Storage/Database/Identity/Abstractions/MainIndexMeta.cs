@@ -569,10 +569,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// Cursor format is a string of "timestamp,rowid" and old cursors will just be "timestamp" with no ",rowid"
         /// </summary>
         /// <returns>true if parsed successfully, if false, both out are set to zero</returns>
-        private bool TryParseModifiedCursor(string cursor, out long timestamp, out long rowId)
+        public static bool TryParseModifiedCursor(string cursor, out long timestamp, out long rowId)
         {
             timestamp = 0;
             rowId = 0;
+
+            if (cursor == null)
+                return false;
 
             var parts = cursor.Split(',');
 

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
@@ -59,16 +60,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             i = await tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid2, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
             Debug.Assert(i == 1);
 
-            var (results, cursor2, cursor2rowid) = await tblAppNotificationsTable.PagingByCreatedAsync(1, null, 0);
+            var (results, cursor) = await tblAppNotificationsTable.PagingByCreatedAsync(1, null);
 
             Debug.Assert(results.Count == 1);
-            Debug.Assert(cursor2 != null);
-            Debug.Assert(cursor2.Value.milliseconds == results[0].created.milliseconds);
+            Debug.Assert(cursor != null);
+            var ok = MainIndexMeta.TryParseModifiedCursor(cursor, out var xts, out var xri);
+            Debug.Assert(ok);
+            Debug.Assert(xts == results[0].created.milliseconds);
 
-            (results, cursor2, cursor2rowid) = await tblAppNotificationsTable.PagingByCreatedAsync(1, cursor2, cursor2rowid);
+            (results, cursor) = await tblAppNotificationsTable.PagingByCreatedAsync(1, cursor);
 
             Debug.Assert(results.Count == 1);
-            Debug.Assert(cursor2 == null);
+            Debug.Assert(cursor == null);
         }
     }
 }

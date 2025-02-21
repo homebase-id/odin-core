@@ -248,6 +248,10 @@ namespace Odin.Core.Time
         {
             get { return _milliseconds / 1000; }
         }
+        public override string ToString()
+        {
+            return _milliseconds.ToString();
+        }
 
         private readonly Int64 _milliseconds;
     }
