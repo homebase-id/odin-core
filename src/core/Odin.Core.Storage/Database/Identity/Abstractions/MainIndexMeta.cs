@@ -569,12 +569,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// Cursor format is a string of "timestamp,rowid" and old cursors will just be "timestamp" with no ",rowid"
         /// </summary>
         /// <returns>true if parsed successfully, if false, both out are set to zero</returns>
-        private bool ParseModifiedCursor(string cursor, out long timestamp, out long rowId)
+        private bool TryParseModifiedCursor(string cursor, out long timestamp, out long rowId)
         {
             timestamp = 0;
             rowId = 0;
 
-            string[] parts = cursor.Split(',');
+            var parts = cursor.Split(',');
 
             if (parts.Length == 1 && long.TryParse(parts[0], out timestamp))
             {
@@ -640,11 +640,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             //
             // 
             //
-            ParseModifiedCursor(cursor, out var updateTimeCursor, out var rowIdCursor);
+            TryParseModifiedCursor(cursor, out var modifiedTimeCursor, out var rowIdCursor);
             /* if (tmp > 1L << 42)
                 tmp = tmp >> 16; // It's ms plus 16 bit counter, convert to just ms utc unixtime*/
 
-            listWhereAnd.Add($"modified > {updateTimeCursor}");
+            listWhereAnd.Add($"modified > {modifiedTimeCursor}");
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {

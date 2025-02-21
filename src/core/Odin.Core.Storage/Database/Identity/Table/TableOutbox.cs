@@ -141,26 +141,30 @@ public class TableOutbox(
         if (driveId != null)
             s = "AND driveId=@driveId";
 
-        cmd.CommandText =  "SELECT nextRunTime " +
-                           "FROM outbox " +
-                          $"WHERE identityId=@identityId {s} AND checkOutStamp IS NULL AND " +
-                           "rowId = ( " +
-                           "SELECT rowId " +
-                           "FROM outbox " +
-                           "WHERE identityId=@identityId AND checkOutStamp IS NULL " +
-                           "AND ( " +
-                           "  (dependencyFileId IS NULL) " +
-                           "  OR (NOT EXISTS ( " +
-                           "          SELECT 1 " +
-                           "          FROM outbox AS ib " +
-                           "          WHERE ib.identityId = outbox.identityId " +
-                           "          AND ib.fileId = outbox.dependencyFileId " +
-                           "          AND ib.recipient = outbox.recipient " +
-                           "              ))" +
-                           "           )" +
-                           "ORDER BY priority ASC, nextRunTime ASC " +
-                           "LIMIT 1 " +
-                           "); ";
+
+        cmd.CommandText =$"""
+                             SELECT nextRunTime 
+                             FROM outbox 
+                             WHERE identityId=@identityId {s} AND checkOutStamp IS NULL AND
+                                      rowId = (
+                                          SELECT rowId
+                                          FROM outbox
+                                          WHERE identityId=@identityId AND checkOutStamp IS NULL
+                                              AND (
+                                                (dependencyFileId IS NULL)
+                                                OR (NOT EXISTS (
+                                                      SELECT 1
+                                                      FROM outbox AS ib
+                                                      WHERE ib.identityId = outbox.identityId
+                                                      AND ib.fileId = outbox.dependencyFileId
+                                                      AND ib.recipient = outbox.recipient
+                                                ))
+                                              )
+                                          ORDER BY priority ASC, nextRunTime ASC
+                                          LIMIT 1
+                                    );
+                           """;
+
 
 
         var param1 = cmd.CreateParameter();
