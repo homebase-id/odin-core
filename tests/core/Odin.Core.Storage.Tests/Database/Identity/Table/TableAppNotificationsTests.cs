@@ -66,7 +66,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Debug.Assert(cursor != null);
             var ok = MainIndexMeta.TryParseModifiedCursor(cursor, out var xts, out var xri);
             Debug.Assert(ok);
-            Debug.Assert(xts == results[0].created.milliseconds);
+            Debug.Assert(xts == results[0].created);
 
             (results, cursor) = await tblAppNotificationsTable.PagingByCreatedAsync(1, cursor);
 

@@ -565,11 +565,21 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
 
+        public static string CreateModifiedCursor(UnixTimeUtc? utc, long? rowId)
+        {
+            UnixTimeUtc c = UnixTimeUtc.ZeroTime;
+
+            if (utc == null)
+                return null;
+            else 
+                return utc!.ToString() + "," + rowId!.ToString();
+        }
+
         /// <summary>
         /// Cursor format is a string of "timestamp,rowid" but old cursors will just be "timestamp" with no ",rowid"
         /// </summary>
         /// <returns>true if parsed successfully, if false, return longs are null if can't be parsed</returns>
-        public static bool TryParseModifiedCursor(string cursor, out long? timestamp, out long? rowId)
+        public static bool TryParseModifiedCursor(string cursor, out UnixTimeUtc? timestamp, out long? rowId)
         {
             timestamp = null;
             rowId = null;
@@ -581,7 +591,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
             {
-                timestamp = ts >> 16;  // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
+                // This section is only for "old" cursors
+                // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
+                if (ts > 1L << 42)
+                    timestamp = ts >> 16;  
                 return true;
             }
             else if (parts.Length == 2 &&
@@ -649,9 +662,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (rowIdCursor == null)
                 rowIdCursor = 0;
 
-            /* if (tmp > 1L << 42)
-                tmp = tmp >> 16; // It's ms plus 16 bit counter, convert to just ms utc unixtime*/
-
             listWhereAnd.Add($"modified >= {modifiedTimeCursor} AND driveMainIndex.rowId > {rowIdCursor}");
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
@@ -691,8 +701,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         break;
                 }
 
-                if (i > 0)
-                    cursor = ts.ToString()+","+rid.ToString();
+                if (i > 0) // Should the cursor be set to null if there are no results!?
+                    cursor =  MainIndexMeta.CreateModifiedCursor(ts, rid);
 
                 return (result, await rdr.ReadAsync(), cursor);
             } // using rdr

@@ -55,25 +55,19 @@ public class TableConnections(
 
     public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, Int32 status, string cursor)
     {
-        UnixTimeUtc? utc = null;
-
-        if (MainIndexMeta.TryParseModifiedCursor(cursor, out var ts, out var rowId))
-            utc = new UnixTimeUtc(ts!.Value);
+        MainIndexMeta.TryParseModifiedCursor(cursor, out var utc, out var rowId);
 
         var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, utc, rowId);
 
-        return (r, tsc == null ? null : tsc.ToString() + "," + ri.ToString());
+        return (r, MainIndexMeta.CreateModifiedCursor(tsc, ri));
     }
 
     public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursor)
     {
-        UnixTimeUtc? utc = null;
-
-        if (MainIndexMeta.TryParseModifiedCursor(cursor, out var ts, out var rowId))
-            utc = new UnixTimeUtc(ts!.Value);
+        MainIndexMeta.TryParseModifiedCursor(cursor, out var utc, out var rowId);
 
         var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, utc, rowId);
 
-        return (r, tsc == null ? null : tsc.ToString() + "," + ri.ToString());
+        return (r, MainIndexMeta.CreateModifiedCursor(tsc, ri));
     }
 }
