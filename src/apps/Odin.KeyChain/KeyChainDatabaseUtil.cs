@@ -48,7 +48,7 @@ namespace Odin.KeyChain
         {
             var r = new KeyChainRecord();
 
-            r.timestamp = UnixTimeUtcUnique.Now();
+            r.timestamp = UnixTimeUtc.Now();
             r.algorithm = EccFullKeyData.eccSignatureAlgorithmNames[(int) EccKeySize.P384];
 
             return r;
@@ -59,7 +59,7 @@ namespace Odin.KeyChain
             // Combine all columns, except ofc the recordHash, into a single byte array
             return ByteArrayUtil.Combine(record.previousHash,
                                          Encoding.UTF8.GetBytes(record.identity),
-                                         ByteArrayUtil.Int64ToBytes(record.timestamp.uniqueTime),
+                                         ByteArrayUtil.Int64ToBytes(record.timestamp.milliseconds),
                                          record.signedPreviousHash,
                                          record.algorithm.ToUtf8ByteArray(),
                                          record.publicKeyJwkBase64Url.ToUtf8ByteArray());
@@ -104,7 +104,7 @@ namespace Odin.KeyChain
                     return false;
 
                 // Maybe we shouldn't do this. IDK.
-                if (checkTimeStamps && (record.timestamp.uniqueTime < previousRecord.timestamp.uniqueTime))
+                if (checkTimeStamps && (record.timestamp < previousRecord.timestamp))
                     return false;
             }
 
