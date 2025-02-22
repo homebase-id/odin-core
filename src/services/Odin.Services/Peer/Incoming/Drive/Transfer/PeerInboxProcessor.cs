@@ -250,7 +250,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                return false; // TODD TODO IMPORTANT. THIS WAS TRUE - BUT SHOULDN'T IT BE FALSE?
+                return true; // TODD - SHOULD PROBABLY BE FLASE - BUT NOT UNTIL WE HAVE A RETRY COUNT ON THE INBOX
             }
         }
 
