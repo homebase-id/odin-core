@@ -93,7 +93,7 @@ public class LinkPreviewService(
 
             string odinId = context.Request.Host.Host;
             var person = await GeneratePersonSchema();
-            
+
             string title = $"{person?.Name ?? odinId} | Posts";
             string description = DefaultDescription;
             string imageUrl = null;
@@ -350,13 +350,16 @@ public class LinkPreviewService(
     {
         var context = httpContextAccessor.HttpContext;
 
-        var cache = await tenantCache.GetOrSetAsync(
-            GenericLinkPreviewCacheKey,
-            _ => PrepareGenericPreview(indexFilePath, context.RequestAborted),
-            TimeSpan.FromSeconds(30)
-        );
-
-        await WriteAsync(cache, context.RequestAborted);
+        // var cache = await tenantCache.GetOrSetAsync(
+        //     GenericLinkPreviewCacheKey,
+        //     _ => PrepareGenericPreview(indexFilePath, context.RequestAborted),
+        //     TimeSpan.FromSeconds(30)
+        // );
+        //
+        // await WriteAsync(cache, context.RequestAborted);
+        
+        var data = await PrepareGenericPreview(indexFilePath, context.RequestAborted);
+        await WriteAsync(data, context.RequestAborted);
     }
 
     private async Task WriteFallbackIndex(string indexFilePath)
