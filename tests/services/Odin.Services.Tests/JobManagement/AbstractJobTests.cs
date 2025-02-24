@@ -5,6 +5,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.System.Table;
@@ -48,17 +49,17 @@ public class AbstractJobTests
         using var job = AbstractJob.CreateInstance(_container, record);
 
         // Assert
-        Assert.NotNull(job);
-        Assert.NotNull(job.Record);
-        Assert.AreEqual(record, job.Record);
-        Assert.IsInstanceOf<SimpleJobTest>(job);
+        ClassicAssert.NotNull(job);
+        ClassicAssert.NotNull(job.Record);
+        ClassicAssert.AreEqual(record, job.Record);
+        ClassicAssert.IsInstanceOf<SimpleJobTest>(job);
         var simpleJobTest = job as SimpleJobTest;
-        Assert.NotNull(simpleJobTest);
-        Assert.NotNull(simpleJobTest!.JobData);
-        Assert.AreEqual("uninitialized", simpleJobTest.JobData.SomeJobData);
+        ClassicAssert.NotNull(simpleJobTest);
+        ClassicAssert.NotNull(simpleJobTest!.JobData);
+        ClassicAssert.AreEqual("uninitialized", simpleJobTest.JobData.SomeJobData);
 
         await simpleJobTest.Run(CancellationToken.None);
-        Assert.AreEqual("hurrah!", simpleJobTest.JobData.SomeJobData);
+        ClassicAssert.AreEqual("hurrah!", simpleJobTest.JobData.SomeJobData);
     }
 
     [Test]
@@ -76,17 +77,17 @@ public class AbstractJobTests
         using var job = AbstractJob.CreateInstance(_container, record);
 
         // Assert
-        Assert.NotNull(job);
-        Assert.NotNull(job.Record);
-        Assert.AreEqual(record, job.Record);
-        Assert.IsInstanceOf<SimpleJobTest>(job);
+        ClassicAssert.NotNull(job);
+        ClassicAssert.NotNull(job.Record);
+        ClassicAssert.AreEqual(record, job.Record);
+        ClassicAssert.IsInstanceOf<SimpleJobTest>(job);
         var simpleJobTest = job as SimpleJobTest;
-        Assert.NotNull(simpleJobTest);
-        Assert.NotNull(simpleJobTest!.JobData);
-        Assert.AreEqual("uninitialized", simpleJobTest.JobData.SomeJobData);
+        ClassicAssert.NotNull(simpleJobTest);
+        ClassicAssert.NotNull(simpleJobTest!.JobData);
+        ClassicAssert.AreEqual("uninitialized", simpleJobTest.JobData.SomeJobData);
 
         await simpleJobTest.Run(CancellationToken.None);
-        Assert.AreEqual("hurrah!", simpleJobTest.JobData.SomeJobData);
+        ClassicAssert.AreEqual("hurrah!", simpleJobTest.JobData.SomeJobData);
     }
 
     [Test]
@@ -106,7 +107,7 @@ public class AbstractJobTests
             // Act
             using var job = AbstractJob.CreateInstance(_container, record);
         });
-        Assert.AreEqual($"Job type with ID {jobType} is not registered", exception!.Message);
+        ClassicAssert.AreEqual($"Job type with ID {jobType} is not registered", exception!.Message);
     }
 
     [Test]
@@ -126,7 +127,7 @@ public class AbstractJobTests
             // Act
             using var job = AbstractJob.CreateInstance(_container, record);
         });
-        Assert.AreEqual($"Unable to find job type {jobType}", exception!.Message);
+        ClassicAssert.AreEqual($"Unable to find job type {jobType}", exception!.Message);
     }
 
 

@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -63,8 +64,8 @@ public class SendingFilesToIntroducedIdentityTests
         });
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
@@ -103,9 +104,9 @@ public class SendingFilesToIntroducedIdentityTests
         //
         // Assert - sam should have sent the file and merry should have it
         //
-        Assert.IsTrue(sendFileToMerryResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(sendFileToMerryResponse.IsSuccessStatusCode);
         var samUploadResult = sendFileToMerryResponse.Content;
-        Assert.IsTrue(samUploadResult.RecipientStatus[merry] == TransferStatus.Enqueued);
+        ClassicAssert.IsTrue(samUploadResult.RecipientStatus[merry] == TransferStatus.Enqueued);
 
         await samOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
@@ -113,9 +114,9 @@ public class SendingFilesToIntroducedIdentityTests
         var getFileOnMerryResponse = await merryOwnerClient.DriveRedux
             .QueryByGlobalTransitId(samUploadResult.GlobalTransitIdFileIdentifier);
 
-        Assert.IsTrue(getFileOnMerryResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getFileOnMerryResponse.IsSuccessStatusCode);
         var fileOnMerry = getFileOnMerryResponse.Content.SearchResults.SingleOrDefault();
-        Assert.IsNotNull(fileOnMerry);
+        ClassicAssert.IsNotNull(fileOnMerry);
 
         await Cleanup();
     }

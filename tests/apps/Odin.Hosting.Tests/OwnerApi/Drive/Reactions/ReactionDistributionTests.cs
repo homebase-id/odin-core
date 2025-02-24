@@ -61,7 +61,7 @@
 //         var targetReferenceFile = uploadResult.File;
 //         var reactionUploadResult = await UploadFeedback(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, feedbackContent, false);
 //
-//         Assert.IsTrue(uploadResult.File.TargetDrive == reactionUploadResult.File.TargetDrive);
+//         ClassicAssert.IsTrue(uploadResult.File.TargetDrive == reactionUploadResult.File.TargetDrive);
 //
 //         //Sam posts reaction from his ownerclient, which should send file to frodo over transit
 //         // samOwnerClient
@@ -100,7 +100,7 @@
 //         var targetReferenceFile = uploadResult.File;
 //         var feedbackUploadResult = await UploadFeedback(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, reactionContent, false);
 //
-//         Assert.IsTrue(uploadResult.File.TargetDrive == feedbackUploadResult.File.TargetDrive);
+//         ClassicAssert.IsTrue(uploadResult.File.TargetDrive == feedbackUploadResult.File.TargetDrive);
 //
 //         // Sam posts feedback using YouAuh on frodo's drive
 //         //TODO: Build a youauth API client

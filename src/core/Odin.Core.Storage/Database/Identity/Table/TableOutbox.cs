@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
@@ -12,7 +13,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableOutbox(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    IdentityKey identityKey,
+    ICorrelationContext correlationContext)
     : TableOutboxCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
@@ -37,6 +39,7 @@ public class TableOutbox(
         if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
             throw new OdinSystemException("You're not allowed to make an item dependent on itself as it would deadlock the item.");
 
+        item.correlationId = correlationContext.Id;
         return await base.InsertAsync(item);
     }
 
@@ -50,6 +53,7 @@ public class TableOutbox(
         if (item.nextRunTime.milliseconds == 0)
             item.nextRunTime = UnixTimeUtc.Now();
 
+        item.correlationId = correlationContext.Id;
         return await base.UpsertAsync(item);
     }
 
@@ -86,7 +90,7 @@ public class TableOutbox(
                                           ORDER BY priority ASC, nextRunTime ASC
                                           LIMIT 1
                                     );
-                                    SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,created,modified
+                                    SELECT rowid,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified
                                     FROM outbox
                                     WHERE identityId=@identityId AND checkOutStamp=@checkOutStamp;
                                     """;

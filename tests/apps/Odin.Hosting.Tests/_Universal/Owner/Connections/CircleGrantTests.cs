@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -64,7 +65,7 @@ public class CircleGrantTests
             {
                 PermissionSet = new(PermissionKeys.AllowIntroductions)
             });
-        Assert.IsTrue(merryCreatesCircleResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(merryCreatesCircleResponse.IsSuccessStatusCode);
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
         {
@@ -76,15 +77,15 @@ public class CircleGrantTests
 
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         //ensure sam sends a request
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
-        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(samProcessResponse.IsSuccessStatusCode);
 
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
-        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
 
         await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
         await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
@@ -94,17 +95,17 @@ public class CircleGrantTests
 
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
-        Assert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
-        Assert.IsTrue(
+        ClassicAssert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(
             samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
                 cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
+        ClassicAssert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
         // Try to grant before confirming connection
         var grantCircleResponse = await merryOwnerClient.Network.GrantCircle(targetCircle, sam);
-        Assert.IsFalse(grantCircleResponse.IsSuccessStatusCode);
+        ClassicAssert.IsFalse(grantCircleResponse.IsSuccessStatusCode);
 
         await Cleanup();
     }
@@ -132,7 +133,7 @@ public class CircleGrantTests
             {
                 PermissionSet = new(PermissionKeys.AllowIntroductions)
             });
-        Assert.IsTrue(merryCreatesCircleResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(merryCreatesCircleResponse.IsSuccessStatusCode);
 
         var response = await frodoOwnerClient.Connections.SendIntroductions(new IntroductionGroup
         {
@@ -142,47 +143,47 @@ public class CircleGrantTests
         await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         //ensure sam sends a request
         var samProcessResponse = await samOwnerClient.Connections.ProcessIncomingIntroductions();
-        Assert.IsTrue(samProcessResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(samProcessResponse.IsSuccessStatusCode);
 
         var merryProcessResponse = await merryOwnerClient.Connections.ProcessIncomingIntroductions();
-        Assert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(merryProcessResponse.IsSuccessStatusCode);
 
         await samOwnerClient.Connections.AutoAcceptEligibleIntroductions();
         await merryOwnerClient.Connections.AutoAcceptEligibleIntroductions();
 
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
-        Assert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
-        Assert.IsTrue(
+        ClassicAssert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(
             samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
                 cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
+        ClassicAssert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
         // Try to grant before confirming connection
         var grantCircleResponse = await merryOwnerClient.Network.GrantCircle(targetCircle, sam);
-        Assert.IsFalse(grantCircleResponse.IsSuccessStatusCode);
+        ClassicAssert.IsFalse(grantCircleResponse.IsSuccessStatusCode);
 
         //merry confirms - now sam should be in confirmed circle
         var merryConfirmationResponse = await merryOwnerClient.Network.ConfirmConnection(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(merryConfirmationResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(merryConfirmationResponse.IsSuccessStatusCode);
         var samConnectionInfoResponse2 = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(samConnectionInfoResponse2.IsSuccessStatusCode);
-        Assert.IsFalse(
+        ClassicAssert.IsTrue(samConnectionInfoResponse2.IsSuccessStatusCode);
+        ClassicAssert.IsFalse(
             samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(cg =>
                 cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsTrue(samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(
+        ClassicAssert.IsTrue(samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
         // try to add
         var grantCircleResponse2 = await merryOwnerClient.Network.GrantCircle(targetCircle, sam);
-        Assert.IsTrue(grantCircleResponse2.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(grantCircleResponse2.IsSuccessStatusCode);
 
         await Cleanup();
     }

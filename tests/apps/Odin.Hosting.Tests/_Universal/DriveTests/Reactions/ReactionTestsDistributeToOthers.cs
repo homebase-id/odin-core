@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
@@ -92,7 +93,7 @@ public class ReactionTestsDistributeToOthers
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(localIdentity);
         var targetDrive = callerContext.TargetDrive;
         var createDriveResponse = await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-        Assert.IsTrue(createDriveResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(createDriveResponse.IsSuccessStatusCode);
         
         List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
 
@@ -110,7 +111,7 @@ public class ReactionTestsDistributeToOthers
         };
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         //
         // ensure the file is sent and is on the recipient's drive
@@ -133,13 +134,13 @@ public class ReactionTestsDistributeToOthers
         });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             foreach (var (_, status) in response.Content.RecipientStatus)
             {
-                Assert.IsTrue(status == TransferStatus.Enqueued);
+                ClassicAssert.IsTrue(status == TransferStatus.Enqueued);
             }
 
             await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
@@ -196,7 +197,7 @@ public class ReactionTestsDistributeToOthers
 
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
         var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         //
         // ensure the file is sent and is on the recipient's drive
@@ -221,7 +222,7 @@ public class ReactionTestsDistributeToOthers
         //
         // Assert valid setup - local and all recipients have the reactions that need to be deleted below
         //
-        Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse.IsSuccessStatusCode);
 
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
         await WaitForEmptyInboxes(recipients, targetDrive);
@@ -252,13 +253,13 @@ public class ReactionTestsDistributeToOthers
         });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             foreach (var (_, status) in response.Content.RecipientStatus)
             {
-                Assert.IsTrue(status == TransferStatus.Enqueued);
+                ClassicAssert.IsTrue(status == TransferStatus.Enqueued);
             }
 
             await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
@@ -284,7 +285,7 @@ public class ReactionTestsDistributeToOthers
 
         var file = getHeaderResponse1.Content.SearchResults.First();
         var noMatchingInReactionPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
-        Assert.IsTrue(noMatchingInReactionPreview);
+        ClassicAssert.IsTrue(noMatchingInReactionPreview);
     }
 
     private async Task AssertIdentityHasReactionInPreview(TestIdentity identity, FileIdentifier fileId, string reactionContent)
@@ -294,7 +295,7 @@ public class ReactionTestsDistributeToOthers
 
         var file = getHeaderResponse1.Content.SearchResults.First();
         var hasReactionInPreview = file.FileMetadata.ReactionPreview.Reactions.Any(pair => pair.Value.ReactionContent == reactionContent);
-        Assert.IsTrue(hasReactionInPreview);
+        ClassicAssert.IsTrue(hasReactionInPreview);
     }
 
     private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent, OdinId sender,
@@ -307,7 +308,7 @@ public class ReactionTestsDistributeToOthers
             },
             fileSystemType);
         var hasReactionInDb = getReactionsResponse.Content.Reactions.Any(r => r.OdinId == sender && r.ReactionContent == reactionContent);
-        Assert.IsTrue(hasReactionInDb);
+        ClassicAssert.IsTrue(hasReactionInDb);
     }
 
     private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent, OdinId sender,
@@ -320,7 +321,7 @@ public class ReactionTestsDistributeToOthers
             },
             fileSystemType);
         var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => !(r.OdinId == sender && r.ReactionContent == reactionContent));
-        Assert.IsTrue(reactionNotInDb);
+        ClassicAssert.IsTrue(reactionNotInDb);
     }
 
     private async Task SetupRecipient(TestIdentity recipient, OdinId sender, IApiClientContext callerContext)
@@ -340,7 +341,7 @@ public class ReactionTestsDistributeToOthers
             allowSubscriptions: false,
             ownerOnly: false);
 
-        Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
 
         //
         // Recipient creates a circle with target drive, read and write access
@@ -363,7 +364,7 @@ public class ReactionTestsDistributeToOthers
             }
         });
 
-        Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
 
         //
@@ -377,10 +378,10 @@ public class ReactionTestsDistributeToOthers
 
         var getConnectionInfoResponse = await recipientClient.Network.GetConnectionInfo(sender);
 
-        Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
         var senderConnectionInfo = getConnectionInfoResponse.Content;
 
-        Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+        ClassicAssert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
             cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
     }
 

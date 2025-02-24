@@ -76,7 +76,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return new QueryModifiedResult()
             {
                 IncludeHeaderContent = o.IncludeHeaderContent,
-                Cursor = updatedCursor.ToString(),
+                Cursor = updatedCursor,
                 SearchResults = headers,
                 HasMoreRows = hasMoreRows
             };

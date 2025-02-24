@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Admin.Tenants.Jobs;
@@ -21,7 +22,7 @@ using Odin.Services.JobManagement;
 
 namespace Odin.Hosting.Tests.AdminApi;
 
-[Timeout(60000)]
+[CancelAfter(60000)]
 public class AdminControllerTest
 {
     private WebScaffold _scaffold = null!;
@@ -170,7 +171,7 @@ public class AdminControllerTest
         var request = NewRequestMessage(HttpMethod.Delete, url);
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
-        Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
+        ClassicAssert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
         Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/"));
 
@@ -227,7 +228,7 @@ public class AdminControllerTest
         var request = NewRequestMessage(HttpMethod.Post, url);
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
-        Assert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
+        ClassicAssert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
         var location = locations.First();
         Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/"));
 
@@ -274,8 +275,8 @@ public class AdminControllerTest
         response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
-        Assert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "registrations")));
-        Assert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "payloads")));
+        ClassicAssert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "registrations")));
+        ClassicAssert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "payloads")));
     }
 
     //

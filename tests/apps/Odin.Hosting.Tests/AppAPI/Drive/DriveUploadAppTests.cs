@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
@@ -127,7 +128,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 Assert.That(uploadResult.File, Is.Not.Null);
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
                 Assert.That(uploadResult.RecipientStatus, Is.Null);
 
@@ -152,7 +153,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
                 CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
                 Assert.That(clientFileHeader.FileMetadata.AppData.Content, Is.EqualTo(descriptor.FileMetadata.AppData.Content));
-                Assert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
+                ClassicAssert.IsTrue(clientFileHeader.FileMetadata.Payloads.Count == 1);
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
@@ -252,7 +253,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
 
-                Assert.False(response.IsSuccessStatusCode);
+                ClassicAssert.False(response.IsSuccessStatusCode);
             }
 
             keyHeader.AesKey.Wipe();
@@ -286,16 +287,16 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             // Validate File was uploaded
             //
             var getFirstFileResponse = await ownerClient.Drive.GetFileHeader(FileSystemType.Standard, firstFile.File);
-            Assert.IsTrue(getFirstFileResponse.FileMetadata.AppData.Content == firstFileMetadata.AppData.Content);
-            Assert.IsTrue(getFirstFileResponse.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
+            ClassicAssert.IsTrue(getFirstFileResponse.FileMetadata.AppData.Content == firstFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(getFirstFileResponse.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
 
             //
             // Can get first file by uniqueId
             //
             var getFirstFileByUniqueId = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
-            Assert.IsNotNull(getFirstFileByUniqueId);
-            Assert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.Content == firstFileMetadata.AppData.Content);
-            Assert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
+            ClassicAssert.IsNotNull(getFirstFileByUniqueId);
+            ClassicAssert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.Content == firstFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(getFirstFileByUniqueId.FileMetadata.AppData.UniqueId == firstFileMetadata.AppData.UniqueId);
 
             //
             // Delete the first file
@@ -308,7 +309,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //
 
             var getFirstFileDeleted = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
-            Assert.IsNull(getFirstFileDeleted);
+            ClassicAssert.IsNull(getFirstFileDeleted);
 
             //
             // Reuse the unique Id
@@ -333,16 +334,16 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             // Validate File was uploaded
             //
             var getSecondFileResponse = await ownerClient.Drive.GetFileHeader(FileSystemType.Standard, secondFile.File);
-            Assert.IsTrue(getSecondFileResponse.FileMetadata.AppData.Content == secondFileMeta.AppData.Content);
-            Assert.IsTrue(getSecondFileResponse.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
+            ClassicAssert.IsTrue(getSecondFileResponse.FileMetadata.AppData.Content == secondFileMeta.AppData.Content);
+            ClassicAssert.IsTrue(getSecondFileResponse.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
 
             //
             // Can get first file by uniqueId
             //
             var getSecondFileByUniqueId = await ownerClient.Drive.QueryByUniqueId(FileSystemType.Standard, firstFile.File.TargetDrive, firstUniqueId);
-            Assert.IsNotNull(getSecondFileByUniqueId);
-            Assert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.Content == secondFileMeta.AppData.Content);
-            Assert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
+            ClassicAssert.IsNotNull(getSecondFileByUniqueId);
+            ClassicAssert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.Content == secondFileMeta.AppData.Content);
+            ClassicAssert.IsTrue(getSecondFileByUniqueId.FileMetadata.AppData.UniqueId == secondFileMeta.AppData.UniqueId);
         }
     }
 }

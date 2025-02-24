@@ -26,7 +26,7 @@ public class DriveQuery(
     IdentityDatabase db
 ) : IDriveDatabaseManager
 {
-    public async Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
+    public async Task<(string, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
         StorageDrive drive,
         IOdinContext odinContext,
         FileSystemType fileSystemType,
@@ -39,7 +39,7 @@ public class DriveQuery(
         var aclList = GetAcl(odinContext);
         Int64.TryParse(options.Cursor, out long c);
 
-        var cursor = new UnixTimeUtcUnique(c);
+        string cursor = c.ToString();
 
         // TODO TODD - use moreRows
         (var results, var moreRows, cursor) = await metaIndex.QueryModifiedAsync(
@@ -62,7 +62,7 @@ public class DriveQuery(
             localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
             localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
-        return (cursor.uniqueTime, results, moreRows);
+        return (cursor, results, moreRows);
     }
 
 

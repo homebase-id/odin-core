@@ -1,4 +1,6 @@
-﻿namespace Odin.Core.Cryptography.Tests
+﻿using NUnit.Framework.Legacy;
+
+namespace Odin.Core.Cryptography.Tests
 {
     using NUnit.Framework;
     using Odin.Core.Cryptography.Crypto;
@@ -29,11 +31,11 @@
             EccPublicKeyData pk = (EccPublicKeyData) fullKeyFrodo;
             var s = pk.GenerateEcdsaBase64Url();
 
-            Assert.IsTrue(s != "");
-            Assert.IsTrue(s != null);
+            ClassicAssert.IsTrue(s != "");
+            ClassicAssert.IsTrue(s != null);
 
             var ba = Base64UrlEncoder.Decode(s);
-            Assert.IsTrue(ba.Length == 65);
+            ClassicAssert.IsTrue(ba.Length == 65);
         }
 
         [Test]
@@ -52,8 +54,8 @@
                 byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
                 byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
 
-                Assert.IsTrue(x.Length == 48);
-                Assert.IsTrue(y.Length == 48);
+                ClassicAssert.IsTrue(x.Length == 48);
+                ClassicAssert.IsTrue(y.Length == 48);
             }
         }
 
@@ -68,8 +70,8 @@
 
             var pk = EccPublicKeyData.FromJwkPublicKey(jwk);
 
-            Assert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
-            Assert.IsTrue(pk.PublicKeyJwkBase64Url() == fullKeyFrodo.PublicKeyJwkBase64Url());
+            ClassicAssert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
+            ClassicAssert.IsTrue(pk.PublicKeyJwkBase64Url() == fullKeyFrodo.PublicKeyJwkBase64Url());
         }
 
         [Test]
@@ -82,8 +84,8 @@
 
             var pk = EccPublicKeyData.FromJwkPublicKey(jwk);
 
-            Assert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
-            Assert.IsTrue(pk.PublicKeyJwkBase64Url() == fullKeyFrodo.PublicKeyJwkBase64Url());
+            ClassicAssert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
+            ClassicAssert.IsTrue(pk.PublicKeyJwkBase64Url() == fullKeyFrodo.PublicKeyJwkBase64Url());
         }
 
         [Test]
@@ -95,7 +97,7 @@
             var jwkBase64Url = fullKeyFrodo.PublicKeyJwkBase64Url();
             var pk = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkBase64Url);
 
-            Assert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
+            ClassicAssert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
         }
 
         [Test]
@@ -107,7 +109,7 @@
             var jwkBase64Url = fullKeyFrodo.PublicKeyJwkBase64Url();
             var pk = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkBase64Url);
 
-            Assert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
+            ClassicAssert.IsTrue(pk.PublicKeyJwk() == fullKeyFrodo.PublicKeyJwk());
         }
 
         [Test]
@@ -126,7 +128,7 @@
             var sharedSecretFrodo1 = fullKeyFrodo.GetEcdhSharedSecret(pwdFrodo, (EccPublicKeyData)fullKeySam, randomSalt);
             var sharedSecretFrodo2 = fullKeyFrodo.GetEcdhSharedSecret(pwdFrodo, publicKeySam, randomSalt);
 
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretFrodo1.GetKey(), sharedSecretFrodo2.GetKey()));
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretFrodo1.GetKey(), sharedSecretFrodo2.GetKey()));
         }
 
         [Test]
@@ -137,12 +139,12 @@
 
             var signature = fullKeySam.Sign(pwdSam, testMessage);
 
-            Assert.IsTrue(fullKeySam.VerifySignature(testMessage, signature));
+            ClassicAssert.IsTrue(fullKeySam.VerifySignature(testMessage, signature));
 
             var jwkSam = fullKeySam.PublicKeyJwk();
             var publicKeySam = EccPublicKeyData.FromJwkPublicKey(jwkSam);
 
-            Assert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
+            ClassicAssert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
         }
 
         [Test]
@@ -153,12 +155,12 @@
 
             var signature = fullKeySam.Sign(pwdSam, testMessage);
 
-            Assert.IsTrue(fullKeySam.VerifySignature(testMessage, signature));
+            ClassicAssert.IsTrue(fullKeySam.VerifySignature(testMessage, signature));
 
             var jwkSam = fullKeySam.PublicKeyJwk();
             var publicKeySam = EccPublicKeyData.FromJwkPublicKey(jwkSam);
 
-            Assert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
+            ClassicAssert.IsTrue(publicKeySam.VerifySignature(testMessage, signature));
         }
 
 
@@ -213,7 +215,7 @@
                 throw new Exception("It doesn't work");
 
             // The shared secrets are identical
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretFrodo.GetKey(), sharedSecretSam.GetKey()));
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretFrodo.GetKey(), sharedSecretSam.GetKey()));
         }
 
 
@@ -223,20 +225,20 @@
             // Generate a new full key
             var fullKeyData = new EccFullKeyData(key, EccKeySize.P384, 1);
 
-            Assert.IsNotNull(fullKeyData.publicKey);
-            Assert.IsNotNull(fullKeyData.storedKey);
-            Assert.IsNotNull(fullKeyData.iv);
-            Assert.IsNotNull(fullKeyData.keyHash);
-            Assert.IsNotNull(fullKeyData.createdTimeStamp);
+            ClassicAssert.IsNotNull(fullKeyData.publicKey);
+            ClassicAssert.IsNotNull(fullKeyData.storedKey);
+            ClassicAssert.IsNotNull(fullKeyData.iv);
+            ClassicAssert.IsNotNull(fullKeyData.keyHash);
+            ClassicAssert.IsNotNull(fullKeyData.createdTimeStamp);
 
             // Sign a message
             var signature = fullKeyData.Sign(key, testMessage);
 
-            Assert.IsNotNull(signature);
+            ClassicAssert.IsNotNull(signature);
 
             // Verify the signature with the public key
             var publicKeyData = EccPublicKeyData.FromJwkBase64UrlPublicKey(fullKeyData.PublicKeyJwkBase64Url());
-            Assert.IsTrue(publicKeyData.VerifySignature(testMessage, signature));
+            ClassicAssert.IsTrue(publicKeyData.VerifySignature(testMessage, signature));
         }
 
         [Test]
@@ -256,7 +258,7 @@
             var sharedSecretB = fullKeyB.GetEcdhSharedSecret(keyBpwd, (EccPublicKeyData) fullKeyA, salt);
 
             // The shared secrets should be identical
-            Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretA.GetKey(), sharedSecretB.GetKey()));
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretA.GetKey(), sharedSecretB.GetKey()));
         }
     }
 }

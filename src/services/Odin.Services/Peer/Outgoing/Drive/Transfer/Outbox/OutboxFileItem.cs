@@ -26,6 +26,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         public int AttemptCount { get; set; }
         public Guid? DependencyFileId { get; set; }
         public OutboxItemState State { get; set; }
+        public string CorrelationId { get; set; }
 
         public RedactedOutboxFileItem Redacted()
         {

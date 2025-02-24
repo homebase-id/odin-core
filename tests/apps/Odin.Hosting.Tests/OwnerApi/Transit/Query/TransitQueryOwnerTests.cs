@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
@@ -175,12 +176,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -204,7 +205,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 var resp = await transitAppSvc.ProcessInbox(
                     new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
-                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
@@ -219,9 +220,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     }
                 });
 
-                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryBatchResponse.Content);
+                ClassicAssert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
 
                 uploadedFile = new ExternalFileIdentifier()
                 {
@@ -255,7 +256,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
                 Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //
                 // Get the payload that was uploaded, test it
@@ -313,12 +314,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
                 });
 
-                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryBatchResponse.Content);
+                ClassicAssert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
 
                 var fileResponse = queryBatchResponse.Content.SearchResults.Single();
-                Assert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
+                ClassicAssert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
             }
 
             keyHeader.AesKey.Wipe();
@@ -455,12 +456,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -483,7 +484,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 var resp = await transitAppSvc.ProcessInbox(
                     new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
-                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
@@ -498,9 +499,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     }
                 });
 
-                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryBatchResponse.Content);
+                ClassicAssert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
 
                 uploadedFile = new ExternalFileIdentifier()
                 {
@@ -535,7 +536,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
                 Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //
                 // Get the payload that was uploaded, test it
@@ -569,9 +570,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
-                Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
                 var getThumbnailResponseBytes = await getThumbnailResponse.Content!.ReadAsByteArrayAsync();
-                Assert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
+                ClassicAssert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
 
                 decryptedKeyHeader.AesKey.Wipe();
                 // keyHeader.AesKey.Wipe();
@@ -615,11 +616,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     File = uploadedFile
                 });
 
-                Assert.IsTrue(getTransitFileResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getTransitFileResponse.Content);
+                ClassicAssert.IsTrue(getTransitFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getTransitFileResponse.Content);
 
                 var fileResponse = getTransitFileResponse.Content;
-                Assert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
+                ClassicAssert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
 
                 var transitClientFileHeader = getTransitFileResponse.Content;
 
@@ -639,7 +640,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var decryptedClientFileKeyHeader = transitClientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);
 
                 Assert.That(decryptedClientFileKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedClientFileKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedClientFileKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //
                 // Get the payload that was sent to the recipient via transit, test it
@@ -656,7 +657,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(getTransitPayloadResponse.Content, Is.Not.Null);
 
                 var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-                Assert.IsTrue(payloadIsEncrypted);
+                ClassicAssert.IsTrue(payloadIsEncrypted);
 
                 var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
@@ -665,9 +666,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 var decryptedPayloadKeyHeader = ownerSharedSecretEncryptedKeyHeaderForPayload.DecryptAesToKeyHeader(ref ownerSharedSecret);
                 var payloadResponseCipherBytes = await getTransitPayloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.IsTrue(reuploadedContext.PayloadCipher.Length == payloadResponseCipherBytes.Length);
+                ClassicAssert.IsTrue(reuploadedContext.PayloadCipher.Length == payloadResponseCipherBytes.Length);
                 var decryptedPayloadBytes = decryptedPayloadKeyHeader.Decrypt(payloadResponseCipherBytes);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(originalPayloadData.ToUtf8ByteArray(), decryptedPayloadBytes));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(originalPayloadData.ToUtf8ByteArray(), decryptedPayloadBytes));
 
                 //
                 // Get the thumbnail that was sent to the recipient via transit, test it
@@ -683,23 +684,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
-                Assert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getTransitThumbnailResponse.Content);
+                ClassicAssert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getTransitThumbnailResponse.Content);
 
                 var thumbnailIsEncrypted = bool.Parse(getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-                Assert.IsTrue(thumbnailIsEncrypted);
+                ClassicAssert.IsTrue(thumbnailIsEncrypted);
 
                 var thumbnailSharedSecretKeyHeaderValue =
                     getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
 
                 var getTransitThumbnailContentTypeHeader = getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-                Assert.IsTrue(thumbnail1.ContentType == getTransitThumbnailContentTypeHeader);
+                ClassicAssert.IsTrue(thumbnail1.ContentType == getTransitThumbnailContentTypeHeader);
 
                 var decryptedThumbnailKeyHeader = ownerSharedSecretEncryptedKeyHeaderForThumbnail.DecryptAesToKeyHeader(ref ownerSharedSecret);
                 var transitThumbnailResponse1CipherBytes = await getTransitThumbnailResponse!.Content!.ReadAsByteArrayAsync();
                 var decryptedThumbnailBytes = decryptedThumbnailKeyHeader.Decrypt(transitThumbnailResponse1CipherBytes);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1OriginalBytes, decryptedThumbnailBytes));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1OriginalBytes, decryptedThumbnailBytes));
             }
 
             keyHeader.AesKey.Wipe();
@@ -811,22 +812,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.That(uploadResult.File, Is.Not.Null);
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
-                Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
-                Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+                ClassicAssert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
+                ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
 
                 var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
                 await newApi.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
                 // query the file
                 var getHistoryResponse = await newApi.DriveRedux.GetTransferHistory(uploadResult.File);
-                Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
                 var theHistory = getHistoryResponse.Content;
-                Assert.IsNotNull(theHistory);
+                ClassicAssert.IsNotNull(theHistory);
                 var item = theHistory.GetHistoryItem(recipient.OdinId);
-                Assert.IsNotNull(item);
-                Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
+                ClassicAssert.IsNotNull(item);
+                ClassicAssert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
             }
         }
 
@@ -954,12 +955,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -982,7 +983,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
-                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
@@ -997,9 +998,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     }
                 });
 
-                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryBatchResponse.Content);
+                ClassicAssert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
 
                 uploadedFile = new ExternalFileIdentifier()
                 {
@@ -1073,12 +1074,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
                 });
 
-                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryBatchResponse.Content);
+                ClassicAssert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
 
                 var fileResponse = queryBatchResponse.Content.SearchResults.Single();
-                Assert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
+                ClassicAssert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
             }
 
             keyHeader.AesKey.Wipe();
@@ -1224,12 +1225,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var transferResult = response.Content;
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+                ClassicAssert.IsTrue(transferResult.File.TargetDrive.IsValid());
 
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Enqueued, $"transfer key not created for {r}");
                 }
             }
 
@@ -1252,7 +1253,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 var resp = await transitAppSvc.ProcessInbox(
                     new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
-                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
@@ -1267,9 +1268,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     }
                 });
 
-                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(queryBatchResponse.Content);
-                Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+                ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(queryBatchResponse.Content);
+                ClassicAssert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
 
                 uploadedFile = new ExternalFileIdentifier()
                 {
@@ -1314,9 +1315,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
-                Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
                 var getThumbnailResponseBytes = await getThumbnailResponse.Content!.ReadAsByteArrayAsync();
-                Assert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
+                ClassicAssert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
 
                 // keyHeader.AesKey.Wipe();
             }
@@ -1364,11 +1365,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     File = uploadedFile
                 });
 
-                Assert.IsTrue(getTransitFileResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getTransitFileResponse.Content);
+                ClassicAssert.IsTrue(getTransitFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getTransitFileResponse.Content);
 
                 var fileResponse = getTransitFileResponse.Content;
-                Assert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
+                ClassicAssert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
 
                 var transitClientFileHeader = getTransitFileResponse.Content;
 
@@ -1388,7 +1389,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var decryptedClientFileKeyHeader = transitClientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);
 
                 Assert.That(decryptedClientFileKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedClientFileKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedClientFileKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //
                 // Get the payload that was sent to the recipient via transit, test it
@@ -1405,7 +1406,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(getTransitPayloadResponse.Content, Is.Not.Null);
 
                 var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-                Assert.IsTrue(payloadIsEncrypted);
+                ClassicAssert.IsTrue(payloadIsEncrypted);
 
                 var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
@@ -1414,9 +1415,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
                 var decryptedPayloadKeyHeader = ownerSharedSecretEncryptedKeyHeaderForPayload.DecryptAesToKeyHeader(ref ownerSharedSecret);
                 var payloadResponseCipherBytes = await getTransitPayloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.IsTrue(reuploadedContext.PayloadCipher.Length == payloadResponseCipherBytes.Length);
+                ClassicAssert.IsTrue(reuploadedContext.PayloadCipher.Length == payloadResponseCipherBytes.Length);
                 var decryptedPayloadBytes = decryptedPayloadKeyHeader.Decrypt(payloadResponseCipherBytes);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(originalPayloadData.ToUtf8ByteArray(), decryptedPayloadBytes));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(originalPayloadData.ToUtf8ByteArray(), decryptedPayloadBytes));
 
                 //
                 // Get the thumbnail that was sent to the recipient via transit, test it
@@ -1432,23 +1433,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     PayloadKey = WebScaffold.PAYLOAD_KEY
                 });
 
-                Assert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getTransitThumbnailResponse.Content);
+                ClassicAssert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getTransitThumbnailResponse.Content);
 
                 var thumbnailIsEncrypted = bool.Parse(getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-                Assert.IsTrue(thumbnailIsEncrypted);
+                ClassicAssert.IsTrue(thumbnailIsEncrypted);
 
                 var thumbnailSharedSecretKeyHeaderValue =
                     getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
 
                 var getTransitThumbnailContentTypeHeader = getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-                Assert.IsTrue(thumbnail1.ContentType == getTransitThumbnailContentTypeHeader);
+                ClassicAssert.IsTrue(thumbnail1.ContentType == getTransitThumbnailContentTypeHeader);
 
                 var decryptedThumbnailKeyHeader = ownerSharedSecretEncryptedKeyHeaderForThumbnail.DecryptAesToKeyHeader(ref ownerSharedSecret);
                 var transitThumbnailResponse1CipherBytes = await getTransitThumbnailResponse!.Content!.ReadAsByteArrayAsync();
                 var decryptedThumbnailBytes = decryptedThumbnailKeyHeader.Decrypt(transitThumbnailResponse1CipherBytes);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1OriginalBytes, decryptedThumbnailBytes));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1OriginalBytes, decryptedThumbnailBytes));
             }
 
             keyHeader.AesKey.Wipe();
@@ -1581,22 +1582,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             Assert.That(uploadResult.File, Is.Not.Null);
             Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-            Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+            ClassicAssert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
-            Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
-            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
 
             await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             // query the file
             var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
             var getHistoryResponse = await newApi.DriveRedux.GetTransferHistory(uploadResult.File,FileSystemType.Comment);
-            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
             var theHistory = getHistoryResponse.Content;
-            Assert.IsNotNull(theHistory);
+            ClassicAssert.IsNotNull(theHistory);
             var item = theHistory.GetHistoryItem(recipient.OdinId);
-            Assert.IsNotNull(item);
-            Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
+            ClassicAssert.IsNotNull(item);
+            ClassicAssert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
             
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
@@ -1741,23 +1742,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             Assert.That(uploadResult.File, Is.Not.Null);
             Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-            Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
+            ClassicAssert.IsTrue(uploadResult.File.TargetDrive.IsValid());
             
-            Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
-            Assert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient.OdinId));
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipient.OdinId] == TransferStatus.Enqueued);
 
             var senderApiRedux = _scaffold.CreateOwnerApiClientRedux(sender);
-            await senderApiRedux.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            await senderApiRedux.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
             // query the file
             var newApi = _scaffold.CreateOwnerApiClientRedux(sender);
             var getHistoryResponse = await newApi.DriveRedux.GetTransferHistory(uploadResult.File,FileSystemType.Comment);
-            Assert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
             var theHistory = getHistoryResponse.Content;
-            Assert.IsNotNull(theHistory);
+            ClassicAssert.IsNotNull(theHistory);
             var item = theHistory.GetHistoryItem(recipient.OdinId);
-            Assert.IsNotNull(item);
-            Assert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedBadRequest);
+            ClassicAssert.IsNotNull(item);
+            ClassicAssert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedBadRequest);
 
             keyHeader.AesKey.Wipe();
             key.Wipe();
@@ -1849,16 +1850,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     DriveType = targetDriveReadOnly.Type
                 });
 
-                Assert.IsTrue(getTransitDrives.IsSuccessStatusCode);
-                Assert.IsNotNull(getTransitDrives.Content);
+                ClassicAssert.IsTrue(getTransitDrives.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getTransitDrives.Content);
 
                 var drivesOnRecipientIdentityAccessibleToSender = getTransitDrives.Content.Results;
 
-                Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == expectedDriveType));
-                Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.Count == 2);
-                Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveReadOnly));
-                Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveReadWrite));
-                Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveWriteOnly),
+                ClassicAssert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == expectedDriveType));
+                ClassicAssert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.Count == 2);
+                ClassicAssert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveReadOnly));
+                ClassicAssert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveReadWrite));
+                ClassicAssert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveWriteOnly),
                     "should not have access to write only drive");
             }
 

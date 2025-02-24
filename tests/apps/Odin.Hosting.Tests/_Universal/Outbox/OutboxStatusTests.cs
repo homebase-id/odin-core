@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -103,11 +104,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 transitOptions
             );
 
-            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+            ClassicAssert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
 
             // Issue here is that the outbox processes superfast, so we probably need
             // to loaded it up with a bunch of items and not wait on it.  Then we can 
@@ -117,12 +118,12 @@ namespace Odin.Hosting.Tests._Universal.Outbox
             await callerContext.Initialize(senderOwnerClient);
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
             var getStatusResponse = await driveClient.GetDriveStatus(targetDrive);
-            Assert.IsTrue(getStatusResponse.StatusCode == expectedStatusCode);
+            ClassicAssert.IsTrue(getStatusResponse.StatusCode == expectedStatusCode);
             if (expectedStatusCode == HttpStatusCode.OK)
             {
                 var status = getStatusResponse.Content;
-                Assert.IsTrue(status.Outbox.TotalItems == 0, "Note: review this test since the outbox processing is meant to run in the background");
-                Assert.IsTrue(status.Outbox.CheckedOutCount == 0, "Note: review this test since the outbox processing is meant to run in the background");
+                ClassicAssert.IsTrue(status.Outbox.TotalItems == 0, "Note: review this test since the outbox processing is meant to run in the background");
+                ClassicAssert.IsTrue(status.Outbox.CheckedOutCount == 0, "Note: review this test since the outbox processing is meant to run in the background");
             }
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
@@ -142,7 +143,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
 
             //
             // Sender needs this same drive in order to send across files
@@ -155,7 +156,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
 
             //
             // Recipient creates a circle with target drive, read and write access
@@ -178,7 +179,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 }
             });
 
-            Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
             //
             // Sender sends connection request
@@ -196,10 +197,10 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var getConnectionInfoResponse = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
 
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
             var senderConnectionInfo = getConnectionInfoResponse.Content;
 
-            Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            ClassicAssert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
         }
 

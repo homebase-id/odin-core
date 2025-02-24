@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Docker.DotNet.Models;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -65,14 +66,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(moreRows == false);
 
-            UnixTimeUtcUnique inCursor = UnixTimeUtcUnique.ZeroTime, outCursor = UnixTimeUtcUnique.ZeroTime;
+            string inCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
+            string outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, inCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(outCursor.uniqueTime == 0);
+            Debug.Assert(outCursor == "0");
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, inCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(outCursor.uniqueTime == 0);
+            Debug.Assert(outCursor == "0");
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
         }
@@ -632,7 +634,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.fileState = 42;
             await metaIndex.BaseUpdateEntryZapZapAsync(r, null, null);
 
-            var c2 = new UnixTimeUtcUnique(0);
+            string c2 = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, var outc2) = await metaIndex.QueryModifiedAsync(driveId, 10, c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
@@ -704,7 +706,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
-            UnixTimeUtcUnique c2 = new UnixTimeUtcUnique(0), outc2 = new UnixTimeUtcUnique(0);
+            string c2 = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
+            string outc2 = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outc2) = await metaIndex.QueryModifiedAsync(driveId, 10, c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
@@ -713,7 +716,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.archivalStatus = 7;
             await metaIndex.BaseUpdateEntryZapZapAsync(r, null, null);
 
-            c2 = new UnixTimeUtcUnique(0);
+            c2 = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outc2) = await metaIndex.QueryModifiedAsync(driveId, 10, c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
@@ -1627,18 +1630,17 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
-            UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
+            string cursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // Nothing in the DB should be modified
-            Debug.Assert(outCursor.uniqueTime == 0);
+            Debug.Assert(Convert.ToInt64(outCursor) == 0);
             Debug.Assert(moreRows == false);
 
             // Do a double check that even if the timestamp is "everything forever" then we still get nothing.
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // Nothing in the DB should be modified
-            Debug.Assert(outCursor.uniqueTime == 0);
+            Debug.Assert(Convert.ToInt64(outCursor) == 0);
             Debug.Assert(moreRows == false);
-
         }
 
 
@@ -1674,7 +1676,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
 
-            UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
+            string cursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
@@ -1793,7 +1795,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
-            UnixTimeUtcUnique inCursor = UnixTimeUtcUnique.ZeroTime;
+            string inCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // Nothing has been modified
             Debug.Assert(moreRows == false);
@@ -1804,32 +1806,32 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblDriveMainIndex.TestTouchAsync(driveId, f4);
             await tblDriveMainIndex.TestTouchAsync(driveId, f5);
 
-            outCursor = UnixTimeUtcUnique.ZeroTime;
+            outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5); // Ensure everything is now "modified"
             Debug.Assert(moreRows == false);
 
-            outCursor = UnixTimeUtcUnique.ZeroTime;
+            outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
-            outCursor = UnixTimeUtcUnique.ZeroTime;
+            outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
-            outCursor = UnixTimeUtcUnique.ZeroTime;
+            outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
-            outCursor = UnixTimeUtcUnique.ZeroTime;
+            outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
-            outCursor = UnixTimeUtcUnique.ZeroTime;
+            outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 2, end: 3));
             Debug.Assert(result.Count == 3);
             Debug.Assert(moreRows == false);
@@ -2110,24 +2112,24 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblDriveMainIndex.TestTouchAsync(driveId, f5);
 
 
-            UnixTimeUtcUnique cursor;
+            string cursor;
 
             // ===== TEST RSG, no circles
 
             // ACL: Any security group, no circles. We should have 5 entries
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
             // ACL: Security group 1, no circles. We should have 2 entries
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // ACL: Security group 0, no circles. We should have 0 entries
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
@@ -2135,25 +2137,25 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ======== TEST any RSG with circle combinations
 
             // ACL: Any security group, circles a4. We should have 2 (one with a4, one with no circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // ACL: Any security group, circles a2. We should have 3 (two with a2, one with no circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a2 });
             Debug.Assert(result.Count == 3);
             Debug.Assert(moreRows == false);
 
             // ACL: Any security group, circles a1, a2. We should have 4 (two with a2, one with a1, one with no circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a1, a2 });
             Debug.Assert(result.Count == 4);
             Debug.Assert(moreRows == false);
 
             // ACL: Any security group, circles a5. We should have 1 (none with a5, one with no circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a5 });
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
@@ -2161,25 +2163,25 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ======== TEST no RSG with circles
 
             // ACL: No security group, circles a4. We should have none
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a4 });
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // ACL: No security group, circles a2. We should have none
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a2 });
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // ACL: No security group, circles a1, a2. We should have none
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1, a2 });
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // ACL: No security group, circles a5. We should have none
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a5 });
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
@@ -2187,37 +2189,37 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ======== Test partial RSG with circle combinations
 
             // ACL: One security group 2, circles a2. We should have 2 (one with a2, one with no circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a2 });
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // ACL: Security group 1, circles a4. We should have 0 (none with a4, none with circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a4 });
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // ACL: Security group 1, circles a1, a2. We should have 2
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1, a2 });
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // ACL: Security group 2, circles a1, a2. We should have 2
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a1, a2 });
             Debug.Assert(result.Count == 2);
             Debug.Assert(moreRows == false);
 
             // ACL: Security group 1, circles a5. We should have 0 (none with a5, none with circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a5 });
             Debug.Assert(result.Count == 0);
             Debug.Assert(moreRows == false);
 
             // ACL: Security group 2, circles a5. We should have 1 (none with a5, one with no circles)
-            cursor = new UnixTimeUtcUnique(0);
+            cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a5 });
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
@@ -2405,7 +2407,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
-            UnixTimeUtcUnique inCursor = UnixTimeUtcUnique.ZeroTime, outCursor = UnixTimeUtcUnique.ZeroTime;
+            string inCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
+            string outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             await tblDriveMainIndex.TestTouchAsync(driveId, f1); // Make sure we can find it
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 1, inCursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
@@ -2627,7 +2630,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 1);
             Debug.Assert(moreRows == false);
 
-            UnixTimeUtcUnique inCursor = UnixTimeUtcUnique.ZeroTime, outCursor = UnixTimeUtcUnique.ZeroTime;
+            string inCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
+            string outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             await tblDriveMainIndex.TestTouchAsync(driveId, f1); // Make sure we can find it
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 1, inCursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
@@ -2851,7 +2855,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0); // There should be no more
             Debug.Assert(moreRows == false);
 
-            UnixTimeUtcUnique inCursor = UnixTimeUtcUnique.ZeroTime, outCursor = UnixTimeUtcUnique.ZeroTime;
+            string inCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
+            string outCursor = UnixTimeUtcUnique.ZeroTime.uniqueTime.ToString();
             // Now let's be sure that there are no modified items. 0 gets everything that was ever modified
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, inCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
@@ -2880,7 +2885,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(md.dataType == 6);
             Debug.Assert(md.userDate == new UnixTimeUtc(42));
 
-            Assert.True(md.requiredSecurityGroup == 333);
+            ClassicAssert.True(md.requiredSecurityGroup == 333);
 
             // UInt64 tmpCursor = UnixTime.UnixTimeMillisecondsUnique();
             // Now check that we can't find the one modified item with a newer cursor 

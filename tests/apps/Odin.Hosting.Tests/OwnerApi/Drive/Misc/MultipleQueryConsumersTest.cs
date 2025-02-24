@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -90,14 +91,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
                 FileType = new[] { standardFile.AppData.FileType }
             });
 
-            Assert.IsNotNull(standardFileResults.SearchResults.SingleOrDefault(f => f.FileId == standardFileUploadResult.File.FileId));
+            ClassicAssert.IsNotNull(standardFileResults.SearchResults.SingleOrDefault(f => f.FileId == standardFileUploadResult.File.FileId));
 
             var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Comment, new FileQueryParams()
             {
                 TargetDrive = targetDrive,
                 FileType = new[] { commentFile.AppData.FileType }
             });
-            Assert.IsNotNull(commentFileResults.SearchResults.SingleOrDefault(f => f.FileId == commentFileUploadResult.File.FileId));
+            ClassicAssert.IsNotNull(commentFileResults.SearchResults.SingleOrDefault(f => f.FileId == commentFileUploadResult.File.FileId));
         }
     }
 }

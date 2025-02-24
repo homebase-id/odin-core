@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -59,8 +60,8 @@ namespace Odin.Hosting.Tests.Performance.DotYouContext
 
             var identResponse = await svc.GetIdent();
             var ident = identResponse.Content;
-            Assert.IsFalse(string.IsNullOrEmpty(ident.OdinId));
-            Assert.IsTrue(ident.Version == 1.0);
+            ClassicAssert.IsFalse(string.IsNullOrEmpty(ident.OdinId));
+            ClassicAssert.IsTrue(ident.Version == 1.0);
         }
 
         [Test]
@@ -68,7 +69,7 @@ namespace Odin.Hosting.Tests.Performance.DotYouContext
         {
             var (appApiClient, drive) = await CreateApp(TestIdentities.Samwise);
             var context = await appApiClient.Security.GetSecurityContext();
-            Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
+            ClassicAssert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
         }
 
         /*  After DB caching
@@ -109,7 +110,7 @@ namespace Odin.Hosting.Tests.Performance.DotYouContext
                 sw.Restart();
 
                 var context = await ownerClient.Security.GetSecurityContext();
-                Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
+                ClassicAssert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
 
                 timers[count] = sw.ElapsedMilliseconds;
             }

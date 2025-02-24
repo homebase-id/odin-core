@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -121,8 +122,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             transitOptions,
             keyHeader);
 
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -132,19 +133,19 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         // verify setup
 
         var getHeaderToVerifyResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderToVerifyResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderToVerifyResponse.IsSuccessStatusCode);
         var headerToVerify = getHeaderToVerifyResponse.Content;
-        Assert.IsNotNull(headerToVerify);
-        Assert.IsTrue(headerToVerify.FileMetadata.IsEncrypted);
-        Assert.IsTrue(headerToVerify.FileMetadata.AppData.Content == encryptedJsonContent64);
-        Assert.IsTrue(headerToVerify.FileMetadata.AppData.DataType == uploadedFileMetadata.AppData.DataType);
-        Assert.IsTrue(headerToVerify.FileMetadata.VersionTag == uploadResult.NewVersionTag);
-        Assert.IsFalse(headerToVerify.FileMetadata.Payloads.Any());
+        ClassicAssert.IsNotNull(headerToVerify);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.IsEncrypted);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.AppData.Content == encryptedJsonContent64);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.AppData.DataType == uploadedFileMetadata.AppData.DataType);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.VersionTag == uploadResult.NewVersionTag);
+        ClassicAssert.IsFalse(headerToVerify.FileMetadata.Payloads.Any());
 
         var localSS = ownerApiClient.GetTokenContext().SharedSecret;
         var localKeyHeaderToVerify = headerToVerify.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref localSS);
         var localDecryptedBytes = localKeyHeaderToVerify.Decrypt(headerToVerify.FileMetadata.AppData.Content.FromBase64());
-        Assert.IsTrue(localDecryptedBytes.ToStringFromUtf8Bytes() == originalUploadedContent);
+        ClassicAssert.IsTrue(localDecryptedBytes.ToStringFromUtf8Bytes() == originalUploadedContent);
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -188,27 +189,27 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedContent64, _, _) =
             await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [], keyHeader);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            Assert.IsNotNull(updateFileResponse.Content);
-            await callerDriveClient.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            ClassicAssert.IsNotNull(updateFileResponse.Content);
+            await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.IsEncrypted);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedContent64);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-            Assert.IsFalse(header.FileMetadata.Payloads.Any());
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.IsEncrypted);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedContent64);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
@@ -220,10 +221,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
 
             // ensure the recipients get the file
 
@@ -234,31 +235,31 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                     await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
                 var remoteFileHeader = recipientFileResponse.Content.SearchResults.FirstOrDefault();
 
-                Assert.IsNotNull(remoteFileHeader);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.IsEncrypted);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedEncryptedContent64); //latest update
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-                Assert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
+                ClassicAssert.IsNotNull(remoteFileHeader);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.IsEncrypted);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedEncryptedContent64); //latest update
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+                ClassicAssert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
 
                 // validate we can decrypt it on the recipient
                 // remoteFileHeader.FileMetadata.AppData.Content
 
                 var sharedSecret = recipientOwnerClient.GetTokenContext().SharedSecret;
                 var remoteKeyHeader = remoteFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
                 var decryptedBytes = remoteKeyHeader.Decrypt(remoteFileHeader.FileMetadata.AppData.Content.FromBase64());
-                Assert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
+                ClassicAssert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
 
 
                 // valid recipient got the notification
                 var allNotificationsResponse = await recipientOwnerClient.AppNotifications.GetList(100);
-                Assert.IsTrue(allNotificationsResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(allNotificationsResponse.IsSuccessStatusCode);
                 var notifications = allNotificationsResponse.Content;
-                Assert.IsNotNull(notifications);
+                ClassicAssert.IsNotNull(notifications);
 
-                Assert.IsNotNull(notifications.Results.SingleOrDefault(
+                ClassicAssert.IsNotNull(notifications.Results.SingleOrDefault(
                     n => n.SenderId == ownerApiClient.OdinId
                          && n.Options.TypeId == updateInstructionSet.AppNotificationOptions.TypeId
                          && n.Options.PeerSubscriptionId == updateInstructionSet.AppNotificationOptions.PeerSubscriptionId
@@ -321,8 +322,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             transitOptions,
             keyHeader);
 
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -332,19 +333,19 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         // verify setup
 
         var getHeaderToVerifyResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderToVerifyResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderToVerifyResponse.IsSuccessStatusCode);
         var headerToVerify = getHeaderToVerifyResponse.Content;
-        Assert.IsNotNull(headerToVerify);
-        Assert.IsTrue(headerToVerify.FileMetadata.IsEncrypted);
-        Assert.IsTrue(headerToVerify.FileMetadata.AppData.Content == encryptedJsonContent64);
-        Assert.IsTrue(headerToVerify.FileMetadata.AppData.DataType == uploadedFileMetadata.AppData.DataType);
-        Assert.IsTrue(headerToVerify.FileMetadata.VersionTag == uploadResult.NewVersionTag);
-        Assert.IsFalse(headerToVerify.FileMetadata.Payloads.Any());
+        ClassicAssert.IsNotNull(headerToVerify);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.IsEncrypted);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.AppData.Content == encryptedJsonContent64);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.AppData.DataType == uploadedFileMetadata.AppData.DataType);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.VersionTag == uploadResult.NewVersionTag);
+        ClassicAssert.IsFalse(headerToVerify.FileMetadata.Payloads.Any());
 
         var localSS = ownerApiClient.GetTokenContext().SharedSecret;
         var localKeyHeaderToVerify = headerToVerify.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref localSS);
         var localDecryptedBytes = localKeyHeaderToVerify.Decrypt(headerToVerify.FileMetadata.AppData.Content.FromBase64());
-        Assert.IsTrue(localDecryptedBytes.ToStringFromUtf8Bytes() == originalUploadedContent);
+        ClassicAssert.IsTrue(localDecryptedBytes.ToStringFromUtf8Bytes() == originalUploadedContent);
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -388,27 +389,27 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedContent64, _, _) =
             await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [], keyHeader);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            Assert.IsNotNull(updateFileResponse.Content);
-            await callerDriveClient.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            ClassicAssert.IsNotNull(updateFileResponse.Content);
+            await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.IsEncrypted);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedContent64);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-            Assert.IsFalse(header.FileMetadata.Payloads.Any());
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.IsEncrypted);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedContent64);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
@@ -420,10 +421,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
 
             // ensure the recipients get the file
 
@@ -434,31 +435,31 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                     await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
                 var remoteFileHeader = recipientFileResponse.Content.SearchResults.FirstOrDefault();
 
-                Assert.IsNotNull(remoteFileHeader);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.IsEncrypted);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedEncryptedContent64); //latest update
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-                Assert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
+                ClassicAssert.IsNotNull(remoteFileHeader);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.IsEncrypted);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedEncryptedContent64); //latest update
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+                ClassicAssert.IsFalse(remoteFileHeader.FileMetadata.Payloads.Any());
 
                 // validate we can decrypt it on the recipient
                 // remoteFileHeader.FileMetadata.AppData.Content
 
                 var sharedSecret = recipientOwnerClient.GetTokenContext().SharedSecret;
                 var remoteKeyHeader = remoteFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
                 var decryptedBytes = remoteKeyHeader.Decrypt(remoteFileHeader.FileMetadata.AppData.Content.FromBase64());
-                Assert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
+                ClassicAssert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
 
 
                 // valid recipient got the notification
                 var allNotificationsResponse = await recipientOwnerClient.AppNotifications.GetList(100);
-                Assert.IsTrue(allNotificationsResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(allNotificationsResponse.IsSuccessStatusCode);
                 var notifications = allNotificationsResponse.Content;
-                Assert.IsNotNull(notifications);
+                ClassicAssert.IsNotNull(notifications);
 
-                Assert.IsNotNull(notifications.Results.SingleOrDefault(
+                ClassicAssert.IsNotNull(notifications.Results.SingleOrDefault(
                     n => n.SenderId == ownerApiClient.OdinId
                          && n.Options.TypeId == updateInstructionSet.AppNotificationOptions.TypeId
                          && n.Options.PeerSubscriptionId == updateInstructionSet.AppNotificationOptions.PeerSubscriptionId
@@ -516,8 +517,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             uploadManifest,
             testPayloads);
 
-        Assert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+        await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
@@ -527,22 +528,22 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         // verify setup
 
         var getHeaderToVerifyResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(getHeaderToVerifyResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderToVerifyResponse.IsSuccessStatusCode);
         var headerToVerify = getHeaderToVerifyResponse.Content;
-        Assert.IsNotNull(headerToVerify);
-        Assert.IsTrue(headerToVerify.FileMetadata.IsEncrypted);
-        Assert.IsTrue(headerToVerify.FileMetadata.AppData.Content == encryptedJsonContent64);
-        Assert.IsTrue(headerToVerify.FileMetadata.AppData.DataType == uploadedFileMetadata.AppData.DataType);
-        Assert.IsTrue(headerToVerify.FileMetadata.VersionTag == uploadResult.NewVersionTag);
-        Assert.IsTrue(headerToVerify.FileMetadata.Payloads.Count == testPayloads.Count);
-        Assert.IsTrue(headerToVerify.FileMetadata.Payloads.Any(pd => pd.Key == payloadToBeDeleted.Key),
+        ClassicAssert.IsNotNull(headerToVerify);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.IsEncrypted);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.AppData.Content == encryptedJsonContent64);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.AppData.DataType == uploadedFileMetadata.AppData.DataType);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.VersionTag == uploadResult.NewVersionTag);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.Payloads.Count == testPayloads.Count);
+        ClassicAssert.IsTrue(headerToVerify.FileMetadata.Payloads.Any(pd => pd.Key == payloadToBeDeleted.Key),
             "payloadToBeDeleted should be in the initial file upload:)");
 
 
         var localSS = ownerApiClient.GetTokenContext().SharedSecret;
         var localKeyHeaderToVerify = headerToVerify.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref localSS);
         var localDecryptedBytes = localKeyHeaderToVerify.Decrypt(headerToVerify.FileMetadata.AppData.Content.FromBase64());
-        Assert.IsTrue(localDecryptedBytes.ToStringFromUtf8Bytes() == originalUploadedContent);
+        ClassicAssert.IsTrue(localDecryptedBytes.ToStringFromUtf8Bytes() == originalUploadedContent);
 
         //
         // Act - call update batch with UpdateLocale = Local
@@ -604,29 +605,29 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         var callerDriveClient = new UniversalDriveApiClient(sender.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedContent64, _, _) =
             await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd], keyHeader);
-        Assert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
-            Assert.IsNotNull(updateFileResponse.Content);
-            await callerDriveClient.WaitForEmptyOutbox(targetDrive, TimeSpan.FromHours(1));
+            ClassicAssert.IsNotNull(updateFileResponse.Content);
+            await callerDriveClient.WaitForEmptyOutbox(targetDrive);
 
             //
             // ensure the local file exists and is updated correctly
             //
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.IsEncrypted);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedContent64);
-            Assert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-            Assert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-            Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.IsEncrypted);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedEncryptedContent64);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsTrue(header.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
                 "payloadToAdd should have been, well, added :)");
-            Assert.IsFalse(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToBeDeleted.Key),
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToBeDeleted.Key),
                 "payload 1 should have been removed:)");
 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
@@ -639,10 +640,10 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                 ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
             });
 
-            Assert.IsTrue(searchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFileSearchResult);
-            Assert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
 
             // ensure the recipients get the file
 
@@ -653,14 +654,14 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                     await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(targetGlobalTransitIdFileIdentifier);
                 var remoteFileHeader = recipientFileResponse.Content.SearchResults.FirstOrDefault();
 
-                Assert.IsNotNull(remoteFileHeader);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.IsEncrypted);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedEncryptedContent64); //latest update
-                Assert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
-                Assert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
-                Assert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
+                ClassicAssert.IsNotNull(remoteFileHeader);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.IsEncrypted);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.Content == updatedEncryptedContent64); //latest update
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(remoteFileHeader.FileMetadata.VersionTag == updateFileResponse.Content.NewVersionTag);
+                ClassicAssert.IsTrue(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToAdd.Key),
                     "payloadToAdd should have been, well, added :)");
-                Assert.IsFalse(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToBeDeleted.Key),
+                ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any(pd => pd.Key == payloadToBeDeleted.Key),
                     "payload 1 should have been removed:)");
 
                 // validate we can decrypt it on the recipient
@@ -668,19 +669,19 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
                 var sharedSecret = recipientOwnerClient.GetTokenContext().SharedSecret;
                 var remoteKeyHeader = remoteFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.Iv, remoteKeyHeader.Iv));
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(keyHeader.AesKey.GetKey(), remoteKeyHeader.AesKey.GetKey()));
                 var decryptedBytes = remoteKeyHeader.Decrypt(remoteFileHeader.FileMetadata.AppData.Content.FromBase64());
-                Assert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
+                ClassicAssert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == updatedContentToBeDistributed);
 
 
                 // valid recipient got the notification
                 var allNotificationsResponse = await recipientOwnerClient.AppNotifications.GetList(100);
-                Assert.IsTrue(allNotificationsResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(allNotificationsResponse.IsSuccessStatusCode);
                 var notifications = allNotificationsResponse.Content;
-                Assert.IsNotNull(notifications);
+                ClassicAssert.IsNotNull(notifications);
 
-                Assert.IsNotNull(notifications.Results.SingleOrDefault(
+                ClassicAssert.IsNotNull(notifications.Results.SingleOrDefault(
                     n => n.SenderId == ownerApiClient.OdinId
                          && n.Options.TypeId == updateInstructionSet.AppNotificationOptions.TypeId
                          && n.Options.PeerSubscriptionId == updateInstructionSet.AppNotificationOptions.PeerSubscriptionId
@@ -704,7 +705,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             var client = _scaffold.CreateOwnerApiClientRedux(recipient);
             await client.Configuration.DisableAutoAcceptIntroductions(true);
 
-            Assert.IsTrue((await client.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true,
+            ClassicAssert.IsTrue((await client.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true,
                     attributes: new() { { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString } }
                 ))
                 .IsSuccessStatusCode);
@@ -728,9 +729,9 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
                 PermissionSet = null
             };
 
-            Assert.IsTrue((await client.Network.CreateCircle(circleId, "some circle", grant)).IsSuccessStatusCode);
-            Assert.IsTrue((await client.Connections.SendConnectionRequest(sender.OdinId, [circleId])).IsSuccessStatusCode);
-            Assert.IsTrue((await senderClient.Connections.AcceptConnectionRequest(recipient.OdinId, [])).IsSuccessStatusCode);
+            ClassicAssert.IsTrue((await client.Network.CreateCircle(circleId, "some circle", grant)).IsSuccessStatusCode);
+            ClassicAssert.IsTrue((await client.Connections.SendConnectionRequest(sender.OdinId, [circleId])).IsSuccessStatusCode);
+            ClassicAssert.IsTrue((await senderClient.Connections.AcceptConnectionRequest(recipient.OdinId, [])).IsSuccessStatusCode);
         }
     }
 

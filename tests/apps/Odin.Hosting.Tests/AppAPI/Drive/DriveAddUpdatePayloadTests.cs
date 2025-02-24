@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -121,7 +122,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var getHeaderResponse = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsTrue(getHeaderResponse.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.Count() == thumbnails.Count(), "Missing one or more thumbnails");
+            ClassicAssert.IsTrue(getHeaderResponse.FileMetadata.GetPayloadDescriptor(WebScaffold.PAYLOAD_KEY).Thumbnails.Count() == thumbnails.Count(), "Missing one or more thumbnails");
             return (uploadResult, thumbnails);
         }
     }

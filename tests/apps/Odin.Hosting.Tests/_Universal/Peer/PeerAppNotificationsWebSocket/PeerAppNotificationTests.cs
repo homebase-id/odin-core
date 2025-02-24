@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -150,11 +151,11 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
             //create remote tokens for listening to peer app notifications
             var frodoGetTokenResponse = await frodo.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
             var frodoToken = frodoGetTokenResponse.Content!.ToCat();
-            Assert.IsTrue(frodoGetTokenResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(frodoGetTokenResponse.IsSuccessStatusCode);
 
             var samGetTokenResponse = await sam.PeerAppNotification.GetRemoteNotificationToken(getTokenRequest);
             var samToken = samGetTokenResponse.Content!.ToCat();
-            Assert.IsTrue(samGetTokenResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(samGetTokenResponse.IsSuccessStatusCode);
 
             await _samSocketHandler.ConnectAsync(hostIdentity.Identity.OdinId, frodoToken, targetDrives);
             _samSocketHandler.FileAdded += SamSocketHandlerOnFileAdded;

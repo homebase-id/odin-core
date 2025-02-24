@@ -1,5 +1,6 @@
 using System;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 
 namespace Odin.Core.Tests
@@ -20,8 +21,8 @@ namespace Odin.Core.Tests
         {
             string gandalf_as_string = (OdinId) gandalf;
 
-            Assert.IsTrue(gandalf_as_string == gandalf);
-            Assert.IsFalse(gandalf_as_string == sam);
+            ClassicAssert.IsTrue(gandalf_as_string == gandalf);
+            ClassicAssert.IsFalse(gandalf_as_string == sam);
         }
 
         [Test(Description = "Can cast from string")]
@@ -29,20 +30,20 @@ namespace Odin.Core.Tests
         {
             string id = "arwen.middleearth.life";
             OdinId arwen = (OdinId) id;
-            Assert.IsTrue(string.Equals(id, arwen.ToString(), StringComparison.InvariantCultureIgnoreCase));
+            ClassicAssert.IsTrue(string.Equals(id, arwen.ToString(), StringComparison.InvariantCultureIgnoreCase));
         }
 
         [Test(Description = "Can == two instances")]
         public void CanCompareTwoInstancesEqually()
         {
             var sam2 = new OdinId("sam.dotyou.cloud");
-            Assert.IsTrue(sam2 == sam);
+            ClassicAssert.IsTrue(sam2 == sam);
         }
 
         [Test(Description = "Can != two instances")]
         public void CanCompareTwoInstancesNotEquals()
         {
-            Assert.IsTrue(sam != frodo);
+            ClassicAssert.IsTrue(sam != frodo);
         }
 
         [Test(Description = "Invalid names rejected")]
@@ -58,7 +59,7 @@ namespace Odin.Core.Tests
             {
                 bOk = true;
             }
-            Assert.IsTrue(bOk);
+            ClassicAssert.IsTrue(bOk);
 
             try
             {
@@ -69,7 +70,7 @@ namespace Odin.Core.Tests
             {
                 bOk = true;
             }
-            Assert.IsTrue(bOk);
+            ClassicAssert.IsTrue(bOk);
 
             try
             {
@@ -80,7 +81,7 @@ namespace Odin.Core.Tests
             {
                 bOk = true;
             }
-            Assert.IsTrue(bOk);
+            ClassicAssert.IsTrue(bOk);
 
             try
             {
@@ -91,7 +92,7 @@ namespace Odin.Core.Tests
             {
                 bOk = true;
             }
-            Assert.IsTrue(bOk);
+            ClassicAssert.IsTrue(bOk);
         }
 
     }

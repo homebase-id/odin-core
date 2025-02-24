@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http.HttpResults;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -78,17 +79,17 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 ProfileCardJson = expectedJson
             });
 
-            Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Actual status code was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Actual status code was {response.StatusCode}");
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {
                 var getProfileCardResponse2 = await client.StaticFilePublisher.GetPublicProfileCard();
-                Assert.IsTrue(getProfileCardResponse2.IsSuccessStatusCode);
-                Assert.IsNotNull(getProfileCardResponse2.Content);
-                Assert.IsTrue(getProfileCardResponse2!.ContentHeaders!.ContentType!.MediaType == MediaTypeNames.Application.Json);
+                ClassicAssert.IsTrue(getProfileCardResponse2.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getProfileCardResponse2.Content);
+                ClassicAssert.IsTrue(getProfileCardResponse2!.ContentHeaders!.ContentType!.MediaType == MediaTypeNames.Application.Json);
                 var json = await getProfileCardResponse2.Content.ReadAsStringAsync();
-                Assert.IsNotNull(json);
-                Assert.IsTrue(json == expectedJson);
+                ClassicAssert.IsNotNull(json);
+                ClassicAssert.IsTrue(json == expectedJson);
             }
         }
 
@@ -111,16 +112,16 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
                 ContentType = MediaTypeNames.Image.Jpeg
             });
 
-            Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Actual status code was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Actual status code was {response.StatusCode}");
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {
                 var getPublicProfileImage2 = await client.StaticFilePublisher.GetPublicProfileImage();
-                Assert.IsTrue(getPublicProfileImage2.IsSuccessStatusCode);
-                Assert.IsNotNull(getPublicProfileImage2.Content);
-                Assert.IsTrue(getPublicProfileImage2.ContentHeaders.ContentType.MediaType == MediaTypeNames.Image.Jpeg);
+                ClassicAssert.IsTrue(getPublicProfileImage2.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getPublicProfileImage2.Content);
+                ClassicAssert.IsTrue(getPublicProfileImage2.ContentHeaders.ContentType.MediaType == MediaTypeNames.Image.Jpeg);
                 var bytes = await getPublicProfileImage2.Content.ReadAsByteArrayAsync();
-                Assert.IsNotNull(ByteArrayUtil.EquiByteArrayCompare(expectedImage, bytes));
+                ClassicAssert.IsNotNull(ByteArrayUtil.EquiByteArrayCompare(expectedImage, bytes));
             }
         }
     }

@@ -207,12 +207,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         var ec = await _level2Cache.TryGetAsync<EncryptedTokenExchange?>(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
 
-        if (ec != null)
+        if (ec.HasValue)
         {
             await _level2Cache.RemoveAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
         }
 
-        return ec;
+        return ec.GetValueOrDefault();
     }
 
     //
