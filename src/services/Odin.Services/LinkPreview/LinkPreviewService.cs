@@ -38,6 +38,10 @@ public class LinkPreviewService(
     private const string IndexFileKey = "link-preview-service-index-file";
     private const string GenericLinkPreviewCacheKey = "link-preview-service-index-file";
     private const string DefaultPayloadKey = "dflt_key";
+
+    private const string DefaultTitle = "Homebase.id";
+    private const string DefaultDescription = "Decentralized identity powered by Homebase.id";
+
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
 
     private const int ChannelDefinitionFileType = 103;
@@ -54,14 +58,19 @@ public class LinkPreviewService(
         catch (Exception e)
         {
             logger.LogError(e, "Total Failure creating link-preview.  Writing plain index");
-            await WritePlainIndex(indexFilePath);
+            await WriteFallbackIndex(indexFilePath);
         }
     }
 
     public bool IsPostPath()
     {
+        return IsPath("/posts");
+    }
+
+    private bool IsPath(string path)
+    {
         var context = httpContextAccessor.HttpContext;
-        return context.Request.Path.StartsWithSegments("/posts");
+        return context.Request.Path.StartsWithSegments(path);
     }
 
     private async Task<bool> TryWritePostPreview(string indexFilePath, IOdinContext odinContext)
@@ -81,28 +90,26 @@ public class LinkPreviewService(
 
             string path = context.Request.Path.Value;
             var segments = path?.TrimEnd('/').Split('/');
-            if (segments == null || segments.Length < 3)
-            {
-                logger.LogDebug("Posts path has too few segments; falling back");
-                return false;
-            }
-
-            string channelKey = segments[2];
-            string postKey = segments[3];
-
-            var (success, title, imageUrl, description) = await TryParsePostFile(channelKey, postKey, odinContext, context.RequestAborted);
-
-            if (!success)
-            {
-                return false;
-            }
 
             string odinId = context.Request.Host.Host;
             var person = await GeneratePersonSchema();
+            
+            string title = $"{person?.Name ?? odinId} | Posts";
+            string description = DefaultDescription;
+            string imageUrl = null;
 
-            if (string.IsNullOrEmpty(title))
+            if (segments is { Length: >= 3 }) // we have channel key and post key; get the post info
             {
-                title = $"{person?.Name ?? odinId} | Homebase";
+                string channelKey = segments[2];
+                string postKey = segments[3];
+
+                (var success, title, imageUrl, description) =
+                    await TryParsePostFile(channelKey, postKey, odinContext, context.RequestAborted);
+
+                if (!success)
+                {
+                    return false;
+                }
             }
 
             if (string.IsNullOrEmpty(imageUrl))
@@ -112,12 +119,9 @@ public class LinkPreviewService(
 
             if (string.IsNullOrEmpty(description))
             {
-                description = "Decentralized identity powered by Homebase.id";
+                description = DefaultDescription;
             }
 
-            /*
-               /posts = Michael Seifert | Posts
-             */
             var content = await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, context.RequestAborted);
 
             await WriteAsync(content, context.RequestAborted);
@@ -355,8 +359,7 @@ public class LinkPreviewService(
         await WriteAsync(cache, context.RequestAborted);
     }
 
-
-    private async Task WritePlainIndex(string indexFilePath)
+    private async Task WriteFallbackIndex(string indexFilePath)
     {
         var context = httpContextAccessor.HttpContext;
 
@@ -376,10 +379,29 @@ public class LinkPreviewService(
             _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
             TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
 
-        var updatedContent = indexTemplate.Replace(IndexPlaceholder, "<title></title>");
+        var markup = PrepareBuilder(DefaultTitle, DefaultDescription);
+        var updatedContent = indexTemplate.Replace(IndexPlaceholder, markup.ToString());
         return updatedContent;
     }
 
+    private StringBuilder PrepareBuilder(string title, string description)
+    {
+        title = HttpUtility.HtmlEncode(title);
+        description = HttpUtility.HtmlEncode(description);
+
+        StringBuilder b = new StringBuilder(500);
+
+        b.Append($"<title>{title}</title>");
+        b.Append($"<meta property='description' content='{description}'/>\n");
+        b.Append($"<meta name='robots' content='index, follow'>");
+        b.Append($"<meta property='og:title' content='{title}'/>\n");
+        b.Append($"<meta property='og:description' content='{description}'/>\n");
+        b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
+        b.Append($"<meta property='og:site_name' content='{title}'/>\n");
+        b.Append($"<meta property='og:type' content='website'/>\n");
+
+        return b;
+    }
 
     private async Task<string> PrepareGenericPreview(string indexFilePath, CancellationToken cancellationToken)
     {
@@ -389,46 +411,40 @@ public class LinkPreviewService(
 
         var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
 
-        /*
-          / = Michael Seifert | Homebase.id
-          /links = Michael Seifert | Links
-          /about = Michael Seifert | About
-          /connections = Michael Seifert | Connections
-        */
-        var description = person?.Description ?? "Decentralized identity powered by Homebase.id";
-        var title = $"{person?.Name ?? odinId} | Homebase";
+        string suffix = DefaultTitle;
+        if (IsPath("/links"))
+        {
+            suffix = "Links";
+        }
 
+        if (IsPath("/about"))
+        {
+            suffix = "About";
+        }
+
+        if (IsPath("/connections"))
+        {
+            suffix = "Connections";
+        }
+
+        var title = $"{person?.Name ?? odinId} | {suffix}";
+        var description = person?.Description ?? DefaultDescription;
         return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, cancellationToken);
     }
 
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
         PersonSchema person, CancellationToken cancellationToken)
     {
-        StringBuilder b = new StringBuilder(500);
-
-        title = HttpUtility.HtmlEncode(title);
-        description = HttpUtility.HtmlEncode(description);
-
-        b.Append($"<title>{title}</title>");
-        b.Append($"<meta property='description' content='{description}'/>\n");
-
-        b.Append($"<meta name='robots' content='index, follow'>");
-        b.Append($"<meta property='og:title' content='{title}'/>\n");
-        b.Append($"<meta property='og:description' content='{description}'/>\n");
-
-        b.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
-        b.Append($"<meta property='og:site_name' content='{title}'/>\n");
-        b.Append($"<meta property='og:type' content='website'/>\n");
-
-        b.Append(PrepareIdentityContent(person));
+        var builder = PrepareBuilder(title, description);
+        builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
+        builder.Append(PrepareIdentityContent(person));
 
         var indexTemplate = await globalCache.GetOrSetAsync(
             IndexFileKey,
             _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
             TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
 
-        var updatedContent = indexTemplate.Replace(IndexPlaceholder, b.ToString());
+        var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString());
         return updatedContent;
     }
 
