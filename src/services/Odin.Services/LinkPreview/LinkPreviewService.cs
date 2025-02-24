@@ -98,8 +98,10 @@ public class LinkPreviewService(
             string description = DefaultDescription;
             string imageUrl = null;
 
-            if (segments is { Length: >= 3 }) // we have channel key and post key; get the post info
+            if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
             {
+                // segments[0] = ""  from the leading slash
+                // segments[1] = "posts"
                 string channelKey = segments[2];
                 string postKey = segments[3];
 
