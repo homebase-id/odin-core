@@ -129,8 +129,7 @@ public class PeerNotificationTests
         ClassicAssert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
         ClassicAssert.IsTrue(frodoTransferStatus == TransferStatus.Enqueued, $"transfer status: {frodoTransferStatus}");
 
-
-        await ownerFrodo.DriveRedux.WaitForEmptyOutbox(targetDrive);
+        await Task.Delay(500);
 
         // Frodo should have the notification in his list
 
