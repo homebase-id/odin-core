@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Controllers.ClientToken;
 using Odin.Hosting.Controllers.ClientToken.App;
 
@@ -57,14 +58,14 @@ namespace Odin.Hosting.Tests.AppAPI.Security
                 var request = new HttpRequestMessage(HttpMethod.Get, $"{AppApiPathConstants.AuthV1}/verifytoken");
                 var response = await client.SendAsync(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
 
-                Assert.IsTrue(response.Headers.TryGetValues(corsHeaderName, out var values), "could not find header");
+                ClassicAssert.IsTrue(response.Headers.TryGetValues(corsHeaderName, out var values), "could not find header");
 
                 var value = values.SingleOrDefault();
-                Assert.IsNotNull(value);
-                Assert.IsTrue(value == $"https://{appCorsHostName}:{WebScaffold.HttpsPort}");
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(value);
+                ClassicAssert.IsTrue(value == $"https://{appCorsHostName}:{WebScaffold.HttpsPort}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode);
             }
         }
 
@@ -84,14 +85,14 @@ namespace Odin.Hosting.Tests.AppAPI.Security
                 var request = new HttpRequestMessage(HttpMethod.Post, AppApiPathConstants.DriveV1 + "/system/isconfigured");
                 var response = await client.SendAsync(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Status code was {response.StatusCode}");
 
-                Assert.IsTrue(response.Headers.TryGetValues(corsHeaderName, out var values), "could not find header");
+                ClassicAssert.IsTrue(response.Headers.TryGetValues(corsHeaderName, out var values), "could not find header");
 
                 var value = values.SingleOrDefault();
-                Assert.IsNotNull(value);
-                Assert.IsTrue(value == $"https://{appCorsHostName}:{WebScaffold.HttpsPort}");
-                Assert.IsTrue(response.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(value);
+                ClassicAssert.IsTrue(value == $"https://{appCorsHostName}:{WebScaffold.HttpsPort}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode);
             }
         }
     }

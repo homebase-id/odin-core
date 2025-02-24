@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
@@ -134,9 +135,9 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             foreach (var uploadResult in _filesSentByFrodo)
             {
                 var fileByGtid = await sam.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-                Assert.IsTrue(fileByGtid.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(fileByGtid.IsSuccessStatusCode);
                 var file = fileByGtid.Content.SearchResults.FirstOrDefault();
-                Assert.IsNotNull(file, $"sender does not have file with gtid {uploadResult}");
+                ClassicAssert.IsNotNull(file, $"sender does not have file with gtid {uploadResult}");
             }
 
             CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
@@ -327,7 +328,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await recipient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, []);
 
             var getConnectionInfoResponse = await recipient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
         }
 
         private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)

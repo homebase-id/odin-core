@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cache;
 
 namespace Odin.Core.Tests.Cache;
@@ -22,30 +23,30 @@ public class GenericMemoryCacheTest
         cache.Set("foo", "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value);
         }
 
         cache.Set("foo", new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         var key = RandomNumberGenerator.GetBytes(16);
         cache.Set(key, "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet(key, out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value);
         }
 
         cache.Set(key, new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet<SampleValue>(key, out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         cache.Dispose();
@@ -66,8 +67,8 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return "bar";
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.AreEqual("bar", value);
-            Assert.AreEqual(1, factoryCallCount);
+            ClassicAssert.AreEqual("bar", value);
+            ClassicAssert.AreEqual(1, factoryCallCount);
         }
         {
             var factoryCallCount = 0;
@@ -76,13 +77,13 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return "bar";
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.AreEqual("bar", value);
-            Assert.AreEqual(0, factoryCallCount);
+            ClassicAssert.AreEqual("bar", value);
+            ClassicAssert.AreEqual(0, factoryCallCount);
         }
         {
             var hit = cache.TryGet("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value);
         }
 
         {
@@ -90,19 +91,19 @@ public class GenericMemoryCacheTest
             {
                 cache.GetOrCreate("foo", () => new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
             });
-            Assert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
+            ClassicAssert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
         }
 
         cache.Remove("foo");
 
         {
             var value = cache.GetOrCreate("foo", () => new SampleValue(), Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         cache.Dispose();
@@ -124,8 +125,8 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return "bar";
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.AreEqual("bar", value);
-            Assert.AreEqual(1, factoryCallCount);
+            ClassicAssert.AreEqual("bar", value);
+            ClassicAssert.AreEqual(1, factoryCallCount);
         }
         {
             var factoryCallCount = 0;
@@ -135,13 +136,13 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return "bar";
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.AreEqual("bar", value);
-            Assert.AreEqual(0, factoryCallCount);
+            ClassicAssert.AreEqual("bar", value);
+            ClassicAssert.AreEqual(0, factoryCallCount);
         }
         {
             var hit = cache.TryGet("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value);
         }
 
         {
@@ -153,7 +154,7 @@ public class GenericMemoryCacheTest
                     return new SampleValue();
                 }, Expiration.Relative(TimeSpan.FromSeconds(10)));
             });
-            Assert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
+            ClassicAssert.AreEqual("The item with key 'foo' cannot be cast to type SampleValue.", exception!.Message);
         }
 
         cache.Remove("foo");
@@ -164,12 +165,12 @@ public class GenericMemoryCacheTest
                 await Task.Delay(1);
                 return new SampleValue();
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         cache.Dispose();
@@ -190,8 +191,8 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return null;
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.IsNull(value);
-            Assert.AreEqual(1, factoryCallCount);
+            ClassicAssert.IsNull(value);
+            ClassicAssert.AreEqual(1, factoryCallCount);
         }
         {
             var factoryCallCount = 0;
@@ -200,13 +201,13 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return null;
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.IsNull(value);
-            Assert.AreEqual(0, factoryCallCount);
+            ClassicAssert.IsNull(value);
+            ClassicAssert.AreEqual(0, factoryCallCount);
         }
         {
             var hit = cache.TryGet("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.IsNull(value);
         }
 
         cache.Dispose();
@@ -228,8 +229,8 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return null;
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.IsNull(value);
-            Assert.AreEqual(1, factoryCallCount);
+            ClassicAssert.IsNull(value);
+            ClassicAssert.AreEqual(1, factoryCallCount);
         }
         {
             var factoryCallCount = 0;
@@ -239,13 +240,13 @@ public class GenericMemoryCacheTest
                 factoryCallCount++;
                 return null;
             }, Expiration.Relative(TimeSpan.FromSeconds(10)));
-            Assert.IsNull(value);
-            Assert.AreEqual(0, factoryCallCount);
+            ClassicAssert.IsNull(value);
+            ClassicAssert.AreEqual(0, factoryCallCount);
         }
         {
             var hit = cache.TryGet("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.IsNull(value);
         }
 
         cache.Dispose();
@@ -261,15 +262,15 @@ public class GenericMemoryCacheTest
         cache.Set("foo", null, Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.IsNull(value);
         }
 
         cache.Set("foo", null, Expiration.Relative(TimeSpan.FromSeconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.IsNull(value);
         }
 
         cache.Dispose();
@@ -284,14 +285,14 @@ public class GenericMemoryCacheTest
 
         {
             var hit = cache.TryGet("foo", out var value);
-            Assert.IsFalse(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsFalse(hit);
+            ClassicAssert.IsNull(value);
         }
 
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
-            Assert.IsFalse(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsFalse(hit);
+            ClassicAssert.IsNull(value);
         }
 
         cache.Dispose();
@@ -309,66 +310,66 @@ public class GenericMemoryCacheTest
         cache.Set("foo", new SampleValue(), Expiration.Relative(TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         var key = RandomNumberGenerator.GetBytes(16);
         cache.Set(key, new SampleValue(), Expiration.Relative(TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>(key, out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         cache.Set("zig", new SampleValue(), Expiration.Absolute(DateTimeOffset.Now + TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>("zig", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         var key2 = RandomNumberGenerator.GetBytes(16);
         cache.Set(key2, new SampleValue(), Expiration.Absolute(DateTimeOffset.Now + TimeSpan.FromMilliseconds(10)));
         {
             var hit = cache.TryGet<SampleValue>(key2, out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("bar", value!.Name);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("bar", value!.Name);
         }
 
         var darth = cache.GetOrCreate("darth", () => "bar", Expiration.Relative(TimeSpan.FromMilliseconds(10)));
-        Assert.AreEqual("bar", darth);
+        ClassicAssert.AreEqual("bar", darth);
 
         Thread.Sleep(200);
 
         {
             var hit = cache.TryGet<SampleValue>("foo", out var value);
-            Assert.IsFalse(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsFalse(hit);
+            ClassicAssert.IsNull(value);
         }
 
         {
             var hit = cache.TryGet<SampleValue>(key, out var value);
-            Assert.IsFalse(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsFalse(hit);
+            ClassicAssert.IsNull(value);
         }
 
         {
             var hit = cache.TryGet<SampleValue>("zig", out var value);
-            Assert.IsFalse(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsFalse(hit);
+            ClassicAssert.IsNull(value);
         }
 
         {
             var hit = cache.TryGet<SampleValue>(key2, out var value);
-            Assert.IsFalse(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsFalse(hit);
+            ClassicAssert.IsNull(value);
         }
 
         {
             var hit = cache.TryGet("darth", out var value);
-            Assert.IsFalse(hit);
-            Assert.IsNull(value);
+            ClassicAssert.IsFalse(hit);
+            ClassicAssert.IsNull(value);
         }
 
         cache.Dispose();
@@ -390,7 +391,7 @@ public class GenericMemoryCacheTest
             {
                 var hit = cache.TryGet<GenericMemoryCacheTest>("foo", out _);
             });
-            Assert.AreEqual("The item with key 'foo' cannot be cast to type GenericMemoryCacheTest.", exception!.Message);
+            ClassicAssert.AreEqual("The item with key 'foo' cannot be cast to type GenericMemoryCacheTest.", exception!.Message);
         }
 
         {
@@ -401,7 +402,7 @@ public class GenericMemoryCacheTest
             {
                 var hit = cache.TryGet<GenericMemoryCacheTest>(key, out _);
             });
-            Assert.AreEqual($"The item with key '{key.ToBase64()}' cannot be cast to type GenericMemoryCacheTest.", exception!.Message);
+            ClassicAssert.AreEqual($"The item with key '{key.ToBase64()}' cannot be cast to type GenericMemoryCacheTest.", exception!.Message);
         }
 
         cache.Dispose();
@@ -420,14 +421,14 @@ public class GenericMemoryCacheTest
 
         {
             var hit = cache.TryGet<ISomeInterface>(key, out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("Hello", value!.Value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("Hello", value!.Value);
         }
         // below is exactly the same as above
         {
             var hit = cache.TryGet(key, out ISomeInterface? value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("Hello", value!.Value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("Hello", value!.Value);
         }
 
         cache.Dispose();
@@ -446,14 +447,14 @@ public class GenericMemoryCacheTest
 
         {
             var hit = cache.TryGet<SomeAbstractClass>(key, out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("Hello", value!.Value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("Hello", value!.Value);
         }
         // below is exactly the same as above
         {
             var hit = cache.TryGet(key, out SomeAbstractClass? value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("Hello", value!.Value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("Hello", value!.Value);
         }
 
         cache.Dispose();
@@ -470,17 +471,17 @@ public class GenericMemoryCacheTest
         var key = RandomNumberGenerator.GetBytes(16);
         cache.Set(key, "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         var hit = cache.TryGet(key, out var value);
-        Assert.IsTrue(hit);
-        Assert.AreEqual("bar", value);
+        ClassicAssert.IsTrue(hit);
+        ClassicAssert.AreEqual("bar", value);
 
         var exists = cache.Contains(key);
-        Assert.IsTrue(exists);
+        ClassicAssert.IsTrue(exists);
 
         value = cache.Remove(key);
-        Assert.AreEqual("bar", value);
+        ClassicAssert.AreEqual("bar", value);
 
         exists = cache.Contains(key);
-        Assert.IsFalse(exists);
+        ClassicAssert.IsFalse(exists);
 
         cache.Dispose();
     }
@@ -496,16 +497,16 @@ public class GenericMemoryCacheTest
         var key = RandomNumberGenerator.GetBytes(16);
         cache.Set(key, "bar", Expiration.Relative(TimeSpan.FromSeconds(10)));
         var hit = cache.TryGet(key, out var value);
-        Assert.IsTrue(hit);
-        Assert.AreEqual("bar", value);
+        ClassicAssert.IsTrue(hit);
+        ClassicAssert.AreEqual("bar", value);
 
         var exists = cache.Contains(key);
-        Assert.IsTrue(exists);
+        ClassicAssert.IsTrue(exists);
 
         cache.Clear();
 
         exists = cache.Contains(key);
-        Assert.IsFalse(exists);
+        ClassicAssert.IsFalse(exists);
 
         cache.Dispose();
     }
@@ -523,7 +524,7 @@ public class GenericMemoryCacheTest
         var strings = new [] { "one", "two", "three" };
 
         var key = cache.GenerateKey("foo", strings);
-        Assert.AreEqual("foo:one:two:three", key);
+        ClassicAssert.AreEqual("foo:one:two:three", key);
 
         cache.Dispose();
     }
@@ -544,7 +545,7 @@ public class GenericMemoryCacheTest
         }
 
         var key = cache.GenerateKey("foo", byteArrays);
-        Assert.AreEqual("foo:Zm9v:YmFy:YmF6", key);
+        ClassicAssert.AreEqual("foo:Zm9v:YmFy:YmF6", key);
 
         cache.Dispose();
     }
@@ -579,21 +580,21 @@ public class GenericMemoryCacheTest
         {
             var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<GenericMemoryCacheTest>>();
             var hit = cache.TryGet("aaa", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("aaa", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("aaa", value);
 
             hit = cache.TryGet("111", out value);
-            Assert.IsFalse(hit);
+            ClassicAssert.IsFalse(hit);
         }
 
         {
             var cache = serviceProvider.GetRequiredService<IGenericMemoryCache<SampleValue>>();
             var hit = cache.TryGet("111", out var value);
-            Assert.IsTrue(hit);
-            Assert.AreEqual("111", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("111", value);
 
             hit = cache.TryGet("aaa", out value);
-            Assert.IsFalse(hit);
+            ClassicAssert.IsFalse(hit);
         }
     }
 
@@ -623,21 +624,21 @@ public class GenericMemoryCacheTest
         {
             var cache = serviceProvider.GetRequiredService<OpenGenericTestA>();
             var (hit, value) = cache.Load("aaa");
-            Assert.IsTrue(hit);
-            Assert.AreEqual("aaa", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("aaa", value);
 
             (hit, _) = cache.Load("111");
-            Assert.IsFalse(hit);
+            ClassicAssert.IsFalse(hit);
         }
 
         {
             var cache = serviceProvider.GetRequiredService<OpenGenericTestB>();
             var (hit, value) = cache.Load("111");
-            Assert.IsTrue(hit);
-            Assert.AreEqual("111", value);
+            ClassicAssert.IsTrue(hit);
+            ClassicAssert.AreEqual("111", value);
 
             (hit, _) = cache.Load("aaa");
-            Assert.IsFalse(hit);
+            ClassicAssert.IsFalse(hit);
         }
     }
 

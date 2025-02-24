@@ -3,6 +3,7 @@ using System.Collections;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -79,7 +80,7 @@ public class LocalAppMetadataEncryptedContentTests
         // Act
         var (prepareFileResponse, _) =
             await ownerApiClient.DriveRedux.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, keyHeader);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         // Act - update the local app metadata
@@ -99,17 +100,17 @@ public class LocalAppMetadataEncryptedContentTests
 
         var response = await callerDriveClient.UpdateLocalAppMetadataContent(request);
         var result = response.Content;
-        Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+        ClassicAssert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
 
         // Assert - getting the file should include the metadata
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Get the file and see that it's updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
         var theUpdatedFile = updatedFileResponse.Content;
 
         var decryptedBytes = AesCbc.Decrypt(theUpdatedFile.FileMetadata.LocalAppData.Content.FromBase64(), keyHeader.AesKey, request.Iv);
-        Assert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == content);
+        ClassicAssert.IsTrue(decryptedBytes.ToStringFromUtf8Bytes() == content);
     }
 
     [Test]
@@ -134,7 +135,7 @@ public class LocalAppMetadataEncryptedContentTests
         // Act
         var (prepareFileResponse, _) =
             await ownerApiClient.DriveRedux.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, keyHeader);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         // Act - update the local app metadata
@@ -153,6 +154,6 @@ public class LocalAppMetadataEncryptedContentTests
         };
 
         var response = await callerDriveClient.UpdateLocalAppMetadataContent(request);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
     }
 }

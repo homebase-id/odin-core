@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
@@ -320,8 +321,8 @@ public class JobManagerTests
         
         // Assert
         Assert.That(scheduledJob, Is.Not.Null);
-        Assert.AreEqual(job.JobData.SomeJobData, scheduledJob!.JobData.SomeJobData);
-        Assert.AreEqual("SimpleJobTest", scheduledJob!.Record!.name);
+        ClassicAssert.AreEqual(job.JobData.SomeJobData, scheduledJob!.JobData.SomeJobData);
+        ClassicAssert.AreEqual("SimpleJobTest", scheduledJob!.Record!.name);
         
         AssertLogEvents();
     }
@@ -345,7 +346,7 @@ public class JobManagerTests
         
         var scheduledJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
         Assert.That(scheduledJob, Is.Not.Null);
-        Assert.AreEqual(job.JobData.SomeJobData, scheduledJob!.JobData.SomeJobData);
+        ClassicAssert.AreEqual(job.JobData.SomeJobData, scheduledJob!.JobData.SomeJobData);
 
         // Act
         await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
@@ -354,7 +355,7 @@ public class JobManagerTests
         var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
         Assert.That(completedJob, Is.Not.Null);
         Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
-        Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
+        ClassicAssert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
         
         AssertLogEvents();
     }
@@ -387,7 +388,7 @@ public class JobManagerTests
         var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
         Assert.That(completedJob, Is.Not.Null);
         Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
-        Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
+        ClassicAssert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
 
         await StopBackgroundServices();
         AssertLogEvents();
@@ -434,7 +435,7 @@ public class JobManagerTests
             var completedJob = await jobManager.GetJobAsync<SimpleJobWithDelayTest>(jobId);
             Assert.That(completedJob, Is.Not.Null);
             Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
-            Assert.AreEqual("hurrah!", completedJob!.JobData.SomeSerializedData);
+            ClassicAssert.AreEqual("hurrah!", completedJob!.JobData.SomeSerializedData);
         }
 
         await StopBackgroundServices();
@@ -1151,7 +1152,7 @@ public class JobManagerTests
         var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(simpleJobId);
         Assert.That(completedJob, Is.Not.Null);
         Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
-        Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
+        ClassicAssert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
         
         AssertLogEvents();
     }
@@ -1186,7 +1187,7 @@ public class JobManagerTests
         var completedJob = await jobManager.GetJobAsync<SimpleJobTest>(simpleJobId);
         Assert.That(completedJob, Is.Not.Null);
         Assert.That(completedJob!.State, Is.EqualTo(JobState.Succeeded));
-        Assert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
+        ClassicAssert.AreEqual("hurrah!", completedJob!.JobData.SomeJobData);
 
         await StopBackgroundServices();
         AssertLogEvents();

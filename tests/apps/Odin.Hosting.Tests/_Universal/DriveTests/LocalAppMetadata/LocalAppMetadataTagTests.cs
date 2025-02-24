@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
@@ -79,7 +80,7 @@ public class LocalAppMetadataTests
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         // Act - update the local app metadata
@@ -96,18 +97,18 @@ public class LocalAppMetadataTests
         };
 
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var result = response.Content;
-            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+            ClassicAssert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
 
             // Get the file and see that it's updated
             var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-            Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
             var theUpdatedFile = updatedFileResponse.Content;
-            Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
+            ClassicAssert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
             CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request.Tags);
         }
     }
@@ -129,7 +130,7 @@ public class LocalAppMetadataTests
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1r1 = Guid.NewGuid();
@@ -143,12 +144,12 @@ public class LocalAppMetadataTests
 
         // first update - just use the owner api so we can prepare a file with a nonempty local version tag
         var prepareLocalMetadataResponse = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request1);
-        Assert.IsTrue(prepareLocalMetadataResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(prepareLocalMetadataResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {prepareLocalMetadataResponse.StatusCode}");
 
         // get the updated file and read the version tag from there; to ensure a test closer to what the FE would do
         var updatedFileResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(updatedFileResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(updatedFileResponse1.IsSuccessStatusCode);
         var latestLocalVersionTag = updatedFileResponse1.Content.FileMetadata.LocalAppData.VersionTag;
 
         //
@@ -166,16 +167,16 @@ public class LocalAppMetadataTests
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         var result = response.Content;
 
         // Get the file and see that it was updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
         var theUpdatedFile = updatedFileResponse.Content;
         CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request2.Tags);
-        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
+        ClassicAssert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
     }
 
     [Test]
@@ -195,7 +196,7 @@ public class LocalAppMetadataTests
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         // first set some content
@@ -206,13 +207,13 @@ public class LocalAppMetadataTests
             LocalVersionTag = Guid.Empty,
             Content = originalContent
         });
-        Assert.IsTrue(updateContentResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(updateContentResponse.IsSuccessStatusCode);
 
         // get the updated file and read the version tag from there; to ensure a test closer to what the FE would do
         // validate the content is set
         var updatedFileResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(updatedFileResponse1.IsSuccessStatusCode);
-        Assert.IsTrue(updatedFileResponse1.Content!.FileMetadata.LocalAppData.Content == originalContent);
+        ClassicAssert.IsTrue(updatedFileResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(updatedFileResponse1.Content!.FileMetadata.LocalAppData.Content == originalContent);
 
         var latestLocalVersionTag = updatedFileResponse1.Content.FileMetadata.LocalAppData.VersionTag;
 
@@ -231,17 +232,17 @@ public class LocalAppMetadataTests
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         var result = response.Content;
 
         // Get the file and see that it was updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
         var theUpdatedFile = updatedFileResponse.Content;
         CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request2.Tags);
-        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.Content == originalContent, "the original content should not have changed");
-        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
+        ClassicAssert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.Content == originalContent, "the original content should not have changed");
+        ClassicAssert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == result.NewLocalVersionTag);
     }
 
     [Test]
@@ -261,7 +262,7 @@ public class LocalAppMetadataTests
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1 = Guid.NewGuid();
@@ -275,7 +276,7 @@ public class LocalAppMetadataTests
 
         // first update - just use the owner api so we can prepare a file with a nonempty local version tag
         var prepareLocalMetadataResponse = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request1);
-        Assert.IsTrue(prepareLocalMetadataResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(prepareLocalMetadataResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {prepareLocalMetadataResponse.StatusCode}");
 
         var r = prepareLocalMetadataResponse.Content;
@@ -292,13 +293,13 @@ public class LocalAppMetadataTests
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request2);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
 
         // Get the file and see that it was not updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
-        Assert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
         var theUpdatedFile = updatedFileResponse.Content;
-        Assert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == expectedVersionTag);
+        ClassicAssert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.VersionTag == expectedVersionTag);
         CollectionAssert.AreEquivalent(theUpdatedFile.FileMetadata.LocalAppData.Tags, request1.Tags, "the content should not have changed");
     }
 
@@ -335,7 +336,7 @@ public class LocalAppMetadataTests
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
     }
 
     [Test]
@@ -354,7 +355,7 @@ public class LocalAppMetadataTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1 = Guid.NewGuid();
@@ -368,7 +369,7 @@ public class LocalAppMetadataTests
         };
 
         var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Act - update the local app metadata
 
@@ -389,15 +390,15 @@ public class LocalAppMetadataTests
         };
 
         var queryBatchResponse = await callerDriveClient.QueryBatch(qbr);
-        Assert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
+        ClassicAssert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var result = response.Content;
-            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+            ClassicAssert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
             var searchResults = queryBatchResponse.Content.SearchResults.ToList();
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
         }
     }
 
@@ -418,7 +419,7 @@ public class LocalAppMetadataTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1 = Guid.NewGuid();
@@ -433,7 +434,7 @@ public class LocalAppMetadataTests
         };
 
         var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Act - update the local app metadata
 
@@ -454,15 +455,15 @@ public class LocalAppMetadataTests
         };
 
         var queryBatchResponse = await callerDriveClient.QueryBatch(qbr);
-        Assert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
+        ClassicAssert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var result = response.Content;
-            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+            ClassicAssert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
             var searchResults = queryBatchResponse.Content.SearchResults.ToList();
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
         }
     }
 
@@ -483,7 +484,7 @@ public class LocalAppMetadataTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1 = Guid.NewGuid();
@@ -497,7 +498,7 @@ public class LocalAppMetadataTests
         };
 
         var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Act - update the local app metadata
 
@@ -519,15 +520,15 @@ public class LocalAppMetadataTests
         };
 
         var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
-        Assert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
+        ClassicAssert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var result = response.Content;
-            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+            ClassicAssert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
             var searchResults = queryBatchResponse.Content.SearchResults.ToList();
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
         }
     }
 
@@ -548,7 +549,7 @@ public class LocalAppMetadataTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
 
         var tag1 = Guid.NewGuid();
@@ -563,7 +564,7 @@ public class LocalAppMetadataTests
         };
 
         var response = await ownerApiClient.DriveRedux.UpdateLocalAppMetadataTags(request);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Act - update the local app metadata
 
@@ -585,15 +586,15 @@ public class LocalAppMetadataTests
         };
 
         var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
-        Assert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
+        ClassicAssert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var result = response.Content;
-            Assert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
+            ClassicAssert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
             var searchResults = queryBatchResponse.Content.SearchResults.ToList();
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
-            Assert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag1)));
+            ClassicAssert.IsTrue(searchResults.Any(r => r.FileMetadata.LocalAppData.Tags.Contains(tag2)));
         }
     }
 }

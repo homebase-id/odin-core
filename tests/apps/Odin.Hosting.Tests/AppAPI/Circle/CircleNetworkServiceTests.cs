@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
@@ -54,14 +55,14 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
 
                 var response = await svc.GetPendingRequestList(PageOptions.Default);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
-                Assert.IsNotNull(response.Content);
-                Assert.IsTrue(response.Content.TotalPages >= 1);
-                Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderOdinId == frodo.Identity),
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+                ClassicAssert.IsNotNull(response.Content);
+                ClassicAssert.IsTrue(response.Content.TotalPages >= 1);
+                ClassicAssert.IsTrue(response.Content.Results.Count >= 1);
+                ClassicAssert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderOdinId == frodo.Identity),
                     $"Could not find request from {frodo.Identity} in the results");
 
-                Assert.IsTrue(response.Content.Results.All(r => r.Payload == null), "Payload should not be sent to the client");
+                ClassicAssert.IsTrue(response.Content.Results.All(r => r.Payload == null), "Payload should not be sent to the client");
             }
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
@@ -69,10 +70,10 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
-                Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+                ClassicAssert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
                 var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sam.Identity });
-                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+                ClassicAssert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
 
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
@@ -91,11 +92,11 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
                 var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsClient>(client, frodo.SharedSecret.ToSensitiveByteArray());
                 var response = await svc.GetSentRequestList(PageOptions.Default);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
-                Assert.IsNotNull(response.Content, "No result returned");
-                Assert.IsTrue(response.Content.TotalPages >= 1);
-                Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity),
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+                ClassicAssert.IsNotNull(response.Content, "No result returned");
+                ClassicAssert.IsTrue(response.Content.TotalPages >= 1);
+                ClassicAssert.IsTrue(response.Content.Results.Count >= 1);
+                ClassicAssert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity),
                     $"Could not find request with recipient {sam.Identity} in the results");
             }
 
@@ -123,8 +124,8 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response.Content, "Failed sending the request");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+                ClassicAssert.IsTrue(response.Content, "Failed sending the request");
             }
 
             //check that sam got it
@@ -134,10 +135,10 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
 
                 var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
 
-                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
 
-                Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
-                Assert.IsTrue(response.Content.SenderOdinId == sender.Identity);
+                ClassicAssert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
+                ClassicAssert.IsTrue(response.Content.SenderOdinId == sender.Identity);
             }
 
             return (sender, recipient);
@@ -150,10 +151,10 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeletePendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
-                Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+                ClassicAssert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
                 var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sam.Identity });
-                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+                ClassicAssert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
@@ -161,10 +162,10 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
                 var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = sam.Identity });
-                Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+                ClassicAssert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
                 var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sam.Identity });
-                Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
+                ClassicAssert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
         }
     }

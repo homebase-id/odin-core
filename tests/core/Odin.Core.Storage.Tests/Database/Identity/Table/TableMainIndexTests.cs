@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -107,8 +108,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
             var (count, size) = await tblDriveMainIndex.GetDriveSizeDirtyAsync(driveId);
-            Assert.AreEqual(count, 5);
-            Assert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
+            ClassicAssert.AreEqual(count, 5);
+            ClassicAssert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
         }
 
         [Test]
@@ -126,8 +127,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var (count, size) = await tblDriveMainIndex.GetDriveSizeDirtyAsync(driveId);
-            Assert.AreEqual(count, 0);
-            Assert.AreEqual(size, 0);
+            ClassicAssert.AreEqual(count, 0);
+            ClassicAssert.AreEqual(size, 0);
         }
 
 
@@ -223,7 +224,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (md == null)
                 Assert.Fail();
 
-            Assert.IsTrue((md.created.ToUnixTimeUtc() >= cts1.ToUnixTimeUtc()) && (md.created.ToUnixTimeUtc() <= cts2.ToUnixTimeUtc()));
+            ClassicAssert.IsTrue((md.created.ToUnixTimeUtc() >= cts1.ToUnixTimeUtc()) && (md.created.ToUnixTimeUtc() <= cts2.ToUnixTimeUtc()));
 
             if (md.modified != null)
                 Assert.Fail();
@@ -234,7 +235,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (md.dataType != 42)
                 Assert.Fail();
 
-            Assert.True(md.requiredSecurityGroup == 44);
+            ClassicAssert.True(md.requiredSecurityGroup == 44);
 
             if (md.senderId.ToString() != sid1.ToString())
                 Assert.Fail();
@@ -444,12 +445,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             md.requiredSecurityGroup = 55;
             await tblDriveMainIndex.UpdateAsync(md);
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
-            Assert.True(md.requiredSecurityGroup == 55);
+            ClassicAssert.True(md.requiredSecurityGroup == 55);
 
             md.byteCount = 42;
             await tblDriveMainIndex.UpdateAsync(md);
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
-            Assert.True(md.byteCount == 42);
+            ClassicAssert.True(md.byteCount == 42);
 
             if (md.modified?.uniqueTime == 0)
                 Assert.Fail();
@@ -511,39 +512,39 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // Upsert the record
             var n = await tblDriveMainIndex.UpsertAsync(ndr);
-            Assert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
+            ClassicAssert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
 
             // Retrieve the record and verify
             var md = await tblDriveMainIndex.GetAsync(driveId, k1);
-            Assert.IsNotNull(md, "Retrieved record is null");
-            Assert.IsNull(md.modified, "Retrieved record should not have 'modified' set");
+            ClassicAssert.IsNotNull(md, "Retrieved record is null");
+            ClassicAssert.IsNull(md.modified, "Retrieved record should not have 'modified' set");
 
             // Validate all fields match between ndr and md
-            Assert.AreEqual(ndr.driveId, md.driveId, "DriveId mismatch");
-            Assert.AreEqual(ndr.fileId, md.fileId, "FileId mismatch");
-            Assert.AreEqual(ndr.globalTransitId, md.globalTransitId, "GlobalTransitId mismatch");
-            Assert.AreEqual(ndr.created, md.created, "Created timestamp mismatch");
-            Assert.AreEqual(ndr.fileType, md.fileType, "FileType mismatch");
-            Assert.AreEqual(ndr.dataType, md.dataType, "DataType mismatch");
-            Assert.AreEqual(ndr.senderId, md.senderId, "SenderId mismatch");
-            Assert.AreEqual(ndr.groupId, md.groupId, "GroupId mismatch");
-            Assert.AreEqual(ndr.uniqueId, md.uniqueId, "UniqueId mismatch");
-            Assert.AreEqual(ndr.userDate, md.userDate, "UserDate mismatch");
-            Assert.AreEqual(ndr.archivalStatus, md.archivalStatus, "ArchivalStatus mismatch");
-            Assert.AreEqual(ndr.historyStatus, md.historyStatus, "HistoryStatus mismatch");
-            Assert.AreEqual(ndr.requiredSecurityGroup, md.requiredSecurityGroup, "RequiredSecurityGroup mismatch");
-            Assert.AreEqual(ndr.byteCount, md.byteCount, "ByteCount mismatch");
-            Assert.AreEqual(ndr.hdrEncryptedKeyHeader, md.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch");
-            Assert.AreEqual(ndr.hdrVersionTag, md.hdrVersionTag, "HdrVersionTag mismatch");
-            Assert.AreEqual(ndr.hdrAppData, md.hdrAppData, "HdrAppData mismatch");
-            Assert.AreEqual(ndr.hdrReactionSummary, md.hdrReactionSummary, "HdrReactionSummary mismatch");
-            Assert.AreEqual(ndr.hdrServerData, md.hdrServerData, "HdrServerData mismatch");
-            Assert.AreEqual(ndr.hdrTransferHistory, md.hdrTransferHistory, "HdrTransferHistory mismatch");
-            Assert.AreEqual(ndr.hdrFileMetaData, md.hdrFileMetaData, "HdrFileMetaData mismatch");
-            Assert.AreEqual(ndr.hdrTmpDriveAlias, md.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch");
-            Assert.AreEqual(ndr.hdrTmpDriveType, md.hdrTmpDriveType, "HdrTmpDriveType mismatch");
-            Assert.AreEqual(ndr.hdrLocalVersionTag, md.hdrLocalVersionTag, "HdrLocalVersionTag mismatch");
-            Assert.AreEqual(ndr.hdrLocalAppData, md.hdrLocalAppData, "HdrLocalAppData mismatch");
+            ClassicAssert.AreEqual(ndr.driveId, md.driveId, "DriveId mismatch");
+            ClassicAssert.AreEqual(ndr.fileId, md.fileId, "FileId mismatch");
+            ClassicAssert.AreEqual(ndr.globalTransitId, md.globalTransitId, "GlobalTransitId mismatch");
+            ClassicAssert.AreEqual(ndr.created, md.created, "Created timestamp mismatch");
+            ClassicAssert.AreEqual(ndr.fileType, md.fileType, "FileType mismatch");
+            ClassicAssert.AreEqual(ndr.dataType, md.dataType, "DataType mismatch");
+            ClassicAssert.AreEqual(ndr.senderId, md.senderId, "SenderId mismatch");
+            ClassicAssert.AreEqual(ndr.groupId, md.groupId, "GroupId mismatch");
+            ClassicAssert.AreEqual(ndr.uniqueId, md.uniqueId, "UniqueId mismatch");
+            ClassicAssert.AreEqual(ndr.userDate, md.userDate, "UserDate mismatch");
+            ClassicAssert.AreEqual(ndr.archivalStatus, md.archivalStatus, "ArchivalStatus mismatch");
+            ClassicAssert.AreEqual(ndr.historyStatus, md.historyStatus, "HistoryStatus mismatch");
+            ClassicAssert.AreEqual(ndr.requiredSecurityGroup, md.requiredSecurityGroup, "RequiredSecurityGroup mismatch");
+            ClassicAssert.AreEqual(ndr.byteCount, md.byteCount, "ByteCount mismatch");
+            ClassicAssert.AreEqual(ndr.hdrEncryptedKeyHeader, md.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch");
+            ClassicAssert.AreEqual(ndr.hdrVersionTag, md.hdrVersionTag, "HdrVersionTag mismatch");
+            ClassicAssert.AreEqual(ndr.hdrAppData, md.hdrAppData, "HdrAppData mismatch");
+            ClassicAssert.AreEqual(ndr.hdrReactionSummary, md.hdrReactionSummary, "HdrReactionSummary mismatch");
+            ClassicAssert.AreEqual(ndr.hdrServerData, md.hdrServerData, "HdrServerData mismatch");
+            ClassicAssert.AreEqual(ndr.hdrTransferHistory, md.hdrTransferHistory, "HdrTransferHistory mismatch");
+            ClassicAssert.AreEqual(ndr.hdrFileMetaData, md.hdrFileMetaData, "HdrFileMetaData mismatch");
+            ClassicAssert.AreEqual(ndr.hdrTmpDriveAlias, md.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch");
+            ClassicAssert.AreEqual(ndr.hdrTmpDriveType, md.hdrTmpDriveType, "HdrTmpDriveType mismatch");
+            ClassicAssert.AreEqual(ndr.hdrLocalVersionTag, md.hdrLocalVersionTag, "HdrLocalVersionTag mismatch");
+            ClassicAssert.AreEqual(ndr.hdrLocalAppData, md.hdrLocalAppData, "HdrLocalAppData mismatch");
 
             // Modify all fields except driveId and fileId
             md.fileType = 8;
@@ -570,35 +571,35 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // Upsert the modified record
             var n2 = await tblDriveMainIndex.UpsertAsync(md);
-            Assert.AreEqual(1, n2, "Upsert failed for modified record");
+            ClassicAssert.AreEqual(1, n2, "Upsert failed for modified record");
 
             // Retrieve the updated record and verify modifications
             var md2 = await tblDriveMainIndex.GetAsync(driveId, k1);
-            Assert.IsNotNull(md2, "Retrieved modified record is null");
-            Assert.IsNotNull(md2.modified, "Modified record should have 'modified' set");
+            ClassicAssert.IsNotNull(md2, "Retrieved modified record is null");
+            ClassicAssert.IsNotNull(md2.modified, "Modified record should have 'modified' set");
 
             // Validate all modified fields match
-            Assert.AreEqual(md.fileType, md2.fileType, "FileType mismatch after modification");
-            Assert.AreEqual(md.dataType, md2.dataType, "DataType mismatch after modification");
-            Assert.AreEqual(md.senderId, md2.senderId, "SenderId mismatch after modification");
-            Assert.AreEqual(md.groupId, md2.groupId, "GroupId mismatch after modification");
-            Assert.AreEqual(md.uniqueId, md2.uniqueId, "UniqueId mismatch after modification");
-            Assert.AreEqual(md.userDate, md2.userDate, "UserDate mismatch after modification");
-            Assert.AreEqual(md.archivalStatus, md2.archivalStatus, "ArchivalStatus mismatch after modification");
-            Assert.AreEqual(md.historyStatus, md2.historyStatus, "HistoryStatus mismatch after modification");
-            Assert.AreEqual(md.requiredSecurityGroup, md2.requiredSecurityGroup, "RequiredSecurityGroup mismatch after modification");
-            Assert.AreEqual(md.byteCount, md2.byteCount, "ByteCount mismatch after modification");
-            Assert.AreEqual(md.hdrEncryptedKeyHeader, md2.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch after modification");
-            Assert.AreEqual(md.hdrVersionTag, md2.hdrVersionTag, "HdrVersionTag mismatch after modification");
-            Assert.AreEqual(md.hdrAppData, md2.hdrAppData, "HdrAppData mismatch after modification");
-            Assert.AreEqual(md.hdrReactionSummary, md2.hdrReactionSummary, "HdrReactionSummary mismatch after modification");
-            Assert.AreEqual(md.hdrServerData, md2.hdrServerData, "HdrServerData mismatch after modification");
-            Assert.AreEqual(md.hdrTransferHistory, md2.hdrTransferHistory, "HdrTransferHistory mismatch after modification");
-            Assert.AreEqual(md.hdrFileMetaData, md2.hdrFileMetaData, "HdrFileMetaData mismatch after modification");
-            Assert.AreEqual(md.hdrTmpDriveAlias, md2.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch after modification");
-            Assert.AreEqual(md.hdrTmpDriveType, md2.hdrTmpDriveType, "HdrTmpDriveType mismatch after modification");
-            Assert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
-            Assert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
+            ClassicAssert.AreEqual(md.fileType, md2.fileType, "FileType mismatch after modification");
+            ClassicAssert.AreEqual(md.dataType, md2.dataType, "DataType mismatch after modification");
+            ClassicAssert.AreEqual(md.senderId, md2.senderId, "SenderId mismatch after modification");
+            ClassicAssert.AreEqual(md.groupId, md2.groupId, "GroupId mismatch after modification");
+            ClassicAssert.AreEqual(md.uniqueId, md2.uniqueId, "UniqueId mismatch after modification");
+            ClassicAssert.AreEqual(md.userDate, md2.userDate, "UserDate mismatch after modification");
+            ClassicAssert.AreEqual(md.archivalStatus, md2.archivalStatus, "ArchivalStatus mismatch after modification");
+            ClassicAssert.AreEqual(md.historyStatus, md2.historyStatus, "HistoryStatus mismatch after modification");
+            ClassicAssert.AreEqual(md.requiredSecurityGroup, md2.requiredSecurityGroup, "RequiredSecurityGroup mismatch after modification");
+            ClassicAssert.AreEqual(md.byteCount, md2.byteCount, "ByteCount mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrEncryptedKeyHeader, md2.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrVersionTag, md2.hdrVersionTag, "HdrVersionTag mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrAppData, md2.hdrAppData, "HdrAppData mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrReactionSummary, md2.hdrReactionSummary, "HdrReactionSummary mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrServerData, md2.hdrServerData, "HdrServerData mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrTransferHistory, md2.hdrTransferHistory, "HdrTransferHistory mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrFileMetaData, md2.hdrFileMetaData, "HdrFileMetaData mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrTmpDriveAlias, md2.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrTmpDriveType, md2.hdrTmpDriveType, "HdrTmpDriveType mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
         }
 
 
@@ -657,41 +658,41 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // Upsert the record
             var n = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(ndr);
-            Assert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
+            ClassicAssert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
 
             // Retrieve the record and verify
             var md = await tblDriveMainIndex.GetAsync(driveId, k1);
-            Assert.IsNotNull(md, "Retrieved record is null");
-            Assert.IsNull(md.modified, "Retrieved record should not have 'modified' set");
+            ClassicAssert.IsNotNull(md, "Retrieved record is null");
+            ClassicAssert.IsNull(md.modified, "Retrieved record should not have 'modified' set");
 
             // Validate all fields match between ndr and md
-            Assert.AreEqual(ndr.driveId, md.driveId, "DriveId mismatch");
-            Assert.AreEqual(ndr.fileId, md.fileId, "FileId mismatch");
-            Assert.AreEqual(ndr.globalTransitId, md.globalTransitId, "GlobalTransitId mismatch");
-            Assert.AreEqual(ndr.created, md.created, "Created timestamp mismatch");
-            Assert.AreEqual(ndr.fileType, md.fileType, "FileType mismatch");
-            Assert.AreEqual(ndr.dataType, md.dataType, "DataType mismatch");
-            Assert.AreEqual(ndr.senderId, md.senderId, "SenderId mismatch");
-            Assert.AreEqual(ndr.groupId, md.groupId, "GroupId mismatch");
-            Assert.AreEqual(ndr.uniqueId, md.uniqueId, "UniqueId mismatch");
-            Assert.AreEqual(ndr.userDate, md.userDate, "UserDate mismatch");
-            Assert.AreEqual(ndr.archivalStatus, md.archivalStatus, "ArchivalStatus mismatch");
-            Assert.AreEqual(ndr.historyStatus, md.historyStatus, "HistoryStatus mismatch");
-            Assert.AreEqual(ndr.requiredSecurityGroup, md.requiredSecurityGroup, "RequiredSecurityGroup mismatch");
-            Assert.AreEqual(ndr.byteCount, md.byteCount, "ByteCount mismatch");
-            Assert.AreEqual(ndr.hdrEncryptedKeyHeader, md.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch");
-            Assert.AreEqual(ndr.hdrVersionTag, md.hdrVersionTag, "HdrVersionTag mismatch");
-            Assert.AreEqual(ndr.hdrAppData, md.hdrAppData, "HdrAppData mismatch");
-            Assert.AreEqual(null, md.hdrReactionSummary, "HdrReactionSummary mismatch");
-            Assert.AreEqual(ndr.hdrServerData, md.hdrServerData, "HdrServerData mismatch");
-            Assert.AreEqual(null, md.hdrTransferHistory, "HdrTransferHistory mismatch");
-            Assert.AreEqual(ndr.hdrFileMetaData, md.hdrFileMetaData, "HdrFileMetaData mismatch");
-            Assert.AreEqual(ndr.hdrTmpDriveAlias, md.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch");
-            Assert.AreEqual(ndr.hdrTmpDriveType, md.hdrTmpDriveType, "HdrTmpDriveType mismatch");
+            ClassicAssert.AreEqual(ndr.driveId, md.driveId, "DriveId mismatch");
+            ClassicAssert.AreEqual(ndr.fileId, md.fileId, "FileId mismatch");
+            ClassicAssert.AreEqual(ndr.globalTransitId, md.globalTransitId, "GlobalTransitId mismatch");
+            ClassicAssert.AreEqual(ndr.created, md.created, "Created timestamp mismatch");
+            ClassicAssert.AreEqual(ndr.fileType, md.fileType, "FileType mismatch");
+            ClassicAssert.AreEqual(ndr.dataType, md.dataType, "DataType mismatch");
+            ClassicAssert.AreEqual(ndr.senderId, md.senderId, "SenderId mismatch");
+            ClassicAssert.AreEqual(ndr.groupId, md.groupId, "GroupId mismatch");
+            ClassicAssert.AreEqual(ndr.uniqueId, md.uniqueId, "UniqueId mismatch");
+            ClassicAssert.AreEqual(ndr.userDate, md.userDate, "UserDate mismatch");
+            ClassicAssert.AreEqual(ndr.archivalStatus, md.archivalStatus, "ArchivalStatus mismatch");
+            ClassicAssert.AreEqual(ndr.historyStatus, md.historyStatus, "HistoryStatus mismatch");
+            ClassicAssert.AreEqual(ndr.requiredSecurityGroup, md.requiredSecurityGroup, "RequiredSecurityGroup mismatch");
+            ClassicAssert.AreEqual(ndr.byteCount, md.byteCount, "ByteCount mismatch");
+            ClassicAssert.AreEqual(ndr.hdrEncryptedKeyHeader, md.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch");
+            ClassicAssert.AreEqual(ndr.hdrVersionTag, md.hdrVersionTag, "HdrVersionTag mismatch");
+            ClassicAssert.AreEqual(ndr.hdrAppData, md.hdrAppData, "HdrAppData mismatch");
+            ClassicAssert.AreEqual(null, md.hdrReactionSummary, "HdrReactionSummary mismatch");
+            ClassicAssert.AreEqual(ndr.hdrServerData, md.hdrServerData, "HdrServerData mismatch");
+            ClassicAssert.AreEqual(null, md.hdrTransferHistory, "HdrTransferHistory mismatch");
+            ClassicAssert.AreEqual(ndr.hdrFileMetaData, md.hdrFileMetaData, "HdrFileMetaData mismatch");
+            ClassicAssert.AreEqual(ndr.hdrTmpDriveAlias, md.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch");
+            ClassicAssert.AreEqual(ndr.hdrTmpDriveType, md.hdrTmpDriveType, "HdrTmpDriveType mismatch");
            
             //Note: local version info is not updated with the normal updates for drive main index; there are dedicated methods for this
-            // Assert.AreEqual(ndr.hdrLocalVersionTag, md.hdrLocalVersionTag, "HdrLocalVersionTag mismatch");
-            // Assert.AreEqual(ndr.hdrLocalAppData, md.hdrLocalAppData, "HdrLocalAppData mismatch");
+            // ClassicAssert.AreEqual(ndr.hdrLocalVersionTag, md.hdrLocalVersionTag, "HdrLocalVersionTag mismatch");
+            // ClassicAssert.AreEqual(ndr.hdrLocalAppData, md.hdrLocalAppData, "HdrLocalAppData mismatch");
 
             // Modify all fields except driveId and fileId
             md.fileType = 8;
@@ -718,38 +719,38 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // Upsert the modified record
             var n2 = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(md);
-            Assert.AreEqual(1, n2, "Upsert failed for modified record");
+            ClassicAssert.AreEqual(1, n2, "Upsert failed for modified record");
 
             // Retrieve the updated record and verify modifications
             var md2 = await tblDriveMainIndex.GetAsync(driveId, k1);
-            Assert.IsNotNull(md2, "Retrieved modified record is null");
-            Assert.IsNotNull(md2.modified, "Modified record should have 'modified' set");
+            ClassicAssert.IsNotNull(md2, "Retrieved modified record is null");
+            ClassicAssert.IsNotNull(md2.modified, "Modified record should have 'modified' set");
 
             // Validate all modified fields match
-            Assert.AreEqual(md.fileType, md2.fileType, "FileType mismatch after modification");
-            Assert.AreEqual(md.dataType, md2.dataType, "DataType mismatch after modification");
-            Assert.AreEqual(md.senderId, md2.senderId, "SenderId mismatch after modification");
-            Assert.AreEqual(md.groupId, md2.groupId, "GroupId mismatch after modification");
-            Assert.AreEqual(md.uniqueId, md2.uniqueId, "UniqueId mismatch after modification");
-            Assert.AreEqual(md.userDate, md2.userDate, "UserDate mismatch after modification");
-            Assert.AreEqual(md.archivalStatus, md2.archivalStatus, "ArchivalStatus mismatch after modification");
-            Assert.AreEqual(md.historyStatus, md2.historyStatus, "HistoryStatus mismatch after modification");
-            Assert.AreEqual(md.requiredSecurityGroup, md2.requiredSecurityGroup, "RequiredSecurityGroup mismatch after modification");
-            Assert.AreEqual(md.byteCount, md2.byteCount, "ByteCount mismatch after modification");
-            Assert.AreEqual(md.hdrEncryptedKeyHeader, md2.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch after modification");
-            Assert.AreEqual(md.hdrVersionTag, md2.hdrVersionTag, "HdrVersionTag mismatch after modification");
-            Assert.AreEqual(md.hdrAppData, md2.hdrAppData, "HdrAppData mismatch after modification");
-            Assert.AreEqual(null, md2.hdrReactionSummary, "HdrReactionSummary mismatch after modification");
-            Assert.AreEqual(md.hdrServerData, md2.hdrServerData, "HdrServerData mismatch after modification");
-            Assert.AreEqual(null, md2.hdrTransferHistory, "HdrTransferHistory mismatch after modification");
-            Assert.AreEqual(md.hdrFileMetaData, md2.hdrFileMetaData, "HdrFileMetaData mismatch after modification");
-            Assert.AreEqual(md.hdrTmpDriveAlias, md2.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch after modification");
-            Assert.AreEqual(md.hdrTmpDriveType, md2.hdrTmpDriveType, "HdrTmpDriveType mismatch after modification");
+            ClassicAssert.AreEqual(md.fileType, md2.fileType, "FileType mismatch after modification");
+            ClassicAssert.AreEqual(md.dataType, md2.dataType, "DataType mismatch after modification");
+            ClassicAssert.AreEqual(md.senderId, md2.senderId, "SenderId mismatch after modification");
+            ClassicAssert.AreEqual(md.groupId, md2.groupId, "GroupId mismatch after modification");
+            ClassicAssert.AreEqual(md.uniqueId, md2.uniqueId, "UniqueId mismatch after modification");
+            ClassicAssert.AreEqual(md.userDate, md2.userDate, "UserDate mismatch after modification");
+            ClassicAssert.AreEqual(md.archivalStatus, md2.archivalStatus, "ArchivalStatus mismatch after modification");
+            ClassicAssert.AreEqual(md.historyStatus, md2.historyStatus, "HistoryStatus mismatch after modification");
+            ClassicAssert.AreEqual(md.requiredSecurityGroup, md2.requiredSecurityGroup, "RequiredSecurityGroup mismatch after modification");
+            ClassicAssert.AreEqual(md.byteCount, md2.byteCount, "ByteCount mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrEncryptedKeyHeader, md2.hdrEncryptedKeyHeader, "HdrEncryptedKeyHeader mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrVersionTag, md2.hdrVersionTag, "HdrVersionTag mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrAppData, md2.hdrAppData, "HdrAppData mismatch after modification");
+            ClassicAssert.AreEqual(null, md2.hdrReactionSummary, "HdrReactionSummary mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrServerData, md2.hdrServerData, "HdrServerData mismatch after modification");
+            ClassicAssert.AreEqual(null, md2.hdrTransferHistory, "HdrTransferHistory mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrFileMetaData, md2.hdrFileMetaData, "HdrFileMetaData mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrTmpDriveAlias, md2.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch after modification");
+            ClassicAssert.AreEqual(md.hdrTmpDriveType, md2.hdrTmpDriveType, "HdrTmpDriveType mismatch after modification");
             
             //Note: local version info is not updated with the normal updates for drive main index; there are dedicated methods for this
             
-            // Assert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
-            // Assert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
+            // ClassicAssert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
+            // ClassicAssert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
         }
     }
 }

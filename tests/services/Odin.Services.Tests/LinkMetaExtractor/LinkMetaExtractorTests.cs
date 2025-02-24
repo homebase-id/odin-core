@@ -17,6 +17,7 @@ using Moq;
 using System.Text.RegularExpressions;
 using System.Web;
 using System.Net;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
 
@@ -33,13 +34,13 @@ public class LinkMetaExtractorTests
 
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://github.com/janhq/jan");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.ImageUrl);
-        Assert.NotNull(ogp.ImageWidth);
-        Assert.NotNull(ogp.ImageHeight);
-        Assert.NotNull(ogp.Type);
-        Assert.NotNull(ogp.Url);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
+        ClassicAssert.NotNull(ogp.ImageWidth);
+        ClassicAssert.NotNull(ogp.ImageHeight);
+        ClassicAssert.NotNull(ogp.Type);
+        ClassicAssert.NotNull(ogp.Url);
     }
 #endif
 
@@ -61,11 +62,11 @@ public class LinkMetaExtractorTests
 
         var linkMeta = await linkMetaExtractor.ProcessHtmlAsync(htmlContent, "http://example.com");
 
-        Assert.NotNull(linkMeta);
-        Assert.AreEqual("Test Title", linkMeta.Title);
-        Assert.AreEqual("Test Description", linkMeta.Description);
-        Assert.NotNull(linkMeta.ImageUrl);
-        Assert.IsTrue(linkMeta.ImageUrl!.StartsWith("data:image/png;base64,"));
+        ClassicAssert.NotNull(linkMeta);
+        ClassicAssert.AreEqual("Test Title", linkMeta.Title);
+        ClassicAssert.AreEqual("Test Description", linkMeta.Description);
+        ClassicAssert.NotNull(linkMeta.ImageUrl);
+        ClassicAssert.IsTrue(linkMeta.ImageUrl!.StartsWith("data:image/png;base64,"));
     }
 
 
@@ -87,10 +88,10 @@ public class LinkMetaExtractorTests
 
         var linkMeta = await linkMetaExtractor.ProcessHtmlAsync(htmlContent, "http://example.com");
 
-        Assert.NotNull(linkMeta);
-        Assert.AreEqual("Test Title", linkMeta.Title);
-        Assert.AreEqual("Test Description", linkMeta.Description);
-        Assert.IsNull(linkMeta.ImageUrl);
+        ClassicAssert.NotNull(linkMeta);
+        ClassicAssert.AreEqual("Test Title", linkMeta.Title);
+        ClassicAssert.AreEqual("Test Description", linkMeta.Description);
+        ClassicAssert.IsNull(linkMeta.ImageUrl);
     }
 
 #if !CI_GITHUB
@@ -104,8 +105,8 @@ public class LinkMetaExtractorTests
         // Twitter does not return og tags when a http client fetches the page. We need a headless browser to download the webpage and parse the tags
         var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/trunkio/status/1795913092204998997");
 
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Url);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Url);
     }
     #endif
 
@@ -117,7 +118,7 @@ public class LinkMetaExtractorTests
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://meet.google.com/kwr-dzwe-kvi?ijlm=1736499961915&hs=187&adhoc=1");
-        Assert.IsNotNull(ogp);
+        ClassicAssert.IsNotNull(ogp);
     }
 #endif
 
@@ -129,9 +130,9 @@ public class LinkMetaExtractorTests
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/stories/ashira_oure_bxg_club/3545246080284477588?utm_source=ig_story_item_share&igsh=c2FteGNlYmV1NXZs");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.ImageUrl);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
     }
 #endif
     
@@ -143,9 +144,9 @@ public class LinkMetaExtractorTests
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://www.facebook.com/share/p/14txkE59vN4/");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.ImageUrl);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
     }
 #endif
     
@@ -160,9 +161,9 @@ public class LinkMetaExtractorTests
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await   linkMetaExtractor.ExtractAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.ImageUrl);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
     }
 #endif
     
@@ -174,9 +175,9 @@ public class LinkMetaExtractorTests
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await  linkMetaExtractor.ExtractAsync("https://www.linkedin.com/posts/flutterdevofficial_calling-all-ai-innovators-join-the-gemini-activity-7201613262163984386-MkaU");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.ImageUrl);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
     }
 #endif
 
@@ -190,9 +191,9 @@ public class LinkMetaExtractorTests
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/reel/C7fhXWKJNeU/");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.ImageUrl);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
     }
 #endif
 
@@ -203,9 +204,9 @@ public class LinkMetaExtractorTests
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await  linkMetaExtractor.ExtractAsync("https://simonwillison.net/2024/May/29/training-not-chatting/");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.Url);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.Url);
     }
 #if !CI_GITHUB
     [Test]
@@ -215,9 +216,9 @@ public class LinkMetaExtractorTests
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await  linkMetaExtractor.ExtractAsync("https://www.economist.com/schools-brief/2024/07/16/a-short-history-of-ai");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.NotNull(ogp.Url);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.Url);
     }
     #endif
 
@@ -236,7 +237,7 @@ public class LinkMetaExtractorTests
     {
         var html = "<html><head><title>Test</title></head><body><script>alert('test')</script></body></html>";
         var sanitizedHtml = Parser.Parse(html);
-        Assert.AreEqual("Test", sanitizedHtml["title"]);
+        ClassicAssert.AreEqual("Test", sanitizedHtml["title"]);
     }
 
 
@@ -263,9 +264,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Verify that script tags or JavaScript content have been removed
-        Assert.AreEqual("你好世界 (Chinese) | こんにちは世界 (Japanese) | ᚠᚢᚦᚨᚱᚴ (Nordic Runes) | Tænk på det (Danish) | Привет мир (Russian)", sanitizedMetadata["description"]);
-        Assert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
-        Assert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("你好世界 (Chinese) | こんにちは世界 (Japanese) | ᚠᚢᚦᚨᚱᚴ (Nordic Runes) | Tænk på det (Danish) | Привет мир (Russian)", sanitizedMetadata["description"]);
+        ClassicAssert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
+        ClassicAssert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
     }
 
 
@@ -292,9 +293,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Verify that script tags or JavaScript content have been removed
-        Assert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
-        Assert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
-        Assert.AreEqual("This is a test pøge.", sanitizedMetadata["description"]);
+        ClassicAssert.AreEqual("Test Pæge", sanitizedMetadata["title"]);
+        ClassicAssert.AreEqual("OG Tøtle", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("This is a test pøge.", sanitizedMetadata["description"]);
     }
 
 
@@ -317,9 +318,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Adjust expectations for malformed input
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("title")); // Malformed title should be ignored
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("description")); // Malformed meta should be ignored
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("og:title")); // Malformed meta should be ignored
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("title")); // Malformed title should be ignored
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("description")); // Malformed meta should be ignored
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("og:title")); // Malformed meta should be ignored
     }
 
 
@@ -340,7 +341,7 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.IsTrue(sanitizedMetadata["og:title"] is List<string>);
+        ClassicAssert.IsTrue(sanitizedMetadata["og:title"] is List<string>);
         var titles = (List<string>)sanitizedMetadata["og:title"];
         CollectionAssert.AreEqual(new[] { "OG Title 1", "OG Title 2" }, titles);
     }
@@ -363,8 +364,8 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("OG Title", sanitizedMetadata["og:title"]);
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("irrelevant"));
+        ClassicAssert.AreEqual("OG Title", sanitizedMetadata["og:title"]);
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("irrelevant"));
     }
 
     [Test]
@@ -384,8 +385,8 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("Title & Subtitle", sanitizedMetadata["og:title"]);
-        Assert.AreEqual("This is a test <description>", sanitizedMetadata["description"]);
+        ClassicAssert.AreEqual("Title & Subtitle", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("This is a test <description>", sanitizedMetadata["description"]);
     }
     [Test]
 
@@ -404,9 +405,9 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("title"));
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("description"));
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("og:title"));
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("title"));
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("description"));
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("og:title"));
     }
 
 
@@ -426,7 +427,7 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("Case Insensitive Title", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("Case Insensitive Title", sanitizedMetadata["og:title"]);
     }
 
 
@@ -446,8 +447,8 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("<script>alert('test')</script>Safe Description", sanitizedMetadata["description"]);
-        // Assert.IsFalse(sanitizedMetadata["description"].ToString()?.Contains("<script>"));
+        ClassicAssert.AreEqual("<script>alert('test')</script>Safe Description", sanitizedMetadata["description"]);
+        // ClassicAssert.IsFalse(sanitizedMetadata["description"].ToString()?.Contains("<script>"));
     }
 
 
@@ -467,7 +468,7 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("<script>alert('XSS')</script>å", sanitizedMetadata["description"]);
+        ClassicAssert.AreEqual("<script>alert('XSS')</script>å", sanitizedMetadata["description"]);
     }
 
 
@@ -488,12 +489,12 @@ public class LinkMetaExtractorTests
         var descriptionDecoded = WebUtility.HtmlDecode(description);
 
         // Assert: Ensure control characters are removed
-        Assert.IsNotNull(description, "Description metadata should not be null.");
-        Assert.IsFalse(Regex.IsMatch(description.ToString() ?? string.Empty, @"[\x00-\x1F\x7F]"),
+        ClassicAssert.IsNotNull(description, "Description metadata should not be null.");
+        ClassicAssert.IsFalse(Regex.IsMatch(description.ToString() ?? string.Empty, @"[\x00-\x1F\x7F]"),
             "Control characters, null, and invalid border cases should not be present in the sanitized description.");
 
         // Assert: Verify expected cleaned output
-        Assert.AreEqual("Chars: 0x01[] 0x1F[] 0x20[ ] 0x7E[~] 0x7F[] 0x80[\u0080] - Done", description);
+        ClassicAssert.AreEqual("Chars: 0x01[] 0x1F[] 0x20[ ] 0x7E[~] 0x7F[] 0x80[\u0080] - Done", description);
     }
 
 
@@ -525,10 +526,10 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("OG Title", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("OG Title", sanitizedMetadata["og:title"]);
         for (int i = 0; i < 1000; i++)
         {
-            Assert.AreEqual($"Custom Value {i}", sanitizedMetadata[$"og:custom{i}"]);
+            ClassicAssert.AreEqual($"Custom Value {i}", sanitizedMetadata[$"og:custom{i}"]);
         }
     }
     [Test]
@@ -548,8 +549,8 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.AreEqual("标题", sanitizedMetadata["og:title"]);
-        Assert.AreEqual("描述内容", sanitizedMetadata["description"]);
+        ClassicAssert.AreEqual("标题", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("描述内容", sanitizedMetadata["description"]);
     }
 
 
@@ -570,8 +571,8 @@ public class LinkMetaExtractorTests
         var sanitizedMetadata = Parser.Parse(html);
 
         // Assert
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("og:title"));
-        Assert.IsFalse(sanitizedMetadata.ContainsKey("description"));
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("og:title"));
+        ClassicAssert.IsFalse(sanitizedMetadata.ContainsKey("description"));
     }
 
 
@@ -611,7 +612,7 @@ public class LinkMetaExtractorTests
                 .GetMethod("GetTitle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
                 ?.Invoke(null, new object[] { meta }) as string;
 
-            Assert.AreEqual(expected, result, $"Failed for permutation {i + 1}");
+            ClassicAssert.AreEqual(expected, result, $"Failed for permutation {i + 1}");
         }
     }
 
@@ -646,7 +647,7 @@ public class LinkMetaExtractorTests
             var result = LinkMeta.GetDescription(test.Meta);
 
             // Assert
-            Assert.AreEqual(test.Expected, result);
+            ClassicAssert.AreEqual(test.Expected, result);
         }
     }
 
@@ -684,14 +685,14 @@ public class LinkMetaExtractorTests
         var sanitizedMetadataIncorrect = Parser.Parse(misinterpretedHtml);
 
         // Assert for correct interpretation
-        Assert.AreEqual("Test Tæxt", sanitizedMetadataCorrect["title"]);
-        Assert.AreEqual("This is a dæscription.", sanitizedMetadataCorrect["description"]);
-        Assert.AreEqual("Og Tætle", sanitizedMetadataCorrect["og:title"]);
+        ClassicAssert.AreEqual("Test Tæxt", sanitizedMetadataCorrect["title"]);
+        ClassicAssert.AreEqual("This is a dæscription.", sanitizedMetadataCorrect["description"]);
+        ClassicAssert.AreEqual("Og Tætle", sanitizedMetadataCorrect["og:title"]);
 
         // Assert for incorrect interpretation (ensure it fails or outputs incorrect results)
-        Assert.AreNotEqual("Test Tæxt", sanitizedMetadataIncorrect["title"]);
-        Assert.AreNotEqual("This is a dæscription.", sanitizedMetadataIncorrect["description"]);
-        Assert.AreNotEqual("Og Tætle", sanitizedMetadataIncorrect["og:title"]);
+        ClassicAssert.AreNotEqual("Test Tæxt", sanitizedMetadataIncorrect["title"]);
+        ClassicAssert.AreNotEqual("This is a dæscription.", sanitizedMetadataIncorrect["description"]);
+        ClassicAssert.AreNotEqual("Og Tætle", sanitizedMetadataIncorrect["og:title"]);
     }
 
 
@@ -720,9 +721,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Verify that script tags or JavaScript content have been removed
-        Assert.AreEqual("Test", sanitizedMetadata["title"]);
-        Assert.AreEqual("<script>alert('test')</script> This is a description.", sanitizedMetadata["description"]);
-        Assert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("Test", sanitizedMetadata["title"]);
+        ClassicAssert.AreEqual("<script>alert('test')</script> This is a description.", sanitizedMetadata["description"]);
+        ClassicAssert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
     }
 
 
@@ -751,9 +752,9 @@ public class LinkMetaExtractorTests
 
         // Assert
         // Verify that script tags or JavaScript content have been removed
-        Assert.AreEqual("Test", sanitizedMetadata["title"]);
-        Assert.AreEqual("<script>alert('test')</script> This is a description.", sanitizedMetadata["description"]);
-        Assert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
+        ClassicAssert.AreEqual("Test", sanitizedMetadata["title"]);
+        ClassicAssert.AreEqual("<script>alert('test')</script> This is a description.", sanitizedMetadata["description"]);
+        ClassicAssert.AreEqual("Valid OG Title", sanitizedMetadata["og:title"]);
     }
 
     [Test]
@@ -795,7 +796,7 @@ public class LinkMetaExtractorTests
             var result = LinkMeta.GetImageUrl(testCase.Meta);
 
             // Assert
-            Assert.AreEqual(testCase.Expected, result, $"Failed for meta: {testCase.Meta}");
+            ClassicAssert.AreEqual(testCase.Expected, result, $"Failed for meta: {testCase.Meta}");
         }
     }
 
@@ -807,9 +808,9 @@ public class LinkMetaExtractorTests
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://x.com/i/bookmarks?post_id=1875214258046193880");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.IsTrue(!ogp.Title.Contains("&amp;") && !ogp.Description!.Contains("&amp;"), "Encoded HTML entities (&amp;) should not be present.");
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.IsTrue(!ogp.Title.Contains("&amp;") && !ogp.Description!.Contains("&amp;"), "Encoded HTML entities (&amp;) should not be present.");
     }
 #endif
 
@@ -822,9 +823,9 @@ public class LinkMetaExtractorTests
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await linkMetaExtractor.ExtractAsync("https://www.auktionshuset.dk/auktioner/koretojer-mercedes-benz-vito");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.IsNull(ogp.ImageUrl); // They have a malformed og:image (relative path not allowed)
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.IsNull(ogp.ImageUrl); // They have a malformed og:image (relative path not allowed)
     }
 #endif
 
@@ -837,9 +838,9 @@ public class LinkMetaExtractorTests
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         var ogp = await  linkMetaExtractor.ExtractAsync("https://www.thermal.com/seek-nano.html");
-        Assert.NotNull(ogp.Title);
-        Assert.NotNull(ogp.Description);
-        Assert.Null(ogp.ImageUrl);
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.Null(ogp.ImageUrl);
     }
     #endif
     

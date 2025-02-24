@@ -5,6 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -75,7 +76,7 @@ public class TransitApiClient
         {
             var transitSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = drive });
-            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+            ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }
 
@@ -94,7 +95,7 @@ public class TransitApiClient
                 }
             });
 
-            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+            ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }
 
@@ -190,8 +191,8 @@ public class TransitApiClient
 
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, Is.Not.EqualTo(Guid.Empty));
-            Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
-            Assert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
+            ClassicAssert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
+            ClassicAssert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
             keyHeader.AesKey.Wipe();
 
             return transitResult;
@@ -260,13 +261,13 @@ public class TransitApiClient
             foreach (var recipient in recipients)
             {
                 var status = transitResult.RecipientStatus[recipient];
-                Assert.IsTrue(status == TransferStatus.Enqueued, $"failed to enqueue into outbox for {recipient}; status was {status}");
+                ClassicAssert.IsTrue(status == TransferStatus.Enqueued, $"failed to enqueue into outbox for {recipient}; status was {status}");
             }
 
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, Is.Not.EqualTo(Guid.Empty));
-            Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
-            Assert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
+            ClassicAssert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
+            ClassicAssert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
 
             await this.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
@@ -294,7 +295,7 @@ public class TransitApiClient
             var transitSvc = RefitCreator.RestServiceFor<IRefitOwnerTransitSender>(client, sharedSecret);
             var response = await transitSvc.SendDeleteRequest(request);
 
-            Assert.IsTrue(response.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         }
     }
 

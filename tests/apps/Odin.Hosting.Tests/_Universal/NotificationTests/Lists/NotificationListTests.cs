@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -75,7 +76,7 @@ public class NotificationListTests
             TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options1);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
 
         var options2 = new AppNotificationOptions()
         {
@@ -85,7 +86,7 @@ public class NotificationListTests
         };
 
         var response2 = await ownerApiClient.AppNotifications.AddNotification(options2);
-        Assert.IsTrue(response2.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response2.IsSuccessStatusCode);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -93,15 +94,15 @@ public class NotificationListTests
         var response = await client.GetList(10);
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var results = response.Content?.Results;
-            Assert.IsNotNull(results);
-            Assert.IsTrue(results.Count == 2);
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.TypeId == options1.TypeId));
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.TypeId == options2.TypeId));
+            ClassicAssert.IsNotNull(results);
+            ClassicAssert.IsTrue(results.Count == 2);
+            ClassicAssert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.TypeId == options1.TypeId));
+            ClassicAssert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.TypeId == options2.TypeId));
         }
 
         await ownerApiClient.AppNotifications.Delete([response1.Content.NotificationId, response2.Content.NotificationId]);
@@ -126,7 +127,7 @@ public class NotificationListTests
             TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options1);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
 
         var options2 = new AppNotificationOptions()
         {
@@ -136,7 +137,7 @@ public class NotificationListTests
         };
 
         var response2 = await ownerApiClient.AppNotifications.AddNotification(options2);
-        Assert.IsTrue(response2.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response2.IsSuccessStatusCode);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -145,15 +146,15 @@ public class NotificationListTests
 
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var results = response.Content?.Results;
-            Assert.IsNotNull(results);
-            Assert.IsTrue(results.Count == 2);
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.TypeId == options1.TypeId));
-            Assert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.TypeId == options2.TypeId));
+            ClassicAssert.IsNotNull(results);
+            ClassicAssert.IsTrue(results.Count == 2);
+            ClassicAssert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options1.AppId && d.Options.TypeId == options1.TypeId));
+            ClassicAssert.IsNotNull(results.SingleOrDefault(d => d.Options.AppId == options2.AppId && d.Options.TypeId == options2.TypeId));
         }
 
         await ownerApiClient.AppNotifications.Delete([response1.Content.NotificationId, response2.Content.NotificationId]);
@@ -176,7 +177,7 @@ public class NotificationListTests
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
 
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
         var notificationId = response1.Content.NotificationId;
 
         // Act
@@ -195,17 +196,17 @@ public class NotificationListTests
         var response = await client.Update(updates);
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var getListResponse = await ownerApiClient.AppNotifications.GetList(1000);
             var results = getListResponse.Content.Results;
-            Assert.IsNotNull(results);
+            ClassicAssert.IsNotNull(results);
             var notification = results.SingleOrDefault(n => n.Id == notificationId);
-            Assert.IsNotNull(notification);
-            Assert.IsTrue(notification.Unread == false);
+            ClassicAssert.IsNotNull(notification);
+            ClassicAssert.IsTrue(notification.Unread == false);
         }
     }
 
@@ -228,7 +229,7 @@ public class NotificationListTests
         };
 
         var addNotificationResponse = await ownerApiClient.AppNotifications.AddNotification(options);
-        Assert.IsTrue(addNotificationResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addNotificationResponse.IsSuccessStatusCode);
         var notificationToBeMarkedAsRead = addNotificationResponse.Content.NotificationId;
 
         var notifyDiffAppResponse = await ownerApiClient.AppNotifications.AddNotification(new AppNotificationOptions()
@@ -238,7 +239,7 @@ public class NotificationListTests
             TagId = Guid.NewGuid()
         });
 
-        Assert.IsTrue(notifyDiffAppResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(notifyDiffAppResponse.IsSuccessStatusCode);
         var diffAppNotificationId = notifyDiffAppResponse.Content.NotificationId;
 
         // Act
@@ -247,26 +248,26 @@ public class NotificationListTests
         var response = await client.MarkReadByAppId(appIdToBeMarkedAsRead);
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var unreadCountsResponse2 = await ownerApiClient.AppNotifications.GetUnreadCounts();
-            Assert.IsTrue(unreadCountsResponse2.IsSuccessStatusCode);
-            Assert.IsTrue(unreadCountsResponse2.Content.UnreadCounts.TryGetValue(appIdToBeMarkedAsRead, out var counts));
-            Assert.IsTrue(counts == 0);
+            ClassicAssert.IsTrue(unreadCountsResponse2.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(unreadCountsResponse2.Content.UnreadCounts.TryGetValue(appIdToBeMarkedAsRead, out var counts));
+            ClassicAssert.IsTrue(counts == 0);
 
             var getListResponse = await ownerApiClient.AppNotifications.GetList(1000);
             var results = getListResponse.Content.Results;
-            Assert.IsNotNull(results);
+            ClassicAssert.IsNotNull(results);
 
             var notification1 = results.SingleOrDefault(n => n.Id == notificationToBeMarkedAsRead);
-            Assert.IsNotNull(notification1);
-            Assert.IsFalse(notification1.Unread);
+            ClassicAssert.IsNotNull(notification1);
+            ClassicAssert.IsFalse(notification1.Unread);
 
             var notificationDiffApp = results.SingleOrDefault(n => n.Id == diffAppNotificationId);
-            Assert.IsNotNull(notificationDiffApp);
-            Assert.IsTrue(notificationDiffApp.Unread);
+            ClassicAssert.IsNotNull(notificationDiffApp);
+            ClassicAssert.IsTrue(notificationDiffApp.Unread);
         }
     }
 
@@ -287,7 +288,7 @@ public class NotificationListTests
         };
 
         var response1 = await ownerApiClient.AppNotifications.AddNotification(app1Options);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
 
         var app2Options = new AppNotificationOptions()
         {
@@ -298,7 +299,7 @@ public class NotificationListTests
 
         var response2 = await ownerApiClient.AppNotifications.AddNotification(app2Options);
 
-        Assert.IsTrue(response2.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response2.IsSuccessStatusCode);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -306,16 +307,16 @@ public class NotificationListTests
         var response = await client.GetUnreadCounts();
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var getCountsResponse = await ownerApiClient.AppNotifications.GetUnreadCounts();
             var results = getCountsResponse.Content;
-            Assert.IsNotNull(results);
+            ClassicAssert.IsNotNull(results);
 
-            Assert.IsTrue(results.UnreadCounts[app1Options.AppId] == 1);
-            Assert.IsTrue(results.UnreadCounts[app2Options.AppId] == 1);
+            ClassicAssert.IsTrue(results.UnreadCounts[app1Options.AppId] == 1);
+            ClassicAssert.IsTrue(results.UnreadCounts[app2Options.AppId] == 1);
         }
     }
 
@@ -336,7 +337,7 @@ public class NotificationListTests
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
 
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
         var notificationId = response1.Content.NotificationId;
 
         // Act
@@ -355,17 +356,17 @@ public class NotificationListTests
         var response = await client.Update(updates);
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var getListResponse = await ownerApiClient.AppNotifications.GetList(1000);
             var results = getListResponse.Content.Results;
-            Assert.IsNotNull(results);
+            ClassicAssert.IsNotNull(results);
             var notification = results.SingleOrDefault(n => n.Id == notificationId);
-            Assert.IsNotNull(notification);
-            Assert.IsTrue(notification.Unread == false);
+            ClassicAssert.IsNotNull(notification);
+            ClassicAssert.IsTrue(notification.Unread == false);
         }
     }
 
@@ -385,7 +386,7 @@ public class NotificationListTests
             TagId = Guid.NewGuid()
         };
         var response1 = await ownerApiClient.AppNotifications.AddNotification(options);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
         var notificationId = response1.Content.NotificationId;
 
         // Act
@@ -395,14 +396,14 @@ public class NotificationListTests
         var response = await client.Delete(new List<Guid>() { notificationId });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var getListResponse = await ownerApiClient.AppNotifications.GetList(10000);
             var results = getListResponse.Content.Results;
-            Assert.IsNotNull(results);
-            Assert.IsTrue(results.All(n => n.Id != notificationId));
+            ClassicAssert.IsNotNull(results);
+            ClassicAssert.IsTrue(results.All(n => n.Id != notificationId));
         }
     }
 }

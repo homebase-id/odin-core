@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.WebSocket;
@@ -120,12 +121,12 @@ public class NotificationsTest
             var json = array.ToStringFromUtf8Bytes();
             var n = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);
 
-            Assert.IsTrue(n.IsEncrypted);
+            ClassicAssert.IsTrue(n.IsEncrypted);
             var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, deviceSharedSecret.ToSensitiveByteArray());
             var response = OdinSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
 
-            Assert.IsNotNull(response);
-            Assert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
+            ClassicAssert.IsNotNull(response);
+            ClassicAssert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
         }
         else
         {
@@ -195,8 +196,8 @@ public class NotificationsTest
 
             var json = array.ToStringFromUtf8Bytes();
             var response = OdinSystemSerializer.Deserialize<EstablishConnectionResponse>(json);
-            Assert.IsNotNull(response);
-            Assert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
+            ClassicAssert.IsNotNull(response);
+            ClassicAssert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
         }
         else
         {
@@ -223,8 +224,8 @@ public class NotificationsTest
         //     var response = DotYouSystemSerializer.Deserialize<TranslatedClientNotification>(inputStream, tokenSource.Token)
         //         .GetAwaiter().GetResult();
         //
-        //     Assert.IsNotNull(response);
-        //     Assert.IsTrue(response.NotificationType == ClientNotificationType.FileAdded);
+        //     ClassicAssert.IsNotNull(response);
+        //     ClassicAssert.IsTrue(response.NotificationType == ClientNotificationType.FileAdded);
         //
         //     // inputStream.Dispose();
         // }

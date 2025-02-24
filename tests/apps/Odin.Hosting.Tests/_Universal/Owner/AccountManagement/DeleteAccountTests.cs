@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Time;
 
 namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
@@ -47,12 +48,12 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
             var ownerClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
             var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password);
-            Assert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
 
             var getStatusResponse = await ownerClient.AccountManagement.GetAccountStatus();
-            Assert.IsTrue(getStatusResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(getStatusResponse.Content.PlannedDeletionDate);
-            Assert.IsTrue(getStatusResponse.Content.PlannedDeletionDate > UnixTimeUtc.Now());
+            ClassicAssert.IsTrue(getStatusResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getStatusResponse.Content.PlannedDeletionDate);
+            ClassicAssert.IsTrue(getStatusResponse.Content.PlannedDeletionDate > UnixTimeUtc.Now());
         }
 
         [Test]
@@ -66,20 +67,20 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
 
             //setup for delete
             var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password);
-            Assert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
 
             // make sure we're set to delete
             var getStatusResponse = await ownerClient.AccountManagement.GetAccountStatus();
-            Assert.IsTrue(getStatusResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(getStatusResponse.Content.PlannedDeletionDate);
-            Assert.IsTrue(getStatusResponse.Content.PlannedDeletionDate > UnixTimeUtc.Now());
+            ClassicAssert.IsTrue(getStatusResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(getStatusResponse.Content.PlannedDeletionDate);
+            ClassicAssert.IsTrue(getStatusResponse.Content.PlannedDeletionDate > UnixTimeUtc.Now());
 
             var unmarkAccountResponse = await ownerClient.AccountManagement.UndeleteAccount(password);
-            Assert.IsTrue(unmarkAccountResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(unmarkAccountResponse.IsSuccessStatusCode);
 
             var getStatusResponse2 = await ownerClient.AccountManagement.GetAccountStatus();
-            Assert.IsTrue(getStatusResponse2.IsSuccessStatusCode);
-            Assert.IsNull(getStatusResponse2.Content.PlannedDeletionDate);
+            ClassicAssert.IsTrue(getStatusResponse2.IsSuccessStatusCode);
+            ClassicAssert.IsNull(getStatusResponse2.Content.PlannedDeletionDate);
         }
 
     }

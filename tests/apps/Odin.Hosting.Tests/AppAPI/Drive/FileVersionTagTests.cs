@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -98,7 +99,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //get the uploaded file
             var uploadedFile = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
+            ClassicAssert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
         }
 
         [Test]
@@ -150,7 +151,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //get the uploaded file
             var uploadedFile = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
-            Assert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
+            ClassicAssert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
 
             //just send a random token
             fileMetadata.VersionTag = Guid.Parse("7215bd54-c832-4f08-84fc-ebfb6193ee52");
@@ -158,10 +159,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var (_, apiResponse) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload,
                 overwriteFileId: uploadResult.File.FileId);
 
-            Assert.IsTrue(apiResponse.StatusCode == HttpStatusCode.BadRequest);
+            ClassicAssert.IsTrue(apiResponse.StatusCode == HttpStatusCode.BadRequest);
 
             var code = TestUtils.ParseProblemDetails(apiResponse!.Error!);
-            Assert.IsTrue(code == OdinClientErrorCode.VersionTagMismatch);
+            ClassicAssert.IsTrue(code == OdinClientErrorCode.VersionTagMismatch);
         }
     }
 }

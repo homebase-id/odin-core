@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -32,8 +33,8 @@ public class IdentityDatabaseTests : IocTestBase
 
         var r2 = await db.KeyValue.GetAsync(r1.key);
 
-        Assert.AreEqual(r1.key, r2.key);
-        Assert.AreEqual(r1.data, r2.data);
+        ClassicAssert.AreEqual(r1.key, r2.key);
+        ClassicAssert.AreEqual(r1.data, r2.data);
     }
 
     [Test]
@@ -62,8 +63,8 @@ public class IdentityDatabaseTests : IocTestBase
         {
             await using var cn = await db.CreateScopedConnectionAsync();
             var r2 = await db.KeyValue.GetAsync(r1.key);
-            Assert.AreEqual(r1.key, r2.key);
-            Assert.AreEqual(r1.data, r2.data);
+            ClassicAssert.AreEqual(r1.key, r2.key);
+            ClassicAssert.AreEqual(r1.data, r2.data);
         }
     }
 
@@ -92,7 +93,7 @@ public class IdentityDatabaseTests : IocTestBase
         {
             await using var cn = await db.CreateScopedConnectionAsync();
             var r2 = await db.KeyValue.GetAsync(r1.key);
-            Assert.IsNull(r2);
+            ClassicAssert.IsNull(r2);
         }
     }
 }

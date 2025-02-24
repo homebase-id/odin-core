@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -76,7 +77,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -90,7 +91,7 @@ public class ReactionTestsLocalIdentityOnly
         });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
@@ -114,7 +115,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         const string reactionContent1 = ":cake:";
 
@@ -124,7 +125,7 @@ public class ReactionTestsLocalIdentityOnly
             Reaction = reactionContent1,
             TransitOptions = null
         });
-        Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse.IsSuccessStatusCode);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -137,7 +138,7 @@ public class ReactionTestsLocalIdentityOnly
         });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
@@ -161,7 +162,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         const string reactionContent1 = ":cake:";
         const string reactionContent2 = ":pie:";
@@ -172,7 +173,7 @@ public class ReactionTestsLocalIdentityOnly
             Reaction = reactionContent1,
             TransitOptions = null
         });
-        Assert.IsTrue(addReactionResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse1.IsSuccessStatusCode);
 
         var addReactionResponse2 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {
@@ -180,7 +181,7 @@ public class ReactionTestsLocalIdentityOnly
             Reaction = reactionContent2,
             TransitOptions = null
         });
-        Assert.IsTrue(addReactionResponse2.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse2.IsSuccessStatusCode);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -191,15 +192,15 @@ public class ReactionTestsLocalIdentityOnly
         });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var counts = response.Content;
-            Assert.IsNotNull(counts);
-            Assert.IsTrue(counts.Total == 2);
-            Assert.IsNotNull(counts.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent1 && r.Count == 1));
-            Assert.IsNotNull(counts.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent2 && r.Count == 1));
+            ClassicAssert.IsNotNull(counts);
+            ClassicAssert.IsTrue(counts.Total == 2);
+            ClassicAssert.IsNotNull(counts.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent1 && r.Count == 1));
+            ClassicAssert.IsNotNull(counts.Reactions.SingleOrDefault(r => r.ReactionContent == reactionContent2 && r.Count == 1));
         }
     }
 
@@ -218,7 +219,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         const string reactionContent1 = ":cake:";
         const string reactionContent2 = ":pie:";
@@ -229,7 +230,7 @@ public class ReactionTestsLocalIdentityOnly
             Reaction = reactionContent1,
             TransitOptions = null
         });
-        Assert.IsTrue(addReactionResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse1.IsSuccessStatusCode);
 
         var addReactionResponse2 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {
@@ -237,7 +238,7 @@ public class ReactionTestsLocalIdentityOnly
             Reaction = reactionContent2,
             TransitOptions = null
         });
-        Assert.IsTrue(addReactionResponse2.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse2.IsSuccessStatusCode);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -249,13 +250,13 @@ public class ReactionTestsLocalIdentityOnly
         });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var counts = response.Content;
-            Assert.IsNotNull(counts);
-            Assert.IsTrue(counts.Count == 2);
+            ClassicAssert.IsNotNull(counts);
+            ClassicAssert.IsTrue(counts.Count == 2);
         }
     }
 
@@ -274,7 +275,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         var uploadMetadataResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         var uploadResult = uploadMetadataResponse.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         const string reactionContent1 = ":cake:";
         const string reactionContent2 = ":pie:";
@@ -285,7 +286,7 @@ public class ReactionTestsLocalIdentityOnly
             Reaction = reactionContent1,
             TransitOptions = null
         });
-        Assert.IsTrue(addReactionResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse1.IsSuccessStatusCode);
 
         var addReactionResponse2 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {
@@ -293,7 +294,7 @@ public class ReactionTestsLocalIdentityOnly
             Reaction = reactionContent2,
             TransitOptions = null
         });
-        Assert.IsTrue(addReactionResponse2.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse2.IsSuccessStatusCode);
 
         // Act
         await callerContext.Initialize(ownerApiClient);
@@ -306,17 +307,17 @@ public class ReactionTestsLocalIdentityOnly
         });
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var allReactions = response.Content;
-            Assert.IsNotNull(allReactions);
-            Assert.IsTrue(allReactions.Reactions.Count == 2);
+            ClassicAssert.IsNotNull(allReactions);
+            ClassicAssert.IsTrue(allReactions.Reactions.Count == 2);
 
-            Assert.IsNotNull(allReactions.Reactions.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(allReactions.Reactions.SingleOrDefault(r =>
                 r.ReactionContent == reactionContent1 && r.OdinId == identity.OdinId && r.FileId.FileId == uploadResult.File.FileId));
-            Assert.IsNotNull(allReactions.Reactions.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(allReactions.Reactions.SingleOrDefault(r =>
                 r.ReactionContent == reactionContent2 && r.OdinId == identity.OdinId && r.FileId.FileId == uploadResult.File.FileId));
         }
     }
@@ -328,7 +329,7 @@ public class ReactionTestsLocalIdentityOnly
 
         var file = getHeaderResponse1.Content.SearchResults.First();
         var noMatchingInReactionPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
-        Assert.IsTrue(noMatchingInReactionPreview);
+        ClassicAssert.IsTrue(noMatchingInReactionPreview);
     }
 
     private async Task AssertIdentityHasReactionInPreview(TestIdentity identity, FileIdentifier fileId, string reactionContent)
@@ -338,7 +339,7 @@ public class ReactionTestsLocalIdentityOnly
 
         var file = getHeaderResponse1.Content.SearchResults.First();
         var hasReactionInPreview = file.FileMetadata.ReactionPreview.Reactions.Any(pair => pair.Value.ReactionContent == reactionContent);
-        Assert.IsTrue(hasReactionInPreview);
+        ClassicAssert.IsTrue(hasReactionInPreview);
     }
 
     private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
@@ -351,7 +352,7 @@ public class ReactionTestsLocalIdentityOnly
             },
             fileSystemType);
         var hasReactionInDb = getReactionsResponse.Content.Reactions.Any(r => r.ReactionContent == reactionContent);
-        Assert.IsTrue(hasReactionInDb);
+        ClassicAssert.IsTrue(hasReactionInDb);
     }
 
     private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
@@ -364,6 +365,6 @@ public class ReactionTestsLocalIdentityOnly
             },
             fileSystemType);
         var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => r.ReactionContent != reactionContent);
-        Assert.IsTrue(reactionNotInDb);
+        ClassicAssert.IsTrue(reactionNotInDb);
     }
 }

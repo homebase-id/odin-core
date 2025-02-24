@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.DataSubscription.Follower;
@@ -227,7 +228,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             Key = WebScaffold.PAYLOAD_KEY
         });
 
-        Assert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.NotFound);
+        ClassicAssert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.NotFound);
     }
 
     private async Task AssertFeedDriveHasHeader(OwnerApiClient client, UploadResult uploadResult, string encryptedJsonContent64)
@@ -239,11 +240,11 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
         var originalFile = batch.SearchResults.First();
-        Assert.IsTrue(originalFile.FileState == FileState.Active);
-        Assert.IsTrue(originalFile.FileMetadata.AppData.Content == encryptedJsonContent64);
-        Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(originalFile.FileState == FileState.Active);
+        ClassicAssert.IsTrue(originalFile.FileMetadata.AppData.Content == encryptedJsonContent64);
+        ClassicAssert.IsTrue(originalFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
     }
 
     private async Task AssertCanGetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult, string encryptedPayloadContent64)
@@ -255,11 +256,11 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             Key = WebScaffold.PAYLOAD_KEY
         });
 
-        Assert.IsTrue(payloadResponse.IsSuccessStatusCode);
-        Assert.IsNotNull(payloadResponse.Content);
+        ClassicAssert.IsTrue(payloadResponse.IsSuccessStatusCode);
+        ClassicAssert.IsNotNull(payloadResponse.Content);
         var bytes = await payloadResponse.Content.ReadAsByteArrayAsync();
-        Assert.IsTrue(bytes.Length > 0);
-        Assert.IsTrue(bytes.ToBase64() == encryptedPayloadContent64);
+        ClassicAssert.IsTrue(bytes.Length > 0);
+        ClassicAssert.IsTrue(bytes.ToBase64() == encryptedPayloadContent64);
     }
 
     private async Task AssertFeedDrive_Does_Not_HaveHeader(OwnerApiClient client, UploadResult uploadResult, string encryptedJsonContent64)
@@ -271,7 +272,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsFalse(batch.SearchResults.Any(), $"Batch size should be 0 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsFalse(batch.SearchResults.Any(), $"Batch size should be 0 but was {batch.SearchResults.Count()}");
     }
 
     private async Task AssertCan_Not_GetPayload(OwnerApiClient client, TestIdentity identity, UploadResult uploadResult)
@@ -283,7 +284,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
             Key = WebScaffold.PAYLOAD_KEY
         });
 
-        Assert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.Forbidden);
+        ClassicAssert.IsTrue(payloadResponse.StatusCode == HttpStatusCode.Forbidden);
     }
 
     private async Task AssertFeedDrive_HasDeletedFile(OwnerApiClient client, UploadResult uploadResult)
@@ -295,7 +296,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests2
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
+        ClassicAssert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
 
     private async Task<(UploadResult uploadResult, string encryptedJsonContent64, string encryptedPayloadContent64)> UploadStandardEncryptedFileToChannel(

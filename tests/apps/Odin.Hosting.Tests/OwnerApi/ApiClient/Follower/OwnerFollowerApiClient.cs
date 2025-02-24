@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
@@ -37,7 +38,7 @@ public class OwnerFollowerApiClient
             var apiResponse = await svc.Follow(request);
             if (assertSuccessStatus)
             {
-                Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to follow identity: [{identity.OdinId}]");
+                ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to follow identity: [{identity.OdinId}]");
             }
 
             return apiResponse;
@@ -56,7 +57,7 @@ public class OwnerFollowerApiClient
             };
 
             var apiResponse = await svc.Unfollow(request);
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to unfollow identity: [{identity.OdinId}]");
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to unfollow identity: [{identity.OdinId}]");
         }
     }
 
@@ -67,8 +68,8 @@ public class OwnerFollowerApiClient
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetIdentitiesIFollow(cursor);
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(apiResponse.Content);
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(apiResponse.Content);
 
             return apiResponse.Content;
         }
@@ -81,8 +82,8 @@ public class OwnerFollowerApiClient
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetIdentitiesFollowingMe(cursor);
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(apiResponse.Content);
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(apiResponse.Content);
 
             return apiResponse.Content;
         }
@@ -95,7 +96,7 @@ public class OwnerFollowerApiClient
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetFollower(identity.OdinId);
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode);
             return apiResponse.Content;
         }
     }
@@ -107,7 +108,7 @@ public class OwnerFollowerApiClient
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetIdentityIFollow(identity.OdinId);
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode);
             return apiResponse.Content;
         }
     }

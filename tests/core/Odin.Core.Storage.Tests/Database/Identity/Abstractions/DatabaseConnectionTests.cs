@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -43,10 +44,10 @@ public class DatabaseConnectionTests : IocTestBase
         });
 
         var r = await tblKeyValue.GetAsync(k1);
-        Assert.IsNotNull(r);
+        ClassicAssert.IsNotNull(r);
 
         r = await tblKeyValue.GetAsync(k2);
-        Assert.IsNull(r);
+        ClassicAssert.IsNull(r);
     }
 
 

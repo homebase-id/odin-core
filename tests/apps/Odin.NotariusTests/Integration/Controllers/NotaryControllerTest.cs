@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
@@ -76,7 +77,7 @@ public class NotaryControllerTest
         var (signedDocument, hashToSignBase64) = await BeginNotarizeHelper(hobbit);
         
         // We have a normally signed document and no notary public signature
-        Assert.IsTrue(signedDocument.NotariusPublicus == null);
+        ClassicAssert.IsTrue(signedDocument.NotariusPublicus == null);
 
         var notarySignedDocument = await CompleteNotarizeHelper(hobbit, signedDocument, hashToSignBase64);
     }
@@ -90,7 +91,7 @@ public class NotaryControllerTest
         var (signedDocument, hashToSignBase64) = await BeginNotarizeHelper(hobbit, HttpStatusCode.OK);
 
         // We have a normally signed document and no notary public signature
-        Assert.IsTrue(signedDocument.NotariusPublicus == null);
+        ClassicAssert.IsTrue(signedDocument.NotariusPublicus == null);
 
         var notarySignedDocument = await CompleteNotarizeHelper(hobbit, signedDocument, hashToSignBase64);
 
@@ -164,10 +165,10 @@ public class NotaryControllerTest
         var resultString = await response.Content.ReadAsStringAsync();
         var notarizedDocument = JsonSerializer.Deserialize<SignedEnvelope>(resultString);
 
-        Assert.NotNull(notarizedDocument);
-        Assert.IsTrue(notarizedDocument.NotariusPublicus != null);
-        Assert.IsTrue(notarizedDocument.VerifyEnvelopeSignatures());
-        Assert.IsTrue(notarizedDocument.VerifyNotariusPublicus());
+        ClassicAssert.NotNull(notarizedDocument);
+        ClassicAssert.IsTrue(notarizedDocument.NotariusPublicus != null);
+        ClassicAssert.IsTrue(notarizedDocument.VerifyEnvelopeSignatures());
+        ClassicAssert.IsTrue(notarizedDocument.VerifyNotariusPublicus());
 
         return notarizedDocument;
     }

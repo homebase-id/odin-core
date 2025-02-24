@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -129,7 +130,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
 
             var uploadedFileResponse1 = await driveClient.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content;
 
             // history dump
@@ -139,7 +140,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             if (summary.TotalFailed != connectedRecipients.Count)
             {
                 var historyResponse = await driveClient.GetTransferHistory(uploadResult.File);
-                Assert.IsTrue(historyResponse.IsSuccessStatusCode, $"status code was {historyResponse.StatusCode}");
+                ClassicAssert.IsTrue(historyResponse.IsSuccessStatusCode, $"status code was {historyResponse.StatusCode}");
 
                 var theHistory = historyResponse.Content;
                 foreach (var result in theHistory.History.Results)
@@ -148,16 +149,16 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 }
             }
 
-            Assert.IsNotNull(summary, "missing transfer summary");
-            Assert.IsTrue(summary.TotalDelivered == 0);
-            Assert.IsTrue(summary.TotalReadByRecipient == 0);
+            ClassicAssert.IsNotNull(summary, "missing transfer summary");
+            ClassicAssert.IsTrue(summary.TotalDelivered == 0);
+            ClassicAssert.IsTrue(summary.TotalReadByRecipient == 0);
             
-            Assert.IsTrue(summary.TotalFailed == connectedRecipients.Count, $"total failed was :{summary.TotalFailed}; " +
+            ClassicAssert.IsTrue(summary.TotalFailed == connectedRecipients.Count, $"total failed was :{summary.TotalFailed}; " +
                                                                             $"expected: {connectedRecipients.Count} " +
                                                                             $"(delivered:{summary.TotalDelivered}," +
                                                                             $" in outbox: {summary.TotalInOutbox})");
             
-            Assert.IsTrue(summary.TotalInOutbox == connectedRecipients.Count);
+            ClassicAssert.IsTrue(summary.TotalInOutbox == connectedRecipients.Count);
 
             await this.DeleteScenario(senderOwnerClient, connectedRecipients);
             // await this.DeleteScenario(senderOwnerClient, disconnectedRecipients);
@@ -215,10 +216,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
 
                 // get the file for the recipient
                 var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
 
                 var recipientFile = recipientFileResponse.Content.SearchResults.SingleOrDefault();
-                Assert.IsNotNull(recipientFile);
+                ClassicAssert.IsNotNull(recipientFile);
 
                 //
                 // Send the read receipt
@@ -230,14 +231,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 };
 
                 var sendReadReceiptResponse = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
-                Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
                 var sendReadReceiptResult = sendReadReceiptResponse.Content;
-                Assert.IsNotNull(sendReadReceiptResult);
+                ClassicAssert.IsNotNull(sendReadReceiptResult);
                 var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
-                Assert.IsNotNull(item, "no record for file");
+                ClassicAssert.IsNotNull(item, "no record for file");
                 var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
-                Assert.IsNotNull(statusItem);
-                Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
+                ClassicAssert.IsNotNull(statusItem);
+                ClassicAssert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
 
                 await client.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
             }
@@ -252,15 +253,15 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
 
             var uploadedFileResponse1 = await driveClient.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content;
 
             var summary = uploadedFile1.ServerMetadata.TransferHistory.Summary;
-            Assert.IsNotNull(summary, "missing transfer summary");
-            Assert.IsTrue(summary.TotalDelivered == connectedRecipients.Count);
-            Assert.IsTrue(summary.TotalReadByRecipient == connectedRecipients.Count);
-            Assert.IsTrue(summary.TotalFailed == disconnectedRecipients.Count);
-            Assert.IsTrue(summary.TotalInOutbox == 0);
+            ClassicAssert.IsNotNull(summary, "missing transfer summary");
+            ClassicAssert.IsTrue(summary.TotalDelivered == connectedRecipients.Count);
+            ClassicAssert.IsTrue(summary.TotalReadByRecipient == connectedRecipients.Count);
+            ClassicAssert.IsTrue(summary.TotalFailed == disconnectedRecipients.Count);
+            ClassicAssert.IsTrue(summary.TotalInOutbox == 0);
 
             await this.DeleteScenario(senderOwnerClient, connectedRecipients);
             await this.DeleteScenario(senderOwnerClient, disconnectedRecipients);
@@ -318,10 +319,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
 
                 // get the file for the recipient
                 var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
 
                 var recipientFile = recipientFileResponse.Content.SearchResults.SingleOrDefault();
-                Assert.IsNotNull(recipientFile);
+                ClassicAssert.IsNotNull(recipientFile);
 
                 //
                 // Send the read receipt
@@ -333,14 +334,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 };
 
                 var sendReadReceiptResponse = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
-                Assert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
                 var sendReadReceiptResult = sendReadReceiptResponse.Content;
-                Assert.IsNotNull(sendReadReceiptResult);
+                ClassicAssert.IsNotNull(sendReadReceiptResult);
                 var item = sendReadReceiptResult.Results.SingleOrDefault(d => d.File == fileForReadReceipt);
-                Assert.IsNotNull(item, "no record for file");
+                ClassicAssert.IsNotNull(item, "no record for file");
                 var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
-                Assert.IsNotNull(statusItem);
-                Assert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
+                ClassicAssert.IsNotNull(statusItem);
+                ClassicAssert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
 
                 await client.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
             }
@@ -355,29 +356,29 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
 
             var historyResponse = await driveClient.GetTransferHistory(uploadResult.File);
-            Assert.IsTrue(historyResponse.IsSuccessStatusCode, $"status code was {historyResponse.StatusCode}");
+            ClassicAssert.IsTrue(historyResponse.IsSuccessStatusCode, $"status code was {historyResponse.StatusCode}");
 
             var theHistory = historyResponse.Content;
-            Assert.IsTrue(theHistory.OriginalRecipientCount == transitOptions.Recipients.Count);
-            Assert.IsTrue(theHistory.History.Results.Count == transitOptions.Recipients.Count);
+            ClassicAssert.IsTrue(theHistory.OriginalRecipientCount == transitOptions.Recipients.Count);
+            ClassicAssert.IsTrue(theHistory.History.Results.Count == transitOptions.Recipients.Count);
 
             foreach (var recipient in connectedRecipients)
             {
                 var recipientStatus = theHistory.History.Results.SingleOrDefault(r => r.Recipient == recipient.OdinId);
-                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-                Assert.IsTrue(recipientStatus.IsReadByRecipient);
-                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
-                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
+                ClassicAssert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                ClassicAssert.IsTrue(recipientStatus.IsReadByRecipient);
+                ClassicAssert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
+                ClassicAssert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == uploadResult.NewVersionTag);
             }
 
             foreach (var recipient in disconnectedRecipients)
             {
                 var recipientStatus = theHistory.History.Results.SingleOrDefault(r => r.Recipient == recipient.OdinId);
-                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-                Assert.IsTrue(recipientStatus.IsReadByRecipient == false);
-                Assert.IsTrue(recipientStatus.IsInOutbox == false);
-                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
-                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
+                ClassicAssert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                ClassicAssert.IsTrue(recipientStatus.IsReadByRecipient == false);
+                ClassicAssert.IsTrue(recipientStatus.IsInOutbox == false);
+                ClassicAssert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
+                ClassicAssert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
             }
 
             await this.DeleteScenario(senderOwnerClient, connectedRecipients);
@@ -417,10 +418,10 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 transitOptions
             );
 
-            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+            ClassicAssert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult!.RecipientStatus.Count == transitOptions.Recipients.Count);
+            ClassicAssert.IsTrue(uploadResult!.RecipientStatus.Count == transitOptions.Recipients.Count);
 
             if (allowDistribution) //we will only have a chance to get an empty outbox if the file is distributed
             {
@@ -428,7 +429,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             }
 
             var uploadResult1 = uploadResponse.Content;
-            Assert.IsNotNull(uploadResult1);
+            ClassicAssert.IsNotNull(uploadResult1);
 
             return (uploadResult1, encryptedJsonContent64);
         }
@@ -464,7 +465,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                     allowSubscriptions: false,
                     ownerOnly: false);
 
-                Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
 
                 var recipientCircleId = Guid.NewGuid();
                 var createCircleOnRecipientResponse = await recipientOwnerClient.Network.CreateCircle(recipientCircleId,
@@ -484,7 +485,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                         }
                     });
 
-                Assert.IsTrue(createCircleOnRecipientResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(createCircleOnRecipientResponse.IsSuccessStatusCode);
 
                 // get connected
                 var sendConnectionResponse = await recipientOwnerClient.Connections
@@ -494,7 +495,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                                   $"to {senderOwnerClient.OdinId}: " +
                                   $"Success: {sendConnectionResponse.IsSuccessStatusCode}");
 
-                // Assert.IsTrue(sendConnectionResponse.IsSuccessStatusCode,
+                // ClassicAssert.IsTrue(sendConnectionResponse.IsSuccessStatusCode,
                 //     $"Status code was {sendConnectionResponse.StatusCode} error code: {sendConnectionResponse.Error?.ParseProblemDetails()}");
 
                 var acceptResponse = await senderOwnerClient.Connections
@@ -504,7 +505,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                                   $"from {recipientOwnerClient.OdinId}: " +
                                   $"Success: {acceptResponse.IsSuccessStatusCode}");
 
-                // Assert.IsTrue(acceptResponse.IsSuccessStatusCode,
+                // ClassicAssert.IsTrue(acceptResponse.IsSuccessStatusCode,
                 //     $"Status code was {acceptResponse.StatusCode} error code: {acceptResponse.Error?.ParseProblemDetails()}");
             }
         }
@@ -524,7 +525,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
 
             //
             // Recipient creates a circle with target drive, read and write access
@@ -548,7 +549,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                     }
                 });
 
-            Assert.IsTrue(createCircleOnSenderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(createCircleOnSenderResponse.IsSuccessStatusCode);
             return senderCircleId;
         }
 
