@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
@@ -59,42 +60,42 @@ public class ConfirmConnectionTests
         await frodoOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Samwise.OdinId]);
-        Assert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[TestIdentities.Samwise.OdinId]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[TestIdentities.Merry.OdinId]);
 
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing();
         await samOwnerClient.Connections.AwaitIntroductionsProcessing();
 
         //validate they are connected
         var samConnectionInfoResponse = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
-        Assert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
-        Assert.IsTrue(
+        ClassicAssert.IsTrue(samConnectionInfoResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(samConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
+        ClassicAssert.IsTrue(
             samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(cg =>
                 cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
+        ClassicAssert.IsFalse(samConnectionInfoResponse.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
         //merry confirms - now sam should be in a new circle
         var merryConfirmationResponse = await merryOwnerClient.Network.ConfirmConnection(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(merryConfirmationResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(merryConfirmationResponse.IsSuccessStatusCode);
         var samConnectionInfoResponse2 = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(samConnectionInfoResponse2.IsSuccessStatusCode);
-        Assert.IsFalse(
+        ClassicAssert.IsTrue(samConnectionInfoResponse2.IsSuccessStatusCode);
+        ClassicAssert.IsFalse(
             samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(cg =>
                 cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsTrue(samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(
+        ClassicAssert.IsTrue(samConnectionInfoResponse2.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
 
         var samConfirmationResponse = await samOwnerClient.Network.ConfirmConnection(TestIdentities.Merry.OdinId);
-        Assert.IsTrue(samConfirmationResponse.IsSuccessStatusCode, $"status code was {samConfirmationResponse.StatusCode}");
+        ClassicAssert.IsTrue(samConfirmationResponse.IsSuccessStatusCode, $"status code was {samConfirmationResponse.StatusCode}");
         var merryConnectionInfo = await merryOwnerClient.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
-        Assert.IsTrue(merryConnectionInfo.IsSuccessStatusCode);
-        Assert.IsFalse(
+        ClassicAssert.IsTrue(merryConnectionInfo.IsSuccessStatusCode);
+        ClassicAssert.IsFalse(
             merryConnectionInfo.Content.AccessGrant.CircleGrants.Exists(cg =>
                 cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId));
-        Assert.IsTrue(merryConnectionInfo.Content.AccessGrant.CircleGrants.Exists(
+        ClassicAssert.IsTrue(merryConnectionInfo.Content.AccessGrant.CircleGrants.Exists(
             cg => cg.CircleId == SystemCircleConstants.ConfirmedConnectionsCircleId));
 
         await Cleanup();

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -143,7 +144,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var r = await tblOutbox.GetAsync(driveId, f1);
 
-            Assert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r.Count == 1);
 
         }
 
@@ -188,15 +189,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 Assert.Fail();
             if (r.priority != 0)
                 Assert.Fail();
-            Assert.IsTrue(r.recipient == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "frodo.baggins.me");
 
             var (ti, tp, nrt) = await tblOutbox.OutboxStatusAsync();
             Debug.Assert(ti == 5);
             Debug.Assert(tp == 1);
             var (ti1, tp1, nrt1) = await tblOutbox.OutboxStatusDriveAsync(driveId);
-            Assert.IsTrue(ti == ti1);
-            Assert.IsTrue(tp == tp1);
-            Assert.IsTrue(nrt == nrt1);
+            ClassicAssert.IsTrue(ti == ti1);
+            ClassicAssert.IsTrue(tp == tp1);
+            ClassicAssert.IsTrue(nrt == nrt1);
 
             // pop all the remaining items from the Outbox
             r = await tblOutbox.CheckOutItemAsync();
@@ -206,7 +207,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 Assert.Fail();
             if (r.priority != 1)
                 Assert.Fail();
-            Assert.IsTrue(r.recipient == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "frodo.baggins.me");
 
             r = await tblOutbox.CheckOutItemAsync();
             if (ByteArrayUtil.muidcmp(r.fileId, f3) != 0)
@@ -215,7 +216,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 Assert.Fail();
             if (r.priority != 2)
                 Assert.Fail();
-            Assert.IsTrue(r.recipient == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "frodo.baggins.me");
 
             r = await tblOutbox.CheckOutItemAsync();
             if (ByteArrayUtil.muidcmp(r.fileId, f4) != 0)
@@ -224,7 +225,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 Assert.Fail();
             if (r.priority != 3)
                 Assert.Fail();
-            Assert.IsTrue(r.recipient == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "frodo.baggins.me");
 
             r = await tblOutbox.CheckOutItemAsync();
             if (ByteArrayUtil.muidcmp(r.fileId, f5) != 0)
@@ -233,7 +234,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 Assert.Fail();
             if (r.priority != 4)
                 Assert.Fail();
-            Assert.IsTrue(r.recipient == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "frodo.baggins.me");
 
             r = await tblOutbox.CheckOutItemAsync();
             if (r != null)
@@ -271,15 +272,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 0, value = v5 });
 
             var r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.priority == 0);
+            ClassicAssert.IsTrue(r.priority == 0);
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.priority == 1);
+            ClassicAssert.IsTrue(r.priority == 1);
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.priority == 2);
+            ClassicAssert.IsTrue(r.priority == 2);
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.priority == 3);
+            ClassicAssert.IsTrue(r.priority == 3);
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.priority == 4);
+            ClassicAssert.IsTrue(r.priority == 4);
 
         }
 
@@ -318,15 +319,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "1frodo.baggins.me", priority = 0, value = v1 });
 
             var r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.recipient == "2frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "2frodo.baggins.me");
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.recipient == "3frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "3frodo.baggins.me");
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.recipient == "4frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "4frodo.baggins.me");
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.recipient == "5frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "5frodo.baggins.me");
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.recipient == "1frodo.baggins.me");
+            ClassicAssert.IsTrue(r.recipient == "1frodo.baggins.me");
 
         }
 
@@ -366,38 +367,38 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", dependencyFileId = f5, priority = 0, value = v1 });
 
             var r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f3) == 0);
             var nr = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(nr == null);
+            ClassicAssert.IsTrue(nr == null);
 
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
 
             // Get the next one
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f2) == 0);
             nr = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(nr == null);
+            ClassicAssert.IsTrue(nr == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
 
             // Get the next one
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f4) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f4) == 0);
             nr = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(nr == null);
+            ClassicAssert.IsTrue(nr == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
 
             // Get the next one
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f5) == 0);
             nr = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(nr == null);
+            ClassicAssert.IsTrue(nr == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
 
             // Get the next one
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f1) == 0);
             nr = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(nr == null);
+            ClassicAssert.IsTrue(nr == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
         }
 
@@ -440,54 +441,54 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // f3 is the only non-dependent item, so we should get that
             var nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == t3);
+            ClassicAssert.IsTrue(nrt == t3);
 
             await Task.Delay(50); // Now all items are ready to be popped
 
             // We'll get F3 first
             var r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f3) == 0);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == null); // There are no items left, because f2 is popped and everything else is dependent
+            ClassicAssert.IsTrue(nrt == null); // There are no items left, because f2 is popped and everything else is dependent
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == t2); // f2 is the next item now that f3 is popped
+            ClassicAssert.IsTrue(nrt == t2); // f2 is the next item now that f3 is popped
 
             // Get the next one, which is f2
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f2) == 0);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == null);
+            ClassicAssert.IsTrue(nrt == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == t4); // f4 is the next item now that f2 is popped
+            ClassicAssert.IsTrue(nrt == t4); // f4 is the next item now that f2 is popped
 
             // Get the next one, which is f4
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f4) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f4) == 0);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == null);
+            ClassicAssert.IsTrue(nrt == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == t5); // f5 is the next item now that f4 is popped
+            ClassicAssert.IsTrue(nrt == t5); // f5 is the next item now that f4 is popped
 
             // Get the next one, which is f5
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f5) == 0);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == null);
+            ClassicAssert.IsTrue(nrt == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == t1); // f1 is the last item now that f5 is popped
+            ClassicAssert.IsTrue(nrt == t1); // f1 is the last item now that f5 is popped
 
             // Get the next one, which is f1
             r = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r.fileId, f1) == 0);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == null);
+            ClassicAssert.IsTrue(nrt == null);
             await tblOutbox.CompleteAndRemoveAsync((Guid)r.checkOutStamp);
             nrt = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(nrt == null); // There are no more items
+            ClassicAssert.IsTrue(nrt == null); // There are no more items
         }
 
 
@@ -516,29 +517,29 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblOutbox.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
             var r1 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
 
             var r2 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r2.fileId, f2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r2.fileId, f2) == 0);
 
             await tblOutbox.CheckInAsCancelledAsync((Guid)r1.checkOutStamp, UnixTimeUtc.Now().AddSeconds(2));
 
             var r3 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r3.fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r3.fileId, f3) == 0);
 
             var r4 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r4.fileId, f4) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r4.fileId, f4) == 0);
 
             var r5 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r5.fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r5.fileId, f5) == 0);
 
             r1 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r1 == null);
+            ClassicAssert.IsTrue(r1 == null);
 
             Thread.Sleep(3000); // Wait until it's available again
 
             r1 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r1.fileId, f1) == 0);
 
         }
 
@@ -599,18 +600,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var r = await tblOutbox.CheckOutItemAsync();
             var r2 = await tblOutbox.CheckOutItemAsync();
-            Assert.IsTrue(r.nextRunTime >= tilo);
-            Assert.IsTrue(r.nextRunTime <= tihi);
+            ClassicAssert.IsTrue(r.nextRunTime >= tilo);
+            ClassicAssert.IsTrue(r.nextRunTime <= tihi);
 
             var t = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(t == null); // There is no next item
+            ClassicAssert.IsTrue(t == null); // There is no next item
 
             var nextTime = UnixTimeUtc.Now().AddHours(1);
             await tblOutbox.CheckInAsCancelledAsync((Guid)r.checkOutStamp, nextTime);
             await tblOutbox.CheckInAsCancelledAsync((Guid)r2.checkOutStamp, UnixTimeUtc.Now().AddDays(7));
 
             t = await tblOutbox.NextScheduledItemAsync();
-            Assert.IsTrue(t == nextTime);
+            ClassicAssert.IsTrue(t == nextTime);
 
         }
 

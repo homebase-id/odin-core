@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -83,7 +84,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientConnectionInfo = await senderOwnerClient.Network.GetConnectionInfo(recipient);
 
-            Assert.IsNotNull(recipientConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            ClassicAssert.IsNotNull(recipientConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == senderChatCircle.DriveGrants.Single().PermissionedDrive)));
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
@@ -130,7 +131,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 
             var recipientConnectionInfo = await senderOwnerClient.Network.GetConnectionInfo(recipient);
 
-            Assert.IsNotNull(recipientConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            ClassicAssert.IsNotNull(recipientConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == senderChatCircle.DriveGrants.Single().PermissionedDrive)));
 
             //await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
@@ -214,12 +215,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //
             //     Assert.That(transferResult.File, Is.Not.Null);
             //     Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-            //     Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+            //     ClassicAssert.IsTrue(transferResult.File.TargetDrive.IsValid());
             //
             //     foreach (var r in instructionSet.TransitOptions.Recipients)
             //     {
-            //         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-            //         Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TransferKeyCreated, $"transfer key not created for {r}");
+            //         ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+            //         ClassicAssert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TransferKeyCreated, $"transfer key not created for {r}");
             //     }
             // }
             //
@@ -241,7 +242,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //     var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
             //     var resp = await transitAppSvc.ProcessIncomingInstructions(
             //         new ProcessTransitInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
-            //     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+            //     ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             //
             //     var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
             //
@@ -256,9 +257,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //         }
             //     });
             //
-            //     Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
-            //     Assert.IsNotNull(queryBatchResponse.Content);
-            //     Assert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
+            //     ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+            //     ClassicAssert.IsNotNull(queryBatchResponse.Content);
+            //     ClassicAssert.IsTrue(queryBatchResponse.Content.SearchResults.Count() == 1);
             //
             //     uploadedFile = new ExternalFileIdentifier()
             //     {
@@ -290,7 +291,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //     var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
             //
             //     Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-            //     Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
+            //     ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
             //
             //     //
             //     // Get the payload that was uploaded, test it
@@ -321,9 +322,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //         Height = thumbnail1.PixelHeight
             //     });
             //
-            //     Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+            //     ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
             //     var getThumbnailResponseBytes = await getThumbnailResponse.Content!.ReadAsByteArrayAsync();
-            //     Assert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
+            //     ClassicAssert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
             //
             //     decryptedKeyHeader.AesKey.Wipe();
             //     // keyHeader.AesKey.Wipe();
@@ -366,11 +367,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //         File = uploadedFile
             //     });
             //
-            //     Assert.IsTrue(getTransitFileResponse.IsSuccessStatusCode);
-            //     Assert.IsNotNull(getTransitFileResponse.Content);
+            //     ClassicAssert.IsTrue(getTransitFileResponse.IsSuccessStatusCode);
+            //     ClassicAssert.IsNotNull(getTransitFileResponse.Content);
             //
             //     var fileResponse = getTransitFileResponse.Content;
-            //     Assert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
+            //     ClassicAssert.IsTrue(uploadedFile.FileId == fileResponse.FileId);
             //
             //     var transitClientFileHeader = getTransitFileResponse.Content;
             //
@@ -390,7 +391,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //     var decryptedClientFileKeyHeader = transitClientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);
             //
             //     Assert.That(decryptedClientFileKeyHeader.AesKey.IsSet(), Is.True);
-            //     Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedClientFileKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
+            //     ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedClientFileKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
             //
             //     //
             //     // Get the payload that was sent to the recipient via transit, test it
@@ -406,19 +407,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //     Assert.That(getTransitPayloadResponse.Content, Is.Not.Null);
             //
             //     var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-            //     Assert.IsTrue(payloadIsEncrypted);
+            //     ClassicAssert.IsTrue(payloadIsEncrypted);
             //
             //     var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
             //     var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
             //
             //     var getTransitPayloadContentTypeHeader = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-            //     Assert.IsTrue(descriptor.FileMetadata.ContentType == getTransitPayloadContentTypeHeader);
+            //     ClassicAssert.IsTrue(descriptor.FileMetadata.ContentType == getTransitPayloadContentTypeHeader);
             //
             //     var decryptedPayloadKeyHeader = ownerSharedSecretEncryptedKeyHeaderForPayload.DecryptAesToKeyHeader(ref ownerSharedSecret);
             //     var payloadResponseCipherBytes = await getTransitPayloadResponse.Content.ReadAsByteArrayAsync();
-            //     Assert.IsTrue(reuploadedContext.PayloadCipher.Length == payloadResponseCipherBytes.Length);
+            //     ClassicAssert.IsTrue(reuploadedContext.PayloadCipher.Length == payloadResponseCipherBytes.Length);
             //     var decryptedPayloadBytes = decryptedPayloadKeyHeader.Decrypt(payloadResponseCipherBytes);
-            //     Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(originalPayloadData.ToUtf8ByteArray(), decryptedPayloadBytes));
+            //     ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(originalPayloadData.ToUtf8ByteArray(), decryptedPayloadBytes));
             //
             //     //
             //     // Get the thumbnail that was sent to the recipient via transit, test it
@@ -433,23 +434,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //         Height = thumbnail1.PixelHeight
             //     });
             //
-            //     Assert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
-            //     Assert.IsNotNull(getTransitThumbnailResponse.Content);
+            //     ClassicAssert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
+            //     ClassicAssert.IsNotNull(getTransitThumbnailResponse.Content);
             //
             //     var thumbnailIsEncrypted = bool.Parse(getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
-            //     Assert.IsTrue(thumbnailIsEncrypted);
+            //     ClassicAssert.IsTrue(thumbnailIsEncrypted);
             //
             //     var thumbnailSharedSecretKeyHeaderValue =
             //         getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
             //     var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
             //
             //     var getTransitThumbnailContentTypeHeader = getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
-            //     Assert.IsTrue(thumbnail1.ContentType == getTransitThumbnailContentTypeHeader);
+            //     ClassicAssert.IsTrue(thumbnail1.ContentType == getTransitThumbnailContentTypeHeader);
             //
             //     var decryptedThumbnailKeyHeader = ownerSharedSecretEncryptedKeyHeaderForThumbnail.DecryptAesToKeyHeader(ref ownerSharedSecret);
             //     var transitThumbnailResponse1CipherBytes = await getTransitThumbnailResponse!.Content!.ReadAsByteArrayAsync();
             //     var decryptedThumbnailBytes = decryptedThumbnailKeyHeader.Decrypt(transitThumbnailResponse1CipherBytes);
-            //     Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1OriginalBytes, decryptedThumbnailBytes));
+            //     ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1OriginalBytes, decryptedThumbnailBytes));
             // }
             //
             // keyHeader.AesKey.Wipe();

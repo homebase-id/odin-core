@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -75,20 +76,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership
 
             var getDomainsResponse = await client.Membership.GetDomainsInCircle(circle1.Id);
             var domains = getDomainsResponse.Content;
-            Assert.IsNotNull(domains);
-            Assert.IsTrue(domains.Count == 2);
+            ClassicAssert.IsNotNull(domains);
+            ClassicAssert.IsTrue(domains.Count == 2);
 
             var identityRecord = domains.SingleOrDefault(d => d.Domain.DomainName == recipient.OdinId.DomainName && d.DomainType == DomainType.Identity);
-            Assert.IsNotNull(identityRecord, "missing identity domain");
-            Assert.IsTrue(identityRecord.CircleGrant.CircleId == circle1.Id);
-            Assert.IsNotNull(identityRecord.CircleGrant);
-            Assert.IsTrue((identityRecord.CircleGrant.DriveGrants?.Count() ?? 0) == 0);
+            ClassicAssert.IsNotNull(identityRecord, "missing identity domain");
+            ClassicAssert.IsTrue(identityRecord.CircleGrant.CircleId == circle1.Id);
+            ClassicAssert.IsNotNull(identityRecord.CircleGrant);
+            ClassicAssert.IsTrue((identityRecord.CircleGrant.DriveGrants?.Count() ?? 0) == 0);
 
             var youAuthDomainRecord = domains.SingleOrDefault(d => d.Domain.DomainName == youAuthDomain && d.DomainType == DomainType.YouAuth);
-            Assert.IsNotNull(youAuthDomainRecord, "missing identity domain");
-            Assert.IsNotNull(youAuthDomainRecord.CircleGrant);
-            Assert.IsTrue(youAuthDomainRecord.CircleGrant.CircleId == circle1.Id);
-            Assert.IsTrue((youAuthDomainRecord.CircleGrant.DriveGrants?.Count() ?? 0) == 0);
+            ClassicAssert.IsNotNull(youAuthDomainRecord, "missing identity domain");
+            ClassicAssert.IsNotNull(youAuthDomainRecord.CircleGrant);
+            ClassicAssert.IsTrue(youAuthDomainRecord.CircleGrant.CircleId == circle1.Id);
+            ClassicAssert.IsTrue((youAuthDomainRecord.CircleGrant.DriveGrants?.Count() ?? 0) == 0);
         }
 
         private async Task AddYouAuthDomain(string domainName, List<GuidId> circleIds)
@@ -98,8 +99,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
             var response = await client.YouAuth.RegisterDomain(domain, circleIds);
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
         }
     }
 }

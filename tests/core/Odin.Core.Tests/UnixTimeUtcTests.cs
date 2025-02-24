@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using NodaTime;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 
@@ -74,8 +75,8 @@ namespace Odin.Core.Tests
 
             var deserializedValue = OdinSystemSerializer.Deserialize<UnixTimeUtc>(json);
 
-            Assert.IsTrue(value == deserializedValue);
-            Assert.IsTrue(value.milliseconds == deserializedValue.milliseconds);
+            ClassicAssert.IsTrue(value == deserializedValue);
+            ClassicAssert.IsTrue(value.milliseconds == deserializedValue.milliseconds);
         }
 
 
@@ -89,7 +90,7 @@ namespace Odin.Core.Tests
                 t1 = UnixTimeUtcUnique.Now();
                 t2 = UnixTimeUtcUnique.Now();
 
-                Assert.IsTrue(t1.uniqueTime != t2.uniqueTime);
+                ClassicAssert.IsTrue(t1.uniqueTime != t2.uniqueTime);
             }
         }
 
@@ -98,26 +99,26 @@ namespace Odin.Core.Tests
         public void TestNodaTimeExtremeRange02()
         {
             var future = Instant.FromUtc(9999, 12, 31, 23, 59, 59);
-            Assert.AreEqual("9999-12-31T23:59:59Z", future.ToString());
+            ClassicAssert.AreEqual("9999-12-31T23:59:59Z", future.ToString());
             var futureUnixTime = future.ToUnixTimeMilliseconds();
-            Assert.AreEqual(253402300799000, futureUnixTime);
-            Assert.AreEqual(future, Instant.FromUnixTimeMilliseconds(futureUnixTime));
+            ClassicAssert.AreEqual(253402300799000, futureUnixTime);
+            ClassicAssert.AreEqual(future, Instant.FromUnixTimeMilliseconds(futureUnixTime));
 
             var past = Instant.FromUtc(-9998, 01, 01, 00, 00, 00);
-            Assert.AreEqual("-9998-01-01T00:00:00Z", past.ToString());
+            ClassicAssert.AreEqual("-9998-01-01T00:00:00Z", past.ToString());
             var pastUnixTime = past.ToUnixTimeMilliseconds();
-            Assert.AreEqual(-377673580800000, pastUnixTime);
-            Assert.AreEqual(past, Instant.FromUnixTimeMilliseconds(pastUnixTime));
+            ClassicAssert.AreEqual(-377673580800000, pastUnixTime);
+            ClassicAssert.AreEqual(past, Instant.FromUnixTimeMilliseconds(pastUnixTime));
 
             var epoch = Instant.FromUtc(1970, 01, 01, 00, 00);
-            Assert.AreEqual(epoch.ToUnixTimeMilliseconds(), new UnixTimeUtc(0).milliseconds);
+            ClassicAssert.AreEqual(epoch.ToUnixTimeMilliseconds(), new UnixTimeUtc(0).milliseconds);
         }
 
         [Test]
         public void TestNodaTimeVsUnixTimeUtc()
         {
             var epoch = Instant.FromUtc(1970, 01, 01, 00, 00);
-            Assert.AreEqual(epoch.ToUnixTimeMilliseconds(), new UnixTimeUtc(0).milliseconds);
+            ClassicAssert.AreEqual(epoch.ToUnixTimeMilliseconds(), new UnixTimeUtc(0).milliseconds);
         }
 
         [Test]
@@ -125,10 +126,10 @@ namespace Odin.Core.Tests
         {
             UnixTimeUtc ut = UnixTimeUtc.Now();
             Instant nt = ut;
-            Assert.AreEqual(nt.ToUnixTimeMilliseconds(), ut.milliseconds);
+            ClassicAssert.AreEqual(nt.ToUnixTimeMilliseconds(), ut.milliseconds);
 
             var ut2 = new UnixTimeUtc(nt);
-            Assert.AreEqual(nt.ToUnixTimeMilliseconds(), ut2.milliseconds);
+            ClassicAssert.AreEqual(nt.ToUnixTimeMilliseconds(), ut2.milliseconds);
         }
 
         [Test]
@@ -137,10 +138,10 @@ namespace Odin.Core.Tests
             var ut = UnixTimeUtc.Now();
             Int64 i = (Int64) ut;
 
-            Assert.AreEqual(i, (Int64) ut);
+            ClassicAssert.AreEqual(i, (Int64) ut);
 
             UnixTimeUtc ut2 = i;
-            Assert.AreEqual(i, (Int64) ut2);
+            ClassicAssert.AreEqual(i, (Int64) ut2);
         }
     }
 }

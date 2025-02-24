@@ -3,7 +3,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Statistics.Serilog;
 
-namespace Odin.Services.Logging
+namespace Odin.Core.Logging
 {
     public class LoggingAutofacModule : Module
     {

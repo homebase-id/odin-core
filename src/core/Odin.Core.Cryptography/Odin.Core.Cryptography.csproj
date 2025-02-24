@@ -8,9 +8,9 @@
 
     <ItemGroup>
       <PackageReference Include="BouncyCastle.NetCore" Version="2.2.1" />
-      <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.1" />
+      <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.2" />
       <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
-      <PackageReference Include="System.Formats.Asn1" Version="9.0.1" /> <!-- explicit reference to fix vulnerable nuget -->
+      <PackageReference Include="System.Formats.Asn1" Version="9.0.2" /> <!-- explicit reference to fix vulnerable nuget -->
     </ItemGroup>
 
     <ItemGroup>

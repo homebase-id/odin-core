@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Services.Authorization.Acl;
@@ -97,12 +98,12 @@ public class GroupChannelFeedDistributionTests
             }
         });
 
-        Assert.IsTrue(queryFeedResponse.IsSuccessStatusCode, $"Actual code was {queryFeedResponse.StatusCode}");
+        ClassicAssert.IsTrue(queryFeedResponse.IsSuccessStatusCode, $"Actual code was {queryFeedResponse.StatusCode}");
 
         var thePost = queryFeedResponse.Content?.SearchResults.Single();
-        Assert.IsNotNull(thePost);
-        Assert.IsTrue(thePost.FileMetadata.IsEncrypted);
-        Assert.IsTrue(thePost.FileMetadata.AppData.Content == encryptedContent64);
+        ClassicAssert.IsNotNull(thePost);
+        ClassicAssert.IsTrue(thePost.FileMetadata.IsEncrypted);
+        ClassicAssert.IsTrue(thePost.FileMetadata.AppData.Content == encryptedContent64);
 
         await Disconnect(groupIdentity, TestIdentities.Samwise);
         await Disconnect(groupIdentity, TestIdentities.Pippin);
@@ -114,13 +115,13 @@ public class GroupChannelFeedDistributionTests
         var identityOwnerClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var sendConnectionResponse = await identityOwnerClient.Connections.SendConnectionRequest(groupIdentity.OdinId);
-        Assert.IsTrue(sendConnectionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(sendConnectionResponse.IsSuccessStatusCode);
 
         var acceptConnectionResponse = await groupOwnerClient.Connections.AcceptConnectionRequest(identity.OdinId, [groupCircleId]);
-        Assert.IsTrue(acceptConnectionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(acceptConnectionResponse.IsSuccessStatusCode);
 
         var followResponse = await identityOwnerClient.Follower.FollowIdentity(groupIdentity.OdinId, FollowerNotificationType.AllNotifications);
-        Assert.IsTrue(followResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(followResponse.IsSuccessStatusCode);
     }
 
     private async Task<(TargetDrive channelDrive, Guid groupCircleId)> CreateGroupChannel(TestIdentity groupIdentity)
@@ -191,7 +192,7 @@ public class GroupChannelFeedDistributionTests
             targetDrive,
             file);
 
-        Assert.IsTrue(uploadResponse.response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(uploadResponse.response.IsSuccessStatusCode);
 
         return (uploadResponse.response.Content, uploadResponse.encryptedJsonContent64);
     }

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -33,17 +34,17 @@ public class SingleKeyValueStorageTests : IocTestBase
 
         const string expectedValue1 = "some value";
         await singleKvp1.UpsertAsync(tblKeyValue, pk, expectedValue1);
-        Assert.IsTrue(await singleKvp1.GetAsync<string>(tblKeyValue, pk) == expectedValue1);
+        ClassicAssert.IsTrue(await singleKvp1.GetAsync<string>(tblKeyValue, pk) == expectedValue1);
         await singleKvp1.DeleteAsync(tblKeyValue, pk);
-        Assert.IsTrue(await singleKvp1.GetAsync<string>(tblKeyValue, pk) == null);
+        ClassicAssert.IsTrue(await singleKvp1.GetAsync<string>(tblKeyValue, pk) == null);
 
         var contextKey2 = Guid.NewGuid();
         var singleKvp2 = new SingleKeyValueStorage(contextKey2);
         const string expectedValue2 = "another value";
         await singleKvp2.UpsertAsync(tblKeyValue, pk, expectedValue2);
-        Assert.IsTrue(await singleKvp2.GetAsync<string>(tblKeyValue, pk) == expectedValue2);
+        ClassicAssert.IsTrue(await singleKvp2.GetAsync<string>(tblKeyValue, pk) == expectedValue2);
 
         await singleKvp2.DeleteAsync(tblKeyValue, pk);
-        Assert.IsTrue(await singleKvp2.GetAsync<string>(tblKeyValue, pk) == null);
+        ClassicAssert.IsTrue(await singleKvp2.GetAsync<string>(tblKeyValue, pk) == null);
     }
 }

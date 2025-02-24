@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Tenant;
 using Odin.Services.Tenant.Container;
 
@@ -31,26 +32,26 @@ public class MultiTenantContainerTest
             .Build();
 
         var scopedInfo = host.Services.GetRequiredService<SomeScopedData>();
-        Assert.AreEqual("global root 1", scopedInfo.Name);
+        ClassicAssert.AreEqual("global root 1", scopedInfo.Name);
 
         var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
 
         mockTenantProvider.Setup(x => x.GetCurrentTenant()).Returns(null as Services.Tenant.Tenant);
         var scope = container.LookupTenantScope("example.com");
-        Assert.IsNull(scope);
+        ClassicAssert.IsNull(scope);
 
         scope = container.GetOrAddTenantScope("example.com", cb =>
         {
             cb.RegisterInstance(new SomeScopedData {Name = "example.com"}).As<SomeScopedData>().SingleInstance();
         });
-        Assert.IsNotNull(scope);
+        ClassicAssert.IsNotNull(scope);
         scopedInfo = scope!.Resolve<SomeScopedData>();
-        Assert.AreEqual("example.com", scopedInfo.Name);
+        ClassicAssert.AreEqual("example.com", scopedInfo.Name);
 
         scope = container.LookupTenantScope("example.com");
-        Assert.IsNotNull(scope);
+        ClassicAssert.IsNotNull(scope);
         scopedInfo = scope!.Resolve<SomeScopedData>();
-        Assert.AreEqual("example.com", scopedInfo.Name);
+        ClassicAssert.AreEqual("example.com", scopedInfo.Name);
 
         Assert.That(scopedInfo.IsDisposed, Is.False);
         host.Dispose();
@@ -87,9 +88,9 @@ public class MultiTenantContainerTest
         {
             var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
             var scope = container.GetTenantScope(domain);
-            Assert.IsNotNull(scope);
+            ClassicAssert.IsNotNull(scope);
             var scopedInfo = scope.Resolve<SomeScopedData>();
-            Assert.AreEqual(domain, scopedInfo.Name);
+            ClassicAssert.AreEqual(domain, scopedInfo.Name);
             scopedInfo.Name = "foo";
         });
 
@@ -97,17 +98,17 @@ public class MultiTenantContainerTest
         {
             var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
             var scope = container.GetTenantScope(domain);
-            Assert.IsNotNull(scope);
+            ClassicAssert.IsNotNull(scope);
             var scopedInfo = scope.Resolve<SomeScopedData>();
-            Assert.AreEqual("foo", scopedInfo.Name);
+            ClassicAssert.AreEqual("foo", scopedInfo.Name);
         });
 
         {
             var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
             var scope = container.GetTenantScope(domain);
-            Assert.IsNotNull(scope);
+            ClassicAssert.IsNotNull(scope);
             var scopedInfo = scope.Resolve<SomeScopedData>();
-            Assert.AreEqual("foo", scopedInfo.Name);
+            ClassicAssert.AreEqual("foo", scopedInfo.Name);
 
             Assert.That(scopedInfo.IsDisposed, Is.False);
             host.Dispose();
@@ -148,16 +149,16 @@ public class MultiTenantContainerTest
             var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
             var tenantScope = container.GetTenantScope(domain);
             scopedInfo = tenantScope.Resolve<SomeScopedData>();
-            Assert.AreEqual(domain, scopedInfo.Name);
+            ClassicAssert.AreEqual(domain, scopedInfo.Name);
 
             childScope = tenantScope.BeginLifetimeScope("some-scope");
 
             scopedInfo = childScope.Resolve<SomeScopedData>();
-            Assert.AreEqual("placeholder1", scopedInfo.Name);
+            ClassicAssert.AreEqual("placeholder1", scopedInfo.Name);
             scopedInfo.Name = "child";
 
             scopedInfo = tenantScope.Resolve<SomeScopedData>();
-            Assert.AreEqual(domain, scopedInfo.Name);
+            ClassicAssert.AreEqual(domain, scopedInfo.Name);
 
             var serviceProvider = new AutofacServiceProvider(childScope); // demonstrate dotnet core DI vs autofac
 
@@ -165,11 +166,11 @@ public class MultiTenantContainerTest
             {
                 // Can use new child scope
                 scopedInfo = serviceProvider.GetRequiredService<SomeScopedData>();
-                Assert.AreEqual("child", scopedInfo.Name);
+                ClassicAssert.AreEqual("child", scopedInfo.Name);
 
                 // Can use new parent scope as well
                 scopedInfo = tenantScope.Resolve<SomeScopedData>();
-                Assert.AreEqual(domain, scopedInfo.Name);
+                ClassicAssert.AreEqual(domain, scopedInfo.Name);
             });
 
             scopedInfo = childScope.Resolve<SomeScopedData>();
@@ -219,18 +220,18 @@ public class MultiTenantContainerTest
 
                 // Reload the value from the tenant-scope using dotnet to illustrate that the correct scope is being used
                 scopedInfo = tenantScopeDotnet.GetRequiredService<SomeScopedData>();
-                Assert.AreEqual("foo", scopedInfo.Name);
+                ClassicAssert.AreEqual("foo", scopedInfo.Name);
 
                 // Create instance of SomeServiceUser to prove that the correct tenant scope is being used
                 // Note that this service is registered as transient (aka InstancePerDependency)
                 var someServiceUser = tenantScopeDotnet.GetRequiredService<SomeServiceUser>();
-                Assert.AreEqual("foo", someServiceUser.SomeScopedData.Name);
+                ClassicAssert.AreEqual("foo", someServiceUser.SomeScopedData.Name);
             });
 
             // Test that the tenant scope is still the same after the task has run
             var tenantScopeAutofac = container.GetTenantScope(tenant);
             var someServiceUser = tenantScopeAutofac.Resolve<SomeServiceUser>();
-            Assert.AreEqual("foo", someServiceUser.SomeScopedData.Name);
+            ClassicAssert.AreEqual("foo", someServiceUser.SomeScopedData.Name);
         }
     }
 

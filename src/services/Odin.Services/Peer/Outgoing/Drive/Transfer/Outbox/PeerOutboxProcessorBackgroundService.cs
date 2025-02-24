@@ -39,6 +39,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         ILoggerFactory loggerFactory,
         TenantContext tenantContext) : AbstractBackgroundService(logger)
     {
+        private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "OUBX");
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var peerOutbox = lifetimeScope.Resolve<PeerOutbox>();
@@ -59,25 +61,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 logger.LogDebug("{service} is running", GetType().Name);
 
-                TimeSpan nextRun;
-                while (!stoppingToken.IsCancellationRequested)
+                while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItemAsync() is { } item)
                 {
-                    var item = await peerOutbox.GetNextItemAsync();
-
-                    if (item != null)
-                    {
-                        logger.LogDebug("{service} got a new outbox item", GetType().Name);
-                        var task = ProcessItemThread(item, stoppingToken);
-                        tasks.Add(task);
-                    }
-                    else
-                    {
-                        logger.LogDebug("{service} had no new outbox GetNextItemAsync()", GetType().Name);
-                        break;
-                    }
+                    var task = ProcessItemThread(item, stoppingToken);
+                    tasks.Add(task);
                 }
 
-                nextRun = await peerOutbox.NextRunAsync() ?? MaxSleepDuration;
+                var nextRun = await peerOutbox.NextRunAsync() ?? MaxSleepDuration;
 
                 tasks.RemoveAll(t => t.IsCompleted);
 
@@ -96,8 +86,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             await using var childScope = lifetimeScope.BeginLifetimeScope($"ProcessItemThread:{Guid.NewGuid()}");
             var peerOutbox = childScope.Resolve<PeerOutbox>();
 
-            var originalCorrelationId = correlationContext.Id;
-            correlationContext.Id = Guid.NewGuid().ToString();
+            correlationContext.Id = fileItem.CorrelationId ?? FallbackCorrelationId;
 
             var odinContext = new OdinContext
             {
@@ -113,7 +102,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
             odinContext.SetPermissionContext(new PermissionContext(null, null, true));
 
-            logger.LogDebug("Processing outbox item type: {type} (logref:{originalCorrelationId})", fileItem.Type, originalCorrelationId);
+            logger.LogDebug("Processing outbox item type: {type}", fileItem.Type);
             try
             {
                 var (shouldMarkComplete, nextRun) = await ProcessItemUsingWorker(childScope, fileItem, odinContext, cancellationToken);

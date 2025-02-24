@@ -7,6 +7,7 @@ using HttpClientFactoryLite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -335,7 +336,7 @@ namespace Odin.Hosting.Tests
         public OdinClientErrorCode GetErrorCode(ApiException apiException)
         {
             var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
-            Assert.IsNotNull(problemDetails);
+            ClassicAssert.IsNotNull(problemDetails);
             return (OdinClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
         }
 
@@ -498,7 +499,7 @@ namespace Odin.Hosting.Tests
         {
             var logEvents = GetLogEvents();
             var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
-            Assert.IsTrue(expectedEvent.Count() == count);
+            ClassicAssert.IsTrue(expectedEvent.Count() == count);
         }
     }
 }

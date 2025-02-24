@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -99,11 +100,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 };
 
                 var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
-                Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => t == tag)));
+                ClassicAssert.IsNotNull(batch);
+                ClassicAssert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.Tags.Any(t => t == tag)));
             }
         }
 
@@ -155,11 +156,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 };
 
                 var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
-                Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.ArchivalStatus == archivalStatus));
+                ClassicAssert.IsNotNull(batch);
+                ClassicAssert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.ArchivalStatus == archivalStatus));
             }
         }
 
@@ -212,26 +213,26 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 };
 
                 var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
-                Assert.IsNotNull(batch);
+                ClassicAssert.IsNotNull(batch);
 
                 //TODO: what to test here?
-                Assert.IsTrue(batch.SearchResults.Any());
-                Assert.IsNotNull(batch.CursorState);
-                Assert.IsNotEmpty(batch.CursorState);
+                ClassicAssert.IsTrue(batch.SearchResults.Any());
+                ClassicAssert.IsNotNull(batch.CursorState);
+                ClassicAssert.IsNotEmpty(batch.CursorState);
 
                 var firstResult = batch.SearchResults.First();
 
                 //ensure file content was sent 
-                Assert.NotNull(firstResult.FileMetadata.AppData.Content);
-                Assert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
+                ClassicAssert.NotNull(firstResult.FileMetadata.AppData.Content);
+                ClassicAssert.IsNotEmpty(firstResult.FileMetadata.AppData.Content);
 
-                Assert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
-                Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
-                Assert.IsTrue(firstResult.FileMetadata.SenderOdinId == identity.OdinId);
-                Assert.IsTrue(firstResult.FileMetadata.OriginalAuthor == identity.OdinId);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.AppData.FileType == uploadFileMetadata.AppData.FileType);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.SenderOdinId == identity.OdinId);
+                ClassicAssert.IsTrue(firstResult.FileMetadata.OriginalAuthor == identity.OdinId);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -306,27 +307,27 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 };
 
                 var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
-                Assert.IsNotNull(batch);
+                ClassicAssert.IsNotNull(batch);
 
                 //TODO: what to test here?
-                Assert.IsTrue(batch.SearchResults.Any());
-                Assert.IsNotNull(batch.CursorState);
-                Assert.IsNotEmpty(batch.CursorState);
+                ClassicAssert.IsTrue(batch.SearchResults.Any());
+                ClassicAssert.IsNotNull(batch.CursorState);
+                ClassicAssert.IsNotEmpty(batch.CursorState);
 
                 var theFileResult = batch.SearchResults.Single();
 
                 //ensure file content was sent 
-                Assert.NotNull(theFileResult.FileMetadata.AppData.Content);
-                Assert.IsNotEmpty(theFileResult.FileMetadata.AppData.Content);
+                ClassicAssert.NotNull(theFileResult.FileMetadata.AppData.Content);
+                ClassicAssert.IsNotEmpty(theFileResult.FileMetadata.AppData.Content);
 
-                Assert.IsTrue(theFileResult.FileMetadata.AppData.FileType == uploadFileMetadata_archived.AppData.FileType);
-                Assert.IsTrue(theFileResult.FileMetadata.AppData.ArchivalStatus == uploadFileMetadata_archived.AppData.ArchivalStatus);
-                Assert.IsTrue(theFileResult.FileMetadata.AppData.DataType == uploadFileMetadata_archived.AppData.DataType);
-                Assert.IsTrue(theFileResult.FileMetadata.AppData.UserDate == uploadFileMetadata_archived.AppData.UserDate);
-                Assert.IsTrue(theFileResult.FileMetadata.SenderOdinId == identity.OdinId);
-                Assert.IsTrue(theFileResult.FileMetadata.OriginalAuthor == identity.OdinId);
+                ClassicAssert.IsTrue(theFileResult.FileMetadata.AppData.FileType == uploadFileMetadata_archived.AppData.FileType);
+                ClassicAssert.IsTrue(theFileResult.FileMetadata.AppData.ArchivalStatus == uploadFileMetadata_archived.AppData.ArchivalStatus);
+                ClassicAssert.IsTrue(theFileResult.FileMetadata.AppData.DataType == uploadFileMetadata_archived.AppData.DataType);
+                ClassicAssert.IsTrue(theFileResult.FileMetadata.AppData.UserDate == uploadFileMetadata_archived.AppData.UserDate);
+                ClassicAssert.IsTrue(theFileResult.FileMetadata.SenderOdinId == identity.OdinId);
+                ClassicAssert.IsTrue(theFileResult.FileMetadata.OriginalAuthor == identity.OdinId);
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?
@@ -380,11 +381,11 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 };
 
                 var response = await svc.GetBatch(request);
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
-                Assert.IsNotNull(batch);
-                Assert.IsTrue(batch.SearchResults.Any(), "No items returned");
-                Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)), "One or more items had content");
+                ClassicAssert.IsNotNull(batch);
+                ClassicAssert.IsTrue(batch.SearchResults.Any(), "No items returned");
+                ClassicAssert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.Content)), "One or more items had content");
             }
         }
     }

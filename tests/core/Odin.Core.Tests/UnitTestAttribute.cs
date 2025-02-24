@@ -34,7 +34,7 @@ namespace Odin.Core.Tests
         //       { Prefix = "Mr.", Personal="Frodo", Additional = "Bilboscos",  Surname = "Baggins" , Suffix = "I", FullName = "Mr. Frodo B. Baggins"});
         //     _id.Attributes.Add(m);
         //     m.Value.Id = Guid.Empty;
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "NickName Attribute Pass Test")]
@@ -42,7 +42,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new NickNameAttribute() { NickName = "Brobo" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "Profile Picture Attribute Pass Test")]
@@ -50,7 +50,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new ProfilePicAttribute() { ProfilePic = "c:\\temp\\yay.png" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "Email Attribute Pass Test")]
@@ -58,7 +58,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new EmailAttribute() { Email = "frodo@baggins.com" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "Identity Attribute Pass Test")]
@@ -66,7 +66,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new IdentityAttribute() { Identity = "sam.gamgee.com" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "BirthDate Attribute Pass Test")]
@@ -74,7 +74,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new BirthdateAttribute() { Birthdate = "1000-01-01" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "Anniversary Attribute Pass Test")]
@@ -82,7 +82,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new AnniversaryAttribute() { Anniversary= "1050-01-01" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         //
@@ -91,7 +91,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new NoteAttribute() { Note= "Remember to ask Bilbo where he found the ring." });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "URL Attribute Pass Test")]
@@ -99,7 +99,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new UrlAttribute() { Url = "https://www.imdb.com/list/ls055713151/" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         //
@@ -108,7 +108,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new DateAttribute() { Date = "0111-03-05" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "DateTime Attribute Pass Test")]
@@ -116,7 +116,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new DateTimeAttribute() { DateTime = "0111-03-05 07:13" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "Picture Attribute Pass Test")]
@@ -124,7 +124,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new PictureAttribute() { Picture = "c:\\temp\\samwise.png" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         // [Test(Description = "Twitter Attribute Pass Test")]
@@ -132,7 +132,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new TwitterAttribute() { Twitter = "@lotro" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         //
@@ -141,7 +141,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new FaceBookAttribute() { FaceBook = "https://www.facebook.com/lordoftheringstrilogy" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         //
@@ -150,7 +150,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new GoogleAttribute() { Google= "frodo@gmail.com" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         //
@@ -159,7 +159,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new CreditCardAttribute() { Number = "1234 5678 9012 3456", Expiration = "10/24", Cvc = "123" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         //
@@ -168,7 +168,7 @@ namespace Odin.Core.Tests
         // {
         //     var m = new IdentityAttribute<BaseAttribute>("", new PhoneAttribute() { CountryCode = "+1", Number = "123 456 7890" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
         //
         //
@@ -178,7 +178,7 @@ namespace Odin.Core.Tests
         //     var m = new IdentityAttribute<BaseAttribute>("", new AddressAttribute()
         //       { DisplayAddress = "Under the Hill, Bagend, the Shire", Street = "Willow Rd.", Extension = "12", Locality = "Under the Hill", Region = "The Shire", POBox = "150", PostCode = "2345", Country = "Middleearth", Coordinates = "12.12,1212.221" });
         //     _id.Attributes.Add(m);
-        //     Assert.AreEqual(_id.Attributes.Count, 1);
+        //     ClassicAssert.AreEqual(_id.Attributes.Count, 1);
         // }
     }
 }

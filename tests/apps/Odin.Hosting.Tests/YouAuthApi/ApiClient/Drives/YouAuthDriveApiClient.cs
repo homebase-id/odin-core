@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Apps;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -48,9 +49,9 @@ public class YouAuthDriveApiClient
             };
 
             var response = await svc.GetBatch(request);
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var batch = response.Content;
-            Assert.IsNotNull(batch);
+            ClassicAssert.IsNotNull(batch);
 
             return batch;
         }

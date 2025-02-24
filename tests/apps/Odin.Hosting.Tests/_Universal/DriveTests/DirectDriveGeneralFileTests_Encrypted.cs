@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Services.Drives;
@@ -110,13 +111,13 @@ public class DirectDriveGeneralFileTests_Encrypted
         var (response, originalEncryptedJsonContent64) =
             await callerDriveClient.UploadNewEncryptedMetadata(targetDrive, uploadedFileMetadata, originalKeyHeader);
 
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var uploadResult = response.Content;
             var getHeaderResponse1 = await callerDriveClient.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
             var uploadedFile1 = getHeaderResponse1.Content;
 
             const string updatedContent = "updated information and content here";
@@ -134,21 +135,21 @@ public class DirectDriveGeneralFileTests_Encrypted
             var (updateResponse, updatedEncryptedJsonContent64) =
                 await callerDriveClient.UpdateExistingEncryptedMetadata(uploadResult.File, newKeyHeader, updatedMetadata);
 
-            Assert.IsTrue(updateResponse.IsSuccessStatusCode);
-            Assert.IsTrue(originalEncryptedJsonContent64 != updatedEncryptedJsonContent64,
+            ClassicAssert.IsTrue(updateResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(originalEncryptedJsonContent64 != updatedEncryptedJsonContent64,
                 "original encrypted content should not match updated encrypted content since the IV changed");
 
             // grab the file again
             var getHeaderResponse2 = await callerDriveClient.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(getHeaderResponse2.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse2.IsSuccessStatusCode);
 
             var theUpdatedFile = getHeaderResponse2.Content;
             var updatedContentDecryptedWithOriginalKeyHeader =
                 originalKeyHeader.Decrypt(Convert.FromBase64String(theUpdatedFile.FileMetadata.AppData.Content));
-            Assert.IsTrue(updatedContentDecryptedWithOriginalKeyHeader.ToStringFromUtf8Bytes() != updatedContent);
+            ClassicAssert.IsTrue(updatedContentDecryptedWithOriginalKeyHeader.ToStringFromUtf8Bytes() != updatedContent);
 
             var updatedContentDecryptedWithNewKeyHeader = newKeyHeader.Decrypt(Convert.FromBase64String(theUpdatedFile.FileMetadata.AppData.Content));
-            Assert.IsTrue(updatedContentDecryptedWithNewKeyHeader.ToStringFromUtf8Bytes() == updatedContent);
+            ClassicAssert.IsTrue(updatedContentDecryptedWithNewKeyHeader.ToStringFromUtf8Bytes() == updatedContent);
         }
     }
 
@@ -188,13 +189,13 @@ public class DirectDriveGeneralFileTests_Encrypted
         // upload a file with payloads
         var (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) =
             await ownerApiClient.DriveRedux.UploadNewEncryptedFile(targetDrive, originalKeyHeader, uploadedFileMetadata, uploadManifest, testPayloads);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         // Get the file from the server
         var getOriginalHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getOriginalHeaderResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getOriginalHeaderResponse.IsSuccessStatusCode);
         var uploadedFile1 = getOriginalHeaderResponse.Content;
 
         //
@@ -215,7 +216,7 @@ public class DirectDriveGeneralFileTests_Encrypted
 
         var (updateResponse, updatedEncryptedJsonContent64) =
             await callerDriveClient.UpdateExistingEncryptedMetadata(uploadResult.File, newKeyHeader, updatedMetadata);
-        Assert.IsTrue(updateResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateResponse.StatusCode}");
+        ClassicAssert.IsTrue(updateResponse.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {updateResponse.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
@@ -223,17 +224,17 @@ public class DirectDriveGeneralFileTests_Encrypted
             // then validate that I can decrypt the payloads
 
             var getUpdatedHeaderResponse = await callerDriveClient.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(getUpdatedHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getUpdatedHeaderResponse.IsSuccessStatusCode);
             var updatedHeaderResponse = getUpdatedHeaderResponse.Content;
-            Assert.IsNotNull(updatedHeaderResponse);
-            Assert.IsTrue(updatedHeaderResponse.FileMetadata.AppData.Content != uploadedFileMetadata.AppData.Content);
-            Assert.IsTrue(updatedHeaderResponse.FileMetadata.Payloads.Count() == testPayloads.Count);
+            ClassicAssert.IsNotNull(updatedHeaderResponse);
+            ClassicAssert.IsTrue(updatedHeaderResponse.FileMetadata.AppData.Content != uploadedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(updatedHeaderResponse.FileMetadata.Payloads.Count() == testPayloads.Count);
 
             // Get the payloads
             var definition = testPayloads.First();
             var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-            Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(getPayloadResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
+            ClassicAssert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getPayloadResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
 
             //
             // Validate that I can still decrypt using the original AES key
@@ -247,19 +248,19 @@ public class DirectDriveGeneralFileTests_Encrypted
 
             var encryptedPayloadContent = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
             var decryptedPayloadContent = payloadKeyHeader.Decrypt(encryptedPayloadContent);
-            Assert.IsTrue(decryptedPayloadContent.ToStringFromUtf8Bytes() == definition.Content.ToStringFromUtf8Bytes());
+            ClassicAssert.IsTrue(decryptedPayloadContent.ToStringFromUtf8Bytes() == definition.Content.ToStringFromUtf8Bytes());
 
             // Check all the thumbnails
             var thumbnail = definition.Thumbnails.First();
 
             var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File,
                 thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
-            Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
 
 
             var encryptedThumbnailContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
             var decryptedThumbnailContent = payloadKeyHeader.Decrypt(encryptedThumbnailContent);
-            Assert.IsTrue(decryptedThumbnailContent.ToStringFromUtf8Bytes() == thumbnail.Content.ToStringFromUtf8Bytes());
+            ClassicAssert.IsTrue(decryptedThumbnailContent.ToStringFromUtf8Bytes() == thumbnail.Content.ToStringFromUtf8Bytes());
         }
     }
 }

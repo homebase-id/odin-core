@@ -573,8 +573,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, UnixTimeUtcUnique cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
-            UnixTimeUtcUnique cursor,
+        public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
+            string cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
@@ -609,7 +609,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var listWhereAnd = new List<string>();
 
-            listWhereAnd.Add($"modified > {cursor.uniqueTime}");
+            UnixTimeUtcUnique realCursor;
+
+            realCursor = new UnixTimeUtcUnique(Convert.ToInt64(cursor));
+
+            listWhereAnd.Add($"modified > {realCursor.uniqueTime}");
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
@@ -649,7 +653,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
 
                 if (i > 0)
-                    cursor = new UnixTimeUtcUnique(ts);
+                    cursor = ts.ToString();
 
                 return (result, await rdr.ReadAsync(), cursor);
             } // using rdr

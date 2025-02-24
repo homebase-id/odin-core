@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
@@ -79,23 +80,23 @@ public class DirectDrivePayload_Notfound_Tests
 
         var response = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
 
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         // get the file header
         var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
         var header = getHeaderResponse.Content;
-        Assert.IsNotNull(header);
-        Assert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
+        ClassicAssert.IsNotNull(header);
+        ClassicAssert.IsTrue(header.FileMetadata.Payloads.Count() == 2);
 
         await callerContext.Initialize(ownerApiClient);
         var uniDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         // now that we know we have a valid file with a few payloads
         var getRandomPayload = await uniDriveClient.GetPayload(uploadResult.File, "r3nd0m09");
-        Assert.IsTrue(getRandomPayload.StatusCode == expectedStatusCode, $"Status code was {getRandomPayload.StatusCode}");
+        ClassicAssert.IsTrue(getRandomPayload.StatusCode == expectedStatusCode, $"Status code was {getRandomPayload.StatusCode}");
     }
 
 }

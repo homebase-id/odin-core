@@ -7,6 +7,7 @@ using Odin.Core.Identity;
 using Odin.Core.Time;
 using Org.BouncyCastle.Security;
 using System;
+using NUnit.Framework.Legacy;
 
 [TestFixture]
 public class SignatureDataTest
@@ -46,11 +47,11 @@ public class SignatureDataTest
 
         // Act
         SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
-        Assert.GreaterOrEqual(signature.Signature.Length, 16);
+        ClassicAssert.GreaterOrEqual(signature.Signature.Length, 16);
         bool isValid = SignatureData.Verify(signature, testData);
 
         // Assert
-        Assert.IsTrue(isValid);
+        ClassicAssert.IsTrue(isValid);
     }
 
 
@@ -65,11 +66,11 @@ public class SignatureDataTest
 
         // Act
         SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
-        Assert.GreaterOrEqual(signature.Signature.Length, 16);
+        ClassicAssert.GreaterOrEqual(signature.Signature.Length, 16);
         bool isValid = SignatureData.Verify(signature, testData);
 
         // Assert
-        Assert.IsTrue(isValid);
+        ClassicAssert.IsTrue(isValid);
     }
 
     [Test]
@@ -92,6 +93,6 @@ public class SignatureDataTest
         bool isValid = SignatureData.Verify(signature, testData);
 
         // Assert
-        Assert.IsFalse(isValid);
+        ClassicAssert.IsFalse(isValid);
     }
 }

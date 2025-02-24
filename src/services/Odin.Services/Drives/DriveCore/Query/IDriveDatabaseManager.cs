@@ -17,7 +17,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
+        Task<(string, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
             StorageDrive drive,
             IOdinContext odinContext,
             FileSystemType fileSystemType,

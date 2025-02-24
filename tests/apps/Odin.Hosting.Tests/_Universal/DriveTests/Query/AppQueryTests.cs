@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -68,32 +69,32 @@ public class AppQueryTests
         // Frodo queries drive via app that has read write access to drive
         var appDriveClientReadWrite = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, appReadWrite);
         var readWriteQueryResults = await appDriveClientReadWrite.QueryBatch(query);
-        Assert.IsTrue(readWriteQueryResults.IsSuccessStatusCode);
-        Assert.IsTrue(readWriteQueryResults.Content.SearchResults.Count() == 2);
+        ClassicAssert.IsTrue(readWriteQueryResults.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(readWriteQueryResults.Content.SearchResults.Count() == 2);
         
         var appReadOnly = await CreateAppTokenFactory(frodoOwnerClient, scenarioConfig.TargetDrive, DrivePermission.Read);
         var appDriveClientReadOnly = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, appReadOnly);
         var readOnlyQueryResults = await appDriveClientReadOnly.QueryBatch(query);
-        Assert.IsTrue(readOnlyQueryResults.IsSuccessStatusCode);
-        Assert.IsTrue(readOnlyQueryResults.Content.SearchResults.Count() == 2);
+        ClassicAssert.IsTrue(readOnlyQueryResults.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(readOnlyQueryResults.Content.SearchResults.Count() == 2);
         
         var appWriteOnly = await CreateAppTokenFactory(frodoOwnerClient, scenarioConfig.TargetDrive, DrivePermission.Write);
         var appDriveClientWriteOnly = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, appWriteOnly);
         var writeOnlyQueryResults = await appDriveClientWriteOnly.QueryBatch(query);
-        Assert.IsTrue(writeOnlyQueryResults.IsSuccessStatusCode);
-        Assert.IsTrue(writeOnlyQueryResults.Content.SearchResults.Count() == 1);
+        ClassicAssert.IsTrue(writeOnlyQueryResults.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(writeOnlyQueryResults.Content.SearchResults.Count() == 1);
         
         var appCommentOnly = await CreateAppTokenFactory(frodoOwnerClient, scenarioConfig.TargetDrive, DrivePermission.Comment);
         var appDriveCommentOnly = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, appCommentOnly);
         var commentOnlyQueryResults = await appDriveCommentOnly.QueryBatch(query);
-        Assert.IsTrue(commentOnlyQueryResults.IsSuccessStatusCode);
-        Assert.IsTrue(commentOnlyQueryResults.Content.SearchResults.Count() == 1);
+        ClassicAssert.IsTrue(commentOnlyQueryResults.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(commentOnlyQueryResults.Content.SearchResults.Count() == 1);
         
         var appReactOnly = await CreateAppTokenFactory(frodoOwnerClient, scenarioConfig.TargetDrive, DrivePermission.React);
         var appDriveReactOnly = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, appReactOnly);
         var reactOnlyQueryResults = await appDriveReactOnly.QueryBatch(query);
-        Assert.IsTrue(reactOnlyQueryResults.IsSuccessStatusCode);
-        Assert.IsTrue(reactOnlyQueryResults.Content.SearchResults.Count() == 1);
+        ClassicAssert.IsTrue(reactOnlyQueryResults.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(reactOnlyQueryResults.Content.SearchResults.Count() == 1);
         
     }
 

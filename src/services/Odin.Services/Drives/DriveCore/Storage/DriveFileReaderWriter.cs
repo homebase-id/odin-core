@@ -33,7 +33,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "ERR WriteString (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "WriteString (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });
@@ -60,7 +60,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "ERR WriteAllBytes (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "WriteAllBytes (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });
@@ -89,7 +89,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "ERR WriteStream (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "WriteStream (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });
@@ -126,7 +126,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "ERR GetAllFileBytes (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "GetAllFileBytes (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });
@@ -160,7 +160,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "ERR MoveFile (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "MoveFile (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });
@@ -200,7 +200,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "ERR OpenStreamForReading (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "OpenStreamForReading (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });
@@ -252,7 +252,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "ERR DeleteFileAsync (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "DeleteFileAsync (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });

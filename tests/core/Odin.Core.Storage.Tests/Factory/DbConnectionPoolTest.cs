@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
@@ -53,14 +54,14 @@ public class DbConnectionPoolTest : IocTestBase
             await scope.DisposeAsync();
         }
 
-        Assert.AreEqual(connectionCount, counters.NoDbOpened);
-        Assert.AreEqual(connectionCount, counters.NoDbClosed);
+        ClassicAssert.AreEqual(connectionCount, counters.NoDbOpened);
+        ClassicAssert.AreEqual(connectionCount, counters.NoDbClosed);
 
-        Assert.AreEqual(connectionCount, counters.NoPoolOpened);
-        Assert.AreEqual(connectionCount - pool.PoolSize, counters.NoPoolClosed);
+        ClassicAssert.AreEqual(connectionCount, counters.NoPoolOpened);
+        ClassicAssert.AreEqual(connectionCount - pool.PoolSize, counters.NoPoolClosed);
 
         await pool.ClearAllAsync();
-        Assert.AreEqual(connectionCount, counters.NoPoolClosed);
+        ClassicAssert.AreEqual(connectionCount, counters.NoPoolClosed);
     }
 
 }
