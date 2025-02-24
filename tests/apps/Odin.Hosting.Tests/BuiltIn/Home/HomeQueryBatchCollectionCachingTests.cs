@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -117,36 +118,36 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
                 Queries = sections
             });
 
-            Assert.IsTrue(queryBatchResponse.Headers.Contains("Cache-Control"));
+            ClassicAssert.IsTrue(queryBatchResponse.Headers.Contains("Cache-Control"));
 
-            Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
             var queryResult = queryBatchResponse.Content;
-            Assert.IsNotNull(queryResult);
+            ClassicAssert.IsNotNull(queryResult);
 
-            Assert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
+            ClassicAssert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header1.uploadResult.File.FileId) != null));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.InvalidDrive == false));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header2.uploadResult.File.FileId) != null));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.InvalidDrive == false));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header3.uploadResult.File.FileId) != null));
 
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.InvalidDrive == false));
         }
@@ -161,23 +162,23 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
             var drives = await UploadData(identity);
 
             HomeCachingService.ResetCacheStats();
-            Assert.IsTrue(HomeCachingService.CacheMiss == 0);
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 0);
 
             await QueryData(identity, drives.ToArray());
-            Assert.IsTrue(HomeCachingService.CacheMiss == 1, "Cache should have not been used");
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 1, "Cache should have not been used");
 
             await QueryData(identity, drives.ToArray());
-            Assert.IsTrue(HomeCachingService.CacheMiss == 1, "cache misses should not have changed.");
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 1, "cache misses should not have changed.");
 
             //
             // Invalidate and query again
             //
             var invalidateCacheResponse = await svc.InvalidateCache();
-            Assert.IsTrue(invalidateCacheResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(invalidateCacheResponse.IsSuccessStatusCode);
 
             await QueryData(identity, drives.ToArray());
 
-            Assert.IsTrue(HomeCachingService.CacheMiss == 2, "cache miss should have increased");
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 2, "cache miss should have increased");
 
             HomeCachingService.ResetCacheStats();
         }
@@ -191,13 +192,13 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
             var drives = await UploadData(identity);
 
             HomeCachingService.ResetCacheStats();
-            Assert.IsTrue(HomeCachingService.CacheMiss == 0);
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 0);
 
             await QueryData(identity, drives.ToArray());
-            Assert.IsTrue(HomeCachingService.CacheMiss == 1, "Cache should have not been used");
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 1, "Cache should have not been used");
 
             await QueryData(identity, drives.ToArray());
-            Assert.IsTrue(HomeCachingService.CacheMiss == 1, "cache misses should not have changed.");
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 1, "cache misses should not have changed.");
 
             //
             // Add a new channel
@@ -205,7 +206,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
             await UploadStandardRandomFileHeadersUsingOwnerApi(identity, drives[0], AccessControlList.Anonymous, HomeCachingService.ChannelFileType);
 
             await QueryData(identity, drives.ToArray());
-            Assert.IsTrue(HomeCachingService.CacheMiss == 2, "cache miss should have increased");
+            ClassicAssert.IsTrue(HomeCachingService.CacheMiss == 2, "cache miss should have increased");
 
             HomeCachingService.ResetCacheStats();
         }
@@ -277,35 +278,35 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
                 Queries = sections
             });
 
-            Assert.IsTrue(queryBatchResponse.Headers.Contains("Cache-Control"));
+            ClassicAssert.IsTrue(queryBatchResponse.Headers.Contains("Cache-Control"));
 
-            Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
             var queryResult = queryBatchResponse.Content;
-            Assert.IsNotNull(queryResult);
+            ClassicAssert.IsNotNull(queryResult);
 
-            Assert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
+            ClassicAssert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == sections[0].Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileMetadata.AppData.FileType == HomeCachingService.PostFileType) != null));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == sections[0].Name &&
                 r.InvalidDrive == false));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == sections[1].Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileMetadata.AppData.FileType == HomeCachingService.PostFileType) != null));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == sections[1].Name &&
                 r.InvalidDrive == false));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == sections[2].Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileMetadata.AppData.FileType == HomeCachingService.PostFileType) != null));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == sections[2].Name &&
                 r.InvalidDrive == false));
         }

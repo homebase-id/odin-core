@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
@@ -124,23 +125,23 @@ public class PeerNotificationTests
         };
 
         var uploadFileResponse = await samDriveClient.UploadNewMetadata(targetDrive, fileMetadata, transitOptions);
-        Assert.IsTrue(uploadFileResponse.IsSuccessStatusCode, $"Failed with status code {uploadFileResponse.StatusCode}");
-        Assert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
-        Assert.IsTrue(frodoTransferStatus == TransferStatus.Enqueued, $"transfer status: {frodoTransferStatus}");
+        ClassicAssert.IsTrue(uploadFileResponse.IsSuccessStatusCode, $"Failed with status code {uploadFileResponse.StatusCode}");
+        ClassicAssert.IsTrue(uploadFileResponse.Content.RecipientStatus.TryGetValue(frodo.OdinId, out var frodoTransferStatus));
+        ClassicAssert.IsTrue(frodoTransferStatus == TransferStatus.Enqueued, $"transfer status: {frodoTransferStatus}");
 
         await Task.Delay(500);
 
         // Frodo should have the notification in his list
 
         var getNotificationsResponse = await ownerFrodo.AppNotifications.GetList(1000);
-        Assert.IsTrue(getNotificationsResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getNotificationsResponse.IsSuccessStatusCode);
         var notification = getNotificationsResponse.Content.Results.SingleOrDefault(n => n.Options.TagId == options.TagId);
-        Assert.IsNotNull(notification);
-        Assert.IsTrue(notification.SenderId == sam.OdinId);
-        Assert.IsTrue(notification.Options.AppId == appId);
-        Assert.IsTrue(notification.Options.TypeId == options.TypeId);
-        Assert.IsTrue(notification.Options.Silent == options.Silent);
-        Assert.IsTrue(notification.Options.TagId == options.TagId);
+        ClassicAssert.IsNotNull(notification);
+        ClassicAssert.IsTrue(notification.SenderId == sam.OdinId);
+        ClassicAssert.IsTrue(notification.Options.AppId == appId);
+        ClassicAssert.IsTrue(notification.Options.TypeId == options.TypeId);
+        ClassicAssert.IsTrue(notification.Options.Silent == options.Silent);
+        ClassicAssert.IsTrue(notification.Options.TagId == options.TagId);
 
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
         await ownerSam.Connections.DisconnectFrom(frodo.OdinId);
@@ -199,7 +200,7 @@ public class PeerNotificationTests
         };
 
         var response = await ownerClient.AppManager.RegisterApp(appId, appPermissions, circles, circlePermissions);
-        Assert.IsTrue(response.IsSuccessStatusCode, $"Failed with status code {response.StatusCode}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed with status code {response.StatusCode}");
 
         return circleId;
     }

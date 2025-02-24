@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Membership.Connections;
@@ -21,7 +22,7 @@ internal static class IntroductionTestUtils
             return false;
         }
 
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         return response.Content != null && response.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction;
     }
 
@@ -35,14 +36,14 @@ internal static class IntroductionTestUtils
             return false;
         }
 
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         return response.Content != null && response.Content.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction;
     }
 
     public static async Task<bool> HasIntroductionFromIdentity(OwnerApiClientRedux owner, OdinId introducee)
     {
         var response = await owner.Connections.GetReceivedIntroductions();
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         return response.Content.Any(intro => intro.Identity == introducee);
     }
 
@@ -50,7 +51,7 @@ internal static class IntroductionTestUtils
         ConnectionRequestOrigin expectedOrigin)
     {
         var getConnectionInfoResponse = await owner.Network.GetConnectionInfo(introducee);
-        Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
 
         bool isIntroduction = getConnectionInfoResponse.Content!.ConnectionRequestOrigin == expectedOrigin &&
                               getConnectionInfoResponse.Content.Status == ConnectionStatus.Connected;
@@ -61,7 +62,7 @@ internal static class IntroductionTestUtils
     public static async Task<bool> IsConnected(OwnerApiClientRedux owner, OdinId introducee)
     {
         var getConnectionInfoResponse = await owner.Network.GetConnectionInfo(introducee);
-        Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
 
         bool isIntroduction = getConnectionInfoResponse.Content!.Status == ConnectionStatus.Connected;
 

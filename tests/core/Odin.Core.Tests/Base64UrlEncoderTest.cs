@@ -1,5 +1,6 @@
 using System;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Core.Tests;
 

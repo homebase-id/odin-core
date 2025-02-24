@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Refit;
 
 namespace Odin.Hosting.Tests.Anonymous.Ident
@@ -33,8 +34,8 @@ namespace Odin.Hosting.Tests.Anonymous.Ident
 
             var identResponse = await svc.GetIdent();
             var ident = identResponse.Content;
-            Assert.IsFalse(string.IsNullOrEmpty(ident.OdinId));
-            Assert.IsTrue(ident.Version == 1.0);
+            ClassicAssert.IsFalse(string.IsNullOrEmpty(ident.OdinId));
+            ClassicAssert.IsTrue(ident.Version == 1.0);
         }
     }
 }

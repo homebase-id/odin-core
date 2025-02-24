@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
@@ -66,18 +67,18 @@ public class DriveManagementTests
                 }
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
 
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
-            Assert.IsTrue(page.Results.Any());
+            ClassicAssert.IsTrue(page.Results.Any());
             var drive = page.Results.SingleOrDefault(drive =>
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
-            Assert.NotNull(drive);
-            Assert.IsTrue(drive.Attributes["some_attribute"] == "a_value");
+            ClassicAssert.NotNull(drive);
+            ClassicAssert.IsTrue(drive.Attributes["some_attribute"] == "a_value");
         }
     }
 
@@ -100,15 +101,15 @@ public class DriveManagementTests
                 AllowAnonymousReads = false
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
 
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
-            Assert.IsTrue(page.Results.Any());
-            Assert.NotNull(page.Results.SingleOrDefault(drive =>
+            ClassicAssert.IsTrue(page.Results.Any());
+            ClassicAssert.NotNull(page.Results.SingleOrDefault(drive =>
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
 
             var createDuplicateDriveResponse = await svc.CreateDrive(new CreateDriveRequest()
@@ -118,7 +119,7 @@ public class DriveManagementTests
                 Metadata = "some metadata",
                 AllowAnonymousReads = false
             });
-            Assert.IsFalse(createDuplicateDriveResponse.IsSuccessStatusCode,
+            ClassicAssert.IsFalse(createDuplicateDriveResponse.IsSuccessStatusCode,
                 $"Create drive with duplicate alias and type should have failed");
         }
     }
@@ -142,15 +143,15 @@ public class DriveManagementTests
                 AllowAnonymousReads = false
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
 
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
-            Assert.IsTrue(page.Results.Any());
-            Assert.NotNull(page.Results.SingleOrDefault(drive =>
+            ClassicAssert.IsTrue(page.Results.Any());
+            ClassicAssert.NotNull(page.Results.SingleOrDefault(drive =>
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
 
             await svc.UpdateMetadata(new UpdateDriveDefinitionRequest()
@@ -160,12 +161,12 @@ public class DriveManagementTests
             });
 
             var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
             var updatedDrivesPage = getUpdatedResponse.Content;
-            Assert.IsNotNull(updatedDrivesPage);
+            ClassicAssert.IsNotNull(updatedDrivesPage);
 
             var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
-            Assert.IsTrue(updatedDrive.Metadata == "ankles and toes");
+            ClassicAssert.IsTrue(updatedDrive.Metadata == "ankles and toes");
         }
     }
 
@@ -192,18 +193,18 @@ public class DriveManagementTests
                 }
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
 
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
-            Assert.IsTrue(page.Results.Any());
+            ClassicAssert.IsTrue(page.Results.Any());
             var drive = page.Results.SingleOrDefault(drive =>
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
-            Assert.NotNull(drive);
-            Assert.IsTrue(drive.Attributes["a1"] == "a2");
+            ClassicAssert.NotNull(drive);
+            ClassicAssert.IsTrue(drive.Attributes["a1"] == "a2");
 
             await svc.UpdateAttributes(new UpdateDriveDefinitionRequest()
             {
@@ -216,13 +217,13 @@ public class DriveManagementTests
             });
 
             var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
             var updatedDrivesPage = getUpdatedResponse.Content;
-            Assert.IsNotNull(updatedDrivesPage);
+            ClassicAssert.IsNotNull(updatedDrivesPage);
 
             var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
-            Assert.IsTrue(updatedDrive.Attributes["a1"] == "a3");
-            Assert.IsTrue(updatedDrive.Attributes["b1"] == "z44");
+            ClassicAssert.IsTrue(updatedDrive.Attributes["a1"] == "a3");
+            ClassicAssert.IsTrue(updatedDrive.Attributes["b1"] == "z44");
         }
     }
 
@@ -245,18 +246,18 @@ public class DriveManagementTests
                 AllowAnonymousReads = false
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
 
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
-            Assert.IsTrue(page.Results.Any());
+            ClassicAssert.IsTrue(page.Results.Any());
             var theDrive = page.Results.SingleOrDefault(drive =>
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
-            Assert.NotNull(theDrive);
-            Assert.IsFalse(theDrive.AllowAnonymousReads);
+            ClassicAssert.NotNull(theDrive);
+            ClassicAssert.IsFalse(theDrive.AllowAnonymousReads);
 
             var setDriveModeResponse = await svc.SetDriveReadMode(new UpdateDriveReadModeRequest()
             {
@@ -264,15 +265,15 @@ public class DriveManagementTests
                 AllowAnonymousReads = true
             });
 
-            Assert.IsTrue(setDriveModeResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(setDriveModeResponse.IsSuccessStatusCode);
 
             var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
             var updatedDrivesPage = getUpdatedResponse.Content;
-            Assert.IsNotNull(updatedDrivesPage);
+            ClassicAssert.IsNotNull(updatedDrivesPage);
 
             var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
-            Assert.IsTrue(updatedDrive.AllowAnonymousReads);
+            ClassicAssert.IsTrue(updatedDrive.AllowAnonymousReads);
         }
     }
 
@@ -295,18 +296,18 @@ public class DriveManagementTests
                 AllowSubscriptions = false
             });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
 
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
 
-            Assert.IsTrue(page.Results.Any());
+            ClassicAssert.IsTrue(page.Results.Any());
             var theDrive = page.Results.SingleOrDefault(drive =>
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
-            Assert.NotNull(theDrive);
-            Assert.IsFalse(theDrive.AllowSubscriptions);
+            ClassicAssert.NotNull(theDrive);
+            ClassicAssert.IsFalse(theDrive.AllowSubscriptions);
 
             var setDriveModeResponse = await svc.SetAllowSubscriptions(new UpdateDriveAllowSubscriptionsRequest()
             {
@@ -314,15 +315,15 @@ public class DriveManagementTests
                 AllowSubscriptions = true
             });
 
-            Assert.IsTrue(setDriveModeResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(setDriveModeResponse.IsSuccessStatusCode);
 
             var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            Assert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
             var updatedDrivesPage = getUpdatedResponse.Content;
-            Assert.IsNotNull(updatedDrivesPage);
+            ClassicAssert.IsNotNull(updatedDrivesPage);
 
             var updatedDrive = updatedDrivesPage.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
-            Assert.IsTrue(updatedDrive.AllowSubscriptions);
+            ClassicAssert.IsTrue(updatedDrive.AllowSubscriptions);
         }
     }
 
@@ -341,7 +342,7 @@ public class DriveManagementTests
                     AllowAnonymousReads = true
                 });
 
-                Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, "Should have failed to set system drive read-mode");
+                ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, "Should have failed to set system drive read-mode");
             }
         }
     }

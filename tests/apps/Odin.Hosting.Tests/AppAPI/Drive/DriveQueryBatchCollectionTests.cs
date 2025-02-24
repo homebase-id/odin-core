@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -149,34 +150,34 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             };
 
             var queryBatchResponse = await client.Drive.QueryBatchCollection(FileSystemType.Standard, sections);
-            Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
             var queryResult = queryBatchResponse.Content;
-            Assert.IsNotNull(queryResult);
+            ClassicAssert.IsNotNull(queryResult);
 
-            Assert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
+            ClassicAssert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header1.uploadResult.File.FileId) != null));
             
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.InvalidDrive == false));
             
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header2.uploadResult.File.FileId) != null));
             
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.InvalidDrive == false));
             
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header3.uploadResult.File.FileId) != null));
             
             
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.InvalidDrive == false));
         }
@@ -271,35 +272,35 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             };
 
             var queryBatchResponse = await client.Drive.QueryBatchCollection(FileSystemType.Standard, sections);
-            Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
             var queryResult = queryBatchResponse.Content;
-            Assert.IsNotNull(queryResult);
+            ClassicAssert.IsNotNull(queryResult);
 
-            Assert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
+            ClassicAssert.IsTrue(queryResult.Results.Count == 3, "Should be 3 sections");
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header1.uploadResult.File.FileId) != null));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section1Name &&
                 r.InvalidDrive == false));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header2.uploadResult.File.FileId) != null));
 
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section2Name &&
                 r.InvalidDrive == false));
 
             // query 3 should not return results
-            Assert.IsNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.SearchResults.SingleOrDefault(r2 => r2.FileId == header3.uploadResult.File.FileId) != null));
 
             // query 3 should have the invalid drive flag == true
-            Assert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
+            ClassicAssert.IsNotNull(queryResult.Results.SingleOrDefault(r =>
                 r.Name == section3Name &&
                 r.InvalidDrive == true));
         }

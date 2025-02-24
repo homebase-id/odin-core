@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -221,13 +222,13 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 int batchSize = 1;
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
                         "expected recipient count does not match");
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
-                        Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued);
+                        ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        ClassicAssert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued);
                     }
 
                     batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;
@@ -248,7 +249,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = rCtx.Value.TargetDrive });
-                            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                            ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }
                 }
@@ -338,13 +339,13 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 int batchSize = 1;
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
                         "expected recipient count does not match");
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
-                        Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
+                        ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        ClassicAssert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
                             $"transfer key not created for {recipient}");
                     }
 
@@ -429,15 +430,15 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                 Recipients = recipients2.Select(x => x.Identity.ToString()).ToList()
             });
 
-            Assert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(deleteFileResponse.IsSuccessStatusCode);
             var deleteStatus = deleteFileResponse.Content;
-            Assert.IsNotNull(deleteStatus);
-            Assert.IsFalse(deleteStatus.LocalFileNotFound);
-            Assert.IsTrue(deleteStatus.RecipientStatus.Count() == recipients2.Count());
+            ClassicAssert.IsNotNull(deleteStatus);
+            ClassicAssert.IsFalse(deleteStatus.LocalFileNotFound);
+            ClassicAssert.IsTrue(deleteStatus.RecipientStatus.Count() == recipients2.Count());
 
             foreach (var (key, value) in deleteStatus.RecipientStatus)
             {
-                Assert.IsTrue(value == DeleteLinkedFileStatus.Enqueued, $"Delete request failed for {key}");
+                ClassicAssert.IsTrue(value == DeleteLinkedFileStatus.Enqueued, $"Delete request failed for {key}");
             }
 
             await this._ownerApi.WaitForEmptyOutbox(testAppContext.Identity, testAppContext.TargetDrive);
@@ -451,7 +452,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
                     {
                         var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                         var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = rCtx.TargetDrive });
-                        Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                        ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                     }
                 }
             }

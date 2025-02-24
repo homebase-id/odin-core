@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Registry.Registration;
@@ -64,7 +65,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             
             Thread.Sleep(1000); //sleep to ensure 
             var response = await ownerClient.Security.GetAccountRecoveryKey();
-            Assert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, $"Status code was {response.StatusCode} but should have been Forbidden");
+            ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.Forbidden, $"Status code was {response.StatusCode} but should have been Forbidden");
         }
 #endif
     }

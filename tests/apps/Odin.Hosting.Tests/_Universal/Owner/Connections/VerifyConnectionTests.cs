@@ -2,6 +2,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections;
 
@@ -50,10 +51,10 @@ public class VerifyConnectionTests
         // resend it since we're already connected
         var response = await frodo.Network.VerifyConnection(sam.OdinId);
         
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
-        Assert.IsNotNull(response.Content);
-        Assert.IsFalse(response.Content.IsValid);
-        Assert.IsFalse(response.Content.RemoteIdentityWasConnected);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
+        ClassicAssert.IsNotNull(response.Content);
+        ClassicAssert.IsFalse(response.Content.IsValid);
+        ClassicAssert.IsFalse(response.Content.RemoteIdentityWasConnected);
         
         await Disconnect();
     }
@@ -71,10 +72,10 @@ public class VerifyConnectionTests
 
         // resend it since we're already connected
         var response = await frodo.Network.VerifyConnection(sam.OdinId);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
-        Assert.IsNotNull(response.Content);
-        Assert.IsFalse(response.Content.IsValid);
-        Assert.IsNull(response.Content.RemoteIdentityWasConnected);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
+        ClassicAssert.IsNotNull(response.Content);
+        ClassicAssert.IsFalse(response.Content.IsValid);
+        ClassicAssert.IsNull(response.Content.RemoteIdentityWasConnected);
 
         await Disconnect();
     }
@@ -90,7 +91,7 @@ public class VerifyConnectionTests
 
         // resend it since we're already connected
         var response = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, $"Status code was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, $"Status code was {response.StatusCode}");
 
         await Disconnect();
     }
@@ -106,10 +107,10 @@ public class VerifyConnectionTests
 
         var response = await frodo.Network.VerifyConnection(sam.OdinId);
         var result = response.Content;
-        Assert.IsNotNull(result);
-        Assert.IsTrue(response.IsSuccessStatusCode);
-        Assert.IsTrue(result.IsValid);
-        Assert.IsTrue(result.RemoteIdentityWasConnected);
+        ClassicAssert.IsNotNull(result);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(result.IsValid);
+        ClassicAssert.IsTrue(result.RemoteIdentityWasConnected);
 
         await Disconnect();
     }
@@ -129,11 +130,11 @@ public class VerifyConnectionTests
         //
         await frodo.Connections.DisconnectFrom(sam.OdinId);
         var response = await frodo.Network.VerifyConnection(sam.OdinId);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
         var result = response.Content;
-        Assert.IsFalse(result.IsValid);
-        Assert.IsNull(result.RemoteIdentityWasConnected);
+        ClassicAssert.IsFalse(result.IsValid);
+        ClassicAssert.IsNull(result.RemoteIdentityWasConnected);
 
 
         await Disconnect();
@@ -160,7 +161,7 @@ public class VerifyConnectionTests
 
         // resend it since we're already connected
         var response = await frodo.Connections.SendConnectionRequest(sam.OdinId);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.OK);
 
         await Disconnect();
     }
@@ -178,7 +179,7 @@ public class VerifyConnectionTests
 
         // resend it since we're already connected
         var response = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
-        Assert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.OK, $"Status code was {response.StatusCode}");
 
         await Disconnect();
     }

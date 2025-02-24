@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives;
 
@@ -63,22 +64,22 @@ public class DirectDriveReactionPreviewTests
         };
         
         var addReactionResponse = await ownerApiClient.Reactions.AddReaction(request);
-        Assert.IsTrue(addReactionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(addReactionResponse.IsSuccessStatusCode);
 
         // Validate the reaction is there (get file)
         var getHeaderResponse1 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsNotNull(getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
+        ClassicAssert.IsNotNull(getHeaderResponse1.Content.FileMetadata.ReactionPreview.Reactions
             .SingleOrDefault(pair => pair.Value.ReactionContent == reactionContent1));
 
         // update the same file
         uploadedFileMetadata.AppData.Content = "changed data";
         var updateResponse = await ownerApiClient.DriveRedux.UpdateExistingMetadata(uploadResult.File, getHeaderResponse1.Content.FileMetadata.VersionTag, uploadedFileMetadata);
-        Assert.IsTrue(updateResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(updateResponse.IsSuccessStatusCode);
         
         // Validate the reaction is there (get file)
         var getHeaderResponse2 = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-        Assert.IsTrue(getHeaderResponse2.Content.FileMetadata.AppData.Content == "changed data");
-        Assert.IsNotNull(
+        ClassicAssert.IsTrue(getHeaderResponse2.Content.FileMetadata.AppData.Content == "changed data");
+        ClassicAssert.IsNotNull(
             getHeaderResponse2.Content.FileMetadata.ReactionPreview.Reactions
                 .SingleOrDefault(pair => pair.Value.ReactionContent == reactionContent1));
     }

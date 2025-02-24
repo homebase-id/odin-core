@@ -3,6 +3,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Configuration;
 using Odin.Hosting.Tests.YouAuthApi.Circle;
 using Refit;
@@ -55,8 +56,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Circles = null
             });
             
-            Assert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
-            Assert.IsTrue(frodoInitResponse.Content);
+            ClassicAssert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(frodoInitResponse.Content);
     
             var samInitResponse = await samOwnerClient.Configuration.InitializeIdentity( new InitialSetupRequest()
             {
@@ -64,8 +65,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Circles = null
             });
             
-            Assert.IsTrue(samInitResponse.IsSuccessStatusCode);
-            Assert.IsTrue(samInitResponse.Content);
+            ClassicAssert.IsTrue(samInitResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(samInitResponse.Content);
 
             var (frodo, sam, _) = await utils.CreateConnectionRequestFrodoToSam();
             await utils.AcceptConnectionRequest(sender: frodo, recipient: sam);
@@ -74,7 +75,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
                 var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, "");
-                Assert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
+                ClassicAssert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
             }
 
             await samOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AnonymousVisitorsCanViewConnections, bool.TrueString);
@@ -84,9 +85,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 
                 var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, "");
-                Assert.IsTrue(getConnectionsResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(getConnectionsResponse.Content);
-                Assert.IsTrue(getConnectionsResponse.Content.Results.Any());
+                ClassicAssert.IsTrue(getConnectionsResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(getConnectionsResponse.Content);
+                ClassicAssert.IsTrue(getConnectionsResponse.Content.Results.Any());
             }
 
             await utils.DisconnectIdentities(frodo, sam);
@@ -105,8 +106,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Circles = null
             });
             
-            Assert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
-            Assert.IsTrue(frodoInitResponse.Content);
+            ClassicAssert.IsTrue(frodoInitResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(frodoInitResponse.Content);
     
             var pippinInitResponse = await pippinOwnerClient.Configuration.InitializeIdentity( new InitialSetupRequest()
             {
@@ -114,8 +115,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Circles = null
             });
             
-            Assert.IsTrue(pippinInitResponse.IsSuccessStatusCode);
-            Assert.IsTrue(pippinInitResponse.Content);
+            ClassicAssert.IsTrue(pippinInitResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(pippinInitResponse.Content);
             
 
             var (frodo, sam, _) = await utils.CreateConnectionRequest(TestIdentities.Merry, TestIdentities.Pippin);
@@ -126,7 +127,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 
                 var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, "");
-                Assert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
+                ClassicAssert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
             }
 
             await utils.DisconnectIdentities(frodo, sam);

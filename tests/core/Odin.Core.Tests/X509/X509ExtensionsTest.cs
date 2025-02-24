@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.X509;
 
 namespace Odin.Core.Tests.X509;
@@ -13,6 +14,6 @@ public class X509ExtensionsTest
 
         var signature = certificate.CreateSignature(data);
         var match = certificate.VerifySignature(signature, data);
-        Assert.IsTrue(match);
+        ClassicAssert.IsTrue(match);
     }
 }

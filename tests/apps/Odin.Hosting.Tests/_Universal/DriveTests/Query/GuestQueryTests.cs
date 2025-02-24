@@ -46,15 +46,15 @@ public class GuestQueryTests
         // var samGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Samwise, frodoOwnerClient, targetDrive);
         // var samDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, samGuestTokenFactory);
         // var samQueryResults = await samDriveClient.QueryBatch(query);
-        // Assert.IsTrue(samQueryResults.IsSuccessStatusCode);
-        // Assert.IsTrue(samQueryResults.Content.SearchResults.Count() == 2);
+        // ClassicAssert.IsTrue(samQueryResults.IsSuccessStatusCode);
+        // ClassicAssert.IsTrue(samQueryResults.Content.SearchResults.Count() == 2);
         //
         // // Merry queries Pippin; should get file2 only
         // var merryGuestTokenFactory = await CreateGuestTokenFactory(TestIdentities.Merry, frodoOwnerClient, targetDrive);
         // var merryDriveClient = new UniversalDriveApiClient(TestIdentities.Pippin.OdinId, merryGuestTokenFactory);
         // var merryQueryResults = await merryDriveClient.QueryBatch(query);
-        // Assert.IsTrue(merryQueryResults.IsSuccessStatusCode);
-        // Assert.IsTrue(merryQueryResults.Content.SearchResults.Count() == 1);
+        // ClassicAssert.IsTrue(merryQueryResults.IsSuccessStatusCode);
+        // ClassicAssert.IsTrue(merryQueryResults.Content.SearchResults.Count() == 1);
 
         //
     // }

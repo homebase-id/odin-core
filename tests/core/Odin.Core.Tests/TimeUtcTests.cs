@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
 
@@ -29,7 +30,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -39,7 +40,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
 
             try
@@ -50,7 +51,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -60,7 +61,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -70,7 +71,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             try
             {
@@ -80,7 +81,7 @@ namespace Odin.Core.Tests
             catch
             {
             }
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             Assert.Pass();
         }
@@ -106,12 +107,12 @@ namespace Odin.Core.Tests
             var value = new TimeUtc(0, 0, 0);
             var json = OdinSystemSerializer.Serialize(value);
             var deserializedValue = OdinSystemSerializer.Deserialize<TimeUtc>(json);
-            Assert.IsTrue(value.ToString() == deserializedValue.ToString());
+            ClassicAssert.IsTrue(value.ToString() == deserializedValue.ToString());
 
             value = new TimeUtc(23, 59, 59);
             json = OdinSystemSerializer.Serialize(value);
             deserializedValue = OdinSystemSerializer.Deserialize<TimeUtc>(json);
-            Assert.IsTrue(value.ToString() == deserializedValue.ToString());
+            ClassicAssert.IsTrue(value.ToString() == deserializedValue.ToString());
 
             Assert.Pass();
         }

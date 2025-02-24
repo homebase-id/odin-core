@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
@@ -25,8 +26,8 @@ public class SerializationTests
 
         var deserializedValue = OdinSystemSerializer.Deserialize<UnixTimeUtc>(json);
 
-        Assert.IsTrue(value == deserializedValue);
-        Assert.IsTrue(value.milliseconds == deserializedValue.milliseconds);
+        ClassicAssert.IsTrue(value == deserializedValue);
+        ClassicAssert.IsTrue(value.milliseconds == deserializedValue.milliseconds);
     }
 
     [Test]
@@ -38,9 +39,9 @@ public class SerializationTests
         var json = OdinSystemSerializer.Serialize(rsaKeyList);
         var deserializedValue = OdinSystemSerializer.Deserialize<RsaFullKeyListData>(json);
 
-        Assert.IsNotNull(deserializedValue);
-        Assert.IsNotNull(deserializedValue!.ListRSA.FirstOrDefault());
-        Assert.IsFalse(deserializedValue.ListRSA.First().IsDead());
+        ClassicAssert.IsNotNull(deserializedValue);
+        ClassicAssert.IsNotNull(deserializedValue!.ListRSA.FirstOrDefault());
+        ClassicAssert.IsFalse(deserializedValue.ListRSA.First().IsDead());
         
     }
 }

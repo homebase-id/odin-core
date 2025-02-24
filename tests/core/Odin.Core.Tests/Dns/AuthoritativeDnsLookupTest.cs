@@ -78,8 +78,6 @@ public class AuthoritativeDnsLookupTest
         LogEvents.AssertEvents(logStore.GetLogEvents());
     }
 
-
-
     //
 
     [Test, Explicit]

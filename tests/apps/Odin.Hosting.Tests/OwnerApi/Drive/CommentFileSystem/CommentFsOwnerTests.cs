@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
@@ -73,9 +74,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
-            Assert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
+            ClassicAssert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
+            ClassicAssert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
+            ClassicAssert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
         }
 
         [Test]
@@ -111,14 +112,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var commentFileHeader = await client.Drive.GetFileHeader(FileSystemType.Comment, commentUploadResult.File);
 
-            Assert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
-            Assert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
+            ClassicAssert.IsTrue(commentFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment);
+            ClassicAssert.IsTrue(commentFileHeader.FileMetadata.AppData.Content == commentMetadata.AppData.Content);
+            ClassicAssert.IsTrue(commentFileHeader.FileMetadata.AppData.FileType == commentMetadata.AppData.FileType);
 
             var blogPostHeaderWith1Comment = await client.Drive.GetFileHeader(FileSystemType.Standard, blogPostUploadResult.File);
 
-            Assert.IsNotNull(blogPostHeaderWith1Comment);
-            Assert.IsTrue(blogPostHeaderWith1Comment.FileMetadata.ReactionPreview.TotalCommentCount == 1);
+            ClassicAssert.IsNotNull(blogPostHeaderWith1Comment);
+            ClassicAssert.IsTrue(blogPostHeaderWith1Comment.FileMetadata.ReactionPreview.TotalCommentCount == 1);
 
             //
             // Now delete the comment
@@ -127,8 +128,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var updatedBlogPostHeader = await client.Drive.GetFileHeader(FileSystemType.Standard, blogPostUploadResult.File);
 
-            Assert.IsNotNull(updatedBlogPostHeader);
-            Assert.IsTrue(updatedBlogPostHeader.FileMetadata.ReactionPreview.TotalCommentCount == 0);
+            ClassicAssert.IsNotNull(updatedBlogPostHeader);
+            ClassicAssert.IsTrue(updatedBlogPostHeader.FileMetadata.ReactionPreview.TotalCommentCount == 0);
         }
 
         [Test]

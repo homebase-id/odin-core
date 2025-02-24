@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
@@ -168,35 +169,35 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
 
             var response = await staticFileClient.Publish(publishRequest);
 
-            Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Actual status code was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Actual status code was {response.StatusCode}");
 
             if (expectedStatusCode == HttpStatusCode.OK)
             {
-                Assert.NotNull(response.Content);
+                ClassicAssert.NotNull(response.Content);
 
                 var pubResult = response.Content;
 
-                Assert.AreEqual(pubResult.Filename, publishRequest.Filename);
-                Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
-                Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
-                Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
+                ClassicAssert.AreEqual(pubResult.Filename, publishRequest.Filename);
+                ClassicAssert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
+                ClassicAssert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
+                ClassicAssert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
                 var getFileResponse = await staticFileClient.GetStaticFile(publishRequest.Filename);
-                Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
-                Assert.IsNotNull(getFileResponse.Content);
+                ClassicAssert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
+                ClassicAssert.IsNotNull(getFileResponse.Content);
 
-                Assert.IsTrue(getFileResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var values));
-                Assert.IsNotNull(values);
-                Assert.IsTrue(values.Single() == "*");
+                ClassicAssert.IsTrue(getFileResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var values));
+                ClassicAssert.IsNotNull(values);
+                ClassicAssert.IsTrue(values.Single() == "*");
 
                 //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
                 var json = await getFileResponse.Content.ReadAsStringAsync();
 
                 var sectionOutputArray = OdinSystemSerializer.Deserialize<SectionOutput[]>(json);
 
-                Assert.IsNotNull(sectionOutputArray);
-                Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
-                Assert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
+                ClassicAssert.IsNotNull(sectionOutputArray);
+                ClassicAssert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
+                ClassicAssert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
             }
         }
 

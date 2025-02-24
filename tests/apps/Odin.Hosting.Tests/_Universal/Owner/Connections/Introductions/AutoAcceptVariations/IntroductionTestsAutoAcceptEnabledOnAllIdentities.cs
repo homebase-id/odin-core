@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
@@ -79,12 +80,12 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
             Recipients = [sam, merry]
         });
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
         await introducer.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         await samOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
@@ -92,17 +93,17 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         //
         // Validate Sam is connected on merry's identity
         //
-        Assert.IsTrue(
+        ClassicAssert.IsTrue(
             await IntroductionTestUtils.IsConnectedWithExpectedOrigin(merryOwnerClient, sam, ConnectionRequestOrigin.Introduction));
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam),
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam),
             "there should be no introductions to sam");
 
         //
         // Validate Merry is connected on Sam's identity
         //
-        Assert.IsTrue(
+        ClassicAssert.IsTrue(
             await IntroductionTestUtils.IsConnectedWithExpectedOrigin(samOwnerClient, merry, ConnectionRequestOrigin.Introduction));
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry),
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry),
             "there should be no introductions to merry");
 
         await IntroductionTestUtils.Cleanup(_scaffold);
@@ -138,27 +139,27 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
                 Recipients = [sam, merry]
             });
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
         await introducer.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         await samOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         // Assert: Sam does not have a connection from Merry
-        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
 
         // Assert: Merry does not have a connection from Sam
-        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
 
         // Assert: Sam does not have an introduction
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
 
         // Assert: Merry has an introduction
-        Assert.IsTrue(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
+        ClassicAssert.IsTrue(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
 
         await IntroductionTestUtils.Cleanup(_scaffold);
     }
@@ -193,12 +194,12 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
             Recipients = [sam, merry]
         });
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
         await introducer.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         await samOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
@@ -206,24 +207,24 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         //
         // Assert: sam should have merry has a normal connection
         //
-        Assert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(
+        ClassicAssert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(
             samOwnerClient, merry, ConnectionRequestOrigin.IdentityOwner));
 
         //
         // Assert: merry should have sam as a normal connection
         //
-        Assert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(
+        ClassicAssert.IsTrue(await IntroductionTestUtils.IsConnectedWithExpectedOrigin(
             merryOwnerClient, sam, ConnectionRequestOrigin.IdentityOwner));
 
         //
         // Assert: Sam does not have an introduction
         //
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
 
         //
         // Assert: Merry does not have an introduction
         //
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
 
         await IntroductionTestUtils.Cleanup(_scaffold);
     }
@@ -258,12 +259,12 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
             Recipients = [sam, merry]
         });
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
         await introducer.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         await samOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
@@ -271,19 +272,19 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         //
         // Assert there are no introductions
         //
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
-        Assert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(samOwnerClient, merry));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasIntroductionFromIdentity(merryOwnerClient, sam));
 
         //
         // Assert: there are no connection requests
-        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
-        Assert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(samOwnerClient, merry));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.HasReceivedIntroducedConnectionRequestFromIntroducee(merryOwnerClient, sam));
 
         //
         // Assert: no one is connected
         //
-        Assert.IsFalse(await IntroductionTestUtils.IsConnected(samOwnerClient, merry));
-        Assert.IsFalse(await IntroductionTestUtils.IsConnected(merryOwnerClient, sam));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.IsConnected(samOwnerClient, merry));
+        ClassicAssert.IsFalse(await IntroductionTestUtils.IsConnected(merryOwnerClient, sam));
 
         await IntroductionTestUtils.Cleanup(_scaffold);
     }
@@ -319,12 +320,12 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
             Recipients = [sam, merry]
         });
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"failed: status code was: {response.StatusCode}");
         await introducer.Connections.AwaitIntroductionsProcessing(debugTimeout);
 
         var introResult = response.Content;
-        Assert.IsTrue(introResult.RecipientStatus[sam]);
-        Assert.IsTrue(introResult.RecipientStatus[merry]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[sam]);
+        ClassicAssert.IsTrue(introResult.RecipientStatus[merry]);
 
         await samOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
         await merryOwnerClient.Connections.AwaitIntroductionsProcessing(debugTimeout);
@@ -333,10 +334,10 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
         // R3's ICR record on R2's identity must be reset to an auto-connection because we won't
         // have master key and the shared secret get reset.  This means all circles also get reset.  "
 
-        Assert.IsTrue(
+        ClassicAssert.IsTrue(
             await IntroductionTestUtils.IsConnectedWithExpectedOrigin(samOwnerClient, merry, ConnectionRequestOrigin.Introduction));
 
-        Assert.IsTrue(
+        ClassicAssert.IsTrue(
             await IntroductionTestUtils.IsConnectedWithExpectedOrigin(merryOwnerClient, sam, ConnectionRequestOrigin.Introduction));
 
         await IntroductionTestUtils.Cleanup(_scaffold);

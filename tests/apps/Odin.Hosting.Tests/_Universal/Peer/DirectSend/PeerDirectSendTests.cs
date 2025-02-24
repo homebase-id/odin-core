@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -97,9 +98,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             var recipientFileByGlobalTransitId = recipientFileByGtidResponse.Content?.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
+            ClassicAssert.IsNotNull(recipientFileByGlobalTransitId);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             // Sender replies with a comment
             var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
@@ -107,8 +108,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
-            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
             //
@@ -141,14 +142,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var batch = batchResponse.Content;
 
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+            ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
 
@@ -197,9 +198,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
-            Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
+            ClassicAssert.IsNotNull(recipientFileByGlobalTransitId);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
             var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
@@ -207,8 +208,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
-            Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
@@ -237,15 +238,15 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var batch = batchResponse.Content;
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
 
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
 
@@ -296,9 +297,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
+            ClassicAssert.IsNotNull(recipientFileByGlobalTransitId);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == encryptedJsonContent64);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             //sender replies with a comment
             var (commentTransitResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
@@ -307,8 +308,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 encrypted: commentIsEncrypted,
                 recipient);
 
-            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            ClassicAssert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
@@ -338,17 +339,17 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var batch = batchResponse.Content;
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+            ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == encryptedCommentJsonContent64);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
-            Assert.IsTrue(receivedFile.FileMetadata.TransitCreated > 0);
-            Assert.IsTrue(receivedFile.FileMetadata.TransitUpdated == 0);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.TransitCreated > 0);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.TransitUpdated == 0);
 
 
             //Sender updates their comment
@@ -365,18 +366,18 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var updatedBatchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var updatedBatch = updatedBatchResponse.Content;
-            Assert.IsTrue(updatedBatch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(updatedBatch.SearchResults.Count() == 1);
             var updatedReceivedFile = updatedBatch.SearchResults.First();
-            Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.Content == encryptedUpdatedCommentJsonContent64);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.AppData.Content == encryptedUpdatedCommentJsonContent64);
 
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.TransitCreated > 0);
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.TransitUpdated == 0);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.TransitCreated > 0);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.TransitUpdated == 0);
 
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 "should still match original global transit id");
 
 
@@ -425,9 +426,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
-            Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
+            ClassicAssert.IsNotNull(recipientFileByGlobalTransitId);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             // Sender replies with a comment
             var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
@@ -436,8 +437,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 encrypted: commentIsEncrypted,
                 recipient: recipient);
 
-            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued);
 
             await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
@@ -466,13 +467,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var batchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var batch = batchResponse.Content;
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+            ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
 
             //Sender updates their comment
@@ -487,15 +488,15 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var updatedBatchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var updatedBatch = updatedBatchResponse.Content;
-            Assert.IsTrue(updatedBatch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(updatedBatch.SearchResults.Count() == 1);
             var updatedReceivedFile = updatedBatch.SearchResults.First();
-            Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.Content == updatedCommentFileContent);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.AppData.Content == updatedCommentFileContent);
 
-            Assert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+            ClassicAssert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 "should still match original global transit id");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
@@ -528,9 +529,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 standardFileUploadResult.GlobalTransitIdFileIdentifier);
 
             var recipientFileByGlobalTransitId = recipientFileByGlobalTransitIdResponse.Content?.SearchResults?.SingleOrDefault();
-            Assert.IsNotNull(recipientFileByGlobalTransitId);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
-            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
+            ClassicAssert.IsNotNull(recipientFileByGlobalTransitId);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.Content == standardFileContent);
+            ClassicAssert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.IsEncrypted == standardFileIsEncrypted);
 
             // Sender replies with a comment
             var (commentTransitResult, _) = await this.TransferComment(frodoOwnerClient,
@@ -538,8 +539,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
-            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+            ClassicAssert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
 
@@ -566,14 +567,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var batchResponse = await samwiseOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var batch = batchResponse.Content;
-            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
             var receivedFile = batch.SearchResults.First();
-            Assert.IsTrue(receivedFile.FileState == FileState.Active);
-            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
-            Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
-            Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+            ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == sender.OdinId, $"Original Author should have been ${sender.OdinId}");
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted == commentIsEncrypted);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == commentFileContent);
+            ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //
             //Delete the comment
@@ -591,11 +592,11 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
 
             var softDeletedBatchResponse = await samwiseOwnerClient.DriveRedux.QueryBatch(qp, FileSystemType.Comment);
             var softDeletedBatch = softDeletedBatchResponse.Content;
-            Assert.IsTrue(softDeletedBatch.SearchResults.Count() == 1);
+            ClassicAssert.IsTrue(softDeletedBatch.SearchResults.Count() == 1);
             var theDeletedFile = softDeletedBatch.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theDeletedFile);
-            Assert.IsTrue(theDeletedFile.FileState == FileState.Deleted);
-            Assert.IsTrue(theDeletedFile.FileSystemType == FileSystemType.Comment);
+            ClassicAssert.IsNotNull(theDeletedFile);
+            ClassicAssert.IsTrue(theDeletedFile.FileState == FileState.Deleted);
+            ClassicAssert.IsTrue(theDeletedFile.FileSystemType == FileSystemType.Comment);
 
             await this.DeleteScenario(frodoOwnerClient, samwiseOwnerClient);
         }
@@ -646,13 +647,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
                 );
             }
 
-            Assert.IsTrue(transitResultResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(transitResultResponse.IsSuccessStatusCode);
             var transitResult = transitResultResponse.Content;
 
             //
             // Basic tests first which apply to all calls
             //
-            Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
+            ClassicAssert.IsTrue(transitResult.RecipientStatus.Count == 1);
 
 
             await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);

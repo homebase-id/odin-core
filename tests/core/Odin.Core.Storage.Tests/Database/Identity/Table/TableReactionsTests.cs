@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -40,7 +41,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblDriveReactions.InsertAsync(new DriveReactionsRecord { identityId = identityKey, driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p1, singleReaction = ":smiley:" });
 
             var n = await tblDriveReactions.GetIdentityPostReactionsAsync(new OdinId("frodo.baggins.me"), driveId, p1);
-            Assert.IsTrue(n == 2); // Frodo made 2 reactions to post P1
+            ClassicAssert.IsTrue(n == 2); // Frodo made 2 reactions to post P1
 
             // Added: 3 lol, 2 wink, 1 smiley to post 'p1'
 
@@ -141,11 +142,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             string[] array = { ":lol:", ":wink:", ":smile:" };
             var rs = await tblDriveReactions.GetIdentityPostReactionDetailsAsync(new OdinId("frodo.baggins.me"), driveId, k1);
-            Assert.IsTrue(array.Contains(rs[0]));
-            Assert.IsTrue(array.Contains(rs[1]));
-            Assert.IsTrue(array.Contains(rs[2]));
-            Assert.IsTrue(rs[0] != rs[1]);
-            Assert.IsTrue(rs[1] != rs[2]);
+            ClassicAssert.IsTrue(array.Contains(rs[0]));
+            ClassicAssert.IsTrue(array.Contains(rs[1]));
+            ClassicAssert.IsTrue(array.Contains(rs[2]));
+            ClassicAssert.IsTrue(rs[0] != rs[1]);
+            ClassicAssert.IsTrue(rs[1] != rs[2]);
 
         }
 
@@ -181,7 +182,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 ok = true;
             }
 
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             ok = false;
             try
@@ -195,7 +196,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 ok = true;
             }
 
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
             ok = false;
             try
@@ -209,7 +210,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 ok = true;
             }
 
-            Assert.IsTrue(ok);
+            ClassicAssert.IsTrue(ok);
 
         }
 
@@ -243,7 +244,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblDriveReactions.InsertAsync(new DriveReactionsRecord { identityId = identityKey, driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
             await tblDriveReactions.InsertAsync(new DriveReactionsRecord { identityId = identityKey, driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
             var n = await tblDriveReactions.GetIdentityPostReactionsAsync(new OdinId("frodo.baggins.me"), driveId, k1);
-            Assert.IsTrue(n == 2);
+            ClassicAssert.IsTrue(n == 2);
         }
 
 

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
@@ -277,7 +278,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await recipient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, []);
 
             var getConnectionInfoResponse = await recipient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
         }
 
         private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -42,8 +43,8 @@ public class AppsApiClient
             };
 
             var regResponse = await svc.RegisterAppOnClient(request);
-            Assert.IsTrue(regResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(regResponse.Content);
+            ClassicAssert.IsTrue(regResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(regResponse.Content);
 
             var reply = regResponse.Content;
             var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
@@ -55,13 +56,13 @@ public class AppsApiClient
             Assert.That(decryptedData.Length, Is.EqualTo(49));
 
             var cat = ClientAccessToken.FromPortableBytes(decryptedData);
-            Assert.IsFalse(cat.Id == Guid.Empty);
-            Assert.IsNotNull(cat.AccessTokenHalfKey);
+            ClassicAssert.IsFalse(cat.Id == Guid.Empty);
+            ClassicAssert.IsNotNull(cat.AccessTokenHalfKey);
             Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
-            Assert.IsTrue(cat.AccessTokenHalfKey.IsSet());
-            Assert.IsTrue(cat.IsValid());
+            ClassicAssert.IsTrue(cat.AccessTokenHalfKey.IsSet());
+            ClassicAssert.IsTrue(cat.IsValid());
 
-            Assert.IsNotNull(cat.SharedSecret);
+            ClassicAssert.IsNotNull(cat.SharedSecret);
             Assert.That(cat.SharedSecret.GetKey().Length, Is.EqualTo(16));
 
             return (cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
@@ -134,9 +135,9 @@ public class AppsApiClient
 
             var response = await svc.RegisterApp(request);
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var appReg = response.Content;
-            Assert.IsNotNull(appReg);
+            ClassicAssert.IsNotNull(appReg);
 
             var updatedAppResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
             Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
@@ -152,7 +153,7 @@ public class AppsApiClient
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
-            Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
+            ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
             return appResponse.Content;
         }
     }
@@ -163,7 +164,7 @@ public class AppsApiClient
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredClients(new GetAppRequest(){AppId = appId});
-            Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app clients");
+            ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app clients");
             return appResponse.Content;
         }
     }

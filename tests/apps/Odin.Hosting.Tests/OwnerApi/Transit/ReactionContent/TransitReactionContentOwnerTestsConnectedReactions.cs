@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -86,7 +87,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             await pippinOwnerClient.Network.AcceptConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { targetCircle.Id });
 
             // var samFollowingPippinDefinition = await pippinOwnerClient.Follower.GetFollower(samOwnerClient.Identity);
-            // Assert.IsNotNull(samFollowingPippinDefinition);
+            // ClassicAssert.IsNotNull(samFollowingPippinDefinition);
 
             //
             // Pippin uploads a post
@@ -108,10 +109,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
                 MaxRecords = 100
             });
 
-            Assert.IsTrue(response.Reactions.Count == 1);
+            ClassicAssert.IsTrue(response.Reactions.Count == 1);
             var theReaction = response.Reactions.SingleOrDefault();
-            Assert.IsTrue(theReaction!.ReactionContent == reactionContent);
-            Assert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
+            ClassicAssert.IsTrue(theReaction!.ReactionContent == reactionContent);
+            ClassicAssert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
 
             await pippinOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
             await samOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);
@@ -154,7 +155,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             await pippinOwnerClient.Network.AcceptConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { targetCircle.Id });
 
             // var samFollowingPippinDefinition = await pippinOwnerClient.Follower.GetFollower(samOwnerClient.Identity);
-            // Assert.IsNotNull(samFollowingPippinDefinition);
+            // ClassicAssert.IsNotNull(samFollowingPippinDefinition);
 
             //
             // Pippin uploads a post
@@ -177,9 +178,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
                 MaxRecords = 100
             });
 
-            Assert.IsTrue(response.Reactions.Count == 1);
+            ClassicAssert.IsTrue(response.Reactions.Count == 1);
             var theReaction = response.Reactions.SingleOrDefault();
-            Assert.IsTrue(theReaction!.ReactionContent == reactionContent);
+            ClassicAssert.IsTrue(theReaction!.ReactionContent == reactionContent);
 
             // now delete it
             await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
@@ -191,7 +192,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
                 MaxRecords = 100
             });
 
-            Assert.IsTrue(shouldBeDeletedResponse.Reactions.Count == 0);
+            ClassicAssert.IsTrue(shouldBeDeletedResponse.Reactions.Count == 0);
 
             await pippinOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
             await samOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);

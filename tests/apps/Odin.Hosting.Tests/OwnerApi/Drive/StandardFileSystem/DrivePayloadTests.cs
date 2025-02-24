@@ -3,6 +3,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -72,20 +73,20 @@ public class DrivePayloadTests
         //Test whole payload is there
         var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key);
         string payloadContent = await getPayloadResponse.ReadAsStringAsync();
-        Assert.IsTrue(payloadContent == payload.Data);
+        ClassicAssert.IsTrue(payloadContent == payload.Data);
 
         var deleteResult = await ownerClient.Drive.DeletePayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key, uploadedContentResult.NewVersionTag);
-        Assert.IsTrue(deleteResult.NewVersionTag != uploadedContentResult.NewVersionTag);
+        ClassicAssert.IsTrue(deleteResult.NewVersionTag != uploadedContentResult.NewVersionTag);
 
         //validate the payload is gone
         var getDeletedPayloadResponse = await ownerClient.Drive.GetPayloadRaw(FileSystemType.Standard, uploadedContentResult.File, payload.Key);
-        Assert.IsTrue(getDeletedPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+        ClassicAssert.IsTrue(getDeletedPayloadResponse.StatusCode == HttpStatusCode.NotFound);
 
         //even tho the payload is gone, we should still be able to get the header and it should be updated
         var getHeaderResponse = await ownerClient.Drive.GetFileHeaderRaw(FileSystemType.Standard, uploadedContentResult.File);
-        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
-        Assert.IsTrue(getHeaderResponse.Content!.FileState == FileState.Active);
-        Assert.IsTrue(getHeaderResponse.Content.FileMetadata.Payloads.Count == 0);
+        ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderResponse.Content!.FileState == FileState.Active);
+        ClassicAssert.IsTrue(getHeaderResponse.Content.FileMetadata.Payloads.Count == 0);
     }
 
     [Test]
@@ -117,7 +118,7 @@ public class DrivePayloadTests
         //Test whole payload is there
         var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key);
         string payloadContent = await getPayloadResponse.ReadAsStringAsync();
-        Assert.IsTrue(payloadContent == payload.Data);
+        ClassicAssert.IsTrue(payloadContent == payload.Data);
 
         // const string expectedChunk = "I knew I’d want it";
         // const string expectedChunk = "is happening";
@@ -132,7 +133,7 @@ public class DrivePayloadTests
 
         var getPayloadResponseChunk1 = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key, chunk1);
         string payloadContentChunk1 = await getPayloadResponseChunk1.ReadAsStringAsync();
-        Assert.IsTrue(payloadContentChunk1 == expectedChunk, $"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
+        ClassicAssert.IsTrue(payloadContentChunk1 == expectedChunk, $"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
     }
 
     [Test]
@@ -164,7 +165,7 @@ public class DrivePayloadTests
         //Test whole payload is there
         var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key);
         string payloadContent = await getPayloadResponse.ReadAsStringAsync();
-        Assert.IsTrue(payloadContent == payload.Data);
+        ClassicAssert.IsTrue(payloadContent == payload.Data);
 
         const string expectedChunk = "I knew I’d want it";
         // const string expectedChunk = "is happening";
@@ -179,7 +180,7 @@ public class DrivePayloadTests
 
         var getPayloadResponseChunk1 = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, payload.Key, chunk1);
         string payloadContentChunk1 = await getPayloadResponseChunk1.ReadAsStringAsync();
-        Assert.IsTrue(payloadContentChunk1 == expectedChunk, $"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
+        ClassicAssert.IsTrue(payloadContentChunk1 == expectedChunk, $"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
     }
 
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, TestPayload payload)
