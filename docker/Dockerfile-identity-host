@@ -67,4 +67,7 @@ EXPOSE 443
 
 ENV PATH="/app/cli:${PATH}"
 
+# Unset ASPNETCORE_HTTP_PORTS to avoid warnings in logs
+ENV ASPNETCORE_HTTP_PORTS=
+
 ENTRYPOINT ["dotnet", "Odin.Hosting.dll"]
