@@ -6,38 +6,6 @@ using Odin.Core.Storage.Factory.Sqlite;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 
-//
-// MIGRATION steps
-//
-//  0) Change to directory /identity-host
-//  1) Make sure container is stopped: docker compose down
-//  2) Make sure container is gone: docker container prune
-//  3) Build and deploy docker image with migration code - DO NOT START IT
-//  4) Change to directory /identity-host/data/tenants
-//  5) Backup the registrations: sudo zip -r registrations-backup.zip registrations
-//  6) Change to directory /identity-host
-//  7) Edit the docker-compose.yml file, add the correct command line param to start the migration
-//  8) Start the docker image: docker compose up
-//  9) Wait for the migration to finish
-// 10) Make sure docker container is gone: docker container prune
-// 11) Redeploy the docker image (this will overwrite the compose changes from above) - START IT
-// 12) Run some smoke tests
-// 13) Check the logs for errors
-// 14) Change to directory /identity-host/data/tenants
-// 15) clean up: sudo find . -type f -name 'oldidentity.*' -delete
-// 16) clean up: sudo rm registrations-backup.zip
-//
-// PANIC steps
-//
-//  0) Change to directory /identity-host
-//  1) Make sure container is stopped: docker compose down
-//  2) Make sure container is gone: docker container prune
-//  3) Change to directory /identity-host/data/tenants
-//  4) Remove registrations: sudo rm -rf registrations
-//  5) Restore registrations: sudo unzip registrations-backup.zip
-//  6) Redeploy the docker image (this will overwrite the compose changes) - START IT
-//
-
 // Local test:
 //   mkdir $HOME/tmp/rowidstep2
 //   rsync -rvz yagni.dk:/identity-host/data/system $HOME/rowidstep2/data

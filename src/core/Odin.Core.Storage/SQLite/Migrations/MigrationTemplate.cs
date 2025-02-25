@@ -23,7 +23,7 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 // 11) Redeploy the docker image (this will overwrite the compose changes from above) - START IT
 // 12) Run some smoke tests
 // 13) Check the logs for errors
-// 14) Change to directory /identity-host/data/tenants
+// 14) Change to directory /identity-host/data/tenants/registrations
 // 15) clean up: sudo find . -type f -name 'oldidentity.*' -delete
 // 16) clean up: sudo rm registrations-backup.zip
 //
