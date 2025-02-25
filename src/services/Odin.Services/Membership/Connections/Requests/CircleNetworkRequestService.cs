@@ -269,12 +269,13 @@ namespace Odin.Services.Membership.Connections.Requests
             };
 
             await UpsertPendingConnectionRequestAsync(request);
-
+            
             await _mediator.Publish(new ConnectionRequestReceivedNotification()
             {
                 Sender = request.SenderOdinId,
                 Recipient = recipient,
                 OdinContext = odinContext,
+                Request = request,
             }, cancellationToken);
         }
 
@@ -333,7 +334,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var incomingRequest = await GetPendingRequestAsync((OdinId)header.Sender, odinContext);
             if (null == incomingRequest)
             {
-                throw new OdinClientException($"No pending request was found from sender [{header.Sender}]", OdinClientErrorCode.);
+                throw new OdinClientException($"No pending request was found from sender [{header.Sender}]", OdinClientErrorCode.IncomingRequestNotFound);
             }
 
             incomingRequest.Validate();

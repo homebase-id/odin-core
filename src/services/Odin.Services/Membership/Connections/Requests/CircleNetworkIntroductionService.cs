@@ -21,6 +21,7 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -243,11 +244,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 break;
             }
 
-            await AutoAcceptEligibleConnectionRequestAsync(request.SenderOdinId, force: true, odinContext);
+            await AutoAcceptEligibleConnectionRequestAsync(request, force: true, odinContext);
         }
     }
 
-    private async Task AutoAcceptEligibleConnectionRequestAsync(OdinId sender, bool force, IOdinContext odinContext)
+    private async Task AutoAcceptEligibleConnectionRequestAsync(PendingConnectionRequestHeader request, bool force, IOdinContext odinContext)
     {
         if (force && !odinContext.Caller.HasMasterKey)
         {
@@ -259,6 +260,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return;
         }
 
+        var sender = request.SenderOdinId;
+        var requiresIcr = request.EccEncryptedPayload.KeyType == PublicPrivateKeyType.OnlineIcrEncryptedKey;
+        if (requiresIcr && odinContext.PermissionsContext.GetIcrKey() == null)
+        {
+            _logger.LogDebug("Auto Accept attempting to accept connection request from {sender} that is " +
+                             "encrypted with OnlineIcrEncryptedKey, however odinContext does not have ICR key " +
+                             "available.  Bypassing this request.", 
+                sender);
+            return;
+        }
+        
         try
         {
             var newContext = OdinContextUpgrades.UsePermissions(odinContext,
@@ -292,7 +304,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         }
         catch (OdinClientException oce)
         {
-            if(oce.ErrorCode == )
+            if (oce.ErrorCode == OdinClientErrorCode.IncomingRequestNotFound)
+            {
+                _logger.LogError(oce, "Failed while trying to auto-accept a connection request from {identity}.  The request was not found", sender);
+            }
         }
         catch (Exception ex)
         {
@@ -372,7 +387,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task Handle(ConnectionRequestReceivedNotification notification, CancellationToken cancellationToken)
     {
-        await AutoAcceptEligibleConnectionRequestAsync(notification.Sender, false, notification.OdinContext);
+        await AutoAcceptEligibleConnectionRequestAsync(notification.Request, false, notification.OdinContext);
     }
 
     /// <summary>
