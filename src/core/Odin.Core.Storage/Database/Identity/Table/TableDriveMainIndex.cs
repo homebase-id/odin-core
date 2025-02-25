@@ -169,7 +169,7 @@ public class TableDriveMainIndex(
         var upsertParam29 = upsertCommand.CreateParameter();
         upsertParam29.ParameterName = "@modified";
         upsertCommand.Parameters.Add(upsertParam29);
-        var now = UnixTimeUtcUnique.Now();
+        var now = UnixTimeUtc.Now();
         upsertParam1.Value = item.identityId.ToByteArray();
         upsertParam2.Value = item.driveId.ToByteArray();
         upsertParam3.Value = item.fileId.ToByteArray();
@@ -198,8 +198,8 @@ public class TableDriveMainIndex(
         upsertParam25.Value = item.hdrFileMetaData;
         upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
         upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-        upsertParam28.Value = now.uniqueTime;
-        upsertParam29.Value = now.uniqueTime;
+        upsertParam28.Value = now.milliseconds;
+        upsertParam29.Value = now.milliseconds;
 
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
         {
@@ -207,9 +207,9 @@ public class TableDriveMainIndex(
             {
                 long created = (Int64) rdr[0];
                 long? modified = (rdr[1] == DBNull.Value) ? null : (Int64) rdr[1];
-                item.created = new UnixTimeUtcUnique(created);
+                item.created = new UnixTimeUtc(created);
                 if (modified != null)
-                    item.modified = new UnixTimeUtcUnique((long)modified);
+                    item.modified = new UnixTimeUtc((long)modified);
                 else
                     item.modified = null;
                 return 1;

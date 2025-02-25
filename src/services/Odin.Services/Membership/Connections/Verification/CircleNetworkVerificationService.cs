@@ -200,7 +200,7 @@ public class CircleNetworkVerificationService(
 
         odinContext.Caller.AssertHasMasterKey();
 
-        var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+        var allIdentities = await CircleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
         //Note to future Todd and Seb: your past self said no transactions here because a network call is
         //made.  I know, it's tempting but in the words of Seb "NO!" 

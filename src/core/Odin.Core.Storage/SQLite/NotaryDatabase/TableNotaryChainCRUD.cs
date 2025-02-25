@@ -65,8 +65,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                   _identity = value;
                }
         }
-        private UnixTimeUtcUnique _timestamp;
-        public UnixTimeUtcUnique timestamp
+        private UnixTimeUtc _timestamp;
+        public UnixTimeUtc timestamp
         {
            get {
                    return _timestamp;
@@ -265,7 +265,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.previousHash;
                 insertParam2.Value = item.identity;
-                insertParam3.Value = item.timestamp.uniqueTime;
+                insertParam3.Value = item.timestamp.milliseconds;
                 insertParam4.Value = item.signedPreviousHash;
                 insertParam5.Value = item.algorithm;
                 insertParam6.Value = item.publicKeyJwkBase64Url;
@@ -313,7 +313,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.previousHash;
                 insertParam2.Value = item.identity;
-                insertParam3.Value = item.timestamp.uniqueTime;
+                insertParam3.Value = item.timestamp.milliseconds;
                 insertParam4.Value = item.signedPreviousHash;
                 insertParam5.Value = item.algorithm;
                 insertParam6.Value = item.publicKeyJwkBase64Url;
@@ -363,7 +363,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 upsertCommand.Parameters.Add(upsertParam8);
                 upsertParam1.Value = item.previousHash;
                 upsertParam2.Value = item.identity;
-                upsertParam3.Value = item.timestamp.uniqueTime;
+                upsertParam3.Value = item.timestamp.milliseconds;
                 upsertParam4.Value = item.signedPreviousHash;
                 upsertParam5.Value = item.algorithm;
                 upsertParam6.Value = item.publicKeyJwkBase64Url;
@@ -408,7 +408,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 updateCommand.Parameters.Add(updateParam8);
                 updateParam1.Value = item.previousHash;
                 updateParam2.Value = item.identity;
-                updateParam3.Value = item.timestamp.uniqueTime;
+                updateParam3.Value = item.timestamp.milliseconds;
                 updateParam4.Value = item.signedPreviousHash;
                 updateParam5.Value = item.algorithm;
                 updateParam6.Value = item.publicKeyJwkBase64Url;
@@ -464,7 +464,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
             item.identityNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
+            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             item.signedPreviousHashNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
@@ -516,7 +516,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
             item.identityNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
+            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             item.signedPreviousHashNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");

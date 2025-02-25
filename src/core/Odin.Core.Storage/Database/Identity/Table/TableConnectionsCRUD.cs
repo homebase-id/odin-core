@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class ConnectionsRecord
     {
+        private Int64 _rowId;
+        public Int64 rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -103,8 +113,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _data = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private UnixTimeUtc _created;
+        public UnixTimeUtc created
         {
            get {
                    return _created;
@@ -113,8 +123,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private UnixTimeUtc? _modified;
+        public UnixTimeUtc? modified
         {
            get {
                    return _modified;
@@ -207,8 +217,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.Value = item.status;
                 insertParam5.Value = item.accessIsRevoked;
                 insertParam6.Value = item.data ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam7.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam7.Value = now.milliseconds;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -260,8 +270,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.Value = item.status;
                 insertParam5.Value = item.accessIsRevoked;
                 insertParam6.Value = item.data ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam7.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam7.Value = now.milliseconds;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -309,23 +319,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam8 = upsertCommand.CreateParameter();
                 upsertParam8.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam8);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.identity.DomainName;
                 upsertParam3.Value = item.displayName;
                 upsertParam4.Value = item.status;
                 upsertParam5.Value = item.accessIsRevoked;
                 upsertParam6.Value = item.data ?? (object)DBNull.Value;
-                upsertParam7.Value = now.uniqueTime;
-                upsertParam8.Value = now.uniqueTime;
+                upsertParam7.Value = now.milliseconds;
+                upsertParam8.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtcUnique(created);
+                   item.created = new UnixTimeUtc(created);
                    if (modified != null)
-                      item.modified = new UnixTimeUtcUnique((long)modified);
+                      item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
@@ -368,15 +378,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam8 = updateCommand.CreateParameter();
                 updateParam8.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam8);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.identity.DomainName;
                 updateParam3.Value = item.displayName;
                 updateParam4.Value = item.status;
                 updateParam5.Value = item.accessIsRevoked;
                 updateParam6.Value = item.data ?? (object)DBNull.Value;
-                updateParam7.Value = now.uniqueTime;
-                updateParam8.Value = now.uniqueTime;
+                updateParam7.Value = now.milliseconds;
+                updateParam8.Value = now.milliseconds;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -405,6 +415,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("identity");
             sl.Add("displayName");
@@ -416,7 +427,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified
+        // SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified
         protected ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ConnectionsRecord>();
@@ -425,16 +436,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new ConnectionsRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.identity = (rdr[1] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
-            item.displayNameNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
-            item.status = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.accessIsRevoked = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.dataNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.displayNameNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
+            item.status = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.accessIsRevoked = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.dataNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
-            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
-            item.modified = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[7]);
+            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.modified = (rdr[8] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -471,14 +483,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new ConnectionsRecord();
             item.identityId = identityId;
             item.identity = identity;
-            item.displayNameNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
-            item.status = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.accessIsRevoked = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.displayNameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.status = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.accessIsRevoked = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
-            item.created = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[4]);
-            item.modified = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[5]);
+            item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.modified = (rdr[6] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[6]);
             return item;
        }
 
@@ -490,7 +503,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT displayName,status,accessIsRevoked,data,created,modified FROM connections " +
+                get0Command.CommandText = "SELECT rowId,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                              "WHERE identityId = @identityId AND identity = @identity LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
@@ -529,8 +542,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging2Command = cn.CreateCommand();
             {
-                getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId) AND identity > @identity ORDER BY identity ASC LIMIT @count;";
+                getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
+                                            "WHERE (identityId = @identityId) AND identity > @identity  ORDER BY identity ASC  LIMIT @count;";
                 var getPaging2Param1 = getPaging2Command.CreateParameter();
                 getPaging2Param1.ParameterName = "@identity";
                 getPaging2Command.Parameters.Add(getPaging2Param1);
@@ -582,8 +595,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging2Command = cn.CreateCommand();
             {
-                getPaging2Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId AND status = @status) AND identity > @identity ORDER BY identity ASC LIMIT @count;";
+                getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
+                                            "WHERE (identityId = @identityId AND status = @status) AND identity > @identity  ORDER BY identity ASC  LIMIT @count;";
                 var getPaging2Param1 = getPaging2Command.CreateParameter();
                 getPaging2Param1.ParameterName = "@identity";
                 getPaging2Command.Parameters.Add(getPaging2Param1);
@@ -627,43 +640,50 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId,Int32 status, UnixTimeUtc? inCursor, long? rowid)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (count == int.MaxValue)
                 count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
-                inCursor = new UnixTimeUtcUnique(long.MaxValue);
+                inCursor = new UnixTimeUtc(long.MaxValue);
+            if (rowid == null)
+                rowid = long.MaxValue;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging7Command = cn.CreateCommand();
             {
-                getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId AND status = @status) AND created < @created ORDER BY created DESC LIMIT @count;";
+                getPaging7Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
+                                            "WHERE (identityId = @identityId AND status = @status) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "@count";
+                getPaging7Param2.ParameterName = "@rowId";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
-                getPaging7Param3.ParameterName = "@identityId";
+                getPaging7Param3.ParameterName = "@count";
                 getPaging7Command.Parameters.Add(getPaging7Param3);
                 var getPaging7Param4 = getPaging7Command.CreateParameter();
-                getPaging7Param4.ParameterName = "@status";
+                getPaging7Param4.ParameterName = "@identityId";
                 getPaging7Command.Parameters.Add(getPaging7Param4);
+                var getPaging7Param5 = getPaging7Command.CreateParameter();
+                getPaging7Param5.ParameterName = "@status";
+                getPaging7Command.Parameters.Add(getPaging7Param5);
 
-                getPaging7Param1.Value = inCursor?.uniqueTime;
-                getPaging7Param2.Value = count+1;
-                getPaging7Param3.Value = identityId.ToByteArray();
-                getPaging7Param4.Value = status;
+                getPaging7Param1.Value = inCursor?.milliseconds;
+                getPaging7Param2.Value = rowid;
+                getPaging7Param3.Value = count+1;
+                getPaging7Param4.Value = identityId.ToByteArray();
+                getPaging7Param5.Value = status;
 
                 {
                     await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
-                        UnixTimeUtcUnique? nextCursor;
+                        UnixTimeUtc? nextCursor;
+                        long nextRowId;
                         int n = 0;
                         while ((n < count) && await rdr.ReadAsync())
                         {
@@ -673,50 +693,59 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].created;
+                                nextRowId = result[n - 1].rowId;
                         }
                         else
                         {
                             nextCursor = null;
+                            nextRowId = 0;
                         }
-                        return (result, nextCursor);
+                        return (result, nextCursor, nextRowId);
                     } // using
                 } //
             } // using 
         } // PagingGet
 
-        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtcUnique? nextCursor)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtcUnique? inCursor)
+        protected virtual async Task<(List<ConnectionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtc? inCursor, long? rowid)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (count == int.MaxValue)
                 count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
-                inCursor = new UnixTimeUtcUnique(long.MaxValue);
+                inCursor = new UnixTimeUtc(long.MaxValue);
+            if (rowid == null)
+                rowid = long.MaxValue;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging7Command = cn.CreateCommand();
             {
-                getPaging7Command.CommandText = "SELECT identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                            "WHERE (identityId = @identityId) AND created < @created ORDER BY created DESC LIMIT @count;";
+                getPaging7Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
+                                            "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.ParameterName = "@count";
+                getPaging7Param2.ParameterName = "@rowId";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
-                getPaging7Param3.ParameterName = "@identityId";
+                getPaging7Param3.ParameterName = "@count";
                 getPaging7Command.Parameters.Add(getPaging7Param3);
+                var getPaging7Param4 = getPaging7Command.CreateParameter();
+                getPaging7Param4.ParameterName = "@identityId";
+                getPaging7Command.Parameters.Add(getPaging7Param4);
 
-                getPaging7Param1.Value = inCursor?.uniqueTime;
-                getPaging7Param2.Value = count+1;
-                getPaging7Param3.Value = identityId.ToByteArray();
+                getPaging7Param1.Value = inCursor?.milliseconds;
+                getPaging7Param2.Value = rowid;
+                getPaging7Param3.Value = count+1;
+                getPaging7Param4.Value = identityId.ToByteArray();
 
                 {
                     await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
-                        UnixTimeUtcUnique? nextCursor;
+                        UnixTimeUtc? nextCursor;
+                        long nextRowId;
                         int n = 0;
                         while ((n < count) && await rdr.ReadAsync())
                         {
@@ -726,12 +755,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         if ((n > 0) && await rdr.ReadAsync())
                         {
                                 nextCursor = result[n - 1].created;
+                                nextRowId = result[n - 1].rowId;
                         }
                         else
                         {
                             nextCursor = null;
+                            nextRowId = 0;
                         }
-                        return (result, nextCursor);
+                        return (result, nextCursor, nextRowId);
                     } // using
                 } //
             } // using 

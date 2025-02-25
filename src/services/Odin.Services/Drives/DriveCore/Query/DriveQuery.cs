@@ -37,15 +37,12 @@ public class DriveQuery(
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(odinContext);
-        Int64.TryParse(options.Cursor, out long c);
-
-        string cursor = c.ToString();
 
         // TODO TODD - use moreRows
-        (var results, var moreRows, cursor) = await metaIndex.QueryModifiedAsync(
+        (var results, var moreRows, var nextCursor) = await metaIndex.QueryModifiedAsync(
             drive.Id,
             noOfItems: options.MaxRecords,
-            cursor,
+            options.Cursor,
             fileSystemType: (Int32)fileSystemType,
             stopAtModifiedUnixTimeSeconds: new UnixTimeUtcUnique(options.MaxDate),
             requiredSecurityGroup: requiredSecurityGroup,
@@ -62,7 +59,7 @@ public class DriveQuery(
             localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
             localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
-        return (cursor, results, moreRows);
+        return (nextCursor, results, moreRows);
     }
 
 

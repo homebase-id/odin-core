@@ -60,15 +60,14 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        Int64.TryParse(request.Cursor, out var c);
-        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, c == 0 ? null : new UnixTimeUtcUnique(c));
+        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, request.Cursor);
 
         var list = results.Select(r => new AppNotification()
         {
             Id = r.notificationId,
             SenderId = r.senderId,
             Unread = r.unread == 1,
-            Created = r.created.ToUnixTimeUtc(),
+            Created = r.created,
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 
@@ -87,7 +86,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var nr = new NotificationsListResult()
         {
-            Cursor = cursor.HasValue ? cursor.Value.uniqueTime.ToString() : "",
+            Cursor = cursor ?? "",
             Results = list.ToList()
         };
 
@@ -108,7 +107,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             Id = r.notificationId,
             SenderId = r.senderId,
             Unread = r.unread == 1,
-            Created = r.created.ToUnixTimeUtc(),
+            Created = r.created,
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 

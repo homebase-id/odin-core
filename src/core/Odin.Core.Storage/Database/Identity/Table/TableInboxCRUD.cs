@@ -121,8 +121,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _correlationId = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private UnixTimeUtc _created;
+        public UnixTimeUtc created
         {
            get {
                    return _created;
@@ -131,8 +131,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private UnixTimeUtc? _modified;
+        public UnixTimeUtc? modified
         {
            get {
                    return _modified;
@@ -238,8 +238,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
                 insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 insertParam8.Value = item.correlationId ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam9.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam9.Value = now.milliseconds;
                 item.modified = null;
                 insertParam10.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -301,8 +301,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
                 insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 insertParam8.Value = item.correlationId ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam9.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam9.Value = now.milliseconds;
                 item.modified = null;
                 insertParam10.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -358,7 +358,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam10 = upsertCommand.CreateParameter();
                 upsertParam10.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam10);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.fileId.ToByteArray();
                 upsertParam3.Value = item.boxId.ToByteArray();
@@ -367,16 +367,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam6.Value = item.value ?? (object)DBNull.Value;
                 upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 upsertParam8.Value = item.correlationId ?? (object)DBNull.Value;
-                upsertParam9.Value = now.uniqueTime;
-                upsertParam10.Value = now.uniqueTime;
+                upsertParam9.Value = now.milliseconds;
+                upsertParam10.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtcUnique(created);
+                   item.created = new UnixTimeUtc(created);
                    if (modified != null)
-                      item.modified = new UnixTimeUtcUnique((long)modified);
+                      item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
                    return 1;
@@ -427,7 +427,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam10 = updateCommand.CreateParameter();
                 updateParam10.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam10);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.fileId.ToByteArray();
                 updateParam3.Value = item.boxId.ToByteArray();
@@ -436,8 +436,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam6.Value = item.value ?? (object)DBNull.Value;
                 updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 updateParam8.Value = item.correlationId ?? (object)DBNull.Value;
-                updateParam9.Value = now.uniqueTime;
-                updateParam10.Value = now.uniqueTime;
+                updateParam9.Value = now.milliseconds;
+                updateParam10.Value = now.milliseconds;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -497,8 +497,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("Too little data in value...");
             item.popStamp = (rdr[6] == DBNull.Value) ? null : new Guid((byte[])rdr[6]);
             item.correlationIdNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
-            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[8]);
-            item.modified = (rdr[9] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[9]);
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[9]);
             return item;
        }
 
@@ -541,8 +541,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 throw new Exception("Too little data in value...");
             item.popStamp = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
             item.correlationIdNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
-            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[6]);
-            item.modified = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[7]);
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[7]);
             return item;
        }
 

@@ -193,26 +193,29 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Test the CRUD
 
             // Get most recent (will be a different order)
-            var (r, timeCursor) = await tblConnections.PagingByCreatedAsync(2, null);
+            // Results should be reverse of insert
+            //
+
+            var (r, cursor) = await tblConnections.PagingByCreatedAsync(2, null);
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0].identity == "gandalf.white.me");
             Debug.Assert(r[1].identity == "samwise.gamgee.me");
-            Debug.Assert(timeCursor != null);
-            (r, timeCursor) = await tblConnections.PagingByCreatedAsync(2, timeCursor);
+            Debug.Assert(cursor != null);
+            (r, cursor) = await tblConnections.PagingByCreatedAsync(2, cursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0].identity == "frodo.baggins.me");
-            Debug.Assert(timeCursor == null);
+            Debug.Assert(cursor == null);
 
 
             // TEST THE HANDCODED
-            (r, timeCursor) = await tblConnections.PagingByCreatedAsync(1, 42, null);
+            (r, cursor) = await tblConnections.PagingByCreatedAsync(1, 42, null);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0].identity == "gandalf.white.me");
-            Debug.Assert(timeCursor != null);
-            (r, timeCursor) = await tblConnections.PagingByCreatedAsync(2, 42, timeCursor);
+            Debug.Assert(cursor != null);
+            (r, cursor) = await tblConnections.PagingByCreatedAsync(2, 42, cursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0].identity == "frodo.baggins.me");
-            Debug.Assert(timeCursor == null);
+            Debug.Assert(cursor == null);
 
         }
 
@@ -285,17 +288,17 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
 
             // Get most recent (will be a different order)
-            (r, var timeCursor) = await tblConnections.PagingByCreatedAsync(2, null);
+            (r, var cursor) = await tblConnections.PagingByCreatedAsync(2, null);
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0].identity == "gandalf.white.me");
             Debug.Assert(r[1].identity == "samwise.gamgee.me");
-            Debug.Assert(timeCursor != null);
+            Debug.Assert(cursor != null);
 
             // TEST THE HANDCODED
-            (r, timeCursor) = await tblConnections.PagingByCreatedAsync(2, 43, null);
+            (r, cursor) = await tblConnections.PagingByCreatedAsync(2, 43, null);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0].identity == "samwise.gamgee.me");
-            Debug.Assert(timeCursor == null);
+            Debug.Assert(cursor == null);
 
 
             // PagingByCreated is NOT designed to be used with anything except the first page.

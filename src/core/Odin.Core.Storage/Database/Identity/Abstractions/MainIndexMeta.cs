@@ -34,9 +34,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 TableDriveMainIndex.GetColumnNames()
                     .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
                                 && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
-                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase)
-                                    ? "driveMainIndex.fileId"
-                                    : name));
+                    .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.fileId" :
+                                    name.Equals("rowId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.rowId" :
+                                    name));
         }
 
         public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
@@ -338,13 +338,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
             }
 
-            string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
-                uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
-                fileSystemType, driveId);
             if (IsSet(fileStateAnyOf))
             {
                 listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
             }
+
+            string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
+                uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
+                fileSystemType, driveId);
 
             // string selectOutputFields    = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
             // string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData,                                    hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
@@ -564,6 +565,51 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return (result, moreRows, refCursor);
         }
 
+
+        public static string CreateModifiedCursor(UnixTimeUtc? utc, long? rowId)
+        {
+            UnixTimeUtc c = UnixTimeUtc.ZeroTime;
+
+            if (utc == null)
+                return null;
+            else 
+                return utc!.ToString() + "," + rowId!.ToString();
+        }
+
+        /// <summary>
+        /// Cursor format is a string of "timestamp,rowid" but old cursors will just be "timestamp" with no ",rowid"
+        /// </summary>
+        /// <returns>true if parsed successfully, if false, return longs are null if can't be parsed</returns>
+        public static bool TryParseModifiedCursor(string cursor, out UnixTimeUtc? timestamp, out long? rowId)
+        {
+            timestamp = null;
+            rowId = null;
+
+            if (cursor == null)
+                return false;
+
+            var parts = cursor.Split(',');
+
+            if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
+            {
+                // This section is only for "old" cursors
+                // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
+                if (ts > 1L << 42)
+                    timestamp = ts >> 16;  
+                return true;
+            }
+            else if (parts.Length == 2 &&
+                     long.TryParse(parts[0], out long ts2) &&
+                     long.TryParse(parts[1], out long parsedRowId))
+            {
+                timestamp = ts2;
+                rowId = parsedRowId;
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
         /// </summary>
@@ -609,11 +655,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var listWhereAnd = new List<string>();
 
-            UnixTimeUtcUnique realCursor;
+            TryParseModifiedCursor(cursor, out var modifiedTimeCursor, out var rowIdCursor);
 
-            realCursor = new UnixTimeUtcUnique(Convert.ToInt64(cursor));
+            if (modifiedTimeCursor == null)
+                modifiedTimeCursor = 0;
 
-            listWhereAnd.Add($"modified > {realCursor.uniqueTime}");
+            if (rowIdCursor == null)
+                rowIdCursor = 0;
+
+            listWhereAnd.Add($"modified >= {modifiedTimeCursor} AND driveMainIndex.rowId > {rowIdCursor}");
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
@@ -624,9 +674,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
                 fileSystemType, driveId);
 
-            // string selectOutputFields =  "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
-            // string stm = $"SELECT DISTINCT driveMainIndex.fileid, modified FROM drivemainindex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC, driveMainIndex.rowId ASC LIMIT {noOfItems + 1}";
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -640,20 +688,22 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 int i = 0;
                 long ts = 0;
+                long rid = 0;
 
                 while (await rdr.ReadAsync())
                 {
                     var r = driveMainIndex.ReadAllColumns(rdr, driveId);
                     _fileId = r.fileId.ToByteArray();
                     result.Add(r);
-                    ts = (long) r.modified?.uniqueTime; // XXX
+                    ts = (long) r.modified?.milliseconds; // XXX
+                    rid = (long)r.rowId;
                     i++;
                     if (i >= noOfItems)
                         break;
                 }
 
-                if (i > 0)
-                    cursor = ts.ToString();
+                if (i > 0) // Should the cursor be set to null if there are no results!?
+                    cursor =  MainIndexMeta.CreateModifiedCursor(ts, rid);
 
                 return (result, await rdr.ReadAsync(), cursor);
             } // using rdr
