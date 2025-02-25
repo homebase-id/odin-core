@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -394,29 +393,6 @@ namespace Odin.Hosting
                         homeApp.UseSpa(
                             spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
                     });
-                
-                // app.MapWhen(ctx => true,
-                //     homeApp =>
-                //     {
-                //         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-                //
-                //         homeApp.UseStaticFiles(new StaticFileOptions()
-                //         {
-                //             FileProvider = new PhysicalFileProvider(publicPath),
-                //             // RequestPath = "/"
-                //         });
-                //
-                //         homeApp.Run(async context =>
-                //         {
-                //             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                //                                             
-                //             var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
-                //             var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
-                //
-                //             var indexFile = Path.Combine(publicPath, "index.html");
-                //             await svc.WriteIndexFileAsync(indexFile, odinContext);
-                //         });
-                //     });
             }
             else
             {

@@ -14,13 +14,13 @@ using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Hosting.PersonMetadata;
-using Odin.Hosting.PersonMetadata.SchemaDotOrg;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
+using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
 

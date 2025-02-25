@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace Odin.Hosting.PersonMetadata.SchemaDotOrg;
+namespace Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 
 public class PersonSchema
 {

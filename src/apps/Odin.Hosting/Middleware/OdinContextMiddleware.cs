@@ -26,12 +26,14 @@ namespace Odin.Hosting.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ITenantProvider _tenantProvider;
+        private readonly ILogger<OdinContextMiddleware> _logger;
 
         /// <summary/>
-        public OdinContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider)
+        public OdinContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider,ILogger<OdinContextMiddleware> logger)
         {
             _next = next;
             _tenantProvider = tenantProvider;
+            _logger = logger;
         }
 
         /// <summary/>
@@ -44,8 +46,6 @@ namespace Odin.Hosting.Middleware
 
             if (string.IsNullOrEmpty(authType))
             {
-                var logger = httpContext.RequestServices.GetService<ILogger<OdinContextMiddleware>>();
-
                 try
                 {
                     odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
@@ -53,7 +53,7 @@ namespace Odin.Hosting.Middleware
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Failed loading anonymous context.  Note: the code execution continues on since this " +
+                    _logger.LogError(e, "Failed loading anonymous context.  Note: the code execution continues on since this " +
                                        "was only created to support link-preview. however, have a look and fix me.  error message [{msg}]",
                         e.Message);
                 }
