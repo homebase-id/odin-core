@@ -1,47 +1,48 @@
 using System.Collections.Generic;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
+
 
 namespace Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 
 public class PersonSchema
 {
-    [JsonProperty("@context")]
+    [JsonPropertyName("@context")]
     public string Context { get; } = "https://schema.org";
 
-    [JsonProperty("@type")]
+    [JsonPropertyName("@type")]
     public string Type { get; } = "Person";
 
-    [JsonProperty("name")]
+    [JsonPropertyName("name")]
     public string Name { get; set; }
     
-    [JsonProperty("givenName")]
+    [JsonPropertyName("givenName")]
     public string GivenName { get; set; }
 
-    [JsonProperty("familyName")]
+    [JsonPropertyName("familyName")]
     public string FamilyName { get; set; }
 
-    [JsonProperty("description")]
+    [JsonPropertyName("description")]
     public string Description { get; set; }
     
-    [JsonProperty("email")]
+    [JsonPropertyName("email")]
     public string Email { get; set; }
 
-    [JsonProperty("birthDate")]
+    [JsonPropertyName("birthDate")]
     public string BirthDate { get; set; } // Use ISO 8601 format: YYYY-MM-DD
 
-    [JsonProperty("jobTitle")]
+    [JsonPropertyName("jobTitle")]
     public string JobTitle { get; set; }
 
-    [JsonProperty("image")]
+    [JsonPropertyName("image")]
     public string Image { get; set; }
     
-    [JsonProperty("worksFor")]
+    [JsonPropertyName("worksFor")]
     public OrganizationSchema WorksFor { get; set; }
 
-    [JsonProperty("address")]
+    [JsonPropertyName("address")]
     public AddressSchema Address { get; set; }
 
-    [JsonProperty("sameAs")]
+    [JsonPropertyName("sameAs")]
     public List<string> SameAs { get; set; } // Social media or reference URLs
     
 }

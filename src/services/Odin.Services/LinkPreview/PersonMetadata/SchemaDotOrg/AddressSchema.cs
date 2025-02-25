@@ -1,24 +1,24 @@
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 
 public class AddressSchema
 {
-    [JsonProperty("@type")]
+    [JsonPropertyName("@type")]
     public string Type { get; } = "PostalAddress";
 
-    [JsonProperty("streetAddress")]
+    [JsonPropertyName("streetAddress")]
     public string StreetAddress { get; set; }
 
-    [JsonProperty("addressLocality")]
+    [JsonPropertyName("addressLocality")]
     public string AddressLocality { get; set; }
 
-    [JsonProperty("addressRegion")]
+    [JsonPropertyName("addressRegion")]
     public string AddressRegion { get; set; }
 
-    [JsonProperty("postalCode")]
+    [JsonPropertyName("postalCode")]
     public string PostalCode { get; set; }
 
-    [JsonProperty("addressCountry")]
+    [JsonPropertyName("addressCountry")]
     public string AddressCountry { get; set; }
 }

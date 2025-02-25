@@ -1,25 +1,26 @@
-using Newtonsoft.Json;
 
-namespace Odin.Hosting.PersonMetadata;
+using System.Text.Json.Serialization;
+
+namespace Odin.Services.LinkPreview.PersonMetadata;
 
 public class FrontEndProfile
 {
     
-    [JsonProperty("name")]
+    [JsonPropertyName("name")]
     public string Name { get; set; }
     
     
-    [JsonProperty("givenName")]
+    [JsonPropertyName("givenName")]
     public string GiveName { get; set; }
     
     
-    [JsonProperty("surname")]
+    [JsonPropertyName("surname")]
     public string Surname { get; set; }
     
     
-    [JsonProperty("image")]
+    [JsonPropertyName("image")]
     public string Image { get; set; }
     
-    [JsonProperty("bio")]
+    [JsonPropertyName("bio")]
     public string Bio { get; set; }
 }

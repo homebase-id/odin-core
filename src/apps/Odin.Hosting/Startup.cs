@@ -49,7 +49,6 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Hosting.PersonMetadata;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
