@@ -51,6 +51,7 @@ using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
+using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting
 {
@@ -255,7 +256,7 @@ namespace Odin.Hosting
         {
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
-           
+
             builder.AddSystemBackgroundServices();
             builder.AddJobManagerServices();
 
@@ -484,7 +485,6 @@ namespace Odin.Hosting
                         });
                     });
 
-                // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                 app.MapWhen(ctx => true,
                     homeApp =>
                     {
@@ -499,7 +499,12 @@ namespace Odin.Hosting
                         homeApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                                                            
+                            var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                            var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
+
+                            var indexFile = Path.Combine(publicPath, "index.html");
+                            await svc.WriteIndexFileAsync(indexFile, odinContext);
                         });
                     });
             }
@@ -558,6 +563,7 @@ namespace Odin.Hosting
                 services.ShutdownSystemBackgroundServices().BlockingWait();
             });
         }
+
 
         private void PrepareEnvironment(OdinConfiguration cfg)
         {
