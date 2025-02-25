@@ -166,7 +166,7 @@ namespace Odin.Services.Configuration
             public string TenantDataRootPath { get; init; }
             public string SystemDataRootPath { get; init; }
             public string SystemSslRootPath { get; init; }
-
+            public string DataProtectionKeyPath { get; init; }
             public bool Http1Only { get; init; }
 
             /// <summary>
@@ -195,6 +195,8 @@ namespace Odin.Services.Configuration
                     Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:SystemDataRootPath"));
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
+
+                DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "tmp", "data-protection-keys");
 
                 Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
