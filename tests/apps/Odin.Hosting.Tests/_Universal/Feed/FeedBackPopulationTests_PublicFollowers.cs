@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -87,7 +88,7 @@ public class FeedBackPopulationTests_PublicFollowers
             FollowerNotificationType.AllNotifications,
             new List<TargetDrive>() { });
 
-        Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
+        ClassicAssert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
         //Crucial point - we have to tell frodo's identity sync to sam after we call follow
         // await ownerFrodo.Follower.SynchronizeFeed(ownerSam.Identity.OdinId);
@@ -109,24 +110,24 @@ public class FeedBackPopulationTests_PublicFollowers
             }
         });
 
-        Assert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode,
             $"Actual code was {frodoQueryFeedResponse.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var feedSearchResults = frodoQueryFeedResponse.Content?.SearchResults;
-            Assert.IsNotNull(feedSearchResults);
-            Assert.IsTrue(feedSearchResults.Count() == 4, $"actual count is {feedSearchResults.Count()}");
+            ClassicAssert.IsNotNull(feedSearchResults);
+            ClassicAssert.IsTrue(feedSearchResults.Count() == 4, $"actual count is {feedSearchResults.Count()}");
 
             var expectedFriendsOnlyFile = feedSearchResults.SingleOrDefault(s =>
                 s.FileMetadata.IsEncrypted &&
                 s.FileMetadata.AppData.Content == samPreparedFiles.encryptedFriendsFileContent64);
-            Assert.IsNull(expectedFriendsOnlyFile, "there should be no friend's only files");
+            ClassicAssert.IsNull(expectedFriendsOnlyFile, "there should be no friend's only files");
 
             var expectedPublicFile = feedSearchResults.SingleOrDefault(s =>
                 s.FileMetadata.IsEncrypted == false &&
                 s.FileMetadata.AppData.Content == samPreparedFiles.publicFileContent);
-            Assert.IsNotNull(expectedPublicFile);
+            ClassicAssert.IsNotNull(expectedPublicFile);
         }
 
         await ownerFrodo.Follower.UnfollowIdentity(sam.OdinId);
@@ -167,7 +168,7 @@ public class FeedBackPopulationTests_PublicFollowers
             friendsOnlyTargetDrive,
             friendsFile);
 
-        Assert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(friendsFileUploadResponse.response.IsSuccessStatusCode);
 
         //
         // upload one post to public target drive
@@ -186,7 +187,7 @@ public class FeedBackPopulationTests_PublicFollowers
         publicFile.AppData.Content = Guid.NewGuid().ToString();
         await samOwnerClient.DriveRedux.UploadNewMetadata(publicTargetDrive, publicFile);
 
-        Assert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(publicFileUploadResult.IsSuccessStatusCode);
 
         return (friendsFileUploadResponse.encryptedJsonContent64, publicContent);
     }

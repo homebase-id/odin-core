@@ -16,7 +16,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
@@ -41,6 +41,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         OdinConfiguration odinConfiguration)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
+        private const int MaxRecipientCount = 1000;
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 
         /// <summary>
@@ -53,6 +54,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             var sfo = new FileTransferOptions()
             {
@@ -73,8 +75,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             foreach (var item in outboxItems)
             {
                 var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                await fs.Storage.UpdateTransferHistory(internalFile, item.Recipient, new UpdateTransferHistoryData() { IsInOutbox = true },
-                    odinContext);
+                await fs.Storage.InitiateTransferHistoryAsync(internalFile, item.Recipient, odinContext);
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
@@ -88,7 +89,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Updates a remote file
         /// </summary>
         public async Task<Dictionary<string, TransferStatus>> UpdateFile(InternalDriveFileId sourceFile,
-            byte[] keyHeaderIv,
+            KeyHeader keyHeader,
             FileIdentifier file,
             UploadManifest manifest,
             List<OdinId> recipients,
@@ -99,6 +100,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
+            OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
+            OdinValidationUtils.AssertIsTrue(recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             var request = new UpdateRemoteFileRequest()
             {
@@ -111,8 +114,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
             var priority = 100;
 
-            var (outboxStatus, outboxItems) =
-                await CreateUpdateOutboxItemsAsync(sourceFile, keyHeaderIv, request, recipients, priority, fileSystemType, odinContext);
+            var (outboxStatus, outboxItems) = await CreateUpdateOutboxItemsAsync(
+                sourceFile,
+                keyHeader,
+                request,
+                recipients,
+                priority,
+                fileSystemType,
+                updateLocale,
+                odinContext);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -120,8 +130,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 if (!item.State.IsTransientFile)
                 {
                     var fs = _fileSystemResolver.ResolveFileSystem(item.State.TransferInstructionSet.FileSystemType);
-                    await fs.Storage.UpdateTransferHistory(sourceFile, item.Recipient,
-                        new UpdateTransferHistoryData() { IsInOutbox = true }, odinContext);
+                    await fs.Storage.InitiateTransferHistoryAsync(sourceFile, item.Recipient, odinContext);
                 }
 
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
@@ -176,7 +185,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// Sends a notification to the original sender indicating the file was read
         /// </summary>
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
-            
             FileSystemType fileSystemType)
         {
             // This is all ugly mapping code but 🤷
@@ -219,6 +227,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task SendPeerPushNotification(AppNotificationOptions options, Guid driveId, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertValidRecipientList(options.Recipients, false);
+            OdinValidationUtils.AssertIsTrue(options.Recipients.Count <= MaxRecipientCount, "max recipients is 1000");
 
             //ISSUE: this is running as the identity uploading the file, which cannot read the ICR key to decrypt the CAT
             // var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
@@ -227,7 +236,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             //     logger.LogDebug("Attempt to distribute to recipient ({r}) who is not connected", recipient);
             //     return;
             // }
-            
+
             foreach (var recipient in options.Recipients.Without(odinContext.Tenant))
             {
                 try
@@ -280,7 +289,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         private async Task<SendReadReceiptResultRecipientStatusItem> EnqueueReadReceiptAsync(InternalDriveFileId fileId,
             IOdinContext odinContext,
-            
             FileSystemType fileSystemType)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
@@ -361,9 +369,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
                 }
             };
-
+            
             await peerOutbox.AddItemAsync(outboxItem, useUpsert: true);
 
+            logger.LogDebug("Enqueued Read-receipt for GTID: {g}", header.FileMetadata.GlobalTransitId);
             return new SendReadReceiptResultRecipientStatusItem()
             {
                 Recipient = recipient,
@@ -504,7 +513,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 }
                 catch (Exception ex)
                 {
-                    logger.LogInformation("Failed while creating outbox item {msg}", ex.Message);
+                    logger.LogError("Failed while creating outbox item {msg}", ex.Message);
                     status.Add(recipient, TransferStatus.EnqueuedFailed);
                 }
             }
@@ -515,11 +524,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)>
             CreateUpdateOutboxItemsAsync(
                 InternalDriveFileId sourceFile,
-                byte[] keyHeaderIv,
+                KeyHeader keyHeader,
                 UpdateRemoteFileRequest request,
                 List<OdinId> recipients,
                 int priority,
                 FileSystemType fileSystemType,
+                UpdateLocale updateLocale,
                 IOdinContext odinContext)
         {
             var status = new Dictionary<string, TransferStatus>();
@@ -538,15 +548,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     var updateInstructionSet = new EncryptedRecipientFileUpdateInstructionSet()
                     {
                         FileSystemType = fileSystemType,
-                        EncryptedKeyHeaderIvOnly = EncryptedKeyHeader.EncryptKeyHeaderAes(new KeyHeader()
-                            {
-                                Iv = keyHeaderIv ?? Guid.Empty.ToByteArray(),
-                                AesKey = Guid.Empty.ToByteArray()
-                                    .ToSensitiveByteArray()
-                            },
-                            iv,
-                            ref ss),
-
+                        EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, iv, ref ss),
                         Request = request
                     };
 
@@ -560,7 +562,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                         State = new OutboxItemState
                         {
                             Recipient = null,
-                            IsTransientFile = true,
+                            IsTransientFile = updateLocale == UpdateLocale.Peer,
                             EncryptedClientAuthToken = encryptedClientAccessToken,
                             TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
                             {

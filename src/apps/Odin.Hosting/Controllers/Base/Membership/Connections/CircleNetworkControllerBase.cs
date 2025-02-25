@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,6 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         CircleNetworkVerificationService verificationService)
         : OdinControllerBase
     {
-        
         [HttpPost("unblock")]
         public async Task<bool> Unblock([FromBody] OdinIdRequest request)
         {
@@ -46,11 +46,12 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         [HttpPost("verify-connection")]
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {
-            var result = await verificationService.VerifyConnectionAsync((OdinId)request.OdinId, HttpContext.RequestAborted, WebOdinContext);
+            var result = await verificationService.VerifyConnectionAsync((OdinId)request.OdinId, HttpContext.RequestAborted,
+                WebOdinContext);
             return new JsonResult(result);
         }
 
-        
+
         [HttpPost("troubleshooting-info")]
         public async Task<IActionResult> GetReconcilableStatus([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
@@ -59,18 +60,19 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         }
 
         [HttpPost("status")]
-        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
+        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request,
+            bool omitContactData = true)
         {
             var result = await circleNetwork.GetIcrAsync((OdinId)request.OdinId, WebOdinContext);
             return result?.Redacted(omitContactData);
         }
 
         [HttpPost("connected")]
-        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
+        public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, string cursor,
             bool omitContactData = false)
         {
             var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
-            return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
+            return new CursoredResult<RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
                 Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
@@ -78,11 +80,11 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         }
 
         [HttpPost("blocked")]
-        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor,
+        public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, string cursor,
             bool omitContactData = false)
         {
             var result = await circleNetwork.GetBlockedProfilesAsync(count, cursor, WebOdinContext);
-            return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
+            return new CursoredResult<RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
                 Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()

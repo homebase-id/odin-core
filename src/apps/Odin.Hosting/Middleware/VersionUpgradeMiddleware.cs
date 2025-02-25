@@ -46,11 +46,6 @@ namespace Odin.Hosting.Middleware
                 return;
             }
 
-            if (await scheduler.RequiresUpgradeAsync())
-            {
-                VersionUpgradeScheduler.SetRequiresUpgradeResponse(context);
-            }
-
             await next(context);
         }
     }

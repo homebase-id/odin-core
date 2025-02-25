@@ -17,7 +17,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(long, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
+        Task<(string, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
             StorageDrive drive,
             IOdinContext odinContext,
             FileSystemType fileSystemType,
@@ -76,9 +76,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType);
 
         Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType);
-        
-        Task SaveTransferHistoryAsync(StorageDrive drive, Guid fileId, RecipientTransferHistory history);
-        
+
         Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary);
     }
 }

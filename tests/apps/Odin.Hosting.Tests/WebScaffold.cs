@@ -7,6 +7,7 @@ using HttpClientFactoryLite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -29,6 +30,7 @@ using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
 using Testcontainers.PostgreSql;
+using Testcontainers.Redis;
 
 namespace Odin.Hosting.Tests
 {
@@ -68,6 +70,10 @@ namespace Odin.Hosting.Tests
 
 #if RUN_POSTGRES_TESTS
         protected PostgreSqlContainer PostgresContainer;
+#endif
+
+#if RUN_REDIS_TESTS
+        protected RedisContainer  RedisContainer;
 #endif
 
         static WebScaffold()
@@ -141,6 +147,15 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Database__ConnectionString", PostgresContainer.GetConnectionString());
             // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.System.Connection.ScopedSystemConnectionFactory", "Verbose");
             // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.Identity.Connection.ScopedIdentityConnectionFactory", "Verbose");
+#endif
+
+#if RUN_REDIS_TESTS
+            RedisContainer = new RedisBuilder()
+                .WithImage("redis:latest")
+                .Build();
+            RedisContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("Cache__Level2CacheType", "redis");
+            Environment.SetEnvironmentVariable("Cache__Level2Configuration", RedisContainer.GetConnectionString());
 #endif
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
@@ -241,6 +256,13 @@ namespace Odin.Hosting.Tests
             PostgresContainer?.DisposeAsync().AsTask().Wait();
             PostgresContainer = null;
 #endif
+
+#if RUN_REDIS_TESTS
+            RedisContainer?.StopAsync().Wait();
+            RedisContainer?.DisposeAsync().AsTask().Wait();
+            RedisContainer = null;
+#endif
+
             this.DeleteData();
             this.DeleteLogs();
 
@@ -314,7 +336,7 @@ namespace Odin.Hosting.Tests
         public OdinClientErrorCode GetErrorCode(ApiException apiException)
         {
             var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
-            Assert.IsNotNull(problemDetails);
+            ClassicAssert.IsNotNull(problemDetails);
             return (OdinClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
         }
 
@@ -421,6 +443,26 @@ namespace Odin.Hosting.Tests
             return logEvents;
         }
 
+        public void DumpLogEventsToConsole()
+        {
+            Console.WriteLine("--------======== Log Events Begin ========--------");
+
+            var logEvents = new List<LogEvent>();
+            var keyedLogEvents = GetLogEvents();
+            foreach (var (level, events) in keyedLogEvents)
+            {
+                logEvents.AddRange(events);
+            }
+
+            logEvents.Sort((a,b) => a.Timestamp < b.Timestamp ? -1 : 1);
+            foreach (var logEvent in logEvents)
+            {
+                Console.WriteLine($"{logEvent.Timestamp.ToUnixTimeMilliseconds()} {logEvent.RenderMessage()}");
+            }
+
+            Console.WriteLine("--------======== Log Events End ========--------");
+        }
+
         public void ClearLogEvents()
         {
             Services.GetRequiredService<ILogEventMemoryStore>().Clear();
@@ -457,7 +499,7 @@ namespace Odin.Hosting.Tests
         {
             var logEvents = GetLogEvents();
             var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
-            Assert.IsTrue(expectedEvent.Count() == count);
+            ClassicAssert.IsTrue(expectedEvent.Count() == count);
         }
     }
 }

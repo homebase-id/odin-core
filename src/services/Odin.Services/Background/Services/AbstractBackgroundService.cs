@@ -13,12 +13,12 @@ namespace Odin.Services.Background.Services;
 public abstract class AbstractBackgroundService(ILogger logger)
 {
     public bool IsStarted { get; private set; }
-    
+
     private static readonly Random Random = new();
     private readonly AsyncManualResetEvent _wakeUpEvent = new();
     private CancellationTokenSource? _stoppingCts;
     private Task? _task;
-    
+
     // Maximum sleep duration. Sleeping too long makes Delay behave unpredictably, so cap it at some reasonable number.
     public static readonly TimeSpan MaxSleepDuration = TimeSpan.FromDays(7);
 
@@ -41,52 +41,52 @@ public abstract class AbstractBackgroundService(ILogger logger)
 
     //
 
-    // Call me in your ExecuteAsync method to sleep for duration. If duration is null, sleep indefinitely.
-    // Call PulseBackgroundProcessor() to wake up.
+    // Call me in your ExecuteAsync method to sleep for duration.
+    // Call InternalPulseBackgroundProcessor() to wake up.
     protected Task SleepAsync(TimeSpan duration, CancellationToken stoppingToken)
     {
         return SleepAsync(duration, duration, stoppingToken);
     }
-    
+
     //
-    
+
     // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2 (max 48 hours)
-    // Call PulseBackgroundProcessor() to wake up.
+    // Call InternalPulseBackgroundProcessor() to wake up.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
-        if (duration1 < TimeSpan.Zero) 
+        if (duration1 < TimeSpan.Zero)
         {
             logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to min.", duration1.TotalMilliseconds);
             duration1 = TimeSpan.Zero;
         }
-        if (duration1 > MaxSleepDuration) 
+        if (duration1 > MaxSleepDuration)
         {
             logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to max.", duration1.TotalMilliseconds);
             duration1 = MaxSleepDuration;
         }
-        if (duration2 < TimeSpan.Zero) 
+        if (duration2 < TimeSpan.Zero)
         {
             logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to min.", duration2.TotalMilliseconds);
             duration2 = TimeSpan.Zero;
         }
-        if (duration2 > MaxSleepDuration) 
+        if (duration2 > MaxSleepDuration)
         {
             logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to max.", duration2.TotalMilliseconds);
             duration2 = MaxSleepDuration;
         }
-        
+
         if (duration1 > duration2)
         {
             throw new ArgumentException("duration1 must be less than or equal to duration2");
-        }        
-        
+        }
+
         var duration = Random.Next((int)duration1.TotalMilliseconds, (int)duration2.TotalMilliseconds);
         try
         {
             var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
             var delay = Task.Delay(duration, stoppingToken);
-            
-            // Sleep for duration or until PulseBackgroundProcessor is signalled
+
+            // Sleep for duration or until InternalPulseBackgroundProcessor is signalled
             await Task.WhenAny(wakeUp, delay);
         }
         catch (OperationCanceledException)
@@ -95,13 +95,13 @@ public abstract class AbstractBackgroundService(ILogger logger)
         }
         finally
         {
-            _wakeUpEvent.Reset();            
+            _wakeUpEvent.Reset();
         }
     }
 
     //
 
-    // Call me through JobManager to wake up the service from SleepAsync
+    // Call me through BackgroundServiceManager to wake up the service from SleepAsync
     internal void InternalPulseBackgroundProcessor()
     {
         _wakeUpEvent.Set();
@@ -114,7 +114,7 @@ public abstract class AbstractBackgroundService(ILogger logger)
         if (!IsStarted)
         {
             IsStarted = true;
-        
+
             _stoppingCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             await StartingAsync(_stoppingCts.Token);
 

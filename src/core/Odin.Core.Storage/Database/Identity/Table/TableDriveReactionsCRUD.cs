@@ -70,6 +70,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _singleReaction = value;
                }
         }
+        internal string singleReactionNoLengthCheck
+        {
+           get {
+                   return _singleReaction;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 3) throw new Exception("Too short");
+                  _singleReaction = value;
+               }
+        }
     } // End of class DriveReactionsRecord
 
     public abstract class TableDriveReactionsCRUD
@@ -278,7 +289,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -312,22 +323,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveReactionsRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveReactionsRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.driveId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.identity = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
-            item.postId = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.singleReaction = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.postId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.singleReactionNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             return item;
        }
 
@@ -402,7 +407,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (singleReaction?.Length < 3) throw new Exception("Too short");
             if (singleReaction?.Length > 80) throw new Exception("Too long");
             var result = new List<DriveReactionsRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168

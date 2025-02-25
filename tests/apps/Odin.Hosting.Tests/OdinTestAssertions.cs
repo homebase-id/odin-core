@@ -1,5 +1,6 @@
 using System;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -16,27 +17,27 @@ public static class OdinTestAssertions
     {
         if (shouldHaveGlobalTransitId)
         {
-            Assert.IsNotNull(fileHeader.FileMetadata.GlobalTransitId);
+            ClassicAssert.IsNotNull(fileHeader.FileMetadata.GlobalTransitId);
         }
 
-        Assert.IsTrue(fileHeader.FileState == FileState.Deleted);
-        Assert.IsTrue(fileHeader.FileId != Guid.Empty);
-        Assert.IsNotNull(fileHeader.ServerMetadata.AccessControlList);
-        Assert.IsTrue(fileHeader.ServerMetadata.AccessControlList.RequiredSecurityGroup == expectedSecurityGroupType);
-        Assert.IsTrue(fileHeader.FileMetadata.Updated > 0);
-        Assert.IsTrue(fileHeader.FileMetadata.Created == default);
-        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderOdinId));
-        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.OriginalAuthor));
-        Assert.IsTrue(fileHeader.FileMetadata.IsEncrypted == default);
+        ClassicAssert.IsTrue(fileHeader.FileState == FileState.Deleted);
+        ClassicAssert.IsTrue(fileHeader.FileId != Guid.Empty);
+        ClassicAssert.IsNotNull(fileHeader.ServerMetadata.AccessControlList);
+        ClassicAssert.IsTrue(fileHeader.ServerMetadata.AccessControlList.RequiredSecurityGroup == expectedSecurityGroupType);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.Updated > 0);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.Created == default);
+        ClassicAssert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderOdinId));
+        ClassicAssert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.OriginalAuthor));
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.IsEncrypted == default);
 
-        Assert.IsNotNull(fileHeader.FileMetadata.AppData);
-        Assert.IsTrue(fileHeader.FileMetadata.Payloads == default);
-        Assert.IsTrue(fileHeader.FileMetadata.AppData.DataType == default);
-        Assert.IsTrue(fileHeader.FileMetadata.AppData.FileType == default);
-        Assert.IsTrue(fileHeader.FileMetadata.AppData.GroupId == default);
-        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.AppData.Content));
-        Assert.IsTrue(fileHeader.FileMetadata.AppData.PreviewThumbnail == default);
-        Assert.IsTrue(fileHeader.FileMetadata.AppData.UserDate == default);
-        Assert.IsTrue(fileHeader.FileMetadata.AppData.Tags == default);
+        ClassicAssert.IsNotNull(fileHeader.FileMetadata.AppData);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.Payloads == default);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.DataType == default);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.FileType == default);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.GroupId == default);
+        ClassicAssert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.AppData.Content));
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.PreviewThumbnail == default);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.UserDate == default);
+        ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.Tags == default);
     }
 }

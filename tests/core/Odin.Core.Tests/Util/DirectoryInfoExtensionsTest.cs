@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 
 namespace Odin.Core.Tests.Util;
@@ -35,10 +36,10 @@ public class DirectoryInfoExtensionsTest
     {
         var dirInfo = new DirectoryInfo(_sourcePath);
         dirInfo.CopyTo(_targetPath);
-        Assert.IsTrue(File.Exists(Path.Combine(_targetPath, "file0.txt")));
-        Assert.IsTrue(File.Exists(Path.Combine(_targetPath, "SubFolder1", "file1.txt")));
-        Assert.IsTrue(File.Exists(Path.Combine(_targetPath, "SubFolder2", "file2.txt")));
-        Assert.IsTrue(File.Exists(Path.Combine(_targetPath, "SubFolder2", "SubSubFolder1", "file3.txt")));
+        ClassicAssert.IsTrue(File.Exists(Path.Combine(_targetPath, "file0.txt")));
+        ClassicAssert.IsTrue(File.Exists(Path.Combine(_targetPath, "SubFolder1", "file1.txt")));
+        ClassicAssert.IsTrue(File.Exists(Path.Combine(_targetPath, "SubFolder2", "file2.txt")));
+        ClassicAssert.IsTrue(File.Exists(Path.Combine(_targetPath, "SubFolder2", "SubSubFolder1", "file3.txt")));
     }
 
     [Test]

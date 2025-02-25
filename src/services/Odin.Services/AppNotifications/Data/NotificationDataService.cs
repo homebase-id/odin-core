@@ -7,6 +7,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
@@ -25,7 +26,8 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         return await AddNotificationInternal(senderId, request, odinContext);
     }
 
-    internal async Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request, IOdinContext odinContext)
+    internal async Task<AddNotificationResult> AddNotificationInternal(OdinId senderId, AddNotificationRequest request,
+        IOdinContext odinContext)
     {
         var id = Guid.NewGuid();
         var record = new AppNotificationsRecord()
@@ -65,7 +67,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             Id = r.notificationId,
             SenderId = r.senderId,
             Unread = r.unread == 1,
-            Created = r.created.ToUnixTimeUtc(),
+            Created = r.created,
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 
@@ -84,7 +86,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var nr = new NotificationsListResult()
         {
-            Cursor = cursor,
+            Cursor = cursor ?? "",
             Results = list.ToList()
         };
 
@@ -105,7 +107,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             Id = r.notificationId,
             SenderId = r.senderId,
             Unread = r.unread == 1,
-            Created = r.created.ToUnixTimeUtc(),
+            Created = r.created,
             Options = r.data == null ? default : OdinSystemSerializer.Deserialize<AppNotificationOptions>(r.data.ToStringFromUtf8Bytes())
         });
 

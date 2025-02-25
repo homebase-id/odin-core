@@ -116,7 +116,7 @@ public class TableImFollowing(
             while ((n < count) && await rdr.ReadAsync())
             {
                 n++;
-                var s = rdr.GetString(0);
+                var s = (string) rdr[0];
                 if (s.Length < 1)
                     throw new Exception("Empty string");
                 result.Add(s);
@@ -191,7 +191,7 @@ public class TableImFollowing(
             while ((n < count) && await rdr.ReadAsync())
             {
                 n++;
-                var s = rdr.GetString(0);
+                var s = (string) rdr[0];
                 if (s.Length < 1)
                     throw new Exception("Empty string");
                 result.Add(s);

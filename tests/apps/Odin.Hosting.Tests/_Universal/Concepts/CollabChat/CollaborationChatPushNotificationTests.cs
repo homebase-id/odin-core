@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -118,7 +119,7 @@ public class CollaborationChatPushNotificationTests
             collabChatDrive,
             chatCircleId,
             notificationOptions);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
@@ -134,13 +135,13 @@ public class CollaborationChatPushNotificationTests
             {
                 var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
-                Assert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 
                 //TODO: determine who the sender should actually be?
                 var notificationsFromCollabChat = getNotificationResponse.Content.Results
                     .Where(notification => notification.SenderId == collabChatIdentity.OdinId);
 
-                Assert.IsTrue(notificationsFromCollabChat.Any());
+                ClassicAssert.IsTrue(notificationsFromCollabChat.Any());
                 //TODO: where do we check this? in the notifications or the log?
             }
         }
@@ -182,13 +183,15 @@ public class CollaborationChatPushNotificationTests
             // UnEncryptedMessage = null
         };
 
+        var keyHeader = KeyHeader.NewRandom16();
         var (response, uploadedFileMetadata, _) = await AwaitPostNewEncryptedFileOverPeerDirect(
             member1,
             collabChatDrive,
             collabChatIdentity,
             chatCircleId,
-            notificationOptions);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+            notificationOptions,
+            keyHeader);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var remoteTargetFile = response.Content.RemoteGlobalTransitIdFileIdentifier.ToFileIdentifier();
 
         // Let's test more
@@ -203,10 +206,10 @@ public class CollaborationChatPushNotificationTests
             //
             var byGlobalTransitIdResponse =
                 await collabChatIdentity.DriveRedux.QueryByGlobalTransitId(remoteTargetFile.ToGlobalTransitIdFileIdentifier());
-            Assert.IsTrue(byGlobalTransitIdResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(byGlobalTransitIdResponse.IsSuccessStatusCode);
             var theFile = byGlobalTransitIdResponse.Content.SearchResults.SingleOrDefault();
-            Assert.IsNotNull(theFile);
-            Assert.IsTrue(theFile.FileMetadata.AppData.FileType == uploadedFileMetadata.AppData.FileType);
+            ClassicAssert.IsNotNull(theFile);
+            ClassicAssert.IsTrue(theFile.FileMetadata.AppData.FileType == uploadedFileMetadata.AppData.FileType);
 
             //
             // Assert: all notification recipients received a notification in their list
@@ -215,13 +218,13 @@ public class CollaborationChatPushNotificationTests
             {
                 var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
-                Assert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 
                 //TODO: determine who the sender should actually be?
                 var notificationsFromCollabChat = getNotificationResponse.Content.Results
                     .Where(notification => notification.SenderId == member1.OdinId);
 
-                Assert.IsTrue(notificationsFromCollabChat.Any());
+                ClassicAssert.IsTrue(notificationsFromCollabChat.Any());
                 //TODO: where do we check this? in the notifications or the log?
             }
         }
@@ -231,12 +234,11 @@ public class CollaborationChatPushNotificationTests
     }
 
     private static async Task<(ApiResponse<TransitResult> response, UploadFileMetadata uploadedMetadata, TestPayloadDefinition payload1)>
-        AwaitPostNewEncryptedFileOverPeerDirect(
-            OwnerApiClientRedux sender,
+        AwaitPostNewEncryptedFileOverPeerDirect(OwnerApiClientRedux sender,
             TargetDrive collabChannelDrive,
             OwnerApiClientRedux collabChannel,
             Guid chatCircleId,
-            AppNotificationOptions notificationOptions)
+            AppNotificationOptions notificationOptions, KeyHeader keyHeader)
     {
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "some content here";
@@ -270,7 +272,7 @@ public class CollaborationChatPushNotificationTests
         //Pippin sends a file to the recipient
         (response, _) = await sender.PeerDirect.TransferNewEncryptedFile(collabChannelDrive,
             uploadedFileMetadata, [collabChannel.OdinId], null, uploadManifest,
-            testPayloads, notificationOptions);
+            testPayloads, notificationOptions, keyHeader: keyHeader);
 
         await sender.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
 
@@ -359,7 +361,8 @@ public class CollaborationChatPushNotificationTests
         var appPermissions = new PermissionSetGrantRequest
         {
             Drives = [],
-            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead, PermissionKeys.SendPushNotifications)
+            PermissionSet = new PermissionSet(PermissionKeys.UseTransitWrite, PermissionKeys.UseTransitRead,
+                PermissionKeys.SendPushNotifications)
         };
 
         var member1AppToken = await client.AppManager.RegisterAppAndClient(appId, appPermissions);

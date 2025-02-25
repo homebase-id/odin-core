@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.X509;
 
 namespace Odin.PushNotification.Tests;
@@ -12,8 +13,8 @@ public class SignatureCheckTest
     {
         var logger = new Mock<ILogger<SignatureCheck>>();
         var signatureCheck = new SignatureCheck(logger.Object);
-        var certicate = await signatureCheck.DownloadCertificate("example.com");
-        Assert.NotNull(certicate);
+        var certicate = await signatureCheck.DownloadCertificate("www.google.com");
+        ClassicAssert.NotNull(certicate);
         Assert.That(certicate?.NotAfter, Is.GreaterThan(DateTime.Now));
     }
 
@@ -31,7 +32,7 @@ public class SignatureCheckTest
         var signature = selfSigned.CreateSignature(messageId);
         var isValid = await signatureCheck.Validate(domain, signature, messageId);
 
-        Assert.True(isValid);
+        ClassicAssert.True(isValid);
     }
 
     //
@@ -49,7 +50,7 @@ public class SignatureCheckTest
         var signature = selfSigned.CreateSignature(messageId);
         var isValid = await signatureCheck.Validate(domain, signature, messageId);
 
-        Assert.False(isValid);
+        ClassicAssert.False(isValid);
     }
 
     //

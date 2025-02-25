@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Services.Tests.TypeTests;
 
@@ -20,7 +21,7 @@ public class WriteFileTests
         WriteStream(stream2, filepath);
 
         var bytes = File.ReadAllBytes(filepath);
-        Assert.IsTrue(g2 == new Guid(bytes));
+        ClassicAssert.IsTrue(g2 == new Guid(bytes));
     }
 
     private uint WriteStream(Stream stream, string filePath)

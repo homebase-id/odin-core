@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -71,16 +72,16 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
 
             var fileSendResults = await SendFiles(senderOwnerClient, recipientOwnerClient, targetDrive, totalFileCount);
-            Assert.IsTrue(fileSendResults.Count == totalFileCount);
+            ClassicAssert.IsTrue(fileSendResults.Count == totalFileCount);
 
             // await AssertFilesAreNotOnRecipientIdentity(recipientOwnerClient, fileSendResults);
             
             var ms = await Benchmark.MillisecondsAsync(async () =>
             {
                 var processInboxResponse = await recipientOwnerClient.DriveRedux.ProcessInbox(targetDrive, batchSize: 100);
-                Assert.IsTrue(processInboxResponse.IsSuccessStatusCode);
-                Assert.IsTrue(processInboxResponse.Content.PoppedCount == 0);
-                Assert.IsTrue(processInboxResponse.Content.TotalItems == 0);
+                ClassicAssert.IsTrue(processInboxResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(processInboxResponse.Content.PoppedCount == 0);
+                ClassicAssert.IsTrue(processInboxResponse.Content.TotalItems == 0);
             });
 
             var seconds = TimeSpan.FromMilliseconds(ms).TotalSeconds;
@@ -101,8 +102,8 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 var fileContent = $"some string {i}";
                 var (uploadResult, encryptedJsonContent64) = await SendStandardFile(senderOwnerClient, targetDrive, fileContent, recipientOwnerClient.Identity);
 
-                Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
-                Assert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
+                ClassicAssert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+                ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued, $"Should have been delivered, actual status was {recipientStatus}");
 
                 results.Add(new FileSendResponse()
                 {
@@ -139,7 +140,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
 
                 var emptyBatchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp);
                 var emptyBatch = emptyBatchResponse.Content;
-                Assert.IsFalse(emptyBatch.SearchResults.Any(), "recipient should not have the file");
+                ClassicAssert.IsFalse(emptyBatch.SearchResults.Any(), "recipient should not have the file");
             }
         }
 
@@ -168,16 +169,16 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 // Now the File should be on recipient server and accessible by global transit id
                 var queryBatchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(qp);
                 var batch = queryBatchResponse.Content;
-                Assert.IsTrue(batch.SearchResults.Count() == 1);
+                ClassicAssert.IsTrue(batch.SearchResults.Count() == 1);
                 var receivedFile = batch.SearchResults.First();
-                Assert.IsTrue(receivedFile.FileState == FileState.Active);
-                Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == senderOwnerClient.Identity.OdinId,
+                ClassicAssert.IsTrue(receivedFile.FileState == FileState.Active);
+                ClassicAssert.IsTrue(receivedFile.FileMetadata.SenderOdinId == senderOwnerClient.Identity.OdinId,
                     $"Sender should have been ${senderOwnerClient.Identity.OdinId}");
-                Assert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == senderOwnerClient.Identity.OdinId,
+                ClassicAssert.IsTrue(receivedFile.FileMetadata.OriginalAuthor == senderOwnerClient.Identity.OdinId,
                     $"Original Author should have been ${senderOwnerClient.Identity.OdinId}");
-                Assert.IsTrue(receivedFile.FileMetadata.IsEncrypted);
-                Assert.IsTrue(receivedFile.FileMetadata.AppData.Content == fileResponse.EncryptedContent64);
-                Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == fileResponse.UploadResult.GlobalTransitId);
+                ClassicAssert.IsTrue(receivedFile.FileMetadata.IsEncrypted);
+                ClassicAssert.IsTrue(receivedFile.FileMetadata.AppData.Content == fileResponse.EncryptedContent64);
+                ClassicAssert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == fileResponse.UploadResult.GlobalTransitId);
             }
         }
 
@@ -224,7 +225,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
             //
             // Basic tests first which apply to all calls
             //
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 1);
 
             return (uploadResult, encryptedJsonContent64);
         }
@@ -243,7 +244,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
 
             //
             // Sender needs this same drive in order to send across files
@@ -256,7 +257,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
 
             //
             // Recipient creates a circle with target drive, read and write access
@@ -279,7 +280,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 }
             });
 
-            Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
             //
             // Sender sends connection request
@@ -297,10 +298,10 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
 
             var getConnectionInfoResponse = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
 
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
             var senderConnectionInfo = getConnectionInfoResponse.Content;
 
-            Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            ClassicAssert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
         }
 

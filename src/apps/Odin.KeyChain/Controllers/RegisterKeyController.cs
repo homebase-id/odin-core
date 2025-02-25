@@ -83,7 +83,7 @@ namespace Odin.Keychain
                     return NotFound("No such identity found.");
                 }
 
-                var vr = new VerifyResult() { keyCreatedTime = r.timestamp.ToUnixTimeUtc().seconds };
+                var vr = new VerifyResult() { keyCreatedTime = r.timestamp.seconds };
 
                 return Ok(vr);
             }
@@ -140,9 +140,9 @@ namespace Odin.Keychain
                 {
                     if (list[i].publicKeyJwkBase64Url == PublicKeyJwkBase64Url)
                     {
-                        var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp.ToUnixTimeUtc().seconds };
+                        var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp.seconds };
                         if (i + 1 < list.Count)
-                            vr.successorKeyCreatedTime = list[i + 1].timestamp.ToUnixTimeUtc().seconds;
+                            vr.successorKeyCreatedTime = list[i + 1].timestamp.seconds;
 
                         return Ok(JsonSerializer.Serialize(vr, options));
                     }
@@ -281,7 +281,7 @@ namespace Odin.Keychain
                 var r = await _db.tblKeyChain.GetOldestAsync(conn, domain.DomainName);
                 if (r != null)
                 {
-                    var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
+                    var d = UnixTimeUtc.Now().seconds - r.timestamp.seconds;
 
                     if (d < 3600 * 24 * 30)
                         return StatusCode(429, "Try again later: at least 30 days between registrations");
@@ -354,11 +354,11 @@ namespace Odin.Keychain
                 publicKeyJwkBase64Url = preregisteredEntry.envelope.Signatures[0].PublicKeyJwkBase64Url,
                 identity = preregisteredEntry.envelope.Signatures[0].Identity,
                 previousHash = Convert.FromBase64String(preregisteredEntry.previousHashBase64),
-                timestamp = UnixTimeUtcUnique.Now()
+                timestamp = UnixTimeUtc.Now()
             };
 
             if (simulateTime != 0)
-                newRecordToInsert.timestamp = new UnixTimeUtcUnique(simulateTime.milliseconds << 16);
+                newRecordToInsert.timestamp = new UnixTimeUtc(simulateTime.milliseconds);
 
             try  // Finally is the Semaphore release
             {

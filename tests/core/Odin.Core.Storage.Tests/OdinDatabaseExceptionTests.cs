@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 
@@ -25,7 +26,7 @@ public class OdinDatabaseExceptionTests : IocTestBase
         await jobs.InsertAsync(record);
 
         var ex = Assert.ThrowsAsync<OdinDatabaseException>(async () => await jobs.InsertAsync(record));
-        Assert.IsTrue(ex!.IsUniqueConstraintViolation);
+        ClassicAssert.IsTrue(ex!.IsUniqueConstraintViolation);
     }
 
     //
@@ -46,7 +47,7 @@ public class OdinDatabaseExceptionTests : IocTestBase
         var record2 = NewJobsRecord(Guid.NewGuid(), "trigger_constraint_error");
 
         var ex = Assert.ThrowsAsync<OdinDatabaseException>(async () => await jobs.InsertAsync(record2));
-        Assert.IsTrue(ex!.IsUniqueConstraintViolation);
+        ClassicAssert.IsTrue(ex!.IsUniqueConstraintViolation);
     }
 
     //

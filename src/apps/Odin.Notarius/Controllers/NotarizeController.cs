@@ -117,7 +117,7 @@ namespace Odin.Notarius
                 var result = new VerifyKeyResult()
                 {
                     requestor = record.identity,
-                    signatureCreatedTime = record.timestamp.ToUnixTimeUtc().seconds
+                    signatureCreatedTime = record.timestamp.seconds
                 };
 
                 return Ok(result);
@@ -268,7 +268,7 @@ namespace Odin.Notarius
 
                     for (int i = 0; i < rList.Count; i++)
                     {
-                        var d = UnixTimeUtc.Now().seconds - rList[rList.Count - 1].timestamp.ToUnixTimeUtc().seconds;
+                        var d = UnixTimeUtc.Now().seconds - rList[rList.Count - 1].timestamp.seconds;
 
                         if (d < 3600 * 24 * 30)
                             count++;
@@ -357,12 +357,12 @@ namespace Odin.Notarius
                 publicKeyJwkBase64Url = preregisteredEntry.requestorPublicKeyJwkBase64,
                 identity = preregisteredEntry.requestor.DomainName,
                 previousHash = Convert.FromBase64String(preregisteredEntry.previousHashBase64),
-                timestamp = UnixTimeUtcUnique.Now(),
+                timestamp = UnixTimeUtc.Now(),
                 notarySignature = preregisteredEntry.envelope.NotariusPublicus.Signature
             };
 
             if (simulateTime != 0)
-                newRecordToInsert.timestamp = new UnixTimeUtcUnique(simulateTime.milliseconds << 16);
+                newRecordToInsert.timestamp = new UnixTimeUtc(simulateTime.milliseconds);
 
             using (var conn = _db.CreateDisposableConnection())
             {

@@ -9,7 +9,7 @@ public class EncryptedRecipientFileUpdateInstructionSet
 {
     public FileSystemType FileSystemType { get; init; }
 
-    public EncryptedKeyHeader EncryptedKeyHeaderIvOnly { get; init; }
+    public EncryptedKeyHeader EncryptedKeyHeader { get; init; }
 
     public UpdateRemoteFileRequest Request { get; init; }
     

@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -64,27 +65,27 @@ public class AppFollowerTests
 
         // Frodo should follow Sam
         var frodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
-        Assert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
+        ClassicAssert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
+        ClassicAssert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
 
         var followingFrodo = await frodoAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsFalse(followingFrodo.Results.Any());
+        ClassicAssert.IsFalse(followingFrodo.Results.Any());
 
         var frodoRecordOfFollowingSam = await frodoAppApiClient.Follower.GetIdentityIFollow(samOwnerClient.Identity);
-        Assert.IsTrue(frodoRecordOfFollowingSam.NotificationType == FollowerNotificationType.AllNotifications);
-        Assert.IsNull(frodoRecordOfFollowingSam.Channels, "there should be no channels when notification type is all notifications");
+        ClassicAssert.IsTrue(frodoRecordOfFollowingSam.NotificationType == FollowerNotificationType.AllNotifications);
+        ClassicAssert.IsNull(frodoRecordOfFollowingSam.Channels, "there should be no channels when notification type is all notifications");
 
         //sam should have frodo
         var followingSam = await samAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
-        Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
+        ClassicAssert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
+        ClassicAssert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
 
         var samRecordOfFrodoFollowingHim = await samAppApiClient.Follower.GetFollower(frodoOwnerClient.Identity);
-        Assert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.AllNotifications);
-        Assert.IsNull(samRecordOfFrodoFollowingHim.Channels, "there should be no channels when notification type is all notifications");
+        ClassicAssert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.AllNotifications);
+        ClassicAssert.IsNull(samRecordOfFrodoFollowingHim.Channels, "there should be no channels when notification type is all notifications");
 
         var samFollows = await samAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsFalse(samFollows.Results.Any(), "Sam should not be following anyone");
+        ClassicAssert.IsFalse(samFollows.Results.Any(), "Sam should not be following anyone");
 
         //All done
         await frodoOwnerClient.OwnerFollower.UnfollowIdentity(samOwnerClient.Identity);
@@ -122,36 +123,36 @@ public class AppFollowerTests
 
         // Frodo should follow Sam
         var frodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
-        Assert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
+        ClassicAssert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
+        ClassicAssert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
 
         var followingFrodo = await frodoAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsFalse(followingFrodo.Results.Any(), "Frodo should have no followers");
+        ClassicAssert.IsFalse(followingFrodo.Results.Any(), "Frodo should have no followers");
 
         var frodoRecordOfFollowingSam = await frodoAppApiClient.Follower.GetIdentityIFollow(samOwnerClient.Identity);
-        Assert.IsTrue(frodoRecordOfFollowingSam.NotificationType == FollowerNotificationType.SelectedChannels);
-        Assert.IsTrue(frodoRecordOfFollowingSam.Channels.Count() == 2, "Frodo should follow 2 of Sam's channels");
-        Assert.IsNotNull(frodoRecordOfFollowingSam.Channels.SingleOrDefault(c => c == channel1Drive.TargetDriveInfo),
+        ClassicAssert.IsTrue(frodoRecordOfFollowingSam.NotificationType == FollowerNotificationType.SelectedChannels);
+        ClassicAssert.IsTrue(frodoRecordOfFollowingSam.Channels.Count() == 2, "Frodo should follow 2 of Sam's channels");
+        ClassicAssert.IsNotNull(frodoRecordOfFollowingSam.Channels.SingleOrDefault(c => c == channel1Drive.TargetDriveInfo),
             $"Frodo should have only one record of {nameof(channel1Drive)}");
-        Assert.IsNotNull(frodoRecordOfFollowingSam.Channels.SingleOrDefault(c => c == channel2Drive.TargetDriveInfo),
+        ClassicAssert.IsNotNull(frodoRecordOfFollowingSam.Channels.SingleOrDefault(c => c == channel2Drive.TargetDriveInfo),
             $"Frodo should have only one record of {nameof(channel2Drive)}");
 
         //sam should have frodo as a follower
         var followingSam = await samAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
-        Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
+        ClassicAssert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
+        ClassicAssert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
 
         var samRecordOfFrodoFollowingHim = await samAppApiClient.Follower.GetFollower(frodoOwnerClient.Identity);
-        Assert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.SelectedChannels);
+        ClassicAssert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.SelectedChannels);
 
-        Assert.IsTrue(samRecordOfFrodoFollowingHim.Channels.Count() == 2, "Frodo should follow 2 of Sam's channels");
-        Assert.IsNotNull(samRecordOfFrodoFollowingHim.Channels.SingleOrDefault(c => c == channel1Drive.TargetDriveInfo),
+        ClassicAssert.IsTrue(samRecordOfFrodoFollowingHim.Channels.Count() == 2, "Frodo should follow 2 of Sam's channels");
+        ClassicAssert.IsNotNull(samRecordOfFrodoFollowingHim.Channels.SingleOrDefault(c => c == channel1Drive.TargetDriveInfo),
             $"Frodo should have only one record of {nameof(channel1Drive)}");
-        Assert.IsNotNull(samRecordOfFrodoFollowingHim.Channels.SingleOrDefault(c => c == channel2Drive.TargetDriveInfo),
+        ClassicAssert.IsNotNull(samRecordOfFrodoFollowingHim.Channels.SingleOrDefault(c => c == channel2Drive.TargetDriveInfo),
             $"Frodo should have only one record of {nameof(channel2Drive)}");
 
         var samFollows = await samAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsFalse(samFollows.Results.Any(), "Sam should not be following anyone");
+        ClassicAssert.IsFalse(samFollows.Results.Any(), "Sam should not be following anyone");
 
         //All done
         await frodoOwnerClient.OwnerFollower.UnfollowIdentity(samOwnerClient.Identity);
@@ -172,16 +173,16 @@ public class AppFollowerTests
 
         // Frodo should follow sam
         var frodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
-        Assert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
+        ClassicAssert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
+        ClassicAssert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
 
         var followingFrodo = await frodoAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsTrue(!followingFrodo.Results.Any());
+        ClassicAssert.IsTrue(!followingFrodo.Results.Any());
 
         //sam should have frodo as follow
         var followingSam = await samAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
-        Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
+        ClassicAssert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
+        ClassicAssert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
 
         //
         // Frodo to unfollow sam
@@ -190,11 +191,11 @@ public class AppFollowerTests
 
         //Frodo should follow no one
         var updatedFrodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsTrue(updatedFrodoFollows.Results.All(f => ((OdinId)f) == samOwnerClient.Identity.OdinId), "Frodo should not follow Sam");
+        ClassicAssert.IsTrue(updatedFrodoFollows.Results.All(f => ((OdinId)f) == samOwnerClient.Identity.OdinId), "Frodo should not follow Sam");
 
         //Sam should have no followers
         var updatedFollowingSam = await frodoAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsTrue(updatedFollowingSam.Results.All(f => ((OdinId)f) != frodoOwnerClient.Identity.OdinId), "Sam should not follow Frodo");
+        ClassicAssert.IsTrue(updatedFollowingSam.Results.All(f => ((OdinId)f) != frodoOwnerClient.Identity.OdinId), "Sam should not follow Frodo");
 
         //All done
         await frodoOwnerClient.OwnerFollower.UnfollowIdentity(samOwnerClient.Identity);
@@ -218,15 +219,15 @@ public class AppFollowerTests
         //
         var pippinFollows = await pippinApiClient.Follower.GetIdentitiesIFollow(string.Empty);
 
-        Assert.IsTrue(pippinFollows.Results.Count() == 2);
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == frodoOwnerClient.Identity.OdinId), "Pippin should follow frodo");
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == samOwnerClient.Identity.OdinId), "Pippin should follow Sam");
+        ClassicAssert.IsTrue(pippinFollows.Results.Count() == 2);
+        ClassicAssert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == frodoOwnerClient.Identity.OdinId), "Pippin should follow frodo");
+        ClassicAssert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == samOwnerClient.Identity.OdinId), "Pippin should follow Sam");
 
         var frodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNull(frodoFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Frodo should not follow Pippin");
+        ClassicAssert.IsNull(frodoFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Frodo should not follow Pippin");
 
         var samFollows = await samAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNull(samFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Sam should not follow Pippin");
+        ClassicAssert.IsNull(samFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Sam should not follow Pippin");
 
         // All done
         await pippinOwnerClient.OwnerFollower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -249,19 +250,19 @@ public class AppFollowerTests
         //
         var pippinFollows = await pippinAppApiClient.Follower.GetIdentitiesFollowingMe(string.Empty);
 
-        Assert.IsTrue(pippinFollows.Results.Count() == 2);
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == frodoOwnerClient.Identity.OdinId), "Pippin should follow frodo");
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == samOwnerClient.Identity.OdinId), "Pippin should follow Sam");
+        ClassicAssert.IsTrue(pippinFollows.Results.Count() == 2);
+        ClassicAssert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == frodoOwnerClient.Identity.OdinId), "Pippin should follow frodo");
+        ClassicAssert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == samOwnerClient.Identity.OdinId), "Pippin should follow Sam");
 
         var frodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNotNull(frodoFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Frodo should follow Pippin");
+        ClassicAssert.IsNotNull(frodoFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Frodo should follow Pippin");
 
         var frodoFollowsPippin = await frodoAppApiClient.Follower.GetIdentityIFollow(pippinOwnerClient.Identity);
-        Assert.IsNotNull(frodoFollowsPippin);
-        Assert.IsTrue(frodoFollowsPippin.OdinId == pippinOwnerClient.Identity.OdinId);
+        ClassicAssert.IsNotNull(frodoFollowsPippin);
+        ClassicAssert.IsTrue(frodoFollowsPippin.OdinId == pippinOwnerClient.Identity.OdinId);
 
         var samFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNotNull(samFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Sam should follow Pippin");
+        ClassicAssert.IsNotNull(samFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Sam should follow Pippin");
 
         // All done
         await frodoOwnerClient.OwnerFollower.UnfollowIdentity(pippinOwnerClient.Identity);

@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http.HttpResults;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -105,7 +106,7 @@ public class Feed_Post_Tests
         //at this point we follow sam 
         var followSamResponse = await ownerFrodo.Follower.FollowIdentity(TestIdentities.Samwise.OdinId, FollowerNotificationType.AllNotifications, []);
 
-        Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
+        ClassicAssert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
         //
         // Using the feed app, Sam posts to public channel with encrypted file having ACL of friends circle
@@ -127,7 +128,7 @@ public class Feed_Post_Tests
             SystemDriveConstants.PublicPostsChannelDrive,
             friendsFile);
 
-        Assert.IsTrue(friendsFileUploadResponse.StatusCode == expectedStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
+        ClassicAssert.IsTrue(friendsFileUploadResponse.StatusCode == expectedStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
         
         await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
 
@@ -150,22 +151,22 @@ public class Feed_Post_Tests
             }
         });
 
-        Assert.IsTrue(frodoQueryFeedResponse.IsSuccessStatusCode, $"Actual code was {frodoQueryFeedResponse.StatusCode}");
+        ClassicAssert.IsTrue(frodoQueryFeedResponse.IsSuccessStatusCode, $"Actual code was {frodoQueryFeedResponse.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var file = frodoQueryFeedResponse.Content?.SearchResults?.SingleOrDefault();
-            Assert.IsNotNull(file);
+            ClassicAssert.IsNotNull(file);
 
-            Assert.IsTrue(file.FileMetadata.IsEncrypted);
-            Assert.IsTrue(file.FileMetadata.AppData.Content == encryptedJsonContent64);
+            ClassicAssert.IsTrue(file.FileMetadata.IsEncrypted);
+            ClassicAssert.IsTrue(file.FileMetadata.AppData.Content == encryptedJsonContent64);
 
             var ss = ownerFrodo.GetTokenContext().SharedSecret;
             //frodo should be able to decrypt the file.
             var keyHeader = file.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
             var decryptedText = keyHeader.Decrypt(Convert.FromBase64String(file.FileMetadata.AppData.Content)).ToStringFromUtf8Bytes();
-            Assert.IsTrue(decryptedText == friendsOnlyContent);
+            ClassicAssert.IsTrue(decryptedText == friendsOnlyContent);
         }
 
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
@@ -221,7 +222,7 @@ public class Feed_Post_Tests
         await ownerFrodo.Connections.AcceptConnectionRequest(sam.OdinId, new List<GuidId>() { });
 
         var x = await ownerSam.Network.GetConnectionInfo(ownerFrodo.Identity.OdinId);
-        Assert.IsNotNull(x);
+        ClassicAssert.IsNotNull(x);
         //
         // Using the feed app, Sam posts to public channel with encrypted file having ACL of friends circle
         //
@@ -244,7 +245,7 @@ public class Feed_Post_Tests
         var (friendsFileUploadResponse, encryptedJsonContent64) = await driveApiAsFeedApp.UploadNewEncryptedMetadata(
             SystemDriveConstants.PublicPostsChannelDrive,
             friendsFile);
-        Assert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
+        ClassicAssert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode, $"Actual code was {friendsFileUploadResponse.StatusCode}");
 
         await ownerSam.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.PublicPostsChannelDrive);
 
@@ -269,8 +270,8 @@ public class Feed_Post_Tests
         //
         var samQueryFileOnHisPublicDriveResponse = await ownerSam.DriveRedux.QueryBatch(fileOnPublicDriveBatchRequest);
         var samFile = samQueryFileOnHisPublicDriveResponse.Content.SearchResults.SingleOrDefault();
-        Assert.IsNotNull(samFile, "sam cannot see his own file");
-        Assert.IsTrue(samFile.FileMetadata.AppData.FileType == fileType);
+        ClassicAssert.IsNotNull(samFile, "sam cannot see his own file");
+        ClassicAssert.IsTrue(samFile.FileMetadata.AppData.FileType == fileType);
 
         await _scaffold.CreateOwnerApiClient(ownerFrodo.Identity).Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
@@ -296,20 +297,20 @@ public class Feed_Post_Tests
         //
         var frodoQuerySamPublicChannelResponse = await guestDrive.QueryBatch(fileOnPublicDriveBatchRequest);
 
-        Assert.IsTrue(frodoQuerySamPublicChannelResponse.IsSuccessStatusCode, $"Actual code was {frodoQuerySamPublicChannelResponse.StatusCode}");
+        ClassicAssert.IsTrue(frodoQuerySamPublicChannelResponse.IsSuccessStatusCode, $"Actual code was {frodoQuerySamPublicChannelResponse.StatusCode}");
 
         var file = frodoQuerySamPublicChannelResponse.Content?.SearchResults?.SingleOrDefault();
-        Assert.IsNotNull(file);
+        ClassicAssert.IsNotNull(file);
 
-        Assert.IsTrue(file.FileMetadata.IsEncrypted);
-        Assert.IsTrue(file.FileMetadata.AppData.Content == encryptedJsonContent64);
+        ClassicAssert.IsTrue(file.FileMetadata.IsEncrypted);
+        ClassicAssert.IsTrue(file.FileMetadata.AppData.Content == encryptedJsonContent64);
 
         var ss = ownerFrodo.GetTokenContext().SharedSecret;
         //frodo should be able to decrypt the file.
         var keyHeader = file.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
         var decryptedText = keyHeader.Decrypt(Convert.FromBase64String(file.FileMetadata.AppData.Content)).ToStringFromUtf8Bytes();
-        Assert.IsTrue(decryptedText == friendsOnlyContent);
+        ClassicAssert.IsTrue(decryptedText == friendsOnlyContent);
 
 
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);

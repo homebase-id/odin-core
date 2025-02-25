@@ -59,7 +59,7 @@ public class YouAuthDomainApiClient
         {
             var svc = RefitCreator.RestServiceFor<IRefitYouAuthDomainRegistration>(client, ownerSharedSecret);
             var response = await svc.GetRegisteredDomain(new GetYouAuthDomainRequest() { Domain = domain.DomainName });
-            // Assert.IsTrue(response.IsSuccessStatusCode, $"Could not retrieve the domain reg for {domain.DomainName}");
+            // ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Could not retrieve the domain reg for {domain.DomainName}");
             return response;
         }
     }

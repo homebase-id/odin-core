@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.Certificate;
@@ -33,6 +34,7 @@ namespace Odin.Services.Configuration
 
         public PushNotificationSection PushNotification { get; init; }
         public DatabaseSection Database { get; init; }
+        public CacheSection Cache { get; init; }
 
         public OdinConfiguration()
         {
@@ -59,6 +61,7 @@ namespace Odin.Services.Configuration
             CertificateRenewal = new CertificateRenewalSection(config);
             PushNotification = new PushNotificationSection(config);
             Database = new DatabaseSection(config);
+            Cache = new CacheSection(config);
         }
 
         //
@@ -163,7 +166,7 @@ namespace Odin.Services.Configuration
             public string TenantDataRootPath { get; init; }
             public string SystemDataRootPath { get; init; }
             public string SystemSslRootPath { get; init; }
-
+            public string DataProtectionKeyPath { get; init; }
             public bool Http1Only { get; init; }
 
             /// <summary>
@@ -193,6 +196,8 @@ namespace Odin.Services.Configuration
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
 
+                DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "tmp", "data-protection-keys");
+
                 Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
                 IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
@@ -213,7 +218,6 @@ namespace Odin.Services.Configuration
 
                 FileWriteChunkSizeInBytes = config.GetOrDefault("Host:FileWriteChunkSizeInBytes", 1024);
 
-                UseConcurrentFileManager = config.GetOrDefault("Host:UseConcurrentFileManager", true);
                 PeerOperationMaxAttempts = config.GetOrDefault("Host:PeerOperationMaxAttempts", 3);
                 PeerOperationDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:PeerOperationDelayMs", 300));
 
@@ -249,7 +253,6 @@ namespace Odin.Services.Configuration
             /// </summary>
             public int FileWriteChunkSizeInBytes { get; set; }
 
-            public bool UseConcurrentFileManager { get; set; }
             public int PushNotificationBatchSize { get; set; }
             public int PeerOperationMaxAttempts { get; init; }
             public int OutboxOperationMaxAttempts { get; init; }
@@ -449,6 +452,28 @@ namespace Odin.Services.Configuration
                 if (Type != DatabaseType.Sqlite) // Sqlite doesn't require a connection string
                 {
                     ConnectionString = config.Required<string>("Database:ConnectionString");        
+                }
+            }
+        }
+
+        //
+
+        public class CacheSection
+        {
+            public Level2CacheType Level2CacheType { get; init; }
+            public string Level2Configuration { get; init; } = "";
+
+            public CacheSection()
+            {
+                // Mockable support
+            }
+
+            public CacheSection(IConfiguration config)
+            {
+                Level2CacheType = config.GetOrDefault("Cache:Level2CacheType", Level2CacheType.None);
+                if (Level2CacheType != Level2CacheType.None)
+                {
+                    Level2Configuration = config.Required<string>("Cache:Level2Configuration");
                 }
             }
         }

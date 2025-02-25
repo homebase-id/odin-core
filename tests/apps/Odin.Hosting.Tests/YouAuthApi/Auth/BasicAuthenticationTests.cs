@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -89,9 +90,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
             var youAuthApiClient = new YouAuthApiClient(identity, cat);
 
             var getFileHeaderResponse = await youAuthApiClient.Drives.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode, $"Status code returned: {getFileHeaderResponse.StatusCode}");
+            ClassicAssert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode, $"Status code returned: {getFileHeaderResponse.StatusCode}");
             var fileHeader = getFileHeaderResponse.Content;
-            Assert.IsTrue(fileHeader.FileMetadata.AppData.Content == jsonContent);
+            ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.Content == jsonContent);
         }
 
         private async Task<UploadResult> UploadFile(TestIdentity identity, TargetDrive targetDrive, GuidId circleId, string jsonContent)
@@ -133,8 +134,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, identity);
             var response = await client.YouAuth.RegisterDomain(domain, circleIds);
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            Assert.IsNotNull(response.Content);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content);
         }
 
         private async Task<ClientAccessToken> RegisterClient(TestIdentity identity, string domainName)
@@ -145,7 +146,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
 
             //register a client for domain1
             var domain1ClientRegistrationResponse = await client.YouAuth.RegisterClient(domain, "some friendly name");
-            Assert.IsTrue(domain1ClientRegistrationResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(domain1ClientRegistrationResponse.IsSuccessStatusCode);
 
             return ClientAccessToken.FromPortableBytes(domain1ClientRegistrationResponse.Content.Data);
         }

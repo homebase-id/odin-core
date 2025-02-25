@@ -43,6 +43,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _key = value;
                }
         }
+        internal byte[] keyNoLengthCheck
+        {
+           get {
+                   return _key;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 16) throw new Exception("Too short");
+                  _key = value;
+               }
+        }
         private byte[] _data;
         public byte[] data
         {
@@ -52,6 +63,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
                     if (value?.Length > 1048576) throw new Exception("Too long");
+                  _data = value;
+               }
+        }
+        internal byte[] dataNoLengthCheck
+        {
+           get {
+                   return _data;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
                   _data = value;
                }
         }
@@ -228,7 +249,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -241,24 +262,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected KeyValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyValueRecord>();
-            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyValueRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.key = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
-            if (item.key?.Length > 48)
-                throw new Exception("Too much data in key...");
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.keyNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key?.Length < 16)
                 throw new Exception("Too little data in key...");
-            item.data = rdr.IsDBNull(2) ? 
-                null : (byte[])(rdr[2]);
-            if (item.data?.Length > 1048576)
-                throw new Exception("Too much data in data...");
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -296,7 +309,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key?.Length < 16) throw new Exception("Too short");
             if (key?.Length > 48) throw new Exception("Too long");
             var result = new List<KeyValueRecord>();
-            byte[] tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -304,11 +316,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyValueRecord();
             item.identityId = identityId;
             item.key = key;
-
-            item.data = rdr.IsDBNull(0) ? 
-                null : (byte[])(rdr[0]);
-            if (item.data?.Length > 1048576)
-                throw new Exception("Too much data in data...");
+            item.dataNoLengthCheck = (rdr[0] == DBNull.Value) ? null : (byte[])(rdr[0]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

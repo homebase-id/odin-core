@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Nito.AsyncEx;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Storage.Database;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -263,23 +264,6 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             return uploadResponse.Content;
         }
 
-
-        public async Task ValidateFileDelivered(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, ExternalFileIdentifier file)
-        {
-            // Assert: file that was sent has peer transfer status updated
-            var uploadedFileResponse1 = await sender.DriveRedux.GetFileHeader(file);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.Identity.OdinId, out var recipientStatus));
-            Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-            Assert.IsFalse(recipientStatus.IsInOutbox);
-            Assert.IsFalse(recipientStatus.IsReadByRecipient);
-            Assert.IsFalse(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
-            // Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == targetVersionTag);
-        }
-
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)
         {
             await senderOwnerClient.Connections.SendConnectionRequest(recipient.Identity.OdinId, []);
@@ -290,7 +274,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             await recipient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, []);
 
             var getConnectionInfoResponse = await recipient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
         }
 
         private async Task MeasureQueryBatch(OwnerApiClientRedux identity, QueryBatchRequest qbr, int maxThreads, int iterations)
@@ -308,7 +292,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
                     var response = await identity.DriveRedux.QueryBatch(qbr);
                     bw += response.ContentHeaders.ContentLength ?? 0;
 
-                    Assert.IsTrue(response.IsSuccessStatusCode);
+                    ClassicAssert.IsTrue(response.IsSuccessStatusCode);
                     // var results = response.Content.SearchResults;
                     // response.SearchResults.Count();
 

@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Services.Drives;
@@ -92,7 +93,7 @@ public class DirectDriveGeneralFileTests
         var response = await callerDriveClient.UploadNewMetadata(targetDrive, uploadedFileMetadata);
 
         // Assert
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
     }
 
     [Test]
@@ -124,39 +125,39 @@ public class DirectDriveGeneralFileTests
 
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
-        Assert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var uploadResult = response.Content;
-            Assert.IsNotNull(uploadResult);
+            ClassicAssert.IsNotNull(uploadResult);
 
             // use the owner api client to validate the file that was uploaded
             var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
-            Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
-            Assert.IsNotNull(header);
-            Assert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
-            Assert.IsTrue(header.FileMetadata.Payloads.Count() == testPayloads.Count);
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == uploadedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Count() == testPayloads.Count);
 
             //test the headers payload info
             foreach (var testPayload in testPayloads)
             {
                 var payload = header.FileMetadata.Payloads.Single(p => p.Key == testPayload.Key);
-                Assert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
-                Assert.IsTrue(testPayload.ContentType == payload.ContentType);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(testPayload.Iv, payload.Iv));
-                //Assert.IsTrue(payload.LastModified); //TODO: how to test?
+                ClassicAssert.IsTrue(testPayload.Thumbnails.Count == payload.Thumbnails.Count);
+                ClassicAssert.IsTrue(testPayload.ContentType == payload.ContentType);
+                ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(testPayload.Iv, payload.Iv));
+                //ClassicAssert.IsTrue(payload.LastModified); //TODO: how to test?
             }
 
             // Get the payloads
             foreach (var definition in testPayloads)
             {
                 var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-                Assert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
-                Assert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+                ClassicAssert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
+                ClassicAssert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
 
                 var content = (await getPayloadResponse.Content.ReadAsStreamAsync()).ToByteArray();
                 CollectionAssert.AreEqual(content, definition.Content);
@@ -167,9 +168,9 @@ public class DirectDriveGeneralFileTests
                     var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File,
                         thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
 
-                    Assert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
-                    Assert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                    Assert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+                    ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+                    ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
+                    ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
 
                     var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
                     CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
@@ -205,37 +206,37 @@ public class DirectDriveGeneralFileTests
         };
 
         var response = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         // Now that we know all are there, let's delete stuff
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         var deleteFileResponse = await callerDriveClient.SoftDeleteFile(uploadResult.File);
-        Assert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
+        ClassicAssert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
 
         // Test more if we can
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var result = deleteFileResponse.Content;
-            Assert.IsNotNull(result);
+            ClassicAssert.IsNotNull(result);
 
-            Assert.IsTrue(result.LocalFileDeleted);
-            Assert.IsFalse(result.RecipientStatus.Any());
+            ClassicAssert.IsTrue(result.LocalFileDeleted);
+            ClassicAssert.IsFalse(result.RecipientStatus.Any());
 
             // Get the payloads
             foreach (var definition in testPayloads)
             {
                 var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
-                Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+                ClassicAssert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
 
                 foreach (var thumbnail in definition.Thumbnails)
                 {
                     var getThumbnailResponse =
                         await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File, thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
-                    Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
+                    ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
                 }
             }
         }
@@ -286,25 +287,25 @@ public class DirectDriveGeneralFileTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         var deleteListResponse = await callerDriveClient.DeleteFileList(deleteList);
-        Assert.IsTrue(deleteListResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(deleteListResponse.StatusCode == expectedStatusCode,
             $"Status code should be {expectedStatusCode} but was {deleteListResponse.StatusCode}");
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var deleteBatchResult = deleteListResponse.Content;
-            Assert.IsNotNull(deleteBatchResult);
+            ClassicAssert.IsNotNull(deleteBatchResult);
 
             foreach (var deleteResult in deleteBatchResult.Results)
             {
-                Assert.IsTrue(deleteResult.LocalFileDeleted);
-                Assert.IsFalse(deleteResult.RecipientStatus.Any());
+                ClassicAssert.IsTrue(deleteResult.LocalFileDeleted);
+                ClassicAssert.IsFalse(deleteResult.RecipientStatus.Any());
             }
 
             foreach (var request in deleteList)
             {
                 var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(request.File);
 
-                Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
-                Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
+                ClassicAssert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
             }
         }
     }
@@ -364,34 +365,34 @@ public class DirectDriveGeneralFileTests
             Requests = deleteRequests
         });
 
-        Assert.IsTrue(deleteFilesByGroupIdListResponse.StatusCode == expectedStatusCode,
+        ClassicAssert.IsTrue(deleteFilesByGroupIdListResponse.StatusCode == expectedStatusCode,
             $"Status code should be {expectedStatusCode} but was {deleteFilesByGroupIdListResponse.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var deleteBatchResult = deleteFilesByGroupIdListResponse.Content;
-            Assert.IsNotNull(deleteBatchResult);
+            ClassicAssert.IsNotNull(deleteBatchResult);
 
             //
             // check group 1
             //
 
             var deletesForGroupId1 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId1);
-            Assert.IsNotNull(deletesForGroupId1);
+            ClassicAssert.IsNotNull(deletesForGroupId1);
 
-            Assert.IsTrue(deletesForGroupId1.DeleteFileResults.Count == 2);
-            Assert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult1.File));
-            Assert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult2.File));
+            ClassicAssert.IsTrue(deletesForGroupId1.DeleteFileResults.Count == 2);
+            ClassicAssert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult1.File));
+            ClassicAssert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult2.File));
 
             foreach (var fileDeleteResult in deletesForGroupId1.DeleteFileResults)
             {
-                Assert.IsTrue(fileDeleteResult.LocalFileDeleted);
-                Assert.IsFalse(fileDeleteResult.RecipientStatus.Any());
+                ClassicAssert.IsTrue(fileDeleteResult.LocalFileDeleted);
+                ClassicAssert.IsFalse(fileDeleteResult.RecipientStatus.Any());
 
                 var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(fileDeleteResult.File);
 
-                Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
-                Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
+                ClassicAssert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
             }
 
 
@@ -399,30 +400,30 @@ public class DirectDriveGeneralFileTests
             // check group 2
             //
             var deletesForGroupId2 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId2);
-            Assert.IsNotNull(deletesForGroupId2);
+            ClassicAssert.IsNotNull(deletesForGroupId2);
 
 
-            Assert.IsTrue(deletesForGroupId2.DeleteFileResults.Count == 1);
-            Assert.IsNotNull(deletesForGroupId2.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult3.File));
+            ClassicAssert.IsTrue(deletesForGroupId2.DeleteFileResults.Count == 1);
+            ClassicAssert.IsNotNull(deletesForGroupId2.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult3.File));
 
             foreach (var fileDeleteResult in deletesForGroupId2.DeleteFileResults)
             {
-                Assert.IsTrue(fileDeleteResult.LocalFileDeleted);
-                Assert.IsFalse(fileDeleteResult.RecipientStatus.Any());
+                ClassicAssert.IsTrue(fileDeleteResult.LocalFileDeleted);
+                ClassicAssert.IsFalse(fileDeleteResult.RecipientStatus.Any());
 
                 var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(fileDeleteResult.File);
 
-                Assert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
-                Assert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
+                ClassicAssert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
             }
 
             var deletesForGroupId3 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId3);
-            Assert.IsNull(deletesForGroupId3, "there should be no deletes for group id 3");
+            ClassicAssert.IsNull(deletesForGroupId3, "there should be no deletes for group id 3");
 
             //
             var getHeader = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult4.File);
-            Assert.IsTrue(getHeader.IsSuccessStatusCode);
-            Assert.IsTrue(getHeader.Content.FileState == FileState.Active);
+            ClassicAssert.IsTrue(getHeader.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getHeader.Content.FileState == FileState.Active);
         }
     }
 
@@ -443,25 +444,25 @@ public class DirectDriveGeneralFileTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
 
         var response = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
-        Assert.IsNotNull(uploadResult);
+        ClassicAssert.IsNotNull(uploadResult);
 
         // Now that we know all are there, let's delete stuff
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
 
         var deleteFileResponse = await callerDriveClient.SoftDeleteFile(uploadResult.File);
-        Assert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
+        ClassicAssert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
 
         // Test more if we can
         if (expectedStatusCode == HttpStatusCode.OK)
         {
             var result = deleteFileResponse.Content;
-            Assert.IsNotNull(result);
+            ClassicAssert.IsNotNull(result);
 
-            Assert.IsTrue(result.LocalFileDeleted);
-            Assert.IsFalse(result.RecipientStatus.Any());
+            ClassicAssert.IsTrue(result.LocalFileDeleted);
+            ClassicAssert.IsFalse(result.RecipientStatus.Any());
 
             var queryBatchResponse = await callerDriveClient.QueryBatch(new QueryBatchRequest()
             {
@@ -478,11 +479,11 @@ public class DirectDriveGeneralFileTests
                 }
             });
 
-            Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
             var results = queryBatchResponse.Content.SearchResults;
             var theFile = results.SingleOrDefault();
-            Assert.IsNotNull(theFile);
-            Assert.IsTrue(theFile.FileState == FileState.Deleted);
+            ClassicAssert.IsNotNull(theFile);
+            ClassicAssert.IsTrue(theFile.FileState == FileState.Deleted);
         }
     }
 
@@ -491,9 +492,9 @@ public class DirectDriveGeneralFileTests
     {
         var client = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
         var response1 = await client.DriveRedux.UploadNewMetadata(targetDrive, f1);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
         var getHeaderResponse1 = await client.DriveRedux.GetFileHeader(response1.Content!.File);
-        Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
         return response1.Content;
     }
 }

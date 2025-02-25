@@ -24,7 +24,7 @@ public sealed class VersionUpgradeScheduler(
         ClientAuthenticationToken token,
         IOdinContext odinContext)
     {
-        if (!odinContext.Caller.HasMasterKey || await RequiresUpgradeAsync() == false)
+        if (!odinContext.Caller.HasMasterKey)
         {
             return;
         }
@@ -33,7 +33,13 @@ public sealed class VersionUpgradeScheduler(
         {
             return;
         }
-
+        
+        var (upgradeRequired, _, _) = await RequiresUpgradeAsync();
+        if (!upgradeRequired)
+        {
+            return;
+        }
+        
         var job = _jobManager.NewJob<VersionUpgradeJob>();
 
         var (iv, encryptedToken) = AesCbc.Encrypt(token.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
@@ -56,33 +62,33 @@ public sealed class VersionUpgradeScheduler(
         });
     }
 
-    public async Task<bool> RequiresUpgradeAsync()
+    public async Task<(bool requiresUpgrade, int tenantVersion, FailedUpgradeVersionInfo failureInfo)> RequiresUpgradeAsync()
     {
         var currentVersion = (await configService.GetVersionInfoAsync()).DataVersionNumber;
         var failure = await configService.GetVersionFailureInfoAsync();
 
         bool upgradeRequired;
-        var versionTooLow = currentVersion < ReleaseVersionInfo.DataVersionNumber;
+        var versionTooLow = currentVersion < Version.DataVersionNumber;
         if (failure == null)
         {
             upgradeRequired = versionTooLow;
         }
         else
         {
-            upgradeRequired = versionTooLow && failure.BuildVersion != ReleaseVersionInfo.BuildVersion;
+            upgradeRequired = versionTooLow && failure.BuildVersion != Version.VersionText;
         }
 
-        if (upgradeRequired)
-        {
-            logger.LogDebug("Upgrade test indicated that upgrade is required.  It will be scheduled only when you are running as owner " +
-                            "Current Version: v{cv}, release version: v{rv} " +
-                            "(previously failed build version: {failure})",
-                currentVersion,
-                ReleaseVersionInfo.DataVersionNumber,
-                failure?.BuildVersion ?? "none");
-        }
-        
-        return upgradeRequired;
+        // if (upgradeRequired)
+        // {
+        //     logger.LogDebug("Upgrade test indicated that upgrade is required.  It will be scheduled only when you are running as owner " +
+        //                     "Current Version: v{cv}, release version: v{rv} " +
+        //                     "(previously failed build version: {failure})",
+        //         currentVersion,
+        //         Version.DataVersionNumber,
+        //         failure?.BuildVersion ?? "none");
+        // }
+
+        return (upgradeRequired, currentVersion, failure);
     }
 
     public static void SetRequiresUpgradeResponse(HttpContext context)

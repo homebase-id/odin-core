@@ -47,13 +47,7 @@ namespace Odin.Core
 
         public static string ToHexString(this byte[] array)
         {
-            var sb = new StringBuilder();
-            foreach (var b in array)
-            {
-                sb.Append(b.ToString("x2"));
-            }
-
-            return sb.ToString();
+            return Convert.ToHexString(array);
         }
     }
 }

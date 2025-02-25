@@ -9,7 +9,6 @@ using Nito.AsyncEx;
 
 [assembly:InternalsVisibleTo("Odin.Core.Storage.Tests")]
 
-// SEB:TODO make sure we don't need locks in here
 namespace Odin.Core.Storage.SQLite
 {
     public class DatabaseConnection : IDisposable
@@ -23,13 +22,13 @@ namespace Odin.Core.Storage.SQLite
         private readonly AsyncLock _lock = new ();
         internal int _nestedCounter = 0;
 
-        internal DbConnection Connection { get { return _connection; } } // SEB:TODO make internal
+        internal DbConnection Connection { get { return _connection; } }
 
         public DatabaseConnection(DatabaseBase db, string connectionString)
         {
             this.db = db;
             _connection = new SqliteConnection(connectionString);
-            _connection.Open(); // SEB:TODO move out of the ctor and make async
+            _connection.Open();
         }
 
         ~DatabaseConnection()
@@ -168,7 +167,7 @@ namespace Odin.Core.Storage.SQLite
 
         public async Task<int> ExecuteNonQueryAsync(DbCommand command)
         {
-            using (await _lock.LockAsync()) // SEB:TODO lock review
+            using (await _lock.LockAsync())
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
@@ -180,7 +179,7 @@ namespace Odin.Core.Storage.SQLite
 
         public async Task<object>ExecuteScalarAsync(DbCommand command)
         {
-            using (await _lock.LockAsync()) // SEB:TODO lock review
+            using (await _lock.LockAsync())
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;
@@ -200,7 +199,7 @@ namespace Odin.Core.Storage.SQLite
         /// <exception cref="ArgumentException"></exception>
         public async Task<DbDataReader> ExecuteReaderAsync(DbCommand command, CommandBehavior behavior)
         {
-            using (await _lock.LockAsync()) // SEB:TODO lock review
+            using (await _lock.LockAsync())
             {
                 command.Connection = _connection;
                 command.Transaction = _transaction;

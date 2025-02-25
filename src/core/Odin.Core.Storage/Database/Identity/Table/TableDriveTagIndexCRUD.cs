@@ -253,7 +253,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -286,20 +286,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTagIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveTagIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveTagIndexRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.driveId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.fileId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.tagId = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.fileId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.tagId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             return item;
        }
 
@@ -360,7 +355,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             var result = new List<DriveTagIndexRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -440,19 +434,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             return thelistresult;
                         }
                     byte[] tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
                     var guid = new byte[16];
                     while (true)
                     {
 
-                        if (rdr.IsDBNull(0))
+                        if (rdr[0] == DBNull.Value)
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            bytesRead = rdr.GetBytes(0, 0, guid, 0, 16);
-                            if (bytesRead != 16)
+                            guid = (byte[]) rdr[0];
+                            if (guid.Length != 16)
                                 throw new Exception("Not a GUID in tagId...");
                             result0tmp = new Guid(guid);
                         }

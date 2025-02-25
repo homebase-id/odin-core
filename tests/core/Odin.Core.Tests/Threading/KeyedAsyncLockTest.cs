@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Threading;
 
 namespace Odin.Core.Tests.Threading;
@@ -121,7 +122,7 @@ public class KeyedAsyncLockTests
             wasAcquired = true;
         }
 
-        Assert.IsTrue(wasAcquired);
+        ClassicAssert.IsTrue(wasAcquired);
     }
 
     [Test]
@@ -195,7 +196,7 @@ public class KeyedAsyncLockTests
             var lockTask = keyedMutex.LockAsync(key);
             var isCompleted = lockTask.IsCompleted;
 
-            Assert.IsFalse(isCompleted, "Lock task should not be completed because the lock is already held.");
+            ClassicAssert.IsFalse(isCompleted, "Lock task should not be completed because the lock is already held.");
 
             // The lockTask will wait indefinitely; cancel it to avoid deadlock
             var cancellationTokenSource = new CancellationTokenSource(100);
@@ -251,13 +252,13 @@ public class KeyedAsyncLockTests
 
         using (await keyedMutex.LockAsync("test-key"))
         {
-            Assert.AreEqual(1, keyedMutex.Count);
+            ClassicAssert.AreEqual(1, keyedMutex.Count);
             executed = true;
             await Task.Delay(100);
         }
 
-        Assert.IsTrue(executed);
-        Assert.AreEqual(0, keyedMutex.Count);
+        ClassicAssert.IsTrue(executed);
+        ClassicAssert.AreEqual(0, keyedMutex.Count);
     }
 
     [Test]
@@ -272,7 +273,7 @@ public class KeyedAsyncLockTests
             {
                 await Task.Delay(100);
                 counter++;
-                Assert.AreEqual(1, keyedMutex.Count);
+                ClassicAssert.AreEqual(1, keyedMutex.Count);
             }
         }
 
@@ -281,8 +282,8 @@ public class KeyedAsyncLockTests
         await Action();
 
         // Since the actions use the same key, they should run serially, not concurrently.
-        Assert.AreEqual(3, counter);
-        Assert.AreEqual(0, keyedMutex.Count);
+        ClassicAssert.AreEqual(3, counter);
+        ClassicAssert.AreEqual(0, keyedMutex.Count);
     }
 
     [Test]
@@ -298,7 +299,7 @@ public class KeyedAsyncLockTests
             {
                 using (await keyedMutex.LockAsync("somekey"))
                 {
-                    Assert.AreEqual(1, keyedMutex.Count);
+                    ClassicAssert.AreEqual(1, keyedMutex.Count);
                     counter++;
                 }
             }));
@@ -307,8 +308,8 @@ public class KeyedAsyncLockTests
         await Task.WhenAll(runningTasks);
 
         // Since the actions use the same key, they should run serially, not concurrently.
-        Assert.AreEqual(1234, counter);
-        Assert.AreEqual(0, keyedMutex.Count);
+        ClassicAssert.AreEqual(1234, counter);
+        ClassicAssert.AreEqual(0, keyedMutex.Count);
     }
 
     [Test]
@@ -336,9 +337,9 @@ public class KeyedAsyncLockTests
 
         var completed = await Task.WhenAny(allTasks, Task.Delay(150));
 
-        Assert.AreEqual(50, counter);
-        Assert.AreEqual(allTasks, completed, "Actions with different keys should execute concurrently.");
-        Assert.AreEqual(0, keyedMutex.Count, "The count should be zero after all actions complete.");
+        ClassicAssert.AreEqual(50, counter);
+        ClassicAssert.AreEqual(allTasks, completed, "Actions with different keys should execute concurrently.");
+        ClassicAssert.AreEqual(0, keyedMutex.Count, "The count should be zero after all actions complete.");
     }
 
     [Test]

@@ -8,20 +8,19 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(USER)' == 'seb'">
-    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>
+    <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Autofac" Version="8.2.0" />
-    <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="coverlet.collector" Version="6.0.3">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="NUnit" Version="3.14.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.2.0" />
+    <PackageReference Include="Testcontainers.Redis" Version="4.2.0" />
   </ItemGroup>
 
   <ItemGroup>

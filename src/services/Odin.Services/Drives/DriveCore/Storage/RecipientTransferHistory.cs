@@ -1,17 +1,26 @@
 using System;
-using System.Collections.Generic;
+using Odin.Core.Identity;
 using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
 public class RecipientTransferHistory
 {
-    public Dictionary<string, RecipientTransferHistoryItem> Recipients { get; set; } =
-        new(StringComparer.InvariantCultureIgnoreCase);
+    public TransferHistorySummary Summary { get; init; }
+}
+
+public class TransferHistorySummary
+{
+    public int TotalInOutbox { get; set; }
+    public int TotalFailed { get; set; }
+    public int TotalDelivered { get; set; }
+    public int TotalReadByRecipient { get; set; }
 }
 
 public class RecipientTransferHistoryItem
 {
+    public OdinId Recipient { get; init; }
+    
     public UnixTimeUtc LastUpdated { get; set; }
 
     /// <summary>
@@ -38,6 +47,11 @@ public class RecipientTransferHistoryItem
 public enum LatestTransferStatus
 {
     /// <summary>
+    /// No value specified
+    /// </summary>
+    None = 0,
+
+    /// <summary>
     /// Item was delivered to the recipient server
     /// </summary>
     Delivered = 10,
@@ -51,7 +65,7 @@ public enum LatestTransferStatus
     /// The local file cannot be sent due to it's settings or recipient's permissions
     /// </summary>
     SourceFileDoesNotAllowDistribution = 50,
-    
+
     /// <summary>
     /// The item reached the max number of attempts to send it
     /// </summary>
@@ -76,20 +90,4 @@ public enum LatestTransferStatus
     /// Something bad happened on the server
     /// </summary>
     UnknownServerError = 9999,
-    
-}
-
-/// <summary>
-/// used to update a <see cref="RecipientTransferHistoryItem"/> record.  Null values will leave the field unchanged.
-/// </summary>
-public class UpdateTransferHistoryData
-{
-    public LatestTransferStatus? LatestTransferStatus { get; set; }
-
-    public Guid? VersionTag { get; set; }
-    
-    public bool? IsInOutbox { get; set; }
-
-    public bool? IsReadByRecipient { get; set; }
-    
 }

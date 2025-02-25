@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -82,11 +83,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var (uploadResponse, _) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
-            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+            ClassicAssert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.OdinId] == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.OdinId] == TransferStatus.Enqueued);
 
             await callerContext.Initialize(senderOwnerClient);
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.OdinId, callerContext.GetFactory());
@@ -98,23 +99,24 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
                 var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
-                Assert.IsFalse(recipientFileResponse.Content.SearchResults.Any(), "Recipient should not have the file");
+                ClassicAssert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsFalse(recipientFileResponse.Content.SearchResults.Any(), "Recipient should not have the file");
 
                 //
                 // Validate the transfer history was updated correctly
                 //
-                var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-                Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-                var uploadedFile1 = uploadedFileResponse1.Content;
-
-                Assert.IsTrue(
-                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
-                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-                Assert.IsFalse(recipientStatus.IsInOutbox);
-                Assert.IsFalse(recipientStatus.IsReadByRecipient);
-                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
-                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
+                var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+                ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                var theHistory = getHistoryResponse.Content;
+                ClassicAssert.IsNotNull(theHistory);
+                var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+                ClassicAssert.IsNotNull(recipientStatus);
+                
+                ClassicAssert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                ClassicAssert.IsFalse(recipientStatus.IsInOutbox);
+                ClassicAssert.IsFalse(recipientStatus.IsReadByRecipient);
+                ClassicAssert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
+                ClassicAssert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
             }
 
             // cleanup
@@ -141,11 +143,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var (uploadResponse, _) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
 
-            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+            ClassicAssert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
 
             await callerContext.Initialize(senderOwnerClient);
             var driveClient = new UniversalDriveApiClient(senderOwnerClient.Identity.OdinId, callerContext.GetFactory());
@@ -159,23 +161,23 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
                 var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
-                Assert.IsFalse(recipientFileResponse.Content.SearchResults.Any(), "Recipient should not have the file");
+                ClassicAssert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsFalse(recipientFileResponse.Content.SearchResults.Any(), "Recipient should not have the file");
 
                 //
                 // Validate the transfer history was updated correctly
                 //
-                var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-                Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-                var uploadedFile1 = uploadedFileResponse1.Content;
-
-                Assert.IsTrue(
-                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
-                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-                Assert.IsFalse(recipientStatus.IsInOutbox);
-                Assert.IsFalse(recipientStatus.IsReadByRecipient);
-                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
-                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
+                var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+                ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                var theHistory = getHistoryResponse.Content;
+                ClassicAssert.IsNotNull(theHistory);
+                var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+                
+                ClassicAssert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                ClassicAssert.IsFalse(recipientStatus.IsInOutbox);
+                ClassicAssert.IsFalse(recipientStatus.IsReadByRecipient);
+                ClassicAssert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.RecipientIdentityReturnedAccessDenied);
+                ClassicAssert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
             }
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
@@ -201,11 +203,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var (uploadResponse, _) = await UploadEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions, allowDistribution: false);
 
-            Assert.IsTrue(uploadResponse.IsSuccessStatusCode);
-            Assert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
+            ClassicAssert.IsTrue(uploadResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(uploadResponse.StatusCode == HttpStatusCode.OK);
             var uploadResult = uploadResponse.Content;
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
-            Assert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus[recipientOwnerClient.Identity.OdinId] == TransferStatus.Enqueued);
 
             await callerContext.Initialize(senderOwnerClient);
 
@@ -224,24 +226,24 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
 
                 var recipientFileResponse = await recipientOwnerClient.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
-                Assert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
-                Assert.IsFalse(recipientFileResponse.Content.SearchResults.Any(), "Recipient should not have the file");
+                ClassicAssert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
+                ClassicAssert.IsFalse(recipientFileResponse.Content.SearchResults.Any(), "Recipient should not have the file");
 
                 //
                 // Validate the transfer history was updated correctly
                 //
-                var uploadedFileResponse1 = await senderOwnerClient.DriveRedux.GetFileHeader(uploadResult.File);
-                Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-                var uploadedFile1 = uploadedFileResponse1.Content;
-
-                Assert.IsTrue(
-                    uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
-                Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-                Assert.IsTrue(recipientStatus.IsInOutbox, "file should remain in outbox");
-                Assert.IsFalse(recipientStatus.IsReadByRecipient);
-                Assert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution,
+                var getHistoryResponse = await senderOwnerClient.DriveRedux.GetTransferHistory(uploadResult.File);
+                ClassicAssert.IsTrue(getHistoryResponse.IsSuccessStatusCode);
+                var theHistory = getHistoryResponse.Content;
+                ClassicAssert.IsNotNull(theHistory);
+                var recipientStatus = theHistory.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+                
+                ClassicAssert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
+                ClassicAssert.IsTrue(recipientStatus.IsInOutbox, "file should remain in outbox");
+                ClassicAssert.IsFalse(recipientStatus.IsReadByRecipient);
+                ClassicAssert.IsTrue(recipientStatus.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution,
                     $"status was: {recipientStatus.LatestTransferStatus}");
-                Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
+                ClassicAssert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == null);
 
                 //Note: there should also be a job set to rerun this time; not sure how to test this - however.
             }
@@ -297,7 +299,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
 
             //
             // Sender needs this same drive in order to send across files
@@ -310,7 +312,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 allowSubscriptions: false,
                 ownerOnly: false);
 
-            Assert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
 
             //
             // Recipient creates a circle with target drive, read and write access
@@ -333,7 +335,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 }
             });
 
-            Assert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
             //
             // Sender sends connection request
@@ -351,10 +353,10 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var getConnectionInfoResponse = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
 
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
             var senderConnectionInfo = getConnectionInfoResponse.Content;
 
-            Assert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            ClassicAssert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
         }
 

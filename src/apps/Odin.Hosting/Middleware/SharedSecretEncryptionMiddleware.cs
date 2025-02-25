@@ -71,8 +71,8 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.PeerSenderV1}/files/send",
 
                 $"{AppApiPathConstants.DriveV1}/files/upload",
-                $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{AppApiPathConstants.DriveV1}/files/update",
+                $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{AppApiPathConstants.AuthV1}/logout",
                 $"{AppApiPathConstants.NotificationsV1}/preauth",
                 $"{AppApiPathConstants.PeerNotificationsV1}/preauth",

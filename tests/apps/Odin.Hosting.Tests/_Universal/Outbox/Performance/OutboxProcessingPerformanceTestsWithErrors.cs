@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
@@ -25,7 +25,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         private static readonly object _lock = new();
 
         private readonly List<Guid> _failedFilesSentByFrodo = new();
-        private readonly List<Guid> _filesSentByFrodo = new();
+        private readonly List<UploadResult> _filesSentByFrodo = new();
 
         private readonly List<Guid> _readReceiptsReceivedByFrodo = new();
         private readonly List<Guid> _filesReceivedBySam = new();
@@ -35,8 +35,11 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         private const int NotificationBatchSize = 10;
         private const int NotificationWaitTime = 10;
 
-        private readonly ReadReceiptSocketHandler _frodoSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
-        private readonly ReadReceiptSocketHandler _samSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
+        private readonly ReadReceiptSocketHandler _frodoSocketHandler =
+            new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
+
+        private readonly ReadReceiptSocketHandler _samSocketHandler =
+            new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -127,18 +130,14 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
                 "mismatch in number of read-receipts send by sam to the files received");
 
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
-            //see that same received every file
-            foreach (var gtid in _filesSentByFrodo)
-            {
-                var fileByGtid = await sam.DriveRedux.QueryByGlobalTransitId(new GlobalTransitIdFileIdentifier()
-                {
-                    GlobalTransitId = gtid,
-                    TargetDrive = SystemDriveConstants.ChatDrive
-                });
 
-                Assert.IsTrue(fileByGtid.IsSuccessStatusCode);
+            //see that same received every file
+            foreach (var uploadResult in _filesSentByFrodo)
+            {
+                var fileByGtid = await sam.DriveRedux.QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier);
+                ClassicAssert.IsTrue(fileByGtid.IsSuccessStatusCode);
                 var file = fileByGtid.Content.SearchResults.FirstOrDefault();
-                Assert.IsNotNull(file, $"sender does not have file with gtid {gtid}");
+                ClassicAssert.IsNotNull(file, $"sender does not have file with gtid {uploadResult}");
             }
 
             CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
@@ -152,19 +151,22 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             _samSocketHandler.FileAdded += SamSocketHandlerOnFileAdded;
 
             await _frodoSocketHandler.ConnectAsync(frodo);
-            _frodoSocketHandler.FileModified += FrodoSocketHandlerOnFileModified;
+            // _frodoSocketHandler.FileModified += FrodoSocketHandlerOnFileModified;
         }
 
         private void FrodoSocketHandlerOnFileModified(object sender, (TargetDrive targetDrive, SharedSecretEncryptedFileHeader header) e)
         {
-            //validate sam marked ita s ready
-            if (e.header.ServerMetadata.TransferHistory.Recipients.TryGetValue(TestIdentities.Samwise.OdinId, out var value))
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var history =  frodo.DriveRedux.GetTransferHistory(new ExternalFileIdentifier()
             {
-                if (value.LatestTransferStatus == LatestTransferStatus.Delivered && !value.IsReadByRecipient)
-                {
-                    _filesSentByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
-                }
+                FileId = e.header.FileId,
+                TargetDrive = e.targetDrive
+            }).GetAwaiter().GetResult();
 
+            //validate sam marked it as ready
+            var value = history.Content.GetHistoryItem(TestIdentities.Samwise.OdinId);
+            if (null != value)
+            {
                 if (value.LatestTransferStatus == LatestTransferStatus.SourceFileDoesNotAllowDistribution && !value.IsReadByRecipient)
                 {
                     _failedFilesSentByFrodo.Add(e.header.FileMetadata.GlobalTransitId.GetValueOrDefault());
@@ -203,7 +205,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await this._samSocketHandler.DisconnectAsync();
         }
 
-        private async Task SendBarrageWithAllowDistributionErrors(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads, int iterations,
+        private async Task SendBarrageWithAllowDistributionErrors(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, int maxThreads,
+            int iterations,
             int errors)
         {
             var randomErrorIntervals = GetRandomNumbers(0, iterations, errors);
@@ -227,7 +230,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
                     {
                         lock (_lock)
                         {
-                            // _filesSentByFrodo.Add(result.GlobalTransitIdFileIdentifier.GlobalTransitId);
+                            _filesSentByFrodo.Add(result);
                         }
                     }
 
@@ -279,7 +282,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             Console.WriteLine($"Sender Inbox Wait time: {recipientWaitTime.TotalSeconds}sec");
         }
 
-        private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient, bool allowDistribution)
+        private async Task<UploadResult> SendChatMessage(string message, OwnerApiClientRedux sender, OwnerApiClientRedux recipient,
+            bool allowDistribution)
         {
             var fileMetadata = new UploadFileMetadata()
             {
@@ -314,23 +318,6 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             return uploadResponse.Content;
         }
 
-        public async Task ValidateFileDelivered(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, ExternalFileIdentifier file)
-        {
-            // Assert: file that was sent has peer transfer status updated
-            var uploadedFileResponse1 = await sender.DriveRedux.GetFileHeader(file);
-            Assert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
-            var uploadedFile1 = uploadedFileResponse1.Content;
-
-            Assert.IsTrue(
-                uploadedFile1.ServerMetadata.TransferHistory.Recipients.TryGetValue(recipient.Identity.OdinId, out var recipientStatus));
-            Assert.IsNotNull(recipientStatus, "There should be a status update for the recipient");
-            Assert.IsFalse(recipientStatus.IsInOutbox);
-            Assert.IsFalse(recipientStatus.IsReadByRecipient);
-            Assert.IsFalse(recipientStatus.LatestTransferStatus == LatestTransferStatus.Delivered);
-            // Assert.IsTrue(recipientStatus.LatestSuccessfullyDeliveredVersionTag == targetVersionTag);
-        }
-
-
         private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)
         {
             await senderOwnerClient.Connections.SendConnectionRequest(recipient.Identity.OdinId, []);
@@ -341,7 +328,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             await recipient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, []);
 
             var getConnectionInfoResponse = await recipient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
-            Assert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
         }
 
         private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipient)

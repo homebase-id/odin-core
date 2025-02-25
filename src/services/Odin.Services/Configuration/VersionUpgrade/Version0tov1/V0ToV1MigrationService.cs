@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
@@ -22,7 +23,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         CircleDefinitionService circleDefinitionService,
         CircleNetworkService circleNetworkService,
         TenantConfigService tenantConfigService,
-        PublicPrivateKeyService publicPrivateKeyService)
+        PublicPrivateKeyService publicPrivateKeyService,
+        IdentityDatabase db)
     {
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
@@ -50,6 +52,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             {
                 throw new OdinSystemException("OnlineIcrEncryptedKey was not created");
             }
+
             logger.LogDebug("Validate new ICR Key exists - OK");
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -71,7 +74,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
             var invalidMembers = await circleNetworkService.GetInvalidMembersOfCircleDefinition(
                 SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
-            
+
             if (invalidMembers.Any())
             {
                 logger.LogError("Identities with invalid circle grant for confirmed connections circle : [{list}]",
@@ -79,7 +82,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
                 throw new OdinSystemException("Invalid members found for confirmed connections circle");
             }
-            
+
             logger.LogDebug("Validate new permission exists on all ICRs for ConfirmedConnectionsDefinition - OK");
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -119,7 +122,8 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
             if (existingDefinition.Permissions != expectedDefinition.Permissions)
             {
-                throw new OdinSystemException($"Circle Definition permission do not match expected definition for {expectedDefinition.Name}");
+                throw new OdinSystemException(
+                    $"Circle Definition permission do not match expected definition for {expectedDefinition.Name}");
             }
 
             if (expectedDefinition.DriveGrants.Intersect(existingDefinition.DriveGrants).Count() != expectedDefinition.DriveGrants.Count())
@@ -132,28 +136,27 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
         public async Task AutoFixCircleGrantsAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
-            //TODO CONNECTIONS (TODD:TODO when is this code running? is it a one time thing? Transactions will lock database)
-            // await cn.CreateCommitUnitOfWorkAsync(async () =>
+            await using var tx = await db.BeginStackedTransactionAsync();
+
+            foreach (var identity in allIdentities.Results)
             {
-                foreach (var identity in allIdentities.Results)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
 
-                    await FixIdentityAsync(identity, odinContext);
-                }
-
-                var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
-                foreach (var app in allApps)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    logger.LogDebug("Calling ReconcileAuthorizedCircles for app {appName}", app.Name);
-                    await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext);
-                }
+                await FixIdentityAsync(identity, odinContext);
             }
-            //);
+
+            var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
+            foreach (var app in allApps)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                logger.LogDebug("Calling ReconcileAuthorizedCircles for app {appName}", app.Name);
+                await circleNetworkService.ReconcileAuthorizedCircles(oldAppRegistration: null, app, odinContext);
+            }
+            
+            tx.Commit();
         }
 
         /// <summary>
@@ -182,7 +185,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             logger.LogDebug("Ensuring all system drives exist");
             await tenantConfigService.EnsureSystemDrivesExist(odinContext);
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             //
             // Ensure all system apps (for older identities)
             //
@@ -203,7 +206,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             logger.LogDebug("Reapplying permissions for ConfirmedConnections Circle");
             await circleNetworkService.UpdateCircleDefinitionAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, odinContext);
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             //
             // Update the apps that use the new circle
             //
@@ -211,7 +214,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
             await UpdateApp(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
             await UpdateApp(SystemAppConstants.MailAppRegistrationRequest, odinContext);
             cancellationToken.ThrowIfCancellationRequested();
-
         }
 
         private async Task DeleteOldCirclesAsync(IOdinContext odinContext)
@@ -291,7 +293,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                 throw new OdinSystemException($"Failed to upgrade app {request.AppId} | {request.Name}. " +
                                               $"PermissionSet does not match");
             }
-            
+
             if (appReg.Grant.DriveGrants.IntersectBy(request.Drives.Select(dg => dg.PermissionedDrive),
                     rdg => rdg.PermissionedDrive).Count() != request.Drives.Count())
             {
@@ -299,7 +301,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
                                               $"Drives does not match");
             }
         }
-        
+
         private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)

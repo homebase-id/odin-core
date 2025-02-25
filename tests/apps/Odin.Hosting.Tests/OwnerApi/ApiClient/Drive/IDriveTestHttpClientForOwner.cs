@@ -31,10 +31,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] streamdata);
         
-        [Multipart]
-        [Post(RootStorageEndpoint + "/uploadpayload")]
-        Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
-        
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteFileResult>> DeleteFile([Body] DeleteFileRequest file);
         
@@ -50,6 +46,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Post(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
+        [Get(RootStorageEndpoint + "/transfer-history")]
+        Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(Guid fileId, Guid alias, Guid type);
+        
         [Post(RootStorageEndpoint + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayloadPost(GetPayloadRequest request);
 
@@ -80,5 +79,10 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         
         [Get(OwnerApiPathConstants.DriveV1 + "/status")]
         Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid alias, Guid type);
+        
+        [Multipart]
+        [Post(RootStorageEndpoint + "/uploadpayload")]
+        Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
+
     }
 }

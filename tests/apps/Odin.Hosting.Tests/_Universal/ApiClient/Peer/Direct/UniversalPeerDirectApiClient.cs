@@ -144,12 +144,12 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> payloads,
         AppNotificationOptions notificationOptions = null,
+        KeyHeader keyHeader = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
-        var keyHeader = KeyHeader.NewRandom16();
-
-
+        keyHeader = keyHeader ?? KeyHeader.NewRandom16();
+        
         TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
             TransferIv = transferIv,
@@ -202,7 +202,6 @@ public class UniversalPeerDirectApiClient(OdinId identity, IApiClientFactory fac
             var driveSvc = RestService.For<IUniversalRefitPeerDirect>(client);
             ApiResponse<TransitResult> response = await driveSvc.UploadFile(parts.ToArray());
 
-            keyHeader.AesKey.Wipe();
 
             return (response, encryptedJsonContent64);
         }

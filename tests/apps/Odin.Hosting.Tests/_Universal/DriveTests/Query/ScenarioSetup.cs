@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -73,9 +74,9 @@ public static class Scenario
     {
         var client = scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var response1 = await client.DriveRedux.UploadNewMetadata(targetDrive, f1);
-        Assert.IsTrue(response1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response1.IsSuccessStatusCode);
         var getHeaderResponse1 = await client.DriveRedux.GetFileHeader(response1.Content!.File);
-        Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
         return response1.Content;
     }
 
@@ -83,9 +84,9 @@ public static class Scenario
     {
         var client = scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var (response, encryptedJsonContent64) = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, f1);
-        Assert.IsTrue(response.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var getHeaderResponse1 = await client.DriveRedux.GetFileHeader(response.Content!.File);
-        Assert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getHeaderResponse1.IsSuccessStatusCode);
         return response.Content;
     }
 }

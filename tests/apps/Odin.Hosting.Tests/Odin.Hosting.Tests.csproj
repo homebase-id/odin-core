@@ -13,24 +13,32 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(USER)' == 'seb'">
-    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>
+    <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>
   </PropertyGroup>
+
+<!--  <PropertyGroup Condition="'$(USER)' == 'todd'">-->
+<!--    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>-->
+<!--  </PropertyGroup>-->
+<!--  -->
+<!--  <PropertyGroup Condition="'$(USER)' == 'taud'">-->
+<!--    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>-->
+<!--  </PropertyGroup>-->
 
   <ItemGroup>
     <PackageReference Include="HttpClientFactoryLite" Version="0.4.0" />
     <PackageReference Include="JetBrains.Profiler.Api" Version="1.4.8" />
     <PackageReference Include="JetBrains.Profiler.SelfApi" Version="2.5.12" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.2" />
     <PackageReference Include="Moq" Version="4.20.72" />
-    <PackageReference Include="NUnit" Version="3.14.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageReference Include="Refit" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\core\Odin.Core.Storage\Odin.Core.Storage.csproj" />
-    <ProjectReference Include="..\..\..\src\services\Odin.Services\Odin.Services.csproj" />
+    <ProjectReference Include="../../../src/core/Odin.Core.Storage/Odin.Core.Storage.csproj" />
+    <ProjectReference Include="../../../src/services/Odin.Services/Odin.Services.csproj" />
     <ProjectReference Include="../../../src/apps/Odin.Hosting/Odin.Hosting.csproj" />
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>

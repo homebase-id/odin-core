@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -14,6 +15,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Refit;
 
@@ -76,7 +78,6 @@ public class UpdateRemoteFileOutboxWorker(
 
     private async Task<(Guid versionTag, Guid globalTransitId)> SendUpdatedFileItemAsync(OutboxFileItem outboxFileItem,
         IOdinContext odinContext,
-        
         CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -104,22 +105,55 @@ public class UpdateRemoteFileOutboxWorker(
         redactedAcl?.OdinIdList?.Clear();
         instructionSet.OriginalAcl = redactedAcl;
 
-        var transferKeyHeaderStream = new StreamPart(
-            new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()),
-            "transferInstructionSet.encrypted", "application/json",
-            Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
-
-        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, true, odinContext);
-
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
 
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-            var response = await client.UpdatePeerFile(transferKeyHeaderStream, metaDataStream, payloadStreams.ToArray());
-            return response;
+            Stream transferKeyHeaderMemory = null;
+            Stream metaDataStream = null;
+            List<Stream> payloadStreams = [];
+
+            try
+            {
+                logger.LogDebug("UpdatePeerFile BEGIN");
+
+                transferKeyHeaderMemory =
+                    new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+                var transferKeyHeaderStreamPart = new StreamPart(
+                    transferKeyHeaderMemory,
+                    "transferInstructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+
+                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) =
+                    await PackageFileStreamsAsync(header, true, odinContext);
+
+                var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
+                    recipient, clientAuthToken);
+
+                var response = await client.UpdatePeerFile(
+                    transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray());
+
+                logger.LogDebug("UpdatePeerFile END");
+
+                return response;
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "SendUpdatedFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                throw;
+            }
+            finally
+            {
+                transferKeyHeaderMemory?.Dispose();
+                metaDataStream?.Dispose();
+                foreach (var stream in payloadStreams)
+                {
+                    stream?.Dispose();
+                }
+            }
         }
 
         try
@@ -149,6 +183,14 @@ public class UpdateRemoteFileOutboxWorker(
         catch (TryRetryException ex)
         {
             var e = ex.InnerException;
+            logger.LogDebug(e, "Failed processing outbox item (type={t}) from outbox. Message {e}", FileItem.Type, e.Message);
+
+            if (e is HttpRequestException httpRequestException)
+            {
+                logger.LogDebug("HttpRequestException Error {e} and status code: {status}", httpRequestException.HttpRequestError,
+                    httpRequestException.StatusCode);
+            }
+
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
                 : LatestTransferStatus.UnknownServerError;
@@ -171,11 +213,20 @@ public class UpdateRemoteFileOutboxWorker(
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         return Task.FromResult(nextRunTime);
     }
-
-    protected override Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
+    
+    protected override async Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext)
     {
         logger.LogDebug(e, "Unrecoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
-        return Task.CompletedTask;
+
+        var update = new UpdateTransferHistoryData()
+        {
+            IsInOutbox = false,
+            LatestTransferStatus = e.TransferStatus,
+            VersionTag = null
+        };
+
+        var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
     }
 }

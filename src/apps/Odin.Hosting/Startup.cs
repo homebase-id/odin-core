@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -10,6 +9,7 @@ using Autofac;
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -20,7 +20,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
@@ -33,11 +35,9 @@ using Odin.Services.Dns;
 using Odin.Services.Dns.PowerDns;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Email;
-using Odin.Services.Logging;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
-using Odin.Core.Util;
 using Odin.Hosting._dev;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
@@ -51,6 +51,7 @@ using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
+using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting
 {
@@ -92,7 +93,6 @@ namespace Odin.Hosting
             var httpClientFactory = new HttpClientFactory();
             services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-            services.AddSingleton<ConcurrentFileManager>();
             services.AddSingleton<DriveFileReaderWriter>();
 
             services.AddControllers()
@@ -237,6 +237,15 @@ namespace Odin.Hosting
             services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
             services.AddIpRateLimiter(_config.Host.IpRateLimitRequestsPerSecond);
+
+            services.AddCoreCacheServices(new CacheConfiguration
+            {
+                Level2CacheType = _config.Cache.Level2CacheType,
+                Level2Configuration = _config.Cache.Level2Configuration
+            });
+
+            // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
+            services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
         }
 
         // ConfigureContainer is where you can register things directly
@@ -247,7 +256,7 @@ namespace Odin.Hosting
         {
             builder.RegisterModule(new LoggingAutofacModule());
             builder.RegisterModule(new MultiTenantAutofacModule());
-           
+
             builder.AddSystemBackgroundServices();
             builder.AddJobManagerServices();
 
@@ -267,6 +276,9 @@ namespace Odin.Hosting
                 default:
                     throw new OdinSystemException("Unsupported database type");
             }
+
+            // Global cache services
+            builder.AddGlobalCaches();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -473,7 +485,6 @@ namespace Odin.Hosting
                         });
                     });
 
-                // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                 app.MapWhen(ctx => true,
                     homeApp =>
                     {
@@ -488,7 +499,12 @@ namespace Odin.Hosting
                         homeApp.Run(async context =>
                         {
                             context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                                                            
+                            var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                            var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
+
+                            var indexFile = Path.Combine(publicPath, "index.html");
+                            await svc.WriteIndexFileAsync(indexFile, odinContext);
                         });
                     });
             }
@@ -511,6 +527,15 @@ namespace Odin.Hosting
                 {
                     var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
                     new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
+                }
+
+                // Sanity ping cache
+                var cache = services.GetRequiredService<IGlobalLevel2Cache>();
+                cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
+                var pong = cache.TryGet<string>("ping");
+                if (pong != "pong")
+                {
+                    throw new OdinSystemException("Cache sanity check failed");
                 }
 
                 // Start system background services
@@ -538,6 +563,7 @@ namespace Odin.Hosting
                 services.ShutdownSystemBackgroundServices().BlockingWait();
             });
         }
+
 
         private void PrepareEnvironment(OdinConfiguration cfg)
         {

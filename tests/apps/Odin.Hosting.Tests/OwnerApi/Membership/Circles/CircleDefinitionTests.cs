@@ -5,6 +5,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -95,7 +96,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(requestWithOwnerOnlyDrive);
-                Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed.  Actual response {createCircleResponse.StatusCode}");
             }
         }
 
@@ -119,16 +120,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(definitionList);
+                ClassicAssert.IsNotNull(definitionList);
 
                 var circle = definitionList.Single();
-                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
+                ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
 
                 //Add an owner-only drive
 
@@ -156,22 +157,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 circle.Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
-                Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.Forbidden, $"Actual response {updateCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.Forbidden, $"Actual response {updateCircleResponse.StatusCode}");
 
                 var getUpdatedCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode,
+                ClassicAssert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode,
                     $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
 
                 var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(updatedDefinitionList);
+                ClassicAssert.IsNotNull(updatedDefinitionList);
 
                 var circle2 = updatedDefinitionList.Single();
 
 
-                Assert.AreNotEqual(circle.Name, circle2.Name);
-                Assert.AreNotEqual(circle.Description, circle2.Description);
+                ClassicAssert.AreNotEqual(circle.Name, circle2.Name);
+                ClassicAssert.AreNotEqual(circle.Description, circle2.Description);
                 CollectionAssert.AreNotEqual(circle.DriveGrants, circle2.DriveGrants);
-                Assert.IsFalse(circle.Permissions == circle2.Permissions);
+                ClassicAssert.IsFalse(circle.Permissions == circle2.Permissions);
 
                 await svc.DeleteCircleDefinition(circle.Id);
 
@@ -204,10 +205,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(requestWithNoPermissionsOrDrives);
-                Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var code = TestUtils.ParseProblemDetails(createCircleResponse!.Error!);
-                Assert.IsTrue(code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                ClassicAssert.IsTrue(code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
             }
         }
 
@@ -221,7 +222,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
             };
 
             var createCircleResponse = await client.Membership.CreateCircleRaw("Circle with UseTransit", grant);
-            Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+            ClassicAssert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
         }
 
         [Test]
@@ -266,29 +267,29 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(definitionList);
+                ClassicAssert.IsNotNull(definitionList);
 
                 var circle = definitionList.Single();
 
-                // Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
-                // Assert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
+                // ClassicAssert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
+                // ClassicAssert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
 
-                Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d.PermissionedDrive == dgr1.PermissionedDrive));
-                Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d.PermissionedDrive == dgr1.PermissionedDrive));
+                ClassicAssert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d.PermissionedDrive == dgr1.PermissionedDrive));
+                ClassicAssert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d.PermissionedDrive == dgr1.PermissionedDrive));
 
-                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
-                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadConnections));
+                ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
+                ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadConnections));
 
-                Assert.AreEqual(request.Name, circle.Name);
-                Assert.AreEqual(request.Description, circle.Description);
+                ClassicAssert.AreEqual(request.Name, circle.Name);
+                ClassicAssert.AreEqual(request.Description, circle.Description);
                 // CollectionAssert.AreEquivalent(request.Drives, circle.Drives);
-                Assert.IsTrue(request.Permissions == circle.Permissions);
+                ClassicAssert.IsTrue(request.Permissions == circle.Permissions);
 
                 // cleanup
                 await svc.DeleteCircleDefinition(circle.Id);
@@ -298,59 +299,62 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
         [Test]
         public async Task CanGetListOfCircleDefinitions()
         {
+            var request1 = new CreateCircleRequest()
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Circle 1",
+                Description = "Test circle description 1",
+                DriveGrants = null,
+                Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
+            };
+
+            var request2 = new CreateCircleRequest()
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Circle 2",
+                Description = "Test circle description 2",
+                DriveGrants = null,
+                Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
+            };
+
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleDefinition>(client, ownerSharedSecret);
-
-                var request1 = new CreateCircleRequest()
+                try
                 {
-                    Id = Guid.NewGuid(),
-                    Name = "Test Circle 1",
-                    Description = "Test circle description 1",
-                    DriveGrants = null,
-                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership })
-                };
+                    var createCircleResponse1 = await svc.CreateCircleDefinition(request1);
+                    ClassicAssert.IsTrue(createCircleResponse1.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse1.StatusCode}");
 
-                var createCircleResponse1 = await svc.CreateCircleDefinition(request1);
-                Assert.IsTrue(createCircleResponse1.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse1.StatusCode}");
+                    var createCircleResponse2 = await svc.CreateCircleDefinition(request2);
+                    ClassicAssert.IsTrue(createCircleResponse2.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse2.StatusCode}");
 
+                    var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
+                    ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
-                var request2 = new CreateCircleRequest()
+                    ClassicAssert.IsNotNull(getCircleDefinitionsResponse.Content);
+                    var definitionList = getCircleDefinitionsResponse.Content.ToList();
+
+                    ClassicAssert.IsTrue(definitionList.Count() == 2);
+
+                    var circle1 = definitionList.Single(x => x.Name == request1.Name);
+                    ClassicAssert.AreEqual(request1.Name, circle1.Name);
+                    ClassicAssert.AreEqual(request1.Description, circle1.Description);
+                    CollectionAssert.AreEqual(request1.DriveGrants, circle1.DriveGrants);
+                    ClassicAssert.IsTrue(request1.Permissions == circle1.Permissions);
+
+                    var circle2 = definitionList.Single(x => x.Name == request2.Name);
+                    ClassicAssert.AreEqual(request2.Name, circle2.Name);
+                    ClassicAssert.AreEqual(request2.Description, circle2.Description);
+                    CollectionAssert.AreEqual(request2.DriveGrants, circle2.DriveGrants);
+                    ClassicAssert.IsTrue(request2.Permissions == circle2.Permissions);
+                }
+                finally
                 {
-                    Id = Guid.NewGuid(),
-                    Name = "Test Circle 2",
-                    Description = "Test circle description 2",
-                    DriveGrants = null,
-                    Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections })
-                };
+                    // cleanup
+                    await svc.DeleteCircleDefinition(request1.Id);
+                    await svc.DeleteCircleDefinition(request2.Id);
+                }
 
-                var createCircleResponse2 = await svc.CreateCircleDefinition(request2);
-                Assert.IsTrue(createCircleResponse2.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse2.StatusCode}");
-
-                var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
-
-                Assert.IsNotNull(getCircleDefinitionsResponse.Content);
-                var definitionList = getCircleDefinitionsResponse.Content.ToList();
-
-                Assert.IsTrue(definitionList.Count() == 2);
-
-                var circle1 = definitionList[0];
-                Assert.AreEqual(request1.Name, circle1.Name);
-                Assert.AreEqual(request1.Description, circle1.Description);
-                CollectionAssert.AreEqual(request1.DriveGrants, circle1.DriveGrants);
-                Assert.IsTrue(request1.Permissions == circle1.Permissions);
-
-                var circle2 = definitionList[1];
-                Assert.AreEqual(request2.Name, circle2.Name);
-                Assert.AreEqual(request2.Description, circle2.Description);
-                CollectionAssert.AreEqual(request2.DriveGrants, circle2.DriveGrants);
-                Assert.IsTrue(request2.Permissions == circle2.Permissions);
-
-                // cleanup
-
-                await svc.DeleteCircleDefinition(circle1.Id);
-                await svc.DeleteCircleDefinition(circle2.Id);
             }
         }
 
@@ -371,16 +375,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(definitionList);
+                ClassicAssert.IsNotNull(definitionList);
 
                 var circle = definitionList.Single();
-                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
+                ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
 
 
                 //
@@ -392,22 +396,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 circle.Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
-                Assert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
 
                 var getUpdatedCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode,
+                ClassicAssert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode,
                     $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
 
                 var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(updatedDefinitionList);
+                ClassicAssert.IsNotNull(updatedDefinitionList);
 
                 var circle2 = updatedDefinitionList.Single();
 
 
-                Assert.AreEqual(circle.Name, circle2.Name);
-                Assert.AreEqual(circle.Description, circle2.Description);
+                ClassicAssert.AreEqual(circle.Name, circle2.Name);
+                ClassicAssert.AreEqual(circle.Description, circle2.Description);
                 CollectionAssert.AreEqual(circle.DriveGrants, circle2.DriveGrants);
-                Assert.IsTrue(circle.Permissions == circle2.Permissions);
+                ClassicAssert.IsTrue(circle.Permissions == circle2.Permissions);
 
                 await svc.DeleteCircleDefinition(circle.Id);
 
@@ -432,35 +436,35 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(definitionList);
+                ClassicAssert.IsNotNull(definitionList);
 
                 var circle = definitionList.Single();
-                Assert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
+                ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
 
 
                 //
                 circle.Disabled = true;
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
-                Assert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
 
                 var updatedDefinitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(updatedDefinitionList);
+                ClassicAssert.IsNotNull(updatedDefinitionList);
 
                 var updatedCircle = updatedDefinitionList.Single();
 
-                Assert.AreEqual(updatedCircle.Disabled, true);
+                ClassicAssert.AreEqual(updatedCircle.Disabled, true);
 
-                Assert.AreEqual(updatedCircle.Name, circle.Name);
-                Assert.AreEqual(updatedCircle.Description, circle.Description);
+                ClassicAssert.AreEqual(updatedCircle.Name, circle.Name);
+                ClassicAssert.AreEqual(updatedCircle.Description, circle.Description);
                 CollectionAssert.AreEqual(updatedCircle.DriveGrants, circle.DriveGrants);
-                Assert.IsTrue(updatedCircle.Permissions == circle.Permissions);
+                ClassicAssert.IsTrue(updatedCircle.Permissions == circle.Permissions);
 
                 await svc.DeleteCircleDefinition(circle.Id);
 
@@ -485,13 +489,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(definitionList);
+                ClassicAssert.IsNotNull(definitionList);
 
                 var circle = definitionList.Single();
 
@@ -505,10 +509,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
 
-                Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var code = TestUtils.ParseProblemDetails(updateCircleResponse.Error!);
-                Assert.IsTrue(code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                ClassicAssert.IsTrue(code == OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
 
                 await svc.DeleteCircleDefinition(circle.Id);
             }
@@ -530,24 +534,24 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(definitionList);
+                ClassicAssert.IsNotNull(definitionList);
 
                 var id = definitionList.Single().Id;
                 var deleteCircleResponse = await svc.DeleteCircleDefinition(id);
-                Assert.IsTrue(deleteCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {deleteCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(deleteCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {deleteCircleResponse.StatusCode}");
 
                 var secondGetCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(secondGetCircleDefinitionsResponse.IsSuccessStatusCode,
+                ClassicAssert.IsTrue(secondGetCircleDefinitionsResponse.IsSuccessStatusCode,
                     $"Failed.  Actual response {secondGetCircleDefinitionsResponse.StatusCode}");
                 var emptyDefinitionList = secondGetCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(emptyDefinitionList);
-                Assert.IsTrue(!emptyDefinitionList.Any());
+                ClassicAssert.IsNotNull(emptyDefinitionList);
+                ClassicAssert.IsTrue(!emptyDefinitionList.Any());
             }
         }
     }

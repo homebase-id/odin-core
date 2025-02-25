@@ -23,7 +23,7 @@ namespace Odin.Services.Membership.Connections
 
             await using var tx = await db.BeginStackedTransactionAsync();
 
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
             foreach (var identity in allIdentities.Results)
             {

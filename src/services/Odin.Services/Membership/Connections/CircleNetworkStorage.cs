@@ -11,6 +11,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Apps;
@@ -29,7 +30,7 @@ public class CircleNetworkStorage
     private readonly IdentityDatabase _db;
 
     private readonly SingleKeyValueStorage _icrKeyStorage;
-    
+
     private readonly SingleKeyValueStorage _peerIcrClientStorage;
 
     public CircleNetworkStorage(CircleMembershipService circleMembershipService, IdentityDatabase db)
@@ -39,7 +40,7 @@ public class CircleNetworkStorage
 
         const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
         _icrKeyStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
-        
+
         const string peerIcrClientStorageContextKey = "0ee6aeff-2c21-412d-8050-1a47d025af46";
         _peerIcrClientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(peerIcrClientStorageContextKey));
     }
@@ -146,11 +147,11 @@ public class CircleNetworkStorage
         tx.Commit();
     }
 
-    public async Task<(IEnumerable<IdentityConnectionRegistration>, UnixTimeUtcUnique? nextCursor)> GetListAsync(int count, UnixTimeUtcUnique? cursor,
+    public async Task<(IEnumerable<IdentityConnectionRegistration>, string cursor)> GetListAsync(int count,
+        string cursor,
         ConnectionStatus connectionStatus)
     {
-        var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
-        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, adjustedCursor);
+        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, cursor);
 
         // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
         // single db connection that is not thread safe.
@@ -170,7 +171,6 @@ public class CircleNetworkStorage
     /// <exception cref="OdinClientException"></exception>
     public async Task CreateIcrKeyAsync(SensitiveByteArray masterKey)
     {
-        
         var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
         if (null != existingKey)
         {
@@ -190,25 +190,22 @@ public class CircleNetworkStorage
 
     public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()
     {
-        
         var key = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }
 
-    
+
     public async Task SavePeerIcrClientAsync(PeerIcrClient client)
     {
-        
         await _peerIcrClientStorage.UpsertAsync(_db.KeyValue, client.AccessRegistration.Id, client);
     }
 
     public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
-        
         return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_db.KeyValue, accessRegId);
     }
 
-    
+
     private async Task<IdentityConnectionRegistration> MapFromStorageAsync(ConnectionsRecord record)
     {
         var json = record.data.ToStringFromUtf8Bytes();
@@ -241,14 +238,16 @@ public class CircleNetworkStorage
         {
             OdinId = record.identity,
             Status = (ConnectionStatus)record.status,
-            Created = record.created.ToUnixTimeUtc().milliseconds,
-            LastUpdated = record.modified.HasValue ? record.modified.Value.ToUnixTimeUtc().milliseconds : 0,
+            Created = record.created.milliseconds,
+            LastUpdated = record.modified.HasValue ? record.modified.Value.milliseconds : 0,
             AccessGrant = data.AccessGrant,
             OriginalContactData = data.OriginalContactData,
-            EncryptedClientAccessToken = new EncryptedClientAccessToken()
-            {
-                EncryptedData = data.EncryptedClientAccessToken
-            },
+            EncryptedClientAccessToken = data.EncryptedClientAccessToken == null
+                ? null
+                : new EncryptedClientAccessToken()
+                {
+                    EncryptedData = data.EncryptedClientAccessToken
+                },
 
             TemporaryWeakClientAccessToken = string.IsNullOrEmpty(data.WeakClientAccessToken)
                 ? null
@@ -276,7 +275,7 @@ public class CircleNetworkStorage
         {
             identity = odinId,
             status = (int)status,
-            modified = UnixTimeUtcUnique.Now(),
+            modified = UnixTimeUtc.Now(),
             displayName = "",
             data = OdinSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
         };

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.DataSubscription.Follower;
@@ -77,7 +78,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // Validate Pippin knows Sam follows him
         //
         var samFollowingPippinDefinition = await pippinOwnerClient.OwnerFollower.GetFollower(samOwnerClient.Identity);
-        Assert.IsNotNull(samFollowingPippinDefinition);
+        ClassicAssert.IsNotNull(samFollowingPippinDefinition);
 
         //
         // Pippin uploads a post
@@ -91,7 +92,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // Get the post from Sam's feed drive, validate we got it
         //
         var headerOnSamsFeed = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsTrue(headerOnSamsFeed.FileMetadata.AppData.Content == uploadedContent);
+        ClassicAssert.IsTrue(headerOnSamsFeed.FileMetadata.AppData.Content == uploadedContent);
 
         //
         // Sam adds reaction from Sam's feed to Pippin's channel
@@ -109,28 +110,28 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         var response = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
         {
             File = uploadResult.GlobalTransitIdFileIdentifier,
-            Cursor = 0,
+            Cursor = "",
             MaxRecords = 100
         });
 
-        Assert.IsTrue(response.Reactions.Count == 1);
+        ClassicAssert.IsTrue(response.Reactions.Count == 1);
         var theReaction = response.Reactions.SingleOrDefault();
-        Assert.IsTrue(theReaction!.ReactionContent == reactionContent);
-        Assert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
+        ClassicAssert.IsTrue(theReaction!.ReactionContent == reactionContent);
+        ClassicAssert.IsTrue(theReaction!.GlobalTransitIdFileIdentifier == uploadResult.GlobalTransitIdFileIdentifier);
 
         //
         // Get the post from Sam's feed drive, validate we got it
         //
         var headerOnSamsFeedWithReaction = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsTrue(headerOnSamsFeedWithReaction.FileMetadata.AppData.Content == uploadedContent);
+        ClassicAssert.IsTrue(headerOnSamsFeedWithReaction.FileMetadata.AppData.Content == uploadedContent);
         var reactionSummaryValue =
             headerOnSamsFeedWithReaction.FileMetadata.ReactionPreview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == reactionContent);
-        Assert.IsNotNull(reactionSummaryValue, "could not find reaction on Sam's feed");
+        ClassicAssert.IsNotNull(reactionSummaryValue, "could not find reaction on Sam's feed");
 
         // Now, Sam deletes the reactions
         var deleteReactionResponse =
             await samOwnerClient.Transit.DeleteReaction(pippinOwnerClient.Identity, reactionContent, uploadResult.GlobalTransitIdFileIdentifier);
-        Assert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(deleteReactionResponse.IsSuccessStatusCode);
 
         await pippinOwnerClient.Transit.WaitForEmptyOutbox(pippinChannelDrive);
 
@@ -138,7 +139,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         // Get the post from sam's feed drive again, it should have the header updated
         //
         var headerOnSamsFeedWithAfterReactionWasDeleted = await GetHeaderFromFeedDrive(samOwnerClient, uploadResult);
-        Assert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(),
+        ClassicAssert.IsFalse(headerOnSamsFeedWithAfterReactionWasDeleted.FileMetadata.ReactionPreview.Reactions.Any(),
             "There should be no reactions in the summary but there was at least one");
     }
 
@@ -174,10 +175,10 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
         };
 
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
+        ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Batch size should be 1 but was {batch.SearchResults.Count()}");
         var header = batch.SearchResults.First();
-        Assert.IsTrue(header.FileState == FileState.Active);
-        Assert.IsTrue(header.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
+        ClassicAssert.IsTrue(header.FileState == FileState.Active);
+        ClassicAssert.IsTrue(header.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
 
         return header;
     }

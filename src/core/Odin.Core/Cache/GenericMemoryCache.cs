@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
+using Odin.Core.Exceptions;
 using Odin.Core.Threading;
 
 namespace Odin.Core.Cache;
@@ -16,18 +17,12 @@ public interface IGenericMemoryCache
     bool TryGet(byte[] key, out object? value);
     bool TryGet<T>(string key, out T? value);
     bool TryGet<T>(byte[] key, out T? value);
-    void Set(string key, object? value, TimeSpan lifespan);
-    void Set(string key, object? value, DateTimeOffset absoluteExpiration);
-    void Set(byte[] key, object? value, TimeSpan lifespan);
-    void Set(byte[] key, object? value, DateTimeOffset absoluteExpiration);
-    T? GetOrCreate<T>(string key, Func<T?> factory, DateTimeOffset absoluteExpiration);
-    T? GetOrCreate<T>(string key, Func<T?> factory, TimeSpan lifespan);
-    T? GetOrCreate<T>(byte[] key, Func<T?> factory, DateTimeOffset absoluteExpiration);
-    T? GetOrCreate<T>(byte[] key, Func<T?> factory, TimeSpan lifespan);
-    Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, DateTimeOffset absoluteExpiration);
-    Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, TimeSpan lifespan);
-    Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, DateTimeOffset absoluteExpiration);
-    Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, TimeSpan lifespan);
+    void Set(string key, object? value, MemoryCacheEntryOptions options);
+    void Set(byte[] key, object? value, MemoryCacheEntryOptions options);
+    T? GetOrCreate<T>(string key, Func<T?> factory, MemoryCacheEntryOptions options);
+    T? GetOrCreate<T>(byte[] key, Func<T?> factory, MemoryCacheEntryOptions options);
+    Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, MemoryCacheEntryOptions options);
+    Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, MemoryCacheEntryOptions options);
     object? Remove(string key);
     object? Remove(byte[] key);
     bool Contains(string key);
@@ -119,44 +114,25 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
     //
 
-    public void Set(string key, object? value, TimeSpan lifespan)
+    public void Set(string key, object? value, MemoryCacheEntryOptions options)
     {
-        var options = new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = lifespan
-        };
+        Check(options);
         _cache.Set(key, value ?? NullValue, options);
     }
 
     //
 
-    public void Set(string key, object? value, DateTimeOffset absoluteExpiration)
+    public void Set(byte[] key, object? value, MemoryCacheEntryOptions options)
     {
-        var options = new MemoryCacheEntryOptions
-        {
-            AbsoluteExpiration = absoluteExpiration
-        };
-        _cache.Set(key, value ?? NullValue, options);
+        Set(Convert.ToBase64String(key), value, options);
     }
 
     //
 
-    public void Set(byte[] key, object? value, TimeSpan lifespan)
+    public T? GetOrCreate<T>(string key, Func<T?> factory, MemoryCacheEntryOptions options)
     {
-        Set(Convert.ToBase64String(key), value, lifespan);
-    }
+        Check(options);
 
-    //
-
-    public void Set(byte[] key, object? value, DateTimeOffset absoluteExpiration)
-    {
-        Set(Convert.ToBase64String(key), value, absoluteExpiration);
-    }
-
-    //
-
-    public T? GetOrCreate<T>(string key, Func<T?> factory, DateTimeOffset absoluteExpiration)
-    {
         if (TryGet<T?>(key, out var existingValue))
         {
             return existingValue;
@@ -172,10 +148,6 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
             // Execute the factory function and store the result
             var value = factory();
-            var options = new MemoryCacheEntryOptions
-            {
-                AbsoluteExpiration = absoluteExpiration
-            };
             _cache.Set(key, value ?? NullValue, options);
 
             return value;
@@ -183,29 +155,17 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
     }
     //
 
-    public T? GetOrCreate<T>(string key, Func<T?> factory, TimeSpan lifespan)
+    public T? GetOrCreate<T>(byte[] key, Func<T?> factory, MemoryCacheEntryOptions options)
     {
-        return GetOrCreate(key, factory, DateTimeOffset.UtcNow.Add(lifespan));
+        return GetOrCreate(Convert.ToBase64String(key), factory, options);
     }
 
     //
 
-    public T? GetOrCreate<T>(byte[] key, Func<T?> factory, DateTimeOffset absoluteExpiration)
+    public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, MemoryCacheEntryOptions options)
     {
-        return GetOrCreate(Convert.ToBase64String(key), factory, absoluteExpiration);
-    }
+        Check(options);
 
-    //
-
-    public T? GetOrCreate<T>(byte[] key, Func<T?> factory, TimeSpan lifespan)
-    {
-        return GetOrCreate(Convert.ToBase64String(key), factory, lifespan);
-    }
-
-    //
-
-    public async Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, DateTimeOffset absoluteExpiration)
-    {
         if (TryGet<T?>(key, out var existingValue))
         {
             return existingValue;
@@ -221,10 +181,6 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
             // Execute the factory function and store the result
             var value = await factory().ConfigureAwait(false);
-            var options = new MemoryCacheEntryOptions
-            {
-                AbsoluteExpiration = absoluteExpiration
-            };
             _cache.Set(key, value ?? NullValue, options);
 
             return value;
@@ -233,23 +189,9 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
     //
 
-    public Task<T?> GetOrCreateAsync<T>(string key, Func<Task<T?>> factory, TimeSpan lifespan)
+    public Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, MemoryCacheEntryOptions options)
     {
-        return GetOrCreateAsync(key, factory, DateTimeOffset.UtcNow.Add(lifespan));
-    }
-
-    //
-
-    public Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, DateTimeOffset absoluteExpiration)
-    {
-        return GetOrCreateAsync(Convert.ToBase64String(key), factory, absoluteExpiration);
-    }
-
-    //
-
-    public Task<T?> GetOrCreateAsync<T>(byte[] key, Func<Task<T?>> factory, TimeSpan lifespan)
-    {
-        return GetOrCreateAsync(Convert.ToBase64String(key), factory, DateTimeOffset.UtcNow.Add(lifespan));
+        return GetOrCreateAsync(Convert.ToBase64String(key), factory, options);
     }
 
     //
@@ -323,6 +265,49 @@ public class GenericMemoryCache : IGenericMemoryCache, IDisposable
 
         return GenerateKey(prefix, strings);
     }
+
+    //
+
+    private static void Check(MemoryCacheEntryOptions options)
+    {
+        var badOptions =
+            options.AbsoluteExpiration == null &&
+            options.AbsoluteExpirationRelativeToNow == null &&
+            options.SlidingExpiration == null;
+        if (badOptions)
+        {
+            throw new OdinSystemException("MemoryCacheEntryOptions: missing expiration");
+        }
+    }
 }
 
 public class GenericMemoryCache<TRegistration> : GenericMemoryCache, IGenericMemoryCache<TRegistration>;
+
+//
+
+public static class Expiration
+{
+    public static MemoryCacheEntryOptions Absolute(DateTimeOffset absoluteExpiration)
+    {
+        return new MemoryCacheEntryOptions
+        {
+            AbsoluteExpiration = absoluteExpiration
+        };
+    }
+
+    public static MemoryCacheEntryOptions Relative(TimeSpan absoluteExpirationRelativeToNow)
+    {
+        return new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = absoluteExpirationRelativeToNow
+        };
+    }
+
+    public static MemoryCacheEntryOptions Sliding(TimeSpan slidingExpiration)
+    {
+        return new MemoryCacheEntryOptions
+        {
+            SlidingExpiration = slidingExpiration
+        };
+    }
+}

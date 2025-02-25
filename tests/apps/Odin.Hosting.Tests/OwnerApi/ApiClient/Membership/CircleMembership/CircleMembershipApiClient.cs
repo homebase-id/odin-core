@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -46,30 +47,30 @@ public class CircleMembershipApiClient
             };
 
             var createCircleResponse = await svc.CreateCircleDefinition(request);
-            Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+            ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
             var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-            Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+            ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
             var definitionList = getCircleDefinitionsResponse.Content;
-            Assert.IsNotNull(definitionList);
+            ClassicAssert.IsNotNull(definitionList);
 
             var circle = definitionList.Single(c => c.Id == request.Id);
 
             foreach (var dgr in request.DriveGrants ?? new List<DriveGrantRequest>())
             {
-                Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr));
+                ClassicAssert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr));
             }
 
             // Ensure Circle has the keys matching the request.  so it's ok if the request was null
             foreach (var k in request.Permissions?.Keys ?? new List<int>())
             {
-                Assert.IsTrue(circle.Permissions.HasKey(k));
+                ClassicAssert.IsTrue(circle.Permissions.HasKey(k));
             }
 
-            Assert.AreEqual(request.Name, circle.Name);
-            Assert.AreEqual(request.Description, circle.Description);
-            Assert.IsTrue(request.Permissions == circle.Permissions);
+            ClassicAssert.AreEqual(request.Name, circle.Name);
+            ClassicAssert.AreEqual(request.Description, circle.Description);
+            ClassicAssert.IsTrue(request.Permissions == circle.Permissions);
 
             return circle;
         }

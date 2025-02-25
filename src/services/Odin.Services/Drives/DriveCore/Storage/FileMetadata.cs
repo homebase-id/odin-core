@@ -79,6 +79,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public AppFileMetaData AppData { get; set; }
 
+        public LocalAppMetadata LocalAppData { get; set; }
+        
         public List<PayloadDescriptor> Payloads { get; set; }
 
         public Guid? VersionTag { get; set; }

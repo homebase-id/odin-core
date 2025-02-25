@@ -42,6 +42,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _identity = value;
                }
         }
+        internal string identityNoLengthCheck
+        {
+           get {
+                   return _identity;
+               }
+           set {
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 3) throw new Exception("Too short");
+                  _identity = value;
+               }
+        }
         private Guid _driveId;
         public Guid driveId
         {
@@ -52,8 +63,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _driveId = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private UnixTimeUtc _created;
+        public UnixTimeUtc created
         {
            get {
                    return _created;
@@ -62,8 +73,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private UnixTimeUtc? _modified;
+        public UnixTimeUtc? modified
         {
            get {
                    return _modified;
@@ -141,8 +152,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.identity;
                 insertParam3.Value = item.driveId.ToByteArray();
-                var now = UnixTimeUtcUnique.Now();
-                insertParam4.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam4.Value = now.milliseconds;
                 item.modified = null;
                 insertParam5.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -182,8 +193,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.identity;
                 insertParam3.Value = item.driveId.ToByteArray();
-                var now = UnixTimeUtcUnique.Now();
-                insertParam4.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam4.Value = now.milliseconds;
                 item.modified = null;
                 insertParam5.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
@@ -222,20 +233,20 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam5 = upsertCommand.CreateParameter();
                 upsertParam5.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam5);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.identity;
                 upsertParam3.Value = item.driveId.ToByteArray();
-                upsertParam4.Value = now.uniqueTime;
-                upsertParam5.Value = now.uniqueTime;
+                upsertParam4.Value = now.milliseconds;
+                upsertParam5.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = rdr.GetInt64(0);
-                   long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                   item.created = new UnixTimeUtcUnique(created);
+                   long created = (long) rdr[0];
+                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                   item.created = new UnixTimeUtc(created);
                    if (modified != null)
-                      item.modified = new UnixTimeUtcUnique((long)modified);
+                      item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
@@ -269,12 +280,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam5 = updateCommand.CreateParameter();
                 updateParam5.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam5);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.identity;
                 updateParam3.Value = item.driveId.ToByteArray();
-                updateParam4.Value = now.uniqueTime;
-                updateParam5.Value = now.uniqueTime;
+                updateParam4.Value = now.milliseconds;
+                updateParam5.Value = now.milliseconds;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -300,7 +311,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -315,22 +326,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected FollowsMeRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<FollowsMeRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new FollowsMeRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.identity = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.driveId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.created = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[3]);
-            item.modified = rdr.IsDBNull(4) ? 
-                null : new UnixTimeUtcUnique((long)rdr[4]);
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.identityNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[4] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[4]);
             return item;
        }
 
@@ -370,7 +375,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
             var result = new List<FollowsMeRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -379,12 +383,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.identity = identity;
             item.driveId = driveId;
-
-            item.created = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[0]);
-
-            item.modified = rdr.IsDBNull(1) ? 
-                null : new UnixTimeUtcUnique((long)rdr[1]);
+            item.created = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[0]);
+            item.modified = (rdr[1] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[1]);
             return item;
        }
 
@@ -436,7 +436,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
             var result = new List<FollowsMeRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -444,15 +443,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new FollowsMeRecord();
             item.identityId = identityId;
             item.identity = identity;
-
-            item.driveId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.created = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[1]);
-
-            item.modified = rdr.IsDBNull(2) ? 
-                null : new UnixTimeUtcUnique((long)rdr[2]);
+            item.driveId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
+            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 

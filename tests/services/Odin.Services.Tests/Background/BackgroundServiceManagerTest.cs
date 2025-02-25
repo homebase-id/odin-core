@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Statistics.Serilog;
@@ -90,7 +91,7 @@ public class BackgroundServiceManagerTest
         var exception = Assert.ThrowsAsync<InvalidOperationException>(async () => 
             await manager.StartAsync(_container.Resolve<NoOpBackgroundService>())); 
         
-        Assert.AreEqual("Background service not found. Did you forget to call Create?", exception?.Message);
+        ClassicAssert.AreEqual("Background service not found. Did you forget to call Create?", exception?.Message);
     }
 
     [Test]
@@ -103,7 +104,7 @@ public class BackgroundServiceManagerTest
         var exception = Assert.Throws<InvalidOperationException>(() => 
              manager.Create<NoOpBackgroundService>("asdasdasd")); 
         
-        Assert.AreEqual("Background service 'asdasdasd' already exists.", exception?.Message);
+        ClassicAssert.AreEqual("Background service 'asdasdasd' already exists.", exception?.Message);
     }
     
     [Test]
@@ -114,16 +115,16 @@ public class BackgroundServiceManagerTest
         var service = await manager.StartAsync<NoOpBackgroundService>("dummy-service");
         await Task.Delay(1);
 
-        Assert.True(service.DidInitialize);
-        Assert.True(service.DidFinish);
-        Assert.False(service.DidShutdown);
-        Assert.False(service.DidDispose);
+        ClassicAssert.True(service.DidInitialize);
+        ClassicAssert.True(service.DidFinish);
+        ClassicAssert.False(service.DidShutdown);
+        ClassicAssert.False(service.DidDispose);
 
         await manager.StopAsync("dummy-service");
-        Assert.True(service.DidInitialize);
-        Assert.True(service.DidFinish);
-        Assert.True(service.DidShutdown);
-        Assert.True(service.DidDispose);
+        ClassicAssert.True(service.DidInitialize);
+        ClassicAssert.True(service.DidFinish);
+        ClassicAssert.True(service.DidShutdown);
+        ClassicAssert.True(service.DidDispose);
 
         AssertLogEvents();
     }
@@ -139,17 +140,17 @@ public class BackgroundServiceManagerTest
         Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
 
         await Task.Delay(1);
-        Assert.True(service.DidInitialize);
-        Assert.False(service.DidFinish);
-        Assert.False(service.DidShutdown);
-        Assert.False(service.DidDispose);
+        ClassicAssert.True(service.DidInitialize);
+        ClassicAssert.False(service.DidFinish);
+        ClassicAssert.False(service.DidShutdown);
+        ClassicAssert.False(service.DidDispose);
 
         await manager.StopAsync("dummy-service");
         Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
-        Assert.True(service.DidInitialize);
-        Assert.True(service.DidFinish);
-        Assert.True(service.DidShutdown);
-        Assert.True(service.DidDispose);
+        ClassicAssert.True(service.DidInitialize);
+        ClassicAssert.True(service.DidFinish);
+        ClassicAssert.True(service.DidShutdown);
+        ClassicAssert.True(service.DidDispose);
 
         AssertLogEvents();
     }
@@ -176,20 +177,20 @@ public class BackgroundServiceManagerTest
          await Task.Delay(1);
          foreach (var service in services.Select(s => s.Result))
          {
-             Assert.True(service.DidInitialize);
-             Assert.False(service.DidFinish);
-             Assert.False(service.DidShutdown);
-             Assert.False(service.DidDispose);
+             ClassicAssert.True(service.DidInitialize);
+             ClassicAssert.False(service.DidFinish);
+             ClassicAssert.False(service.DidShutdown);
+             ClassicAssert.False(service.DidDispose);
          }
 
          await manager.ShutdownAsync();
          Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
          foreach (var service in services.Select(s => s.Result))
          {
-             Assert.True(service.DidInitialize);
-             Assert.True(service.DidFinish);
-             Assert.True(service.DidShutdown);
-             Assert.True(service.DidDispose);
+             ClassicAssert.True(service.DidInitialize);
+             ClassicAssert.True(service.DidFinish);
+             ClassicAssert.True(service.DidShutdown);
+             ClassicAssert.True(service.DidDispose);
          }
 
          AssertLogEvents();
@@ -229,22 +230,22 @@ public class BackgroundServiceManagerTest
             Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
             foreach (var service in services.Select(s => s.Result))
             {
-                Assert.True(service.DidInitialize);
-                Assert.False(service.DidFinish);
-                Assert.False(service.DidShutdown);
-                Assert.False(service.DidDispose);
-                Assert.AreEqual(3, service.Counter);
+                ClassicAssert.True(service.DidInitialize);
+                ClassicAssert.False(service.DidFinish);
+                ClassicAssert.False(service.DidShutdown);
+                ClassicAssert.False(service.DidDispose);
+                ClassicAssert.AreEqual(3, service.Counter);
             }
 
             await manager.StopAllAsync();
             Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
             foreach (var service in services.Select(s => s.Result))
             {
-                Assert.True(service.DidInitialize);
-                Assert.True(service.DidFinish);
-                Assert.True(service.DidShutdown);
-                Assert.True(service.DidDispose);
-                Assert.AreEqual(3, service.Counter);
+                ClassicAssert.True(service.DidInitialize);
+                ClassicAssert.True(service.DidFinish);
+                ClassicAssert.True(service.DidShutdown);
+                ClassicAssert.True(service.DidDispose);
+                ClassicAssert.AreEqual(3, service.Counter);
             }
         }
 
@@ -254,7 +255,7 @@ public class BackgroundServiceManagerTest
         {
             await manager.StartAsync<LoopingBackgroundServiceWithSleepAndWakeUp>(Guid.NewGuid().ToString());
         });
-        Assert.AreEqual("The background service manager is stopping.", exception?.Message);
+        ClassicAssert.AreEqual("The background service manager is stopping.", exception?.Message);
 
         AssertLogEvents();
     }
@@ -271,12 +272,12 @@ public class BackgroundServiceManagerTest
         Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(1)));
         
         await Task.Delay(200);
-        Assert.AreEqual(1, service.Counter);
+        ClassicAssert.AreEqual(1, service.Counter);
         
         manager.PulseBackgroundProcessor("foo");
         await Task.Delay(200);
         
-        Assert.AreEqual(2, service.Counter);
+        ClassicAssert.AreEqual(2, service.Counter);
 
         AssertLogEvents();
     }
@@ -396,27 +397,27 @@ public class BackgroundServiceManagerTest
 
          var service =  manager.Create<ScopeTestBackgroundService>("scope-test");
 
-         Assert.False(service.DidInitialize);
-         Assert.False(service.DidFinish);
-         Assert.False(service.DidShutdown);
-         Assert.False(service.DidDispose);
-         Assert.AreEqual("new born", service.ScopedTestValue.Value);
+         ClassicAssert.False(service.DidInitialize);
+         ClassicAssert.False(service.DidFinish);
+         ClassicAssert.False(service.DidShutdown);
+         ClassicAssert.False(service.DidDispose);
+         ClassicAssert.AreEqual("new born", service.ScopedTestValue.Value);
          
          await manager.StartAsync(service);
          await Task.Delay(1);
 
-         Assert.True(service.DidInitialize);
-         Assert.True(service.DidFinish);
-         Assert.False(service.DidShutdown);
-         Assert.False(service.DidDispose);
-         Assert.AreEqual("ExecuteAsync", service.ScopedTestValue.Value);
+         ClassicAssert.True(service.DidInitialize);
+         ClassicAssert.True(service.DidFinish);
+         ClassicAssert.False(service.DidShutdown);
+         ClassicAssert.False(service.DidDispose);
+         ClassicAssert.AreEqual("ExecuteAsync", service.ScopedTestValue.Value);
         
          await manager.StopAsync("scope-test");
-         Assert.True(service.DidInitialize);
-         Assert.True(service.DidFinish);
-         Assert.True(service.DidShutdown);
-         Assert.True(service.DidDispose);
-         Assert.AreEqual("StoppedAsync", service.ScopedTestValue.Value);
+         ClassicAssert.True(service.DidInitialize);
+         ClassicAssert.True(service.DidFinish);
+         ClassicAssert.True(service.DidShutdown);
+         ClassicAssert.True(service.DidDispose);
+         ClassicAssert.AreEqual("StoppedAsync", service.ScopedTestValue.Value);
          
          scopedTestValue = _container.Resolve<ScopedTestValue>();
          Assert.That(scopedTestValue.Value, Is.EqualTo("sanity"));
@@ -432,25 +433,25 @@ public class BackgroundServiceManagerTest
          var service = await manager.StartAsync<PulseTestBackgroundService>();
          await Task.Delay(1);
 
-         Assert.True(service.DidInitialize);
-         Assert.False(service.DidFinish);
-         Assert.False(service.DidShutdown);
-         Assert.False(service.DidDispose);
+         ClassicAssert.True(service.DidInitialize);
+         ClassicAssert.False(service.DidFinish);
+         ClassicAssert.False(service.DidShutdown);
+         ClassicAssert.False(service.DidDispose);
 
-         Assert.False(service.Pulsed);
+         ClassicAssert.False(service.Pulsed);
 
          var otherService = _container.Resolve<PulseTestBackgroundService>();
          var trigger = _container.Resolve<IBackgroundServiceTrigger<PulseTestBackgroundService>>();
          trigger.PulseBackgroundProcessor();
          await Task.Delay(10);
-         Assert.True(service.Pulsed);
-         Assert.False(otherService.Pulsed);
+         ClassicAssert.True(service.Pulsed);
+         ClassicAssert.False(otherService.Pulsed);
 
          await manager.StopAsync<PulseTestBackgroundService>();
-         Assert.True(service.DidInitialize);
-         Assert.True(service.DidFinish);
-         Assert.True(service.DidShutdown);
-         Assert.True(service.DidDispose);
+         ClassicAssert.True(service.DidInitialize);
+         ClassicAssert.True(service.DidFinish);
+         ClassicAssert.True(service.DidShutdown);
+         ClassicAssert.True(service.DidDispose);
 
          AssertLogEvents();
      }

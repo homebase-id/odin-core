@@ -41,6 +41,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public Guid Marker { get; set; }
 
+        public string CorrelationId { get; set; }
+
         /// <summary>
         /// The FileSystemType of the incoming file
         /// </summary>

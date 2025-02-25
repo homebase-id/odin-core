@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -14,6 +15,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
@@ -66,8 +68,8 @@ public class SendFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<(Guid versionTag, Guid globalTransitId)> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext,
-        
+    private async Task<(Guid versionTag, Guid globalTransitId)> SendOutboxFileItemAsync(OutboxFileItem outboxFileItem,
+        IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
@@ -79,7 +81,7 @@ public class SendFileOutboxWorkerAsync(
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;
-
+        
         if (header.ServerMetadata.AllowDistribution == false)
         {
             throw new OdinOutboxProcessingException("File does not allow distribution")
@@ -100,23 +102,56 @@ public class SendFileOutboxWorkerAsync(
         redactedAcl?.OdinIdList?.Clear();
         instructionSet.OriginalAcl = redactedAcl;
 
-        var transferKeyHeaderStream = new StreamPart(
-            new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray()),
-            "transferInstructionSet.encrypted", "application/json",
-            Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
-
-        var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-        var (metaDataStream, payloadStreams) = await PackageFileStreamsAsync(header, shouldSendPayload, odinContext, options.OverrideRemoteGlobalTransitId);
-
         var decryptedClientAuthTokenBytes = outboxFileItem.State.EncryptedClientAuthToken;
         var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
         decryptedClientAuthTokenBytes.Wipe(); //never send the client auth token; even if encrypted
-        
+
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(recipient, clientAuthToken);
-            var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payloadStreams.ToArray());
-            return response;
+            Stream transferKeyHeaderMemory = null;
+            Stream metaDataStream = null;
+            List<Stream> payloadStreams = [];
+
+            try
+            {
+                logger.LogDebug("SendHostToHost BEGIN");
+
+                transferKeyHeaderMemory =
+                    new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+                var transferKeyHeaderStreamPart = new StreamPart(
+                    transferKeyHeaderMemory,
+                    "transferInstructionSet.encrypted", "application/json",
+                    Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
+
+                var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
+
+                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) =
+                    await PackageFileStreamsAsync(header, shouldSendPayload, odinContext, options.OverrideRemoteGlobalTransitId);
+
+                var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
+                        recipient, clientAuthToken);
+
+                var response = await client.SendHostToHost(
+                    transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray());
+
+                logger.LogDebug("SendHostToHost END");
+                return response;
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "SendOutboxFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                throw;
+            }
+            finally
+            {
+                transferKeyHeaderMemory?.Dispose();
+                metaDataStream?.Dispose();
+                foreach (var stream in payloadStreams)
+                {
+                    stream?.Dispose();
+                }
+            }
         }
 
         try
@@ -146,6 +181,15 @@ public class SendFileOutboxWorkerAsync(
         catch (TryRetryException ex)
         {
             var e = ex.InnerException;
+
+            logger.LogDebug(e, "Failed processing outbox item (type={t}) from outbox. Message {e}", FileItem.Type, e.Message);
+
+            if (e is HttpRequestException httpRequestException)
+            {
+                logger.LogDebug("HttpRequestException Error {e} and status code: {status}", httpRequestException.HttpRequestError,
+                    httpRequestException.StatusCode);
+            }
+
             var status = (e is TaskCanceledException or HttpRequestException or OperationCanceledException)
                 ? LatestTransferStatus.RecipientServerNotResponding
                 : LatestTransferStatus.UnknownServerError;
@@ -164,16 +208,19 @@ public class SendFileOutboxWorkerAsync(
     protected override async Task<UnixTimeUtc> HandleRecoverableTransferStatus(IOdinContext odinContext,
         OdinOutboxProcessingException e)
     {
-        logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.", e.File, e.TransferStatus);
-
         var update = new UpdateTransferHistoryData()
         {
             IsInOutbox = true,
             LatestTransferStatus = e.TransferStatus,
             VersionTag = null
         };
-        
+
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
+
+        logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.  Next Run Time {nrt} sec", e.File,
+            e.TransferStatus,
+            nextRunTime.AddMilliseconds(UnixTimeUtc.Now().milliseconds * -1).seconds);
+        
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
         await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
 

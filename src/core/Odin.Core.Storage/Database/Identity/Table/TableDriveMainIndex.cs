@@ -55,12 +55,12 @@ public class TableDriveMainIndex(
         return await base.UpsertAsync(item);
     }
 
-    public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId) 
+    public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
         return base.ReadRecordFromReader2(rdr, identityKey.Id, driveId);
     }
 
-    // REMOVED TransferHistory and ReactionUpdate by hand
+    // REMOVED TransferHistory and ReactionSummary by hand
     public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item)
     {
         item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -76,11 +76,12 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var upsertCommand = cn.CreateCommand();
 
-        upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
-                                    "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)" +
-                                    "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
-                                    "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified " +
-                                    "RETURNING created, modified;";
+        upsertCommand.CommandText =
+            "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
+            "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)" +
+            "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
+            "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified " +
+            "RETURNING created, modified;";
         var upsertParam1 = upsertCommand.CreateParameter();
         upsertParam1.ParameterName = "@identityId";
         upsertCommand.Parameters.Add(upsertParam1);
@@ -138,31 +139,37 @@ public class TableDriveMainIndex(
         var upsertParam19 = upsertCommand.CreateParameter();
         upsertParam19.ParameterName = "@hdrAppData";
         upsertCommand.Parameters.Add(upsertParam19);
-        var upsertParam20 = upsertCommand.CreateParameter();
-        upsertParam20.ParameterName = "@hdrReactionSummary";
-        upsertCommand.Parameters.Add(upsertParam20);
-        var upsertParam21 = upsertCommand.CreateParameter();
-        upsertParam21.ParameterName = "@hdrServerData";
-        upsertCommand.Parameters.Add(upsertParam21);
-        var upsertParam22 = upsertCommand.CreateParameter();
-        upsertParam22.ParameterName = "@hdrTransferHistory";
-        upsertCommand.Parameters.Add(upsertParam22);
+        // var upsertParam20 = upsertCommand.CreateParameter();
+        // upsertParam20.ParameterName = "@hdrLocalVersionTag";
+        // upsertCommand.Parameters.Add(upsertParam20);
+        // var upsertParam21 = upsertCommand.CreateParameter();
+        // upsertParam21.ParameterName = "@hdrLocalAppData";
+        // upsertCommand.Parameters.Add(upsertParam21);
+        //var upsertParam22 = upsertCommand.CreateParameter();
+        //upsertParam22.ParameterName = "@hdrReactionSummary";
+        //upsertCommand.Parameters.Add(upsertParam22);
         var upsertParam23 = upsertCommand.CreateParameter();
-        upsertParam23.ParameterName = "@hdrFileMetaData";
+        upsertParam23.ParameterName = "@hdrServerData";
         upsertCommand.Parameters.Add(upsertParam23);
-        var upsertParam24 = upsertCommand.CreateParameter();
-        upsertParam24.ParameterName = "@hdrTmpDriveAlias";
-        upsertCommand.Parameters.Add(upsertParam24);
+        //var upsertParam24 = upsertCommand.CreateParameter();
+        //upsertParam24.ParameterName = "@hdrTransferHistory";
+        //upsertCommand.Parameters.Add(upsertParam24);
         var upsertParam25 = upsertCommand.CreateParameter();
-        upsertParam25.ParameterName = "@hdrTmpDriveType";
+        upsertParam25.ParameterName = "@hdrFileMetaData";
         upsertCommand.Parameters.Add(upsertParam25);
         var upsertParam26 = upsertCommand.CreateParameter();
-        upsertParam26.ParameterName = "@created";
+        upsertParam26.ParameterName = "@hdrTmpDriveAlias";
         upsertCommand.Parameters.Add(upsertParam26);
         var upsertParam27 = upsertCommand.CreateParameter();
-        upsertParam27.ParameterName = "@modified";
+        upsertParam27.ParameterName = "@hdrTmpDriveType";
         upsertCommand.Parameters.Add(upsertParam27);
-        var now = UnixTimeUtcUnique.Now();
+        var upsertParam28 = upsertCommand.CreateParameter();
+        upsertParam28.ParameterName = "@created";
+        upsertCommand.Parameters.Add(upsertParam28);
+        var upsertParam29 = upsertCommand.CreateParameter();
+        upsertParam29.ParameterName = "@modified";
+        upsertCommand.Parameters.Add(upsertParam29);
+        var now = UnixTimeUtc.Now();
         upsertParam1.Value = item.identityId.ToByteArray();
         upsertParam2.Value = item.driveId.ToByteArray();
         upsertParam3.Value = item.fileId.ToByteArray();
@@ -182,31 +189,35 @@ public class TableDriveMainIndex(
         upsertParam17.Value = item.hdrEncryptedKeyHeader;
         upsertParam18.Value = item.hdrVersionTag.ToByteArray();
         upsertParam19.Value = item.hdrAppData;
-        upsertParam20.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
-        upsertParam21.Value = item.hdrServerData;
-        upsertParam22.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
-        upsertParam23.Value = item.hdrFileMetaData;
-        upsertParam24.Value = item.hdrTmpDriveAlias.ToByteArray();
-        upsertParam25.Value = item.hdrTmpDriveType.ToByteArray();
-        upsertParam26.Value = now.uniqueTime;
-        upsertParam27.Value = now.uniqueTime;
+        // hdrLocalAppData and hdrLocalVersionTag are set in a specific method
+        // upsertParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+        // upsertParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+        //upsertParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+        upsertParam23.Value = item.hdrServerData;
+        //upsertParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+        upsertParam25.Value = item.hdrFileMetaData;
+        upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
+        upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
+        upsertParam28.Value = now.milliseconds;
+        upsertParam29.Value = now.milliseconds;
+
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
         {
             if (await rdr.ReadAsync())
             {
-                long created = rdr.GetInt64(0);
-                long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                item.created = new UnixTimeUtcUnique(created);
+                long created = (Int64) rdr[0];
+                long? modified = (rdr[1] == DBNull.Value) ? null : (Int64) rdr[1];
+                item.created = new UnixTimeUtc(created);
                 if (modified != null)
-                    item.modified = new UnixTimeUtcUnique((long)modified);
+                    item.modified = new UnixTimeUtc((long)modified);
                 else
                     item.modified = null;
                 return 1;
             }
         }
+
         return 0;
     }
-
 
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
@@ -243,13 +254,13 @@ public class TableDriveMainIndex(
         return await updateCommand.ExecuteNonQueryAsync();
     }
 
-    public async Task<int> UpdateTransferHistoryAsync(Guid driveId, Guid fileId, string transferHistory)
+    public async Task<int> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory, UnixTimeUtcUnique modifiedTime)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
-        updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified=@modified,hdrTransferHistory=@hdrTransferHistory WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified=@modified, hdrTransferHistory=@hdrTransferHistory " +
+                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -273,11 +284,10 @@ public class TableDriveMainIndex(
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
-        sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+        sparam5.Value = modifiedTime.uniqueTime;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }
-
 
     public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
     {
@@ -285,7 +295,11 @@ public class TableDriveMainIndex(
         await using var sizeCommand = cn.CreateCommand();
 
         sizeCommand.CommandText =
-            $"SELECT count(*), sum(byteCount) FROM drivemainindex WHERE identityId=@identityId AND driveid=@driveId;";
+            """
+            SELECT count(*), CAST(COALESCE(SUM(byteCount), 0) AS BIGINT)
+            FROM drivemainindex
+            WHERE identityId=@identityId AND driveid=@driveId;
+            """;
 
         var sparam1 = sizeCommand.CreateParameter();
         sparam1.ParameterName = "@driveId";
@@ -302,8 +316,8 @@ public class TableDriveMainIndex(
         {
             if (await rdr.ReadAsync())
             {
-                var count = rdr.IsDBNull(0) ? 0 : rdr.GetInt64(0);
-                var size = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
+                var count = (rdr[0] == DBNull.Value) ? 0 : (Int64) rdr[0];
+                var size = (rdr[1] == DBNull.Value) ? 0 : (Int64)rdr[1];
                 return (count, size);
             }
         }

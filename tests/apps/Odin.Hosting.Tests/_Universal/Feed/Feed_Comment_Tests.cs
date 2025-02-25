@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -100,7 +101,7 @@ public class Feed_Comment_Tests
             FollowerNotificationType.AllNotifications,
             new List<TargetDrive>() { });
 
-        Assert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
+        ClassicAssert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
         // Frodo will post on Sam's identity
 
@@ -123,18 +124,18 @@ public class Feed_Comment_Tests
             }
         });
 
-        Assert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode, $"Actual code was {frodoQueryFeedResponse.StatusCode}");
+        ClassicAssert.IsTrue(frodoQueryFeedResponse.StatusCode == expectedStatusCode, $"Actual code was {frodoQueryFeedResponse.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK) //continue testing
         {
             var feedSearchResults = frodoQueryFeedResponse.Content?.SearchResults;
-            Assert.IsNotNull(feedSearchResults);
-            Assert.IsTrue(feedSearchResults.Count() == 2);
+            ClassicAssert.IsNotNull(feedSearchResults);
+            ClassicAssert.IsTrue(feedSearchResults.Count() == 2);
 
             var expectedFriendsOnlyFile = feedSearchResults.SingleOrDefault(s =>
                 s.FileMetadata.IsEncrypted &&
                 s.FileMetadata.AppData.Content == encryptedFriendsFileContent64);
-            Assert.IsNotNull(expectedFriendsOnlyFile);
+            ClassicAssert.IsNotNull(expectedFriendsOnlyFile);
 
 
             //
@@ -155,20 +156,20 @@ public class Feed_Comment_Tests
                 }
             });
 
-            Assert.IsTrue(samQueryFeedResponse.IsSuccessStatusCode, $"Actual code was {samQueryFeedResponse.StatusCode}");
+            ClassicAssert.IsTrue(samQueryFeedResponse.IsSuccessStatusCode, $"Actual code was {samQueryFeedResponse.StatusCode}");
             var samFeedSearchResults = samQueryFeedResponse.Content?.SearchResults;
-            Assert.IsNotNull(samFeedSearchResults);
-            Assert.IsTrue(samFeedSearchResults.Count() == 2);
+            ClassicAssert.IsNotNull(samFeedSearchResults);
+            ClassicAssert.IsTrue(samFeedSearchResults.Count() == 2);
 
             // var samExpectedFriendsOnlyFile = samFeedSearchResults.SingleOrDefault(s =>
             //     s.FileMetadata.IsEncrypted &&
             //     s.FileMetadata.AppData.Content == frodoPreparedFiles.encryptedFriendsFileContent64);
-            // Assert.IsNotNull(samExpectedFriendsOnlyFile);
+            // ClassicAssert.IsNotNull(samExpectedFriendsOnlyFile);
             //
             // var samExpectedPublicFile = samFeedSearchResults.SingleOrDefault(s =>
             //     s.FileMetadata.IsEncrypted == false &&
             //     s.FileMetadata.AppData.Content == frodoPreparedFiles.publicFileContent);
-            // Assert.IsNotNull(samExpectedPublicFile);
+            // ClassicAssert.IsNotNull(samExpectedPublicFile);
         }
 
         await ownerFrodo.Connections.DisconnectFrom(sam.OdinId);
@@ -211,7 +212,7 @@ public class Feed_Comment_Tests
             friendsOnlyTargetDrive,
             friendsFile);
 
-        Assert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(friendsFileUploadResponse.IsSuccessStatusCode);
 
         return encryptedJsonContent64;
     }

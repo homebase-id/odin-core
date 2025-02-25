@@ -10,6 +10,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -44,7 +45,8 @@ namespace Odin.Services.Membership.Connections
         CircleDefinitionService circleDefinitionService,
         DriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
-        CircleNetworkStorage circleNetworkStorage)
+        CircleNetworkStorage circleNetworkStorage,
+        IdentityDatabase db)
         : INotificationHandler<DriveDefinitionAddedNotification>,
             INotificationHandler<AppRegistrationChangedNotification>
     {
@@ -225,7 +227,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
         /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfilesAsync(int count, long cursor,
+        public async Task<CursoredResult<IdentityConnectionRegistration>> GetBlockedProfilesAsync(int count, string cursor,
             IOdinContext odinContext)
         {
             return await GetConnectionsInternalAsync(count, cursor, ConnectionStatus.Blocked, odinContext);
@@ -234,7 +236,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Returns a list of identities which are connected to this DI
         /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentitiesAsync(int count, long cursor,
+        public async Task<CursoredResult<IdentityConnectionRegistration>> GetConnectedIdentitiesAsync(int count, string cursor,
             IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
@@ -272,7 +274,9 @@ namespace Odin.Services.Membership.Connections
         /// Gets the current connection info
         /// </summary>
         /// <returns></returns>
-        public async Task<IdentityConnectionRegistration> GetIcrAsync(OdinId odinId, IOdinContext odinContext, bool overrideHack = false)
+        public async Task<IdentityConnectionRegistration> GetIcrAsync(OdinId odinId, IOdinContext odinContext,
+            bool overrideHack = false,
+            bool tryUpgradeEncryption = true)
         {
             //TODO: need to cache here?
             //HACK: DOING THIS WHILE DESIGNING x-token - REMOVE THIS
@@ -281,7 +285,16 @@ namespace Odin.Services.Membership.Connections
                 odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
             }
 
-            return await GetIdentityConnectionRegistrationInternalAsync(odinId);
+            var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
+
+            // 
+            if (tryUpgradeEncryption)
+            {
+                await this.UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+            }
+
+            return icr;
         }
 
         /// <summary>
@@ -717,7 +730,8 @@ namespace Odin.Services.Membership.Connections
             var masterKey = odinContext.Caller.GetMasterKey();
             var appKey = newAppRegistration.AppId.Value;
 
-            //TODO: use _db.CreateCommitUnitOfWork()
+            await using var tx = await db.BeginStackedTransactionAsync();
+
             if (null != oldAppRegistration)
             {
                 var circlesToRevoke = oldAppRegistration.AuthorizedCircles.Except(newAppRegistration.AuthorizedCircles);
@@ -766,6 +780,8 @@ namespace Odin.Services.Membership.Connections
                 }
             }
             //
+
+            tx.Commit();
         }
 
         public async Task<VerifyConnectionResponse> GetCallerVerificationHashAsync(IOdinContext odinContext)
@@ -821,16 +837,15 @@ namespace Odin.Services.Membership.Connections
             }
 
 
-            // TODO CONNECTIONS (TODD:TODO)
-            // await cn.CreateCommitUnitOfWorkAsync(async () =>
-            {
-                await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-                await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
+            await using var tx = await db.BeginStackedTransactionAsync();
 
-                await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
-                await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
-            }
-            //);
+            await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+            await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext);
+
+            await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
+            await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
+
+            tx.Commit();
         }
 
         public async Task<bool> ClearVerificationHashAsync(OdinId odinId, IOdinContext odinContext)
@@ -902,28 +917,6 @@ namespace Odin.Services.Membership.Connections
             return expectedHash;
         }
 
-        public async Task UpgradeWeakClientAccessTokensAsync(IOdinContext odinContext, CancellationToken cancellationToken)
-        {
-            var allIdentities = await this.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
-            foreach (var identity in allIdentities.Results)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    logger.LogInformation("UpgradeWeakClientAccessTokens - Cancellation requested; breaking from loop");
-                    break;
-                }
-
-                try
-                {
-                    await UpgradeTokenEncryptionIfNeededAsync(identity, odinContext);
-                }
-                catch (Exception e)
-                {
-                    logger.LogInformation(e, "Failed while upgrading token for {identity}", identity.OdinId);
-                }
-            }
-        }
-
         public async Task<ClientAccessToken> CreatePeerIcrClientForCallerAsync(IOdinContext odinContext)
         {
             odinContext.Caller.AssertCallerIsConnected();
@@ -947,7 +940,7 @@ namespace Odin.Services.Membership.Connections
         {
             return await circleNetworkStorage.GetPeerIcrClientAsync(accessRegId);
         }
-        
+
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
             RedactedAppRegistration appReg,
             SensitiveByteArray keyStoreKey,
@@ -1142,14 +1135,14 @@ namespace Odin.Services.Membership.Connections
         }
 
 
-        private async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectionsInternalAsync(int count, long cursor,
+        private async Task<CursoredResult<IdentityConnectionRegistration>> GetConnectionsInternalAsync(int count, string cursor,
             ConnectionStatus status,
             IOdinContext odinContext)
         {
-            var (list, nextCursor) = await circleNetworkStorage.GetListAsync(count, new UnixTimeUtcUnique(cursor), status);
-            return new CursoredResult<long, IdentityConnectionRegistration>()
+            var (list, nextCursor) = await circleNetworkStorage.GetListAsync(count, cursor, status);
+            return new CursoredResult<IdentityConnectionRegistration>()
             {
-                Cursor = nextCursor.GetValueOrDefault().uniqueTime,
+                Cursor = nextCursor,
                 Results = list
             };
         }
@@ -1204,7 +1197,7 @@ namespace Odin.Services.Membership.Connections
 
         public async Task UpgradeTokenEncryptionIfNeededAsync(IdentityConnectionRegistration identity, IOdinContext odinContext)
         {
-            if (identity.TemporaryWeakClientAccessToken != null)
+            if (identity.TemporaryWeakClientAccessToken != null && identity.EncryptedClientAccessToken == null)
             {
                 logger.LogDebug("Upgrading ICR Token Encryption for {id}", identity.OdinId);
 

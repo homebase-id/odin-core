@@ -116,7 +116,7 @@ public class TenantConfigService
         var info = new FailedUpgradeVersionInfo
         {
             FailedDataVersionNumber = dataVersionNumber,
-            BuildVersion = ReleaseVersionInfo.BuildVersion,
+            BuildVersion = Version.VersionText,
             LastAttempted = UnixTimeUtc.Now().milliseconds
         };
 
@@ -130,7 +130,7 @@ public class TenantConfigService
 
     public async Task<TenantVersionInfo> GetVersionInfoAsync()
     {
-        
+
         var info = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key);
         return info ?? new TenantVersionInfo
         {
@@ -141,7 +141,7 @@ public class TenantConfigService
 
     public async Task<bool> IsIdentityServerConfiguredAsync()
     {
-        
+
 
         //ok for anonymous to query this as long as we're only returning a bool
         var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValue, FirstRunInfo.Key);
@@ -150,7 +150,7 @@ public class TenantConfigService
 
     public async Task<bool> IsEulaSignatureRequiredAsync(IOdinContext odinContext)
     {
-        
+
 
         odinContext.Caller.AssertHasMasterKey();
 
@@ -175,7 +175,7 @@ public class TenantConfigService
 
     public async Task<List<EulaSignature>> GetEulaSignatureHistoryAsync(IOdinContext odinContext)
     {
-        
+
 
         odinContext.Caller.AssertHasMasterKey();
 
@@ -186,7 +186,7 @@ public class TenantConfigService
 
     public async Task MarkEulaSignedAsync(MarkEulaSignedRequest request, IOdinContext odinContext)
     {
-        
+
 
         odinContext.Caller.AssertHasMasterKey();
 
@@ -279,7 +279,7 @@ public class TenantConfigService
 
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)
     {
-        
+
 
         odinContext.Caller.AssertHasMasterKey();
 
@@ -354,13 +354,13 @@ public class TenantConfigService
 
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {
-        
+
         return await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValue, TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
     public async Task<OwnerAppSettings> GetOwnerAppSettingsAsync(IOdinContext odinContext)
     {
-        
+
 
         odinContext.Caller.AssertHasMasterKey();
         return await ConfigStorage.GetAsync<OwnerAppSettings>(_identityDatabase.KeyValue, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
@@ -368,7 +368,7 @@ public class TenantConfigService
 
     public async Task UpdateOwnerAppSettingsAsync(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
-        
+
         odinContext.Caller.AssertHasMasterKey();
         await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, OwnerAppSettings.ConfigKey, newSettings);
     }
@@ -406,7 +406,7 @@ public class TenantConfigService
                     PermissionedDrive = new PermissionedDrive()
                     {
                         Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.Read
+                        Permission = DrivePermission.ReadWrite
                     }
                 },
                 new()
@@ -488,7 +488,7 @@ public class TenantConfigService
 
     private async Task<bool> CreateDriveIfNotExistsAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
-        
+
 
         var drive = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, false);
 

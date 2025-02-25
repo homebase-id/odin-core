@@ -71,6 +71,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
                 item.DriveId = r.boxId;
                 item.FileId = r.fileId;
                 item.Marker = r.popStamp.GetValueOrDefault();
+                item.CorrelationId = r.correlationId;
 
                 return item;
             }).ToList();

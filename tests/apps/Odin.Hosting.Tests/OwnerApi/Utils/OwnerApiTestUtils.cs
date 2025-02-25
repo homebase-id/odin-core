@@ -62,6 +62,7 @@ using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Refit;
 using System.Text;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
@@ -121,7 +122,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             // handler.CheckCertificateRevocationList = false;
             handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
 
-            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
@@ -129,8 +129,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
 
             // var saltResponse = await svc.GenerateNewSalts();
-            // Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
-            // Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
+            // ClassicAssert.IsNotNull(saltResponse.Content, "failed to generate new salts");
+            // ClassicAssert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
             // var clientSalts = saltResponse.Content;
             // var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC)
             // {
@@ -143,7 +143,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             //saltyReply.FirstRunToken = ???
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
-            Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
+            ClassicAssert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
 
         /// <summary>
@@ -154,8 +154,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             var saltResponse = await svc.GenerateNewSalts();
-            Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
-            Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
+            ClassicAssert.IsNotNull(saltResponse.Content, "failed to generate new salts");
+            ClassicAssert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
 
             var clientSalts = saltResponse.Content;
             var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicJwk, clientSalts.CRC)
@@ -176,7 +176,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             var nonceResponse = await svc.GenerateAuthenticationNonce();
-            Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
+            ClassicAssert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
 
             var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicJwk, clientNonce.CRC)
@@ -204,7 +204,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
             var publicKeyResponse = await svc.GetPublicKeyEcc(keyType);
-            Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
 
             var hostPublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKeyResponse.Content.PublicKeyJwkBase64Url);
@@ -243,7 +243,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             handler.CookieContainer = jar;
             handler.UseCookies = true;
 
-            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
@@ -252,7 +251,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             Console.WriteLine($"authenticating to {uri}");
             // var nonceResponse = await svc.GenerateAuthenticationNonce();
-            // Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
+            // ClassicAssert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             // var clientNonce = nonceResponse.Content;
             //
             // //HACK: need to refactor types and drop the client nonce package
@@ -265,7 +264,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var reply = await this.CalculateAuthenticationPasswordReply(authClient, password, clientEccFullKey);
             var response = await svc.Authenticate(reply);
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity.DomainName}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity.DomainName}");
             Assert.That(response.Content, Is.Not.Null);
 
             var ownerAuthenticationResult = response.Content;
@@ -273,11 +272,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var cookies = jar.GetCookies(authClient.BaseAddress);
             var tokenCookie = HttpUtility.UrlDecode(cookies[OwnerAuthConstants.CookieName]?.Value);
 
-            Assert.IsTrue(ClientAuthenticationToken.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
+            ClassicAssert.IsTrue(ClientAuthenticationToken.TryParse(tokenCookie, out var result), "invalid authentication cookie returned");
 
             var newToken = result.Id;
-            Assert.IsTrue(newToken != Guid.Empty);
-            Assert.IsTrue(result.AccessTokenHalfKey.IsSet());
+            ClassicAssert.IsTrue(newToken != Guid.Empty);
+            ClassicAssert.IsTrue(result.AccessTokenHalfKey.IsSet());
             return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
@@ -400,7 +399,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                             OwnerOnly = ownerOnlyDrive
                         });
 
-                    Assert.IsTrue(createDriveResponse.IsSuccessStatusCode, $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
+                    ClassicAssert.IsTrue(createDriveResponse.IsSuccessStatusCode, $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
 
                     drives.Add(new DriveGrantRequest()
                     {
@@ -427,9 +426,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
                 var response = await svc.RegisterApp(request);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var appReg = response.Content;
-                Assert.IsNotNull(appReg);
+                ClassicAssert.IsNotNull(appReg);
 
                 var updatedAppResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
                 Assert.That(updatedAppResponse.IsSuccessStatusCode, Is.True);
@@ -455,8 +454,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 };
 
                 var regResponse = await svc.RegisterAppOnClient(request);
-                Assert.IsTrue(regResponse.IsSuccessStatusCode);
-                Assert.IsNotNull(regResponse.Content);
+                ClassicAssert.IsTrue(regResponse.IsSuccessStatusCode);
+                ClassicAssert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
                 var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
@@ -468,11 +467,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 Assert.That(decryptedData.Length, Is.EqualTo(49));
 
                 var cat = ClientAccessToken.FromPortableBytes(decryptedData);
-                Assert.IsFalse(cat.Id == Guid.Empty);
-                Assert.IsNotNull(cat.AccessTokenHalfKey);
+                ClassicAssert.IsFalse(cat.Id == Guid.Empty);
+                ClassicAssert.IsNotNull(cat.AccessTokenHalfKey);
                 Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
-                Assert.IsTrue(cat.AccessTokenHalfKey.IsSet());
-                Assert.IsTrue(cat.IsValid());
+                ClassicAssert.IsTrue(cat.AccessTokenHalfKey.IsSet());
+                ClassicAssert.IsTrue(cat.IsValid());
 
                 return (cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
             }
@@ -576,7 +575,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId2 });
-                Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, odinId2, ConnectionStatus.None);
             }
 
@@ -584,7 +583,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId1 });
-                Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, odinId1, ConnectionStatus.None);
             }
         }
@@ -600,9 +599,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
-            Assert.IsNotNull(response.Content, $"No status for {odinId} found");
-            Assert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
+            ClassicAssert.IsNotNull(response.Content, $"No status for {odinId} found");
+            ClassicAssert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
         }
 
         public async Task CreateConnection(OdinId sender, OdinId recipient, CreateConnectionOptions createConnectionOptions = null)
@@ -635,8 +634,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-                Assert.IsTrue(response!.Content, "Failed sending the request");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+                ClassicAssert.IsTrue(response!.Content, "Failed sending the request");
             }
 
             //accept the request
@@ -651,7 +650,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     ContactData = recipientIdentity.ContactData
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
-                Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+                ClassicAssert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
             }
         }
 
@@ -675,16 +674,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     OwnerOnly = ownerOnly
                 });
 
-                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-                Assert.IsNotNull(response.Content);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                ClassicAssert.IsNotNull(response.Content);
 
                 var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
 
-                Assert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+                ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
                 var page = getDrivesResponse.Content;
 
-                Assert.NotNull(page);
-                Assert.NotNull(page.Results.SingleOrDefault(drive =>
+                ClassicAssert.NotNull(page);
+                ClassicAssert.NotNull(page.Results.SingleOrDefault(drive =>
                     drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
             }
         }
@@ -696,7 +695,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 //ensure drive
                 var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
                 var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-                Assert.IsNotNull(getDrivesResponse.Content);
+                ClassicAssert.IsNotNull(getDrivesResponse.Content);
                 var drives = getDrivesResponse.Content.Results;
                 var exists = drives.Any(d => d.TargetDriveInfo.Alias == targetDrive.Alias && d.TargetDriveInfo.Type == targetDrive.Type);
 
@@ -734,7 +733,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             string payloadData,
             bool encryptPayload = true, ThumbnailContent thumbnail = null, KeyHeader keyHeader = null, FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
+            ClassicAssert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
 
             await this.EnsureDriveExists(identity, instructionSet.StorageOptions.Drive, false);
 
@@ -883,13 +882,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 int outboxBatchSize = 1;
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
+                    ClassicAssert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
                         "expected recipient count does not match");
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
-                        Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
+                        ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        ClassicAssert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
                             $"transfer key not created for {recipient}");
                     }
 
@@ -899,7 +898,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 // if (options is { ProcessOutbox: true })
                 // {
                 //     var resp = await transitSvc.ProcessOutbox(outboxBatchSize);
-                //     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                //     ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                 // }
 
                 if (options is { ProcessInboxBox: true })
@@ -916,7 +915,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                             rClient.DefaultRequestHeaders.Add(SystemAuthConstants.Header, SystemProcessApiKey.ToString());
 
                             var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = targetDrive });
-                            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                            ClassicAssert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }
                 }
@@ -960,29 +959,29 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                Assert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
-                Assert.IsNotNull(definitionList);
+                ClassicAssert.IsNotNull(definitionList);
 
                 var circle = definitionList.Single(c => c.Id == request.Id);
 
                 foreach (var dgr in dgrList)
                 {
-                    Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr));
+                    ClassicAssert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr));
                 }
 
                 foreach (var k in permissionKeys)
                 {
-                    Assert.IsTrue(circle.Permissions.HasKey(k));
+                    ClassicAssert.IsTrue(circle.Permissions.HasKey(k));
                 }
 
-                Assert.AreEqual(request.Name, circle.Name);
-                Assert.AreEqual(request.Description, circle.Description);
-                Assert.IsTrue(request.Permissions == circle.Permissions);
+                ClassicAssert.AreEqual(request.Name, circle.Name);
+                ClassicAssert.AreEqual(request.Description, circle.Description);
+                ClassicAssert.IsTrue(request.Permissions == circle.Permissions);
 
                 return circle;
             }

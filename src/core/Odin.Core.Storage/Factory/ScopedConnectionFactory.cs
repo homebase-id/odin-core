@@ -115,12 +115,14 @@ public interface IScopedConnectionFactory
         [CallerLineNumber] int lineNumber = 0);
 
     DatabaseType DatabaseType { get; }
+    bool HasTransaction { get; }
 }
 
 public interface IConnectionWrapper : IDisposable, IAsyncDisposable
 {
     DbConnection DangerousInstance { get; }
     int RefCount { get; }
+    bool HasTransaction { get; }
     Task<ITransactionWrapper> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default);
@@ -178,6 +180,7 @@ public class ScopedConnectionFactory<T>(
     private Guid _connectionId;
 
     public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
+    public bool HasTransaction => _transaction != null;
 
     //
 
@@ -240,8 +243,8 @@ public class ScopedConnectionFactory<T>(
 
         // SEB:NOTE we log the exception as a non-error, because it should be possible for the caller
         // to catch and handle the exception silently (e.g. in case of an expected sql constraint error),
-        // but we prefix it with an "ERR" to make it easier to spot in the logs.
-        _logger.LogDebug(exception, "ERR {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
+        // but we prefix it with "DBEX" to make it easier to spot in the logs.
+        _logger.LogDebug(exception, "DBEX {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
             message, exception.Message, _connectionId, lifetimeScope.Tag);
     }
 
@@ -288,13 +291,14 @@ public class ScopedConnectionFactory<T>(
 
     //
     // ConnectionWrapper
-    // A wrapper around a DbConnection that ensures that the transaction is disposed correctly.
+    // A wrapper around a DbConnection that ensures that the connection is disposed correctly.
     //
     public sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IConnectionWrapper
     {
         private bool _disposed;
         public DbConnection DangerousInstance => instance._connection!;
         public int RefCount => instance._connectionRefCount;
+        public bool HasTransaction => instance.HasTransaction;
 
         //
 
@@ -511,10 +515,12 @@ public class ScopedConnectionFactory<T>(
                 {
                     if (instance._commit)
                     {
+                        instance.LogTrace("Committing transaction");
                         await instance._transaction!.CommitAsync();
                     }
                     else
                     {
+                        instance._logger.LogDebug("Rolling back transaction");
                         await instance._transaction!.RollbackAsync();
                         instance._cache.ClearCache();
                     }

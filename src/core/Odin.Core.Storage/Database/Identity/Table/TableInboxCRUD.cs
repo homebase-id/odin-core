@@ -79,6 +79,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _value = value;
                }
         }
+        internal byte[] valueNoLengthCheck
+        {
+           get {
+                   return _value;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _value = value;
+               }
+        }
         private Guid? _popStamp;
         public Guid? popStamp
         {
@@ -89,8 +99,30 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _popStamp = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private string _correlationId;
+        public string correlationId
+        {
+           get {
+                   return _correlationId;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 64) throw new Exception("Too long");
+                  _correlationId = value;
+               }
+        }
+        internal string correlationIdNoLengthCheck
+        {
+           get {
+                   return _correlationId;
+               }
+           set {
+                    if (value?.Length < 0) throw new Exception("Too short");
+                  _correlationId = value;
+               }
+        }
+        private UnixTimeUtc _created;
+        public UnixTimeUtc created
         {
            get {
                    return _created;
@@ -99,8 +131,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private UnixTimeUtc? _modified;
+        public UnixTimeUtc? modified
         {
            get {
                    return _modified;
@@ -144,6 +176,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"timeStamp BIGINT NOT NULL, "
                    +"value BYTEA , "
                    +"popStamp BYTEA , "
+                   +"correlationId TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
                    + rowid
@@ -165,8 +198,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
+                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -189,11 +222,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam7.ParameterName = "@popStamp";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.ParameterName = "@created";
+                insertParam8.ParameterName = "@correlationId";
                 insertCommand.Parameters.Add(insertParam8);
                 var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.ParameterName = "@modified";
+                insertParam9.ParameterName = "@created";
                 insertCommand.Parameters.Add(insertParam9);
+                var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam10);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.fileId.ToByteArray();
                 insertParam3.Value = item.boxId.ToByteArray();
@@ -201,10 +237,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam5.Value = item.timeStamp.milliseconds;
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
                 insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam8.Value = now.uniqueTime;
+                insertParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                var now = UnixTimeUtc.Now();
+                insertParam9.Value = now.milliseconds;
                 item.modified = null;
-                insertParam9.Value = DBNull.Value;
+                insertParam10.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -223,8 +260,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created,@modified) " +
+                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
+                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -248,11 +285,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam7.ParameterName = "@popStamp";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.ParameterName = "@created";
+                insertParam8.ParameterName = "@correlationId";
                 insertCommand.Parameters.Add(insertParam8);
                 var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.ParameterName = "@modified";
+                insertParam9.ParameterName = "@created";
                 insertCommand.Parameters.Add(insertParam9);
+                var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.ParameterName = "@modified";
+                insertCommand.Parameters.Add(insertParam10);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.fileId.ToByteArray();
                 insertParam3.Value = item.boxId.ToByteArray();
@@ -260,10 +300,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam5.Value = item.timeStamp.milliseconds;
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
                 insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam8.Value = now.uniqueTime;
+                insertParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                var now = UnixTimeUtc.Now();
+                insertParam9.Value = now.milliseconds;
                 item.modified = null;
-                insertParam9.Value = DBNull.Value;
+                insertParam10.Value = DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -282,10 +323,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,created) " +
-                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@created)"+
+                upsertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created) " +
+                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created)"+
                                              "ON CONFLICT (identityId,fileId) DO UPDATE "+
-                                             "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,modified = @modified "+
+                                             "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = @modified "+
                                              "RETURNING created, modified;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -309,12 +350,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam7.ParameterName = "@popStamp";
                 upsertCommand.Parameters.Add(upsertParam7);
                 var upsertParam8 = upsertCommand.CreateParameter();
-                upsertParam8.ParameterName = "@created";
+                upsertParam8.ParameterName = "@correlationId";
                 upsertCommand.Parameters.Add(upsertParam8);
                 var upsertParam9 = upsertCommand.CreateParameter();
-                upsertParam9.ParameterName = "@modified";
+                upsertParam9.ParameterName = "@created";
                 upsertCommand.Parameters.Add(upsertParam9);
-                var now = UnixTimeUtcUnique.Now();
+                var upsertParam10 = upsertCommand.CreateParameter();
+                upsertParam10.ParameterName = "@modified";
+                upsertCommand.Parameters.Add(upsertParam10);
+                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.fileId.ToByteArray();
                 upsertParam3.Value = item.boxId.ToByteArray();
@@ -322,16 +366,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam5.Value = item.timeStamp.milliseconds;
                 upsertParam6.Value = item.value ?? (object)DBNull.Value;
                 upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                upsertParam8.Value = now.uniqueTime;
-                upsertParam9.Value = now.uniqueTime;
+                upsertParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                upsertParam9.Value = now.milliseconds;
+                upsertParam10.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = rdr.GetInt64(0);
-                   long? modified = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                   item.created = new UnixTimeUtcUnique(created);
+                   long created = (long) rdr[0];
+                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                   item.created = new UnixTimeUtc(created);
                    if (modified != null)
-                      item.modified = new UnixTimeUtcUnique((long)modified);
+                      item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
                    return 1;
@@ -350,7 +395,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE inbox " +
-                                             "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,modified = @modified "+
+                                             "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = @modified "+
                                              "WHERE (identityId = @identityId AND fileId = @fileId)";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
@@ -374,12 +419,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam7.ParameterName = "@popStamp";
                 updateCommand.Parameters.Add(updateParam7);
                 var updateParam8 = updateCommand.CreateParameter();
-                updateParam8.ParameterName = "@created";
+                updateParam8.ParameterName = "@correlationId";
                 updateCommand.Parameters.Add(updateParam8);
                 var updateParam9 = updateCommand.CreateParameter();
-                updateParam9.ParameterName = "@modified";
+                updateParam9.ParameterName = "@created";
                 updateCommand.Parameters.Add(updateParam9);
-                var now = UnixTimeUtcUnique.Now();
+                var updateParam10 = updateCommand.CreateParameter();
+                updateParam10.ParameterName = "@modified";
+                updateCommand.Parameters.Add(updateParam10);
+                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.fileId.ToByteArray();
                 updateParam3.Value = item.boxId.ToByteArray();
@@ -387,8 +435,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam5.Value = item.timeStamp.milliseconds;
                 updateParam6.Value = item.value ?? (object)DBNull.Value;
                 updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                updateParam8.Value = now.uniqueTime;
-                updateParam9.Value = now.uniqueTime;
+                updateParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                updateParam9.Value = now.milliseconds;
+                updateParam10.Value = now.milliseconds;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
@@ -413,7 +462,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("identityId");
@@ -423,43 +472,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("timeStamp");
             sl.Add("value");
             sl.Add("popStamp");
+            sl.Add("correlationId");
             sl.Add("created");
             sl.Add("modified");
             return sl;
         }
 
-        // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified
+        // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified
         protected InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<InboxRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new InboxRecord();
-            item.identityId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.fileId = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.boxId = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.priority = rdr.IsDBNull(3) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.timeStamp = rdr.IsDBNull(4) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.value = rdr.IsDBNull(5) ? 
-                null : (byte[])(rdr[5]);
-            if (item.value?.Length > 65535)
-                throw new Exception("Too much data in value...");
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.boxId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.timeStamp = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.valueNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
-            item.popStamp = rdr.IsDBNull(6) ? 
-                null : new Guid((byte[])rdr[6]);
-            item.created = rdr.IsDBNull(7) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[7]);
-            item.modified = rdr.IsDBNull(8) ? 
-                null : new UnixTimeUtcUnique((long)rdr[8]);
+            item.popStamp = (rdr[6] == DBNull.Value) ? null : new Guid((byte[])rdr[6]);
+            item.correlationIdNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[9]);
             return item;
        }
 
@@ -487,7 +526,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
-            byte[] tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
@@ -495,31 +533,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new InboxRecord();
             item.identityId = identityId;
             item.fileId = fileId;
-
-            item.boxId = rdr.IsDBNull(0) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-
-            item.priority = rdr.IsDBNull(1) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-
-            item.timeStamp = rdr.IsDBNull(2) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-
-            item.value = rdr.IsDBNull(3) ? 
-                null : (byte[])(rdr[3]);
-            if (item.value?.Length > 65535)
-                throw new Exception("Too much data in value...");
+            item.boxId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.priority = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.timeStamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.valueNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
-
-            item.popStamp = rdr.IsDBNull(4) ? 
-                null : new Guid((byte[])rdr[4]);
-
-            item.created = rdr.IsDBNull(5) ? 
-                throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[5]);
-
-            item.modified = rdr.IsDBNull(6) ? 
-                null : new UnixTimeUtcUnique((long)rdr[6]);
+            item.popStamp = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
+            item.correlationIdNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[7]);
             return item;
        }
 
@@ -528,7 +551,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox " +
+                get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";

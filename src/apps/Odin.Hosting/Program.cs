@@ -28,6 +28,7 @@ using Odin.Services.Tenant.Container;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using Version = Odin.Services.Version;
 
 namespace Odin.Hosting
 {
@@ -50,7 +51,7 @@ namespace Odin.Hosting
                 try
                 {
                     Log.Information("Starting web host");
-                    Log.Information("Identity-host version: {Version}", Extensions.Version.VersionText);
+                    Log.Information("Identity-host version: {Version}", Version.VersionText);
                     CreateHostBuilder(args).Build().Run();
                     Log.Information("Stopped web host\n\n\n");
                 }
@@ -78,7 +79,6 @@ namespace Odin.Hosting
         {
             const string logOutputTemplate = // Add {SourceContext} to see source
                 "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
-            var logOutputTheme = SystemConsoleTheme.Literate;
 
             loggerConfig ??= new LoggerConfiguration();
 
@@ -87,20 +87,23 @@ namespace Odin.Hosting
                 .Enrich.FromLogContext()
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                .WriteTo.LogLevelModifier(s => s.Async(
-                    sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme)));
+                .WriteTo.Filter(sink => sink
+                    .Async(s => s.Console(
+                        outputTemplate: logOutputTemplate,
+                        theme: SystemConsoleTheme.Literate)));
 
             if (odinConfig.Logging.LogFilePath != "")
             {
-                loggerConfig.WriteTo.LogLevelModifier(s => s.Async(
-                    sink => sink.File(
-                        path: Path.Combine(odinConfig.Logging.LogFilePath, "app-.log"),
-                        rollingInterval: RollingInterval.Day,
-                        outputTemplate: logOutputTemplate,
-                        fileSizeLimitBytes: 1L * 1024 * 1024 * 1024,
-                        rollOnFileSizeLimit: true,
-                        retainedFileCountLimit: null
-                    )));
+                loggerConfig
+                    .WriteTo.Filter(sink => sink
+                        .Async(s => s.File(
+                            path: Path.Combine(odinConfig.Logging.LogFilePath, "app-.log"),
+                            rollingInterval: RollingInterval.Day,
+                            outputTemplate: logOutputTemplate,
+                            fileSizeLimitBytes: 1L * 1024 * 1024 * 1024,
+                            rollOnFileSizeLimit: true,
+                            retainedFileCountLimit: null
+                        )));
             }
 
             if (services != null)

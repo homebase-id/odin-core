@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -46,11 +45,11 @@ public abstract class OutboxWorkerBase(
     }
 
     protected async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> HandleOutboxProcessingException(IOdinContext odinContext,
-        
         OdinOutboxProcessingException e)
     {
-        logger.LogDebug(e, "Failed to process outbox item for recipient: {recipient} " +
+        logger.LogDebug(e, "Failed to process outbox item (type: {type}) for recipient: {recipient} " +
                            "with globalTransitId:{gtid}.  Transfer status was {transferStatus}",
+            FileItem.Type,
             e.Recipient,
             e.GlobalTransitId,
             e.TransferStatus);
@@ -118,11 +117,10 @@ public abstract class OutboxWorkerBase(
         }
     }
 
-    protected async Task<(StreamPart metadataStream, List<StreamPart> payloadStreams)> PackageFileStreamsAsync(
+    protected async Task<(Stream metadataStream, StreamPart metadataStreamPart, List<Stream> payloadStreams, List<StreamPart> payloadStreamParts)> PackageFileStreamsAsync(
         ServerFileHeader header,
         bool includePayloads,
         IOdinContext odinContext,
-        
         Guid? overrideGlobalTransitId = null
     )
     {
@@ -153,11 +151,12 @@ public abstract class OutboxWorkerBase(
         };
 
         var json = OdinSystemSerializer.Serialize(redactedMetadata);
-        var stream = new MemoryStream(json.ToUtf8ByteArray());
-        var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json",
+        var metaDataStream = new MemoryStream(json.ToUtf8ByteArray());
+        var metaDataStreamPart = new StreamPart(metaDataStream, "metadata.encrypted", "application/json",
             Enum.GetName(MultipartHostTransferParts.Metadata));
 
-        var payloadStreams = new List<StreamPart>();
+        var payloadStreams = new List<Stream>();
+        var payloadStreamParts = new List<StreamPart>();
 
         if (includePayloads)
         {
@@ -170,9 +169,10 @@ public abstract class OutboxWorkerBase(
                 //TODO: consider what happens if the payload has been delete from disk
                 var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext);
                 var payloadStream = p.Stream;
+                payloadStreams.Add(payloadStream);
 
                 var payload = new StreamPart(payloadStream, payloadKey, contentType, Enum.GetName(MultipartHostTransferParts.Payload));
-                payloadStreams.Add(payload);
+                payloadStreamParts.Add(payload);
 
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
@@ -181,6 +181,8 @@ public abstract class OutboxWorkerBase(
                             descriptor.Uid,
                             odinContext);
 
+                    payloadStreams.Add(thumbStream);
+
                     var thumbnailKey =
                         $"{payloadKey}" +
                         $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
@@ -188,13 +190,13 @@ public abstract class OutboxWorkerBase(
                         $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
                         $"{thumb.PixelHeight}";
 
-                    payloadStreams.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
+                    payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
             }
         }
 
-        return (metaDataStream, payloadStreams);
+        return (metaDataStream, metaDataStreamPart, payloadStreams, payloadStreamParts);
     }
 
     protected async Task UpdateFileTransferHistory(Guid globalTransitId, Guid versionTag, IOdinContext odinContext)
@@ -223,6 +225,11 @@ public abstract class OutboxWorkerBase(
     private int CalculateSecondsDelay(int attemptNumber)
     {
         int baseDelaySeconds = 10;
+
+        if (attemptNumber < 1)
+        {
+            attemptNumber = 1;
+        }
 
         if (attemptNumber <= 5)
         {

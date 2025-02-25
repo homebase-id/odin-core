@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
@@ -11,7 +12,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableInbox(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    IdentityKey identityKey,
+    ICorrelationContext correlationContext)
     : TableInboxCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
@@ -28,6 +30,7 @@ public class TableInbox(
         if (item.timeStamp.milliseconds == 0)
             item.timeStamp = UnixTimeUtc.Now();
 
+        item.correlationId = correlationContext.Id;
         return await base.InsertAsync(item);
     }
 
@@ -38,6 +41,7 @@ public class TableInbox(
         if (item.timeStamp.milliseconds == 0)
             item.timeStamp = UnixTimeUtc.Now();
 
+        item.correlationId = correlationContext.Id;
         return await base.UpsertAsync(item);
     }
 
@@ -59,7 +63,7 @@ public class TableInbox(
 
         cmd.CommandText =
             "UPDATE inbox SET popstamp=@popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT @count); " +
-            "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp ORDER BY rowId ASC";
+            "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp ORDER BY rowId ASC";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
@@ -123,8 +127,8 @@ public class TableInbox(
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
             int totalCount = 0;
-            if (!rdr.IsDBNull(0))
-                totalCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                totalCount = (int)(Int64) rdr[0];
 
             // Read the popped count
             if (await rdr.NextResultAsync() == false)
@@ -133,8 +137,8 @@ public class TableInbox(
                 throw new Exception("Not possible");
 
             int poppedCount = 0;
-            if (!rdr.IsDBNull(0))
-                poppedCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                poppedCount = (int)(Int64) rdr[0];
 
             if (await rdr.NextResultAsync() == false)
                 throw new Exception("Not possible");
@@ -142,11 +146,10 @@ public class TableInbox(
             var utc = UnixTimeUtc.ZeroTime;
             if (await rdr.ReadAsync())
             {
-                if (!rdr.IsDBNull(0))
+                if (!(rdr[0] == DBNull.Value))
                 {
-                    var bytes = new byte[16];
-                    var n = rdr.GetBytes(0, 0, bytes, 0, 16);
-                    if (n != 16)
+                    var bytes = (byte[]) rdr[0];
+                    if (bytes.Length != 16)
                         throw new Exception("Invalid stamp");
 
                     var guid = new Guid(bytes);
@@ -192,8 +195,8 @@ public class TableInbox(
                 throw new Exception("Not possible");
 
             int totalCount = 0;
-            if (!rdr.IsDBNull(0))
-                totalCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                totalCount = (int)(Int64) rdr[0];
 
             // Read the popped count
             if (await rdr.NextResultAsync() == false)
@@ -202,8 +205,8 @@ public class TableInbox(
                 throw new Exception("Not possible");
 
             int poppedCount = 0;
-            if (!rdr.IsDBNull(0))
-                poppedCount = rdr.GetInt32(0);
+            if (!(rdr[0] == DBNull.Value))
+                poppedCount = (int)(Int64) rdr[0];
 
             if (await rdr.NextResultAsync() == false)
                 throw new Exception("Not possible");
@@ -213,11 +216,10 @@ public class TableInbox(
             // Read the marker, if any
             if (await rdr.ReadAsync())
             {
-                if (!rdr.IsDBNull(0))
+                if (!(rdr[0] == DBNull.Value))
                 {
-                    var bytes = new byte[16];
-                    var n = rdr.GetBytes(0, 0, bytes, 0, 16);
-                    if (n != 16)
+                    var bytes = (byte[]) rdr[0];
+                    if (bytes.Length != 16)
                         throw new Exception("Invalid stamp");
 
                     var guid = new Guid(bytes);

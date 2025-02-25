@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
@@ -47,7 +48,7 @@ public class CircleNetworkApiClient
             };
 
             var acceptResponse = await svc.AcceptConnectionRequest(header);
-            Assert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+            ClassicAssert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
         }
     }
 
@@ -88,10 +89,10 @@ public class CircleNetworkApiClient
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
             var deleteResponse = await svc.DeletePendingRequest(new OdinIdRequest() { OdinId = sender.OdinId });
-            Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+            ClassicAssert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
             var getResponse = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.OdinId });
-            Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sender.OdinId} still exists");
+            ClassicAssert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sender.OdinId} still exists");
         }
     }
 
@@ -108,10 +109,10 @@ public class CircleNetworkApiClient
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkRequests>(client, ownerSharedSecret);
 
             var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = recipient.OdinId });
-            Assert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
+            ClassicAssert.IsTrue(deleteResponse.IsSuccessStatusCode, deleteResponse.ReasonPhrase);
 
             var getResponse = await svc.GetSentRequest(new OdinIdRequest() { OdinId = recipient.OdinId });
-            Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {recipient.OdinId} still exists");
+            ClassicAssert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {recipient.OdinId} still exists");
         }
     }
 
@@ -124,8 +125,8 @@ public class CircleNetworkApiClient
 
         var response = await this.SendConnectionRequestRaw(recipient, circlesGrantedToRecipient);
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
-        Assert.IsTrue(response!.Content, "Failed sending the request");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+        ClassicAssert.IsTrue(response!.Content, "Failed sending the request");
     }
 
     public async Task<ApiResponse<bool>> SendConnectionRequestRaw(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
@@ -161,7 +162,7 @@ public class CircleNetworkApiClient
         {
             var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                 .Disconnect(new OdinIdRequest() { OdinId = recipient.OdinId });
-            Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+            ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
             await AssertConnectionStatus(client, ownerSharedSecret, recipient.OdinId, ConnectionStatus.None);
         }
     }
@@ -193,7 +194,7 @@ public class CircleNetworkApiClient
                 OdinId = recipient.OdinId
             });
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
         }
     }
 
@@ -208,7 +209,7 @@ public class CircleNetworkApiClient
                 OdinId = recipient.OdinId
             });
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
         }
     }
 
@@ -218,9 +219,9 @@ public class CircleNetworkApiClient
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var apiResponse = await svc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
             var members = apiResponse.Content;
-            Assert.NotNull(members);
+            ClassicAssert.NotNull(members);
             return members;
         }
     }
@@ -232,8 +233,8 @@ public class CircleNetworkApiClient
             var connectionsService = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var apiResponse = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient.OdinId });
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient.OdinId}.  Status code was {apiResponse.StatusCode}");
-            Assert.IsNotNull(apiResponse.Content, $"No status for {recipient.OdinId} found");
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient.OdinId}.  Status code was {apiResponse.StatusCode}");
+            ClassicAssert.IsNotNull(apiResponse.Content, $"No status for {recipient.OdinId} found");
             return apiResponse.Content;
         }
     }
@@ -253,8 +254,8 @@ public class CircleNetworkApiClient
         var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
         var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });
 
-        Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
-        Assert.IsNotNull(response.Content, $"No status for {odinId} found");
-        Assert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
+        ClassicAssert.IsNotNull(response.Content, $"No status for {odinId} found");
+        ClassicAssert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
     }
 }

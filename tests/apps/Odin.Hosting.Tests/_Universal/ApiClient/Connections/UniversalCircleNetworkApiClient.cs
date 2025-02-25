@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers;
@@ -115,8 +116,8 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
             var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
             var apiResponse = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient });
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient}.  Status code was {apiResponse.StatusCode}");
-            Assert.IsNotNull(apiResponse.Content, $"No status for {recipient} found");
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient}.  Status code was {apiResponse.StatusCode}");
+            ClassicAssert.IsNotNull(apiResponse.Content, $"No status for {recipient} found");
             return apiResponse;
         }
     }

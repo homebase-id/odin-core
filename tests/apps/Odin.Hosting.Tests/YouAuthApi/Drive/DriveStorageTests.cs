@@ -4,6 +4,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.Authorization.Acl;
@@ -73,7 +74,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     TargetDrive = uploadContext.UploadResult.File.TargetDrive,
                     FileId = uploadContext.UploadResult.File.FileId
                 });
-            Assert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
+            ClassicAssert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getHeaderResponse.StatusCode}");
         }
 
         [Test]
@@ -92,7 +93,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             //     },
             //     WebScaffold.PAYLOAD_KEY);
             //
-            // Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
+            // ClassicAssert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             var svc = RestService.For<IRefitGuestDriveQuery>(client);
@@ -108,8 +109,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     Key = WebScaffold.PAYLOAD_KEY
                 });
 
-            Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
-            Assert.IsNull(getPayloadStreamResponse.Content);
+            ClassicAssert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
+            ClassicAssert.IsNull(getPayloadStreamResponse.Content);
         }
 
         private async Task<(UploadResult UploadResult, UploadFileMetadata UploadedFileMetadata)> UploadFile(OdinId identity, Guid tag,
