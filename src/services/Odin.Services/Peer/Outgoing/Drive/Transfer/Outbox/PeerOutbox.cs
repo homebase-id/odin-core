@@ -155,7 +155,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
                 Recipient = (OdinId)record.recipient,
                 Priority = record.priority,
-                AddedTimestamp = record.created.ToUnixTimeUtc().seconds,
+                AddedTimestamp = record.created.seconds,
                 Type = (OutboxItemType)record.type,
 
                 AttemptCount = record.checkOutCount,

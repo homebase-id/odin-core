@@ -34,7 +34,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version1tov2
         {
             var invalidIdentities = new List<OdinId>();
             logger.LogDebug("Validate verification has on all connections...");
-            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, 0, odinContext);
+            var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
             foreach (var identity in allIdentities.Results)
             {
                 cancellationToken.ThrowIfCancellationRequested();

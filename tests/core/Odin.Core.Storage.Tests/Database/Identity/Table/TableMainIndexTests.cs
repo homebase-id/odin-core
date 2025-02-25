@@ -181,7 +181,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
-            var cts1 = UnixTimeUtcUnique.Now();
+            var cts1 = UnixTimeUtc.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
             var ud1 = UnixTimeUtc.Now();
@@ -217,14 +217,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
             });
 
-            var cts2 = UnixTimeUtcUnique.Now();
+            var cts2 = UnixTimeUtc.Now();
 
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
 
             if (md == null)
                 Assert.Fail();
 
-            ClassicAssert.IsTrue((md.created.ToUnixTimeUtc() >= cts1.ToUnixTimeUtc()) && (md.created.ToUnixTimeUtc() <= cts2.ToUnixTimeUtc()));
+            ClassicAssert.IsTrue((md.created >= cts1) && (md.created <= cts2));
 
             if (md.modified != null)
                 Assert.Fail();
@@ -268,7 +268,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
-            var cts1 = UnixTimeUtcUnique.Now();
+            var cts1 = UnixTimeUtc.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
             var ud1 = UnixTimeUtc.Now();
@@ -349,7 +349,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
-            var cts1 = UnixTimeUtcUnique.Now();
+            var cts1 = UnixTimeUtc.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
             var ud1 = UnixTimeUtc.Now();
@@ -452,7 +452,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
             ClassicAssert.True(md.byteCount == 42);
 
-            if (md.modified?.uniqueTime == 0)
+            if (md.modified == 0)
                 Assert.Fail();
 
         }
@@ -475,7 +475,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
-            var cts1 = UnixTimeUtcUnique.Now();
+            var cts1 = UnixTimeUtc.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
             var ud1 = UnixTimeUtc.Now();
@@ -620,7 +620,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var driveId = Guid.NewGuid();
 
             var k1 = Guid.NewGuid();
-            var cts1 = UnixTimeUtcUnique.Now();
+            var cts1 = UnixTimeUtc.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
             var ud1 = UnixTimeUtc.Now();

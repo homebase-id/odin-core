@@ -71,8 +71,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, string cursor,
             bool omitContactData = false)
         {
-            Int64.TryParse(cursor, out long c);
-            var result = await circleNetwork.GetConnectedIdentitiesAsync(count, c, WebOdinContext);
+            var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,
@@ -84,8 +83,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, string cursor,
             bool omitContactData = false)
         {
-            Int64.TryParse(cursor, out long c);
-            var result = await circleNetwork.GetBlockedProfilesAsync(count, c, WebOdinContext);
+            var result = await circleNetwork.GetBlockedProfilesAsync(count, cursor, WebOdinContext);
             return new CursoredResult<RedactedIdentityConnectionRegistration>()
             {
                 Cursor = result.Cursor,

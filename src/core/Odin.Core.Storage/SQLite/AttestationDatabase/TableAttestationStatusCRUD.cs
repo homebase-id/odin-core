@@ -51,8 +51,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _status = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private UnixTimeUtc _created;
+        public UnixTimeUtc created
         {
            get {
                    return _created;
@@ -61,8 +61,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _created = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private UnixTimeUtc? _modified;
+        public UnixTimeUtc? modified
         {
            get {
                    return _modified;
@@ -125,8 +125,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.attestationId;
                 insertParam2.Value = item.status;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam3.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam3.Value = now.milliseconds;
                 item.modified = null;
                 insertParam4.Value = DBNull.Value;
                 var count = await conn.ExecuteNonQueryAsync(insertCommand);
@@ -160,8 +160,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.attestationId;
                 insertParam2.Value = item.status;
-                var now = UnixTimeUtcUnique.Now();
-                insertParam3.Value = now.uniqueTime;
+                var now = UnixTimeUtc.Now();
+                insertParam3.Value = now.milliseconds;
                 item.modified = null;
                 insertParam4.Value = DBNull.Value;
                 var count = await conn.ExecuteNonQueryAsync(insertCommand);
@@ -195,19 +195,19 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 var upsertParam4 = upsertCommand.CreateParameter();
                 upsertParam4.ParameterName = "@modified";
                 upsertCommand.Parameters.Add(upsertParam4);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.attestationId;
                 upsertParam2.Value = item.status;
-                upsertParam3.Value = now.uniqueTime;
-                upsertParam4.Value = now.uniqueTime;
+                upsertParam3.Value = now.milliseconds;
+                upsertParam4.Value = now.milliseconds;
                 await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtcUnique(created);
+                   item.created = new UnixTimeUtc(created);
                    if (modified != null)
-                      item.modified = new UnixTimeUtcUnique((long)modified);
+                      item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
@@ -236,11 +236,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 var updateParam4 = updateCommand.CreateParameter();
                 updateParam4.ParameterName = "@modified";
                 updateCommand.Parameters.Add(updateParam4);
-                var now = UnixTimeUtcUnique.Now();
+                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.attestationId;
                 updateParam2.Value = item.status;
-                updateParam3.Value = now.uniqueTime;
-                updateParam4.Value = now.uniqueTime;
+                updateParam3.Value = now.milliseconds;
+                updateParam4.Value = now.milliseconds;
                 var count = await conn.ExecuteNonQueryAsync(updateCommand);
                 if (count > 0)
                 {
@@ -288,8 +288,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (item.attestationId?.Length < 16)
                 throw new Exception("Too little data in attestationId...");
             item.status = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[3]);
+            item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.modified = (rdr[3] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[3]);
             return item;
        }
 
@@ -327,8 +327,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             var item = new AttestationStatusRecord();
             item.attestationId = attestationId;
             item.status = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
-            item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtcUnique((long)rdr[1]);
-            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtcUnique((long)rdr[2]);
+            item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
+            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 

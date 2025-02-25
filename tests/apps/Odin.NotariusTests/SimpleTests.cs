@@ -34,7 +34,7 @@ namespace Odin.KeyChainTests
                     algorithm = "ublah",
                     publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
                     recordHash = hash,
-                    timestamp = UnixTimeUtcUnique.Now(),
+                    timestamp = UnixTimeUtc.Now(),
                     notarySignature = Guid.Empty.ToByteArray()
                 };
                 await db.tblNotaryChain.InsertAsync(myc, r);

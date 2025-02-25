@@ -393,7 +393,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging3Command = cn.CreateCommand();
             {
                 getPaging3Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
-                                            "WHERE (identityId = @identityId) AND circleId > @circleId ORDER BY circleId ASC LIMIT @count;";
+                                            "WHERE (identityId = @identityId) AND circleId > @circleId  ORDER BY circleId ASC  LIMIT @count;";
                 var getPaging3Param1 = getPaging3Command.CreateParameter();
                 getPaging3Param1.ParameterName = "@circleId";
                 getPaging3Command.Parameters.Add(getPaging3Param1);

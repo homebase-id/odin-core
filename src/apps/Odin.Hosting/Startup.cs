@@ -9,6 +9,7 @@ using Autofac;
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -244,6 +245,9 @@ namespace Odin.Hosting
                 Level2CacheType = _config.Cache.Level2CacheType,
                 Level2Configuration = _config.Cache.Level2Configuration
             });
+
+            // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
+            services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
         }
 
         // ConfigureContainer is where you can register things directly
