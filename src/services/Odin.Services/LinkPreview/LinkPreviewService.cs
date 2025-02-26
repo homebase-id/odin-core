@@ -49,19 +49,22 @@ public class LinkPreviewService(
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
     {
-        try
+        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
         {
-            var timeoutTask = Task.Delay(2000);
-            var task = Task.Run(() => WriteEnhancedIndexAsync(indexFilePath, odinContext));
-            if (await Task.WhenAny(task, timeoutTask) == timeoutTask)
+            try
             {
-                throw new TimeoutException("Timeout occured (2 seconds) while writing link preview; using fallback");
+                await WriteEnhancedIndexAsync(indexFilePath, odinContext);
             }
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Total Failure creating link-preview.  Writing plain index");
-            await WriteFallbackIndex(indexFilePath);
+            catch (OperationCanceledException ex)
+            {
+                logger.LogError(ex, "Timeout of 2 seconds; falling back - Writing plain index");
+                await WriteFallbackIndex(indexFilePath);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Total Failure creating link-preview.  Writing plain index");
+                await WriteFallbackIndex(indexFilePath);
+            }
         }
     }
 
@@ -399,7 +402,7 @@ public class LinkPreviewService(
         {
             throw new OdinSystemException("index contents read from cache or disk is empty");
         }
-        
+
         var markup = PrepareBuilder(DefaultTitle, DefaultDescription);
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, markup.ToString());
         return updatedContent;
@@ -517,7 +520,7 @@ public class LinkPreviewService(
         {
             Name = profile?.Name,
             GivenName = profile?.GiveName,
-            FamilyName = profile?.Surname,
+            FamilyName = profile?.FamilyName,
             Email = "",
             Description = profile?.Bio,
             BirthDate = "",
