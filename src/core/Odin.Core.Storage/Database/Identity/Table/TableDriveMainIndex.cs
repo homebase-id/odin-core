@@ -249,12 +249,12 @@ public class TableDriveMainIndex(
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = reactionSummary;
-        sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+        sparam5.Value = UnixTimeUtc.Now().milliseconds;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }
 
-    public async Task<int> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory, UnixTimeUtcUnique modifiedTime)
+    public async Task<int> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory, UnixTimeUtc modifiedTime)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
@@ -284,7 +284,7 @@ public class TableDriveMainIndex(
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
-        sparam5.Value = modifiedTime.uniqueTime;
+        sparam5.Value = modifiedTime.milliseconds;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }
@@ -354,7 +354,7 @@ public class TableDriveMainIndex(
         touchCommand.Parameters.Add(tparam4);
 
         tparam1.Value = fileId.ToByteArray();
-        tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
+        tparam2.Value = UnixTimeUtc.Now().milliseconds;
         tparam3.Value = driveId.ToByteArray();
         tparam4.Value = identityKey.ToByteArray();
 
