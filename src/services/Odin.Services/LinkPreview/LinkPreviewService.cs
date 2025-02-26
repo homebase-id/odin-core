@@ -11,6 +11,7 @@ using AngleSharp.Io;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Apps;
@@ -50,15 +51,25 @@ public class LinkPreviewService(
     {
         try
         {
-            if (!await TryWritePostPreview(indexFilePath, odinContext))
+            var timeoutTask = Task.Delay(2000);
+            var task = Task.Run(() => WriteEnhancedIndexAsync(indexFilePath, odinContext));
+            if (await Task.WhenAny(task, timeoutTask) == timeoutTask)
             {
-                await WriteGenericPreview(indexFilePath);
+                throw new TimeoutException("Timeout occured (2 seconds) while writing link preview; using fallback");
             }
         }
         catch (Exception e)
         {
             logger.LogError(e, "Total Failure creating link-preview.  Writing plain index");
             await WriteFallbackIndex(indexFilePath);
+        }
+    }
+
+    private async Task WriteEnhancedIndexAsync(string indexFilePath, IOdinContext odinContext)
+    {
+        if (!await TryWritePostPreview(indexFilePath, odinContext))
+        {
+            await WriteGenericPreview(indexFilePath);
         }
     }
 
@@ -359,7 +370,7 @@ public class LinkPreviewService(
         // );
         //
         // await WriteAsync(cache, context.RequestAborted);
-        
+
         var data = await PrepareGenericPreview(indexFilePath, context.RequestAborted);
         await WriteAsync(data, context.RequestAborted);
     }
@@ -370,20 +381,25 @@ public class LinkPreviewService(
 
         var cache = await tenantCache.GetOrSetAsync(
             GenericLinkPreviewCacheKey,
-            _ => PrepareEmptyIndex(indexFilePath, context.RequestAborted),
+            _ => PrepareIndex(indexFilePath, context.RequestAborted),
             TimeSpan.FromSeconds(30)
         );
 
         await WriteAsync(cache, context.RequestAborted);
     }
 
-    private async Task<string> PrepareEmptyIndex(string indexFilePath, CancellationToken cancellationToken)
+    private async Task<string> PrepareIndex(string indexFilePath, CancellationToken cancellationToken)
     {
         var indexTemplate = await globalCache.GetOrSetAsync(
             IndexFileKey,
             _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
             TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
 
+        if (string.IsNullOrEmpty(indexTemplate))
+        {
+            throw new OdinSystemException("index contents read from cache or disk is empty");
+        }
+        
         var markup = PrepareBuilder(DefaultTitle, DefaultDescription);
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, markup.ToString());
         return updatedContent;
