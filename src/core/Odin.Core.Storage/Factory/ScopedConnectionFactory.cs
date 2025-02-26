@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -565,6 +566,7 @@ public class ScopedConnectionFactory<T>(
     //
     public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
     {
+        private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromSeconds(10);
         private bool _disposed;
         public DbCommand DangerousInstance => command;
 
@@ -623,7 +625,15 @@ public class ScopedConnectionFactory<T>(
             {
                 instance.LogTrace("  ExecuteNonQueryAsync start");
                 command.Transaction = instance._transaction;
+
+                var start = Stopwatch.StartNew();
                 var result = await command.ExecuteNonQueryAsync(cancellationToken);
+                if (start.Elapsed > _queryRunTimeWarningThreshold)
+                {
+                    instance._logger.LogWarning("ExecuteNonQueryAsync - slow query: {query} took {time}",
+                        command.CommandText, start.Elapsed);
+                }
+
                 instance.LogTrace("  ExecuteNonQueryAsync done");
                 return result;
             }
@@ -647,7 +657,15 @@ public class ScopedConnectionFactory<T>(
             {
                 instance.LogTrace("  ExecuteReaderAsync start");
                 command.Transaction = instance._transaction;
+
+                var start = Stopwatch.StartNew();
                 var result = await command.ExecuteReaderAsync(behavior, cancellationToken);
+                if (start.Elapsed > _queryRunTimeWarningThreshold)
+                {
+                    instance._logger.LogWarning("ExecuteReaderAsync - slow query: {query} took {time}",
+                        command.CommandText, start.Elapsed);
+                }
+
                 instance.LogTrace("  ExecuteReaderAsync done");
                 return result;
             }
@@ -670,7 +688,15 @@ public class ScopedConnectionFactory<T>(
             {
                 instance.LogTrace("  ExecuteScalarAsync start");
                 command.Transaction = instance._transaction;
+
+                var start = Stopwatch.StartNew();
                 var result = await command.ExecuteScalarAsync(cancellationToken);
+                if (start.Elapsed > _queryRunTimeWarningThreshold)
+                {
+                    instance._logger.LogWarning("ExecuteScalarAsync - slow query: {query} took {time}",
+                        command.CommandText, start.Elapsed);
+                }
+
                 instance.LogTrace("  ExecuteScalarAsync done");
                 return result;
             }
