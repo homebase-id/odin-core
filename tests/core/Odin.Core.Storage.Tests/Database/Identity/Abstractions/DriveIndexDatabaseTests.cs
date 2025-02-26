@@ -7,6 +7,7 @@ using Autofac;
 using Docker.DotNet.Models;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -109,7 +110,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
@@ -123,12 +124,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(result[0].created == refCursor.stopAtBoundary.time);
+            Debug.Assert(result[0].rowId == refCursor.stopAtBoundary.rowId);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            // Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 4).Equals(refCursor.stopAtBoundary));
+
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(moreRows == false);
@@ -139,7 +143,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            // Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 4).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
         }
 
@@ -168,46 +173,46 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f4.ToByteArray(), refCursor.pagingCursor) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.nextBoundaryCursor));
+            Debug.Assert(new TimeRowCursor(c4, 4).Equals(refCursor.pagingCursor));
             Debug.Assert(moreRows == true);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2.ToByteArray(), refCursor.pagingCursor) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.nextBoundaryCursor));
+            Debug.Assert(new TimeRowCursor(c2, 2).Equals(refCursor.pagingCursor));
             Debug.Assert(moreRows == true);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
         }
 
@@ -235,18 +240,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
 
@@ -255,14 +260,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c7 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Later we do a new query, with a NULL startFromCursor, because then we'll get the newest items first.
             // But stop at stopAtBoundaryCursor: pagingCursor
@@ -270,7 +275,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             // Now there should be no more items
@@ -278,7 +283,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             // Double check
@@ -286,7 +291,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
         }
 
@@ -398,13 +403,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
             var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(2001));
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
+            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            await Task.Delay(1);
+            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            await Task.Delay(1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
 
-            QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
+            QueryBatchCursor cursor = new QueryBatchCursor(c4);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
@@ -452,7 +459,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(new UnixTimeUtc(2000) == cursor.userDateStopAtBoundary);
+            Debug.Assert(new UnixTimeUtc(2000) == cursor.stopAtBoundary.time);
             Debug.Assert(moreRows == false);
 
             Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
@@ -485,21 +492,24 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
 
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            await Task.Delay(1);
+            var c4 = UnixTimeUtc.Now();
+            await Task.Delay(1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
 
-            QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
+            QueryBatchCursor cursor = new QueryBatchCursor(c4); // Behaves differently now
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
+            Debug.Assert(result.Count == 4);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(moreRows == false);
 
             Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
-
+            Debug.Assert(ByteArrayUtil.muidcmp(f5, result[3].fileId) == 0);
         }
 
 
@@ -537,7 +547,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(new UnixTimeUtc(-1000) == cursor.userDateStopAtBoundary);
+            Debug.Assert(new UnixTimeUtc(-1000) == cursor.stopAtBoundary.time);
             Debug.Assert(moreRows == false);
 
             Debug.Assert(ByteArrayUtil.muidcmp(f5, result[0].fileId) == 0);
@@ -763,32 +773,32 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c1= await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c7 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now there should be no more items (recursive call in QueryBatch())
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             // Now there should be no more items (recursive call in QueryBatch())
@@ -796,7 +806,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
         }
@@ -842,7 +852,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
@@ -853,7 +863,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(ByteArrayUtil.muidcmp(result[2].fileId, f3) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[3].fileId, f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(moreRows == false);
@@ -863,33 +873,33 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             Debug.Assert(moreRows == false);
 
             // Now add three more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
             var f8 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c7 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c8 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now we get two of the three new items, we get the newest first f8 & f7
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f8) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f7) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), refCursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
+            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.pagingCursor));
+            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            Debug.Assert(new TimeRowCursor(c8, 8).Equals(refCursor.nextBoundaryCursor));
             Debug.Assert(moreRows == true);
 
 
             // Now add two more items
             var f9 = SequentialGuid.CreateGuid();
             var f10 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c9 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c10 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
             // because there is only 1 left in the previous range. A second request will get the
@@ -901,9 +911,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f6) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), refCursor.stopAtBoundary) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.nextBoundaryCursor) == 0);
+            Debug.Assert(new TimeRowCursor(c10, 10).Equals(refCursor.pagingCursor));
+            Debug.Assert(new TimeRowCursor(c8, 8).Equals(refCursor.stopAtBoundary));
+            Debug.Assert(new TimeRowCursor(c10, 10).Equals(refCursor.nextBoundaryCursor));
             Debug.Assert(moreRows == true);
 
             // Now we get two more items, only one should be left (f9)
@@ -914,7 +924,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             Debug.Assert(refCursor.nextBoundaryCursor == null);
             Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            Debug.Assert(new TimeRowCursor(c10, 10).Equals(refCursor.stopAtBoundary));
 
         }
 
@@ -1099,27 +1109,27 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c2, 2).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c1, 1).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
-
+            Debug.Assert(new TimeRowCursor(c1,1).Equals(refCursor.pagingCursor));
         }
+
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
@@ -1142,7 +1152,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
@@ -1160,8 +1170,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
-            Debug.Assert(refCursor.userDatePagingCursor.Value.milliseconds == 42);
+            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(42), 2).Equals(refCursor.pagingCursor));
+            Debug.Assert(refCursor.pagingCursor.time.milliseconds == 42);
 
         }
 
@@ -1187,24 +1197,24 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f2.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c2,2).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c3, 3).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c3, 3).Equals(refCursor.pagingCursor));
 
         }
 
@@ -1229,9 +1239,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -1239,19 +1249,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(hasRows == true);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f1.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(1000), 1).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(2000), 3).Equals(refCursor.pagingCursor));
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(refCursor.pagingCursor, f3.ToByteArray()) == 0);
-
+            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(2000), 3).Equals(refCursor.pagingCursor));
         }
 
 
@@ -1314,36 +1323,38 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await Task.Delay(1);
+            var c3 = UnixTimeUtc.Now();
+            await Task.Delay(1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
-            cursor.CursorStartPoint(f3.ToByteArray());
+            cursor.CursorStartPoint(c3);
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c1,1).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor.CursorStartPoint(f3.ToByteArray());
+            cursor.CursorStartPoint(c3);
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
-
+            Debug.Assert(new TimeRowCursor(c6, 5).Equals(cursor.pagingCursor));
         }
 
 
@@ -1366,18 +1377,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var t1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
-            Thread.Sleep(1);
-            var t3 = UnixTimeUtc.Now();
-            Thread.Sleep(1);
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+
+            Thread.Sleep(1);
+            var t3 = UnixTimeUtc.Now();
+            Thread.Sleep(1);
+
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
@@ -1388,7 +1401,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c1, 1).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
@@ -1401,7 +1414,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c6, 5).Equals(cursor.pagingCursor));
 
         }
 
@@ -1426,22 +1439,22 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var t1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
-            Thread.Sleep(1);
-            var t3 = UnixTimeUtc.Now();
-            Thread.Sleep(1);
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 0, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5000), 1, null, null, 1);
+            Thread.Sleep(1);
+            var t3 = UnixTimeUtc.Now();
+            Thread.Sleep(1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4000), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3000), 2, null, null, 1);
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
-            cursor.CursorStartPoint(new UnixTimeUtc(4000), true);
+            cursor.CursorStartPoint(new UnixTimeUtc(4000-1), true);  // Behavior change, subtracted 1
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -1455,7 +1468,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor.CursorStartPoint(new UnixTimeUtc(4000), true);
+            cursor.CursorStartPoint(new UnixTimeUtc(4000-1), true);  // Behavior change, subtracted 1
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
@@ -1489,44 +1502,47 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await Task.Delay(1);
+            var c3 = UnixTimeUtc.Now();
+            await Task.Delay(1);
+            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
-            var cursor = new QueryBatchCursor(f3.ToByteArray());
+            var cursor = new QueryBatchCursor(c3);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor = new QueryBatchCursor(f3.ToByteArray());
+            cursor = new QueryBatchCursor(c3);
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
         }
 
@@ -1550,18 +1566,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
-            Thread.Sleep(1);
-            var t3 = UnixTimeUtc.Now();
-            Thread.Sleep(1);
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            Thread.Sleep(1);
+            var t3 = UnixTimeUtc.Now();
+            Thread.Sleep(1);
+            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor(t3, false);
@@ -1570,13 +1586,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
@@ -1588,13 +1604,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
         }
 
