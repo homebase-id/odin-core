@@ -14,8 +14,8 @@ public class FrontEndProfile
     public string GiveName { get; set; }
     
     
-    [JsonPropertyName("surname")]
-    public string Surname { get; set; }
+    [JsonPropertyName("familyName")]
+    public string FamilyName { get; set; }
     
     
     [JsonPropertyName("image")]
