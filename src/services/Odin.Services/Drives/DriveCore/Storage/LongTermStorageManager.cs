@@ -165,7 +165,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var json = OdinSystemSerializer.Serialize(history);
 
             var modified = UnixTimeUtcUnique.Now();
-            await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified);
+            await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified.ToUnixTimeUtc());
             return (history, modified);
         }
 
