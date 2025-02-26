@@ -74,6 +74,7 @@ namespace Odin.Services.Base
             
             return encryptedKeyStoreKey.DecryptKeyClone(groupWithKey.GetKeyStoreKey());
         }
+        
         public SensitiveByteArray GetKeyStoreKey()
         {
             // TODO: need to move the key store key storage to this
@@ -88,7 +89,8 @@ namespace Odin.Services.Base
 
             return groupWithKey.GetKeyStoreKey();
         }
-        public SensitiveByteArray GetIcrKey()
+
+        public SensitiveByteArray GetIcrKey(bool failIfNotFound = true)
         {
             foreach (var group in PermissionGroups.Values)
             {
@@ -100,7 +102,12 @@ namespace Odin.Services.Base
                 }
             }
 
-            throw new OdinSecurityException($"No access permitted to the Icr Key");
+            if (failIfNotFound)
+            {
+                throw new OdinSecurityException($"No access permitted to the Icr Key");
+            }
+            
+            return null;
         }
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)

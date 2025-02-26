@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -20,6 +21,7 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -242,11 +244,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 break;
             }
 
-            await AutoAcceptEligibleConnectionRequestAsync(request.SenderOdinId, force: true, odinContext);
+            await AutoAcceptEligibleConnectionRequestAsync(request, force: true, odinContext);
         }
     }
 
-    private async Task AutoAcceptEligibleConnectionRequestAsync(OdinId sender, bool force, IOdinContext odinContext)
+    private async Task AutoAcceptEligibleConnectionRequestAsync(PendingConnectionRequestHeader request, bool force,
+        IOdinContext odinContext)
     {
         if (force && !odinContext.Caller.HasMasterKey)
         {
@@ -255,6 +258,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         if (_tenantContext.Settings.DisableAutoAcceptIntroductionsForTests && !force)
         {
+            return;
+        }
+
+        var sender = request.SenderOdinId;
+        var requiresIcr = request.EccEncryptedPayload.KeyType == PublicPrivateKeyType.OnlineIcrEncryptedKey;
+        if (requiresIcr && odinContext.PermissionsContext.GetIcrKey(failIfNotFound: false) == null)
+        {
+            _logger.LogDebug("Auto Accept attempting to accept connection request from {sender} that is " +
+                             "encrypted with OnlineIcrEncryptedKey, however odinContext does not have ICR key " +
+                             "available.  Bypassing this request.",
+                sender);
             return;
         }
 
@@ -288,6 +302,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             }
 
             _logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
+        }
+        catch (OdinClientException oce)
+        {
+            if (oce.ErrorCode == OdinClientErrorCode.IncomingRequestNotFound)
+            {
+                _logger.LogError(oce, "Failed while trying to auto-accept a connection request from {identity}.  The request was not found",
+                    sender);
+            }
         }
         catch (Exception ex)
         {
@@ -367,7 +389,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
     public async Task Handle(ConnectionRequestReceivedNotification notification, CancellationToken cancellationToken)
     {
-        await AutoAcceptEligibleConnectionRequestAsync(notification.Sender, false, notification.OdinContext);
+        await AutoAcceptEligibleConnectionRequestAsync(notification.Request, false, notification.OdinContext);
     }
 
     /// <summary>
@@ -415,19 +437,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             ContactData = new ContactRequestData(),
         };
 
-        try
-        {
-            _logger.LogDebug("Attempting to auto-accept connection request from {sender}", sender);
-            var newContext = OdinContextUpgrades.UsePermissions(odinContext,
-                PermissionKeys.ReadCircleMembership,
-                PermissionKeys.ManageFeed);
+        _logger.LogDebug("Attempting to auto-accept connection request from {sender}", sender);
+        var newContext = OdinContextUpgrades.UsePermissions(odinContext,
+            PermissionKeys.ReadCircleMembership,
+            PermissionKeys.ManageFeed);
 
-            await _circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, newContext);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to auto-except connection request: original-sender: {originalSender}", header.Sender);
-        }
+        await _circleNetworkRequestService.AcceptConnectionRequestAsync(header, tryOverrideAcl: true, newContext);
     }
 
     private async Task SaveAndEnqueueToConnect(IdentityIntroduction iid, Guid driveId)
