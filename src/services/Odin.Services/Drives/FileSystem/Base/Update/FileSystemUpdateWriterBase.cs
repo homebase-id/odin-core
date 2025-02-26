@@ -320,12 +320,11 @@ public abstract class FileSystemUpdateWriterBase
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.Recipients;
 
-        OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
-
-        targetFile.AssertIsValid(FileIdentifierType.GlobalTransitId);
-
         if (recipients?.Any() ?? false)
         {
+            OdinValidationUtils.AssertValidRecipientList(recipients);
+            targetFile.AssertIsValid(FileIdentifierType.GlobalTransitId);
+
             recipientStatus = await _peerOutgoingTransferService.UpdateFile(
                 package.InternalFile,
                 keyHeader,

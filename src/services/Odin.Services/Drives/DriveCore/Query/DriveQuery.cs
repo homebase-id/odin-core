@@ -44,7 +44,7 @@ public class DriveQuery(
             noOfItems: options.MaxRecords,
             options.Cursor,
             fileSystemType: (Int32)fileSystemType,
-            stopAtModifiedUnixTimeSeconds: new UnixTimeUtcUnique(options.MaxDate),
+            stopAtModifiedUnixTimeSeconds: new UnixTimeUtc(options.MaxDate),
             requiredSecurityGroup: requiredSecurityGroup,
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
