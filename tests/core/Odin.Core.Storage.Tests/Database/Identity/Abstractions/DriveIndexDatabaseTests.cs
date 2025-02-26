@@ -1190,11 +1190,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             await Task.Delay(1);
-            await metaIndex._driveMainIndex.TestTouchAsync(driveId, f1);
+            await tblDriveMainIndex.TestTouchAsync(driveId, f1);
             await Task.Delay(1);
-            await metaIndex._driveMainIndex.TestTouchAsync(driveId, f3);
+            await tblDriveMainIndex.TestTouchAsync(driveId, f3);
             await Task.Delay(1);
-            await metaIndex._driveMainIndex.TestTouchAsync(driveId, f2);
+            await tblDriveMainIndex.TestTouchAsync(driveId, f2);
             await Task.Delay(1);
 
             string cursor = null;
