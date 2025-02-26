@@ -442,6 +442,7 @@ public class LinkPreviewService(
     {
         var builder = PrepareBuilder(title, description);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
+        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />");
         builder.Append(PrepareIdentityContent(person));
 
         var indexTemplate = await globalCache.GetOrSetAsync(
@@ -501,26 +502,13 @@ public class LinkPreviewService(
         {
             Name = profile?.Name,
             GivenName = profile?.GiveName,
-            FamilyName = profile?.Surname,
+            FamilyName = profile?.FamilyName,
             Email = "",
             Description = profile?.Bio,
             BirthDate = "",
             JobTitle = "",
-            Image = profile?.Image
-            // WorksFor = new OrganizationSchema { Name = "Tech Corp" },
-            // Address = new AddressSchema
-            // {
-            //     StreetAddress = "123 Main St",
-            //     AddressLocality = "San Francisco",
-            //     AddressRegion = "CA",
-            //     PostalCode = "94105",
-            //     AddressCountry = "USA"
-            // },
-            // SameAs = new List<string>
-            // {
-            //     "https://www.linkedin.com/in/johndoe",
-            //     "https://twitter.com/johndoe"
-            // }
+            Image = profile?.Image,
+            SameAs = profile?.SameAs?.Select(s=>s.Url).ToList() ?? []
         };
 
         return person;
