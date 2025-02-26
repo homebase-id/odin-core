@@ -64,7 +64,7 @@ public class TableDriveLocalTagIndex(
         sparam3.Value = fileId.ToByteArray();
         versionTagParam.Value = newVersionTag.ToByteArray();
         contentParam.Value = localMetadataJson;
-        modifiedParam.Value = UnixTimeUtcUnique.Now().uniqueTime;
+        modifiedParam.Value = UnixTimeUtc.Now().milliseconds;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }

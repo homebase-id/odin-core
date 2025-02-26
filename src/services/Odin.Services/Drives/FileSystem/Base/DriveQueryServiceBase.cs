@@ -434,7 +434,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return new QueryBatchResult()
             {
-                QueryTime = UnixTimeUtcUnique.Now().uniqueTime,
+                QueryTime = UnixTimeUtc.Now().milliseconds,
                 IncludeMetadataHeader = options.IncludeHeaderContent,
                 Cursor = cursor,
                 SearchResults = headers,

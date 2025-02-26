@@ -284,7 +284,7 @@ public static class TransferHistoryMigration
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
-        sparam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
+        sparam5.Value = UnixTimeUtc.Now().milliseconds;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }
