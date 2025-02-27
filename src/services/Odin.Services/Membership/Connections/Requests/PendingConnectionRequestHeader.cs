@@ -19,7 +19,8 @@ public class PendingConnectionRequestHeader
         return new PendingConnectionRequestHeader()
         {
             SenderOdinId = this.SenderOdinId,
-            ReceivedTimestampMilliseconds = this.ReceivedTimestampMilliseconds
+            ReceivedTimestampMilliseconds = this.ReceivedTimestampMilliseconds,
+            EccEncryptedPayload = this.EccEncryptedPayload
             //no payload
         };
     }

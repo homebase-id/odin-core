@@ -114,7 +114,7 @@ public class SendFileOutboxWorkerAsync(
 
             try
             {
-                logger.LogDebug("SendHostToHost BEGIN");
+                logger.LogDebug("SendHostToHost BEGIN recipient:{recipient}", recipient.ToString());
 
                 transferKeyHeaderMemory =
                     new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
@@ -135,12 +135,15 @@ public class SendFileOutboxWorkerAsync(
                 var response = await client.SendHostToHost(
                     transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray());
 
-                logger.LogDebug("SendHostToHost END");
+                logger.LogDebug("SendHostToHost END recipient:{recipient} status:{status}",
+                    recipient.ToString(), response.StatusCode);
+
                 return response;
             }
             catch (Exception e)
             {
-                logger.LogDebug(e, "SendOutboxFileItemAsync:TrySendFile (TryRetry) {message}", e.Message);
+                logger.LogDebug(e, "SendOutboxFileItemAsync:TrySendFile recipient:{recipient} (TryRetry) {message}",
+                    recipient.ToString(), e.Message);
                 throw;
             }
             finally

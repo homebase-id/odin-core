@@ -1214,6 +1214,47 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(hasRows == false);
         }
 
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task QueryModifiedStopBoundaryTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+
+            var driveId = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid(); // Newest
+
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            await Task.Delay(1);
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            await Task.Delay(1);
+            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await Task.Delay(1);
+
+            await Task.Delay(1);
+            await tblDriveMainIndex.TestTouchAsync(driveId, f1);
+            await Task.Delay(1);
+            var (n, t) = await tblDriveMainIndex.TestTouchAsync(driveId, f2);
+            await Task.Delay(1);
+            await tblDriveMainIndex.TestTouchAsync(driveId, f3);
+            await Task.Delay(1);
+
+            string cursor = null;
+            var (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, cursor, stopAtModifiedUnixTimeSeconds: new UnixTimeUtc(t), requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2); // Up to and including the boundary
+            Debug.Assert(hasRows == false);
+        }
+
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
