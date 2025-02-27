@@ -330,7 +330,7 @@ public class TableDriveMainIndex(
     /// For testing only. Updates the updatedTimestamp for the supplied item.
     /// </summary>
     /// <param name="fileId">Item to touch</param>
-    internal async Task<int> TestTouchAsync(Guid driveId, Guid fileId)
+    internal async Task<(int, long)> TestTouchAsync(Guid driveId, Guid fileId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var touchCommand = cn.CreateCommand();
@@ -353,11 +353,13 @@ public class TableDriveMainIndex(
         touchCommand.Parameters.Add(tparam3);
         touchCommand.Parameters.Add(tparam4);
 
+        var t = UnixTimeUtc.Now().milliseconds;
+
         tparam1.Value = fileId.ToByteArray();
-        tparam2.Value = UnixTimeUtc.Now().milliseconds;
+        tparam2.Value = t;
         tparam3.Value = driveId.ToByteArray();
         tparam4.Value = identityKey.ToByteArray();
 
-        return await touchCommand.ExecuteNonQueryAsync();
+        return (await touchCommand.ExecuteNonQueryAsync(), t);
     }
 }
