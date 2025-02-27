@@ -138,7 +138,11 @@ public class LinkPreviewService(
                 description = DefaultDescription;
             }
 
-            var content = await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, context.RequestAborted);
+            var content = await PrepareIndexHtml(indexFilePath, title, imageUrl,
+                description,
+                person,
+                siteType: "website",
+                context.RequestAborted);
 
             await WriteAsync(content, context.RequestAborted);
             return true;
@@ -403,12 +407,12 @@ public class LinkPreviewService(
             throw new OdinSystemException("index contents read from cache or disk is empty");
         }
 
-        var markup = PrepareBuilder(DefaultTitle, DefaultDescription);
+        var markup = PrepareBuilder(DefaultTitle, DefaultDescription, "website");
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, markup.ToString());
         return updatedContent;
     }
 
-    private StringBuilder PrepareBuilder(string title, string description)
+    private StringBuilder PrepareBuilder(string title, string description, string siteType)
     {
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
@@ -422,7 +426,7 @@ public class LinkPreviewService(
         b.Append($"<meta property='og:description' content='{description}'/>\n");
         b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
         b.Append($"<meta property='og:site_name' content='{title}'/>\n");
-        b.Append($"<meta property='og:type' content='website'/>\n");
+        b.Append($"<meta property='og:type' content='{siteType}'/>\n");
 
         return b;
     }
@@ -436,6 +440,7 @@ public class LinkPreviewService(
         var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
 
         string suffix = DefaultTitle;
+        string siteType = "profile";
         if (IsPath("/links"))
         {
             suffix = "Links";
@@ -453,13 +458,13 @@ public class LinkPreviewService(
 
         var title = $"{person?.Name ?? odinId} | {suffix}";
         var description = person?.Description ?? DefaultDescription;
-        return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, cancellationToken);
+        return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, cancellationToken);
     }
 
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
-        PersonSchema person, CancellationToken cancellationToken)
+        PersonSchema person, string siteType, CancellationToken cancellationToken)
     {
-        var builder = PrepareBuilder(title, description);
+        var builder = PrepareBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
         builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />");
         builder.Append(PrepareIdentityContent(person));
@@ -527,7 +532,7 @@ public class LinkPreviewService(
             BirthDate = "",
             JobTitle = "",
             Image = profile?.Image,
-            SameAs = profile?.SameAs?.Select(s=>s.Url).ToList() ?? []
+            SameAs = profile?.SameAs?.Select(s => s.Url).ToList() ?? []
         };
 
         return person;
