@@ -8,7 +8,7 @@ public class Reaction
 
     public InternalDriveFileId FileId { get; set; }
 
-    public UnixTimeUtcUnique Created { get; set; }
+    public UnixTimeUtc Created { get; set; }
 
     public string ReactionContent { get; set; }
 }
