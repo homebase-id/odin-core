@@ -1180,18 +1180,24 @@ namespace Odin.Services.Membership.Connections
         private async Task SaveIcrAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
             // SEB:TODO does not scale
+            // SEB:TODO delete all these debug logs when we we have gotten rid of the keyed lock
+            logger.LogDebug("SaveIcrAsync -> Acquiring");
             using (await keyedAsyncLock.LockAsync(icr.OdinId))
             {
                 //TODO: this is a critical change; need to audit this
                 if (icr.Status == ConnectionStatus.None)
                 {
+                    logger.LogDebug("SaveIcrAsync -> before DeleteAsync");
                     await circleNetworkStorage.DeleteAsync(icr.OdinId);
+                    logger.LogDebug("SaveIcrAsync -> after DeleteAsync");
                 }
                 else
                 {
+                    logger.LogDebug("SaveIcrAsync -> before UpsertAsync");
                     await circleNetworkStorage.UpsertAsync(icr, odinContext);
-                    // circleNetworkStorage.UpsertUoW(icr, odinContext);
+                    logger.LogDebug("SaveIcrAsync -> after UpsertAsync");
                 }
+                logger.LogDebug("SaveIcrAsync -> Releasing");
             }
         }
 

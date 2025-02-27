@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
@@ -30,10 +31,15 @@ public abstract class FileSystemStreamWriterBase
 
     private readonly DriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
+    private readonly ILogger _logger;
 
     /// <summary />
-    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext,
-        DriveManager driveManager, PeerOutgoingTransferService peerOutgoingTransferService)
+    protected FileSystemStreamWriterBase(
+        IDriveFileSystem fileSystem,
+        TenantContext tenantContext,
+        DriveManager driveManager,
+        PeerOutgoingTransferService peerOutgoingTransferService,
+        ILogger logger)
     {
         FileSystem = fileSystem;
 
@@ -41,6 +47,7 @@ public abstract class FileSystemStreamWriterBase
 
         _driveManager = driveManager;
         _peerOutgoingTransferService = peerOutgoingTransferService;
+        _logger = logger;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -182,6 +189,8 @@ public abstract class FileSystemStreamWriterBase
     /// </summary>
     public async Task<UploadResult> FinalizeUploadAsync(IOdinContext odinContext)
     {
+        _logger.LogDebug("Entering FinalizeUploadAsync");
+
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
         await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata);
@@ -255,6 +264,8 @@ public abstract class FileSystemStreamWriterBase
             GlobalTransitId = metadata.GlobalTransitId,
             RecipientStatus = recipientStatus
         };
+
+        _logger.LogDebug("Leaving FinalizeUploadAsync");
 
         return uploadResult;
     }

@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -15,7 +16,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// <summary>
     /// Base API Controller for uploading multi-part streams
     /// </summary>
-    public abstract class DriveUploadControllerBase : OdinControllerBase
+    public abstract class DriveUploadControllerBase(ILogger logger) : OdinControllerBase
     {
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
@@ -36,6 +37,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             AssertIsPart(section, MultipartUploadParts.Instructions);
             try
             {
+                logger.LogDebug("ReceiveFileStream: StartUpload");
                 await driveUploadService.StartUpload(section!.Body, WebOdinContext);
             }
             catch (JsonException e)
@@ -45,6 +47,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
+            logger.LogDebug("ReceiveFileStream: AddMetadata");
             await driveUploadService.AddMetadata(section!.Body, WebOdinContext);
 
             //
@@ -54,18 +57,21 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 if (IsPayloadPart(section))
                 {
                     AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultiPartSection);
+                    logger.LogDebug("ReceiveFileStream: AddPayload");
                     await driveUploadService.AddPayload(payloadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 if (IsThumbnail(section))
                 {
                     AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultiPartSection);
+                    logger.LogDebug("ReceiveFileStream: AddThumbnail");
                     await driveUploadService.AddThumbnail(thumbnailUploadKey, contentTypeFromMultiPartSection, fileSection.FileStream, WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
             }
 
+            logger.LogDebug("ReceiveFileStream: FinalizeUploadAsync");
             var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext);
             return status;
         }

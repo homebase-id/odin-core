@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Transit;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
@@ -13,7 +13,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     public class OwnerPeerSenderController : PeerSenderControllerBase
     {
         public OwnerPeerSenderController(
-            PeerOutgoingTransferService peerOutgoingTransferService) : base(peerOutgoingTransferService)
+            ILogger<OwnerPeerSenderController> logger,
+            PeerOutgoingTransferService peerOutgoingTransferService) : base(logger, peerOutgoingTransferService)
         {
         }
     }
