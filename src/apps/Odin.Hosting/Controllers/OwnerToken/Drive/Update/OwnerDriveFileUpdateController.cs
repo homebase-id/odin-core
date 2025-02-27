@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Hosting.Controllers.Base.Drive.Update;
 using Odin.Services.Authentication.Owner;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive.Update
 {
@@ -9,7 +9,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Update
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveFileUpdateController : DriveFileUpdateControllerBase
+    public class OwnerDriveFileUpdateController(ILogger<OwnerDriveFileUpdateController> logger) :
+        DriveFileUpdateControllerBase(logger)
     {
     }
 }

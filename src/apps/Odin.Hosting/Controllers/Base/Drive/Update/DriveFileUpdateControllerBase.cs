@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
@@ -12,7 +13,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 {
     /// <summary />
     [ApiController]
-    public abstract class DriveFileUpdateControllerBase : DriveUploadControllerBase
+    public abstract class DriveFileUpdateControllerBase(ILogger logger) : DriveUploadControllerBase(logger)
     {
         /// <summary>
         /// Uploads a file using multi-part form data

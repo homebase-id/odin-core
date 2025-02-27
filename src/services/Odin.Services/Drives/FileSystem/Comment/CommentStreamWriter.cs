@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Base;
@@ -23,8 +24,9 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        DriveManager driveManager)
-        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
+        DriveManager driveManager,
+        ILogger<CommentStreamWriter> logger)
+        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService, logger)
     {
         _peerOutgoingTransferService = peerOutgoingTransferService;
     }
