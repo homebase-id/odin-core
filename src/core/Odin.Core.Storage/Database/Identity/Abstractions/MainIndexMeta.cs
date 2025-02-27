@@ -29,6 +29,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
         private static readonly string selectOutputFields;
         public TableDriveLocalTagIndex _driveLocalTagIndex = driveLocalTagIndex;
+
         static MainIndexMeta()
         {
             // Initialize selectOutputFields statically
@@ -39,6 +40,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     .Select(name => name.Equals("fileId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.fileId" :
                                     name.Equals("rowId", StringComparison.OrdinalIgnoreCase) ? "driveMainIndex.rowId" :
                                     name));
+
+            
         }
 
         public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
@@ -620,7 +623,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <returns></returns>
         public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
             string cursor,
-            UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
+            UnixTimeUtc stopAtModifiedUnixTimeSeconds = default(UnixTimeUtc),
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
@@ -662,11 +665,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (rowIdCursor == null)
                 rowIdCursor = 0;
 
-            listWhereAnd.Add($"modified > {modifiedTimeCursor} OR (modified = {modifiedTimeCursor} AND driveMainIndex.rowId > {rowIdCursor})");
+            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({modifiedTimeCursor}, {rowIdCursor})");
 
-            if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
+            if (stopAtModifiedUnixTimeSeconds.milliseconds > 0)
             {
-                listWhereAnd.Add($"modified >= {stopAtModifiedUnixTimeSeconds.uniqueTime}");
+                listWhereAnd.Add($"modified >= {stopAtModifiedUnixTimeSeconds.milliseconds}");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
