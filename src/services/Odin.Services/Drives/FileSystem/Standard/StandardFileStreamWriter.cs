@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Base;
@@ -17,10 +18,13 @@ namespace Odin.Services.Drives.FileSystem.Standard;
 public class StandardFileStreamWriter : FileSystemStreamWriterBase
 {
     /// <summary />
-    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext,
+    public StandardFileStreamWriter(
+        StandardFileSystem fileSystem,
+        TenantContext tenantContext,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        DriveManager driveManager)
-        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService)
+        DriveManager driveManager,
+        ILogger<StandardFileStreamWriter> logger)
+        : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService, logger)
     {
     }
 

@@ -3,6 +3,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Mediator;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Services.AppNotifications.ClientNotifications
 {
@@ -13,6 +14,7 @@ namespace Odin.Services.AppNotifications.ClientNotifications
         public OdinId Sender { get; init; }
         public OdinId Recipient { get; init; }
         public Guid NotificationTypeId { get; } = Guid.Parse("8ee62e9e-c224-47ad-b663-21851207f768");
+        public PendingConnectionRequestHeader Request { get; set; }
 
         public string GetClientData()
         {
