@@ -184,7 +184,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
                 var resultOptions = new QueryModifiedResultOptions()
                 {
-                    MaxDate = DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds(),
+                    MaxDate = UnixTimeUtc.Now().AddHours(+1).milliseconds,
                     MaxRecords = 10,
                     IncludeHeaderContent = false
                 };
