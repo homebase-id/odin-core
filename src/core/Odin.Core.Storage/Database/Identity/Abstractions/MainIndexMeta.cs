@@ -327,7 +327,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         cursor.pagingCursor.rowId = 0;
                 }
 
-                listWhereAnd.Add($"driveMainIndex.{timeField} {sign} {cursor.pagingCursor.time.milliseconds} OR (driveMainIndex.{timeField} = {cursor.pagingCursor.time.milliseconds} AND rowId {sign} {cursor.pagingCursor.rowId})");
+                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {sign} ({cursor.pagingCursor.time.milliseconds}, {cursor.pagingCursor.rowId})");
             }
 
             if (cursor.stopAtBoundary != null)
@@ -340,7 +340,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         cursor.stopAtBoundary.rowId = 0;
                 }
 
-                listWhereAnd.Add($"driveMainIndex.{timeField} {isign} {cursor.stopAtBoundary.time.milliseconds}");
+                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {isign} ({cursor.stopAtBoundary.time.milliseconds}, {cursor.stopAtBoundary.rowId})");
             }
 
             if (IsSet(fileStateAnyOf))
@@ -362,11 +362,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             string order;
             if (fileIdSort)
             {
-                order = "driveMainIndex.fileId " + direction + ", rowId "+direction;
+                order = "driveMainIndex.fileId " + direction + ", driveMainIndex.rowId "+direction;
             }
             else
             {
-                order = "userDate " + direction + ", rowId " + direction;
+                order = "userDate " + direction + ", driveMainIndex.rowId " + direction;
             }
 
             // Read +1 more than requested to see if we're at the end of the dataset
@@ -669,7 +669,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (stopAtModifiedUnixTimeSeconds.milliseconds > 0)
             {
-                listWhereAnd.Add($"modified >= {stopAtModifiedUnixTimeSeconds.milliseconds}");
+                // You can argue if it should be < or <= but important that stopBoundary is
+                // the same for QueryModified and for QueryBatch
+                // Ok, we need an actual cursor with a rowid otherwise the tests will fail for
+                // rows inserted on the same ms.
+                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.milliseconds}, {stopAtModifiedUnixTimeSeconds.milliseconds})");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
