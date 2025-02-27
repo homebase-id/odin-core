@@ -504,7 +504,16 @@ namespace Odin.Hosting
                             var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
 
                             var indexFile = Path.Combine(publicPath, "index.html");
-                            await svc.WriteIndexFileAsync(indexFile, odinContext);
+                            
+                            try
+                            {
+                                await svc.WriteIndexFileAsync(indexFile, odinContext);
+                            }
+                            catch (Exception)
+                            {
+                                // #super parnoid
+                                await context.Response.SendFileAsync(indexFile);
+                            }
                         });
                     });
             }
