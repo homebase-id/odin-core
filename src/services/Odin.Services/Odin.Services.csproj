@@ -31,8 +31,4 @@
     <ProjectReference Include="../../core/Odin.Core/Odin.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Logging\" />
-  </ItemGroup>
-
 </Project>
