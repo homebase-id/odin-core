@@ -670,7 +670,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (stopAtModifiedUnixTimeSeconds.milliseconds > 0)
             {
-                listWhereAnd.Add($"modified >= {stopAtModifiedUnixTimeSeconds.milliseconds}");
+                listWhereAnd.Add($"modified <= {stopAtModifiedUnixTimeSeconds.milliseconds}");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,

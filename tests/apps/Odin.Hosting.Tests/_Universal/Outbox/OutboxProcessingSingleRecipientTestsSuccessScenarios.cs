@@ -274,7 +274,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 },
                 ResultOptions = new QueryModifiedResultOptions()
                 {
-                    MaxDate = UnixTimeUtc.Now().AddSeconds(-100).milliseconds,
+                    MaxDate = UnixTimeUtc.Now().AddSeconds(+100).milliseconds,
                     IncludeTransferHistory = false
                 }
             });
