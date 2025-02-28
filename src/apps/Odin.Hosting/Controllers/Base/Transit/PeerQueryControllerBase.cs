@@ -171,6 +171,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpGet("thumb")]
+        [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] string odinId, [FromQuery] Guid fileId, [FromQuery] string payloadKey,
             [FromQuery] Guid alias,
             [FromQuery] Guid type, [FromQuery] int width,

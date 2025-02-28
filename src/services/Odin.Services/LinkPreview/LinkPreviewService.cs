@@ -43,6 +43,7 @@ public class LinkPreviewService(
     private const string DefaultTitle = "Homebase.id";
     private const string DefaultDescription = "Decentralized identity powered by Homebase.id";
 
+    public const string PublicImagePath = "pub/image.jpg";
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
 
     private const int ChannelDefinitionFileType = 103;
@@ -130,7 +131,7 @@ public class LinkPreviewService(
 
             if (string.IsNullOrEmpty(imageUrl))
             {
-                imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+                imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
             }
 
             if (string.IsNullOrEmpty(description))
@@ -213,11 +214,11 @@ public class LinkPreviewService(
             var mediaPayload = postFile.FileMetadata.Payloads
                 .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
 
-            bool hasUsableThumbnail = mediaPayload?.Thumbnails
-                                          .Any(t => t.PixelHeight > minThumbHeight
-                                                    && t.PixelWidth > minThumbWidth)
-                                      ?? false;
-            if (hasUsableThumbnail)
+            var theThumbnail = mediaPayload?.Thumbnails
+                .SingleOrDefault(t => t.PixelHeight > minThumbHeight
+                                      && t.PixelWidth > minThumbWidth);
+
+            if (theThumbnail != null)
             {
                 logger.LogDebug("Post has usable thumbnail");
 
@@ -231,9 +232,11 @@ public class LinkPreviewService(
                 b.Append($"&xfst=Standard"); // note: No comment support
                 b.Append($"&iac=true");
 
+                var extension = MimeTypeHelper.GetFileExtensionFromMimeType(theThumbnail.ContentType) ?? ".jpg";
+
                 var builder = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
                 {
-                    Path = "api/guest/v1/drive/files/thumb",
+                    Path = $"api/guest/v1/drive/files/thumb{extension}",
                     Query = b.ToString()
                 };
 
@@ -437,7 +440,7 @@ public class LinkPreviewService(
         string odinId = context.Request.Host.Host;
         var person = await GeneratePersonSchema();
 
-        var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+        var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
 
         string suffix = DefaultTitle;
         string siteType = "profile";
