@@ -126,10 +126,15 @@ public abstract class FileSystemStreamWriterBase
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
 
-        if (bytesWritten > 0)
+        if (bytesWritten <= 0)
         {
-            Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
+            _logger.LogError("Zero bytes written while uploading payload with fileId [{file}] with " +
+                             "extension [{extension}]", Package.InternalFile, extension);
+
+            throw new OdinSystemException("Failed while writing temp file during upload");
         }
+
+        Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -163,15 +168,23 @@ public abstract class FileSystemStreamWriterBase
         }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+        string extension = DriveFileUtility.GetThumbnailFileExtension(
             result.PayloadKey,
             result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
 
+        if (bytesWritten <= 0)
+        {
+            _logger.LogError("Zero bytes written while uploading thumbnail with fileId [{file}] with " +
+                             "extension [{extension}]", Package.InternalFile, extension);
+
+            throw new OdinSystemException("Failed while writing temp file during upload");
+        }
+        
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
@@ -541,7 +554,7 @@ public abstract class FileSystemStreamWriterBase
                 }
             }
         }
-        
+
         DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
         DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
     }
