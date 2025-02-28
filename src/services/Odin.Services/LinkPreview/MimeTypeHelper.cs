@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Odin.Services.LinkPreview;
@@ -6,14 +7,46 @@ namespace Odin.Services.LinkPreview;
 public static class MimeTypeHelper
 {
     // Dictionary mapping MIME type subtypes to file extensions
-    private static readonly Dictionary<string, string> SubtypeToExtension = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> SubtypeToExtension = new(StringComparer.InvariantCultureIgnoreCase)
     {
+        // JPEG formats
         { "jpeg", ".jpg" },
-        { "gif", ".gif" },
+        { "pjpeg", ".jpg" }, // progressive JPEG
+
+        // PNG and GIF formats
         { "png", ".png" },
+        { "gif", ".gif" },
+
+        // Bitmap formats
         { "bmp", ".bmp" },
+
+        // TIFF formats
         { "tiff", ".tiff" },
-        { "svg+xml", ".svg" }
+        { "tif", ".tiff" },
+
+        // SVG (Scalable Vector Graphics)
+        { "svg+xml", ".svg" },
+
+        // WebP format
+        { "webp", ".webp" },
+
+        // High Efficiency Image File Formats
+        { "heif", ".heif" },
+        { "heic", ".heic" },
+
+        // AVIF format
+        { "avif", ".avif" },
+
+        // JPEG 2000 formats
+        { "jp2", ".jp2" },
+        { "jpx", ".jp2" }, // alternative subtype for JPEG 2000
+
+        // JPEG XR format
+        { "jxr", ".jxr" },
+
+        // Icon formats
+        { "vnd.microsoft.icon", ".ico" },
+        { "x-icon", ".ico" }
     };
 
     /// <summary>
