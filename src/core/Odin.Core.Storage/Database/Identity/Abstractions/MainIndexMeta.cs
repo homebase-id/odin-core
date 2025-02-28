@@ -234,7 +234,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="noOfItems">Maximum number of results you want back</param>
         /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page. pagingCursor will be updated. When no more data is available, pagingCursor is set to null (query will restart if you keep passing it)</param>
         /// <param name="newestFirstOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
-        /// <param name="fileIdSort">true to order by fileId, false to order by usedDate, fileId</param>
+        /// <param name="createdSort">true to order by fileId, false to order by usedDate, fileId</param>
         /// <param name="requiredSecurityGroup"></param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
@@ -249,7 +249,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             int noOfItems,
             QueryBatchCursor cursor,
             bool newestFirstOrder,
-            bool fileIdSort = true,
+            bool createdSort = true,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -313,7 +313,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 direction = "ASC";
             }
 
-            string timeField = fileIdSort ? "created" : "userDate";
+            string timeField = createdSort ? "created" : "userDate";
 
             var listWhereAnd = new List<string>();
 
@@ -360,7 +360,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 selectOutputFields = "driveMainIndex.fileId, userDate";*/
 
             string order;
-            if (fileIdSort)
+            if (createdSort)
             {
                 order = "driveMainIndex.created " + direction + ", driveMainIndex.rowId "+direction;
             }
@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
 
                     rowid = r.rowId;
-                    datatime = fileIdSort ? r.created : r.userDate;
+                    datatime = createdSort ? r.created : r.userDate;
 
                     i++;
                     if (i >= noOfItems)
@@ -451,7 +451,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 QueryBatchAsync(driveId, noOfItems,
                     cursor,
                     newestFirstOrder: true,
-                    fileIdSort: true,
+                    createdSort: true,
                     fileSystemType,
                     fileStateAnyOf,
                     requiredSecurityGroup,
