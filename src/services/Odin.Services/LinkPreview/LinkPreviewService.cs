@@ -214,9 +214,9 @@ public class LinkPreviewService(
             var mediaPayload = postFile.FileMetadata.Payloads
                 .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
 
-            var theThumbnail = mediaPayload?.Thumbnails
-                .SingleOrDefault(t => t.PixelHeight > minThumbHeight
-                                      && t.PixelWidth > minThumbWidth);
+            var theThumbnail = mediaPayload?.Thumbnails.OrderBy(t => t.PixelWidth)
+                .LastOrDefault(t => t.PixelHeight > minThumbHeight
+                                    && t.PixelWidth > minThumbWidth);
 
             if (theThumbnail != null)
             {
