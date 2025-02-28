@@ -362,7 +362,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             string order;
             if (fileIdSort)
             {
-                order = "driveMainIndex.fileId " + direction + ", driveMainIndex.rowId "+direction;
+                order = "driveMainIndex.created " + direction + ", driveMainIndex.rowId "+direction;
             }
             else
             {
@@ -623,7 +623,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <returns></returns>
         public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
             string cursor,
-            UnixTimeUtc stopAtModifiedUnixTimeSeconds = default(UnixTimeUtc),
+            TimeRowCursor stopAtModifiedUnixTimeSeconds = null,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
@@ -667,13 +667,18 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({modifiedTimeCursor}, {rowIdCursor})");
 
-            if (stopAtModifiedUnixTimeSeconds.milliseconds > 0)
+            if (stopAtModifiedUnixTimeSeconds != null)
             {
                 // You can argue if it should be < or <= but important that stopBoundary is
                 // the same for QueryModified and for QueryBatch
                 // Ok, we need an actual cursor with a rowid otherwise the tests will fail for
                 // rows inserted on the same ms.
-                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.milliseconds}, {stopAtModifiedUnixTimeSeconds.milliseconds})"); // XXX ROWID HACK DOESNT WORK
+                if (stopAtModifiedUnixTimeSeconds.rowId == null)
+                {
+                    stopAtModifiedUnixTimeSeconds.rowId = long.MaxValue; // Will thus include any rows matching this timestamp - IDK if this is what we want
+                }
+
+                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.time.milliseconds}, {stopAtModifiedUnixTimeSeconds.rowId})");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
