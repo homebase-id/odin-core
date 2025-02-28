@@ -131,7 +131,7 @@ public class LinkPreviewService(
 
             if (string.IsNullOrEmpty(imageUrl))
             {
-                imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
+                imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
             }
 
             if (string.IsNullOrEmpty(description))
@@ -214,9 +214,9 @@ public class LinkPreviewService(
             var mediaPayload = postFile.FileMetadata.Payloads
                 .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
 
-            var theThumbnail = mediaPayload?.Thumbnails
-                .SingleOrDefault(t => t.PixelHeight > minThumbHeight
-                                      && t.PixelWidth > minThumbWidth);
+            var theThumbnail = mediaPayload?.Thumbnails.OrderBy(t => t.PixelWidth)
+                .LastOrDefault(t => t.PixelHeight > minThumbHeight
+                                    && t.PixelWidth > minThumbWidth);
 
             if (theThumbnail != null)
             {
@@ -422,9 +422,9 @@ public class LinkPreviewService(
 
         StringBuilder b = new StringBuilder(500);
 
-        b.Append($"<title>{title}</title>");
+        b.Append($"<title>{title}</title>\n");
         b.Append($"<meta property='description' content='{description}'/>\n");
-        b.Append($"<meta name='robots' content='index, follow'>");
+        b.Append($"<meta name='robots' content='index, follow'>\n");
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
         b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
@@ -440,7 +440,7 @@ public class LinkPreviewService(
         string odinId = context.Request.Host.Host;
         var person = await GeneratePersonSchema();
 
-        var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
+        var imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
 
         string suffix = DefaultTitle;
         string siteType = "profile";
@@ -469,7 +469,7 @@ public class LinkPreviewService(
     {
         var builder = PrepareBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />");
+        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
         builder.Append(PrepareIdentityContent(person));
 
         var indexTemplate = await globalCache.GetOrSetAsync(
