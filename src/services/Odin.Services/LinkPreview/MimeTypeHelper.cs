@@ -7,7 +7,7 @@ namespace Odin.Services.LinkPreview;
 public static class MimeTypeHelper
 {
     // Dictionary mapping MIME type subtypes to file extensions
-    private static readonly Dictionary<string, string> SubtypeToExtension = new(StringComparer.InvariantCultureIgnoreCase)
+    public static readonly Dictionary<string, string> SubtypeToExtension = new(StringComparer.InvariantCultureIgnoreCase)
     {
         // JPEG formats
         { "jpeg", ".jpg" },

@@ -20,6 +20,7 @@ using Odin.Services.Peer;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
+using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting.Middleware
 {
@@ -77,8 +78,8 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.NotificationsV1}/preauth",
                 $"{AppApiPathConstants.PeerNotificationsV1}/preauth",
                 $"{GuestApiPathConstants.PeerNotificationsV1}/preauth",
-                
             };
+
 
             //Paths that should not have their responses encrypted with shared secret
             _ignoredPathsForResponses = new List<string>
@@ -109,15 +110,21 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
                 $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
-                $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb.jpg",
 
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
-                $"{GuestApiPathConstants.DriveV1}/files/thumb.jpg",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",
                 "/cdn",
             };
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
+
+            // for link-preview add all supported extension for thumbnails
+            var allExtensions = MimeTypeHelper.SubtypeToExtension.Select(kvp => kvp.Value);
+            foreach (var extension in allExtensions)
+            {
+                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveV1}/files/thumb.{extension}");
+                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb.{extension}");
+            }
         }
 
         //
@@ -165,7 +172,8 @@ namespace Odin.Hosting.Middleware
             {
                 if (request.Method.ToUpper() == "GET")
                 {
-                    if (request.Query.TryGetValue(SharedSecretQueryStringParam, out var qs) == false || string.IsNullOrEmpty(qs.FirstOrDefault()) ||
+                    if (request.Query.TryGetValue(SharedSecretQueryStringParam, out var qs) == false ||
+                        string.IsNullOrEmpty(qs.FirstOrDefault()) ||
                         string.IsNullOrWhiteSpace(qs.FirstOrDefault()))
                     {
                         throw new OdinClientException("Querystring must be encrypted", OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
@@ -186,14 +194,16 @@ namespace Odin.Hosting.Middleware
                     var bytes = request.Body.ToByteArray();
                     if (bytes.Length > 0)
                     {
-                        var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(new MemoryStream(bytes), this.GetSharedSecret(context), context.RequestAborted);
+                        var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(new MemoryStream(bytes),
+                            this.GetSharedSecret(context), context.RequestAborted);
                         //update the body with the decrypted json file so it can be read down stream as expected
                         request.Body = new MemoryStream(decryptedBytes);
                     }
                 }
                 else
                 {
-                    var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context), context.RequestAborted);
+                    var decryptedBytes =
+                        await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context), context.RequestAborted);
 
                     //update the body with the decrypted json file so it can be read down stream as expected
                     request.Body = new MemoryStream(decryptedBytes);
