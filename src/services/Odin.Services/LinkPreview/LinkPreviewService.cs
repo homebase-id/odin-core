@@ -214,11 +214,11 @@ public class LinkPreviewService(
             var mediaPayload = postFile.FileMetadata.Payloads
                 .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
 
-            bool hasUsableThumbnail = mediaPayload?.Thumbnails
-                                          .Any(t => t.PixelHeight > minThumbHeight
-                                                    && t.PixelWidth > minThumbWidth)
-                                      ?? false;
-            if (hasUsableThumbnail)
+            var theThumbnail = mediaPayload?.Thumbnails
+                .SingleOrDefault(t => t.PixelHeight > minThumbHeight
+                                      && t.PixelWidth > minThumbWidth);
+
+            if (theThumbnail != null)
             {
                 logger.LogDebug("Post has usable thumbnail");
 
@@ -232,9 +232,11 @@ public class LinkPreviewService(
                 b.Append($"&xfst=Standard"); // note: No comment support
                 b.Append($"&iac=true");
 
+                var extension = MimeTypeHelper.GetFileExtensionFromMimeType(theThumbnail.ContentType) ?? "jpg";
+
                 var builder = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
                 {
-                    Path = "api/guest/v1/drive/files/thumb.jpg",
+                    Path = $"api/guest/v1/drive/files/thumb.{extension}",
                     Query = b.ToString()
                 };
 
