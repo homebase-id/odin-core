@@ -1261,7 +1261,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             string cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, cursor, stopAtModifiedUnixTimeSeconds: new TimeRowCursor(new UnixTimeUtc(t), null), requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2); // Up to and including the boundary
+            Debug.Assert(result.Count == 1); // Up to and NOT including the boundary
+            Debug.Assert(hasRows == false);
+
+            (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, cursor, stopAtModifiedUnixTimeSeconds: new TimeRowCursor(new UnixTimeUtc(t), 2), requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1); // Up to and NOT including the boundary
             Debug.Assert(hasRows == false);
         }
 

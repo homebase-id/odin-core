@@ -359,15 +359,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             else
                 selectOutputFields = "driveMainIndex.fileId, userDate";*/
 
-            string order;
-            if (createdSort)
-            {
-                order = "driveMainIndex.created " + direction + ", driveMainIndex.rowId "+direction;
-            }
-            else
-            {
-                order = "userDate " + direction + ", driveMainIndex.rowId " + direction;
-            }
+            var order = $"driveMainIndex.{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
@@ -674,9 +666,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // Ok, we need an actual cursor with a rowid otherwise the tests will fail for
                 // rows inserted on the same ms.
                 if (stopAtModifiedUnixTimeSeconds.rowId == null)
-                {
-                    stopAtModifiedUnixTimeSeconds.rowId = long.MaxValue; // Will thus include any rows matching this timestamp - IDK if this is what we want
-                }
+                    stopAtModifiedUnixTimeSeconds.rowId = 0; // Must behave like QueryBatchAsync as well as the above rowIdCursor=0 (we're ASCending)
 
                 listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.time.milliseconds}, {stopAtModifiedUnixTimeSeconds.rowId})");
             }

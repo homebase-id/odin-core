@@ -86,7 +86,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await _driveQuery.SoftDeleteFileHeader(header);
         }
 
-        public async Task<(RecipientTransferHistory updatedHistory, UnixTimeUtc modifiedTime)> InitiateTransferHistoryAsync(
+        public async Task<(RecipientTransferHistory updatedHistory, UnixTimeUtcUnique modifiedTime)> InitiateTransferHistoryAsync(
             Guid driveId,
             Guid fileId,
             OdinId recipient)
@@ -119,7 +119,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return (history, modified);
         }
 
-        public async Task<(RecipientTransferHistory updatedHistory, UnixTimeUtc modifiedTime)> SaveTransferHistoryAsync(Guid driveId,
+        public async Task<(RecipientTransferHistory updatedHistory, UnixTimeUtcUnique modifiedTime)> SaveTransferHistoryAsync(Guid driveId,
             Guid fileId, OdinId recipient,
             UpdateTransferHistoryData updateData)
         {
@@ -145,7 +145,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return (history, modified);
         }
 
-        private async Task<(RecipientTransferHistory history, UnixTimeUtc modified)> UpdateTransferHistorySummary(Guid driveId,
+        private async Task<(RecipientTransferHistory history, UnixTimeUtcUnique modified)> UpdateTransferHistorySummary(Guid driveId,
             Guid fileId)
         {
             var fileTransferHistory = await GetTransferHistory(driveId, fileId);
@@ -164,8 +164,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var json = OdinSystemSerializer.Serialize(history);
 
-            var modified = UnixTimeUtc.Now();
-            await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified);
+            var modified = UnixTimeUtcUnique.Now();
+            await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified.ToUnixTimeUtc());
             return (history, modified);
         }
 
