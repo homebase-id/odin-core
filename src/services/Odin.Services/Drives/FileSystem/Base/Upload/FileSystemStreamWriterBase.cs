@@ -200,7 +200,7 @@ public abstract class FileSystemStreamWriterBase
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadResult> FinalizeUploadAsync(IOdinContext odinContext)
+    public async Task<UploadResult>  FinalizeUploadAsync(IOdinContext odinContext)
     {
         _logger.LogDebug("Entering FinalizeUploadAsync");
 
