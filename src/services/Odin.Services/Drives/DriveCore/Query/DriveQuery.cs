@@ -44,7 +44,9 @@ public class DriveQuery(
             noOfItems: options.MaxRecords,
             options.Cursor,
             fileSystemType: (Int32)fileSystemType,
-            stopAtModifiedUnixTimeSeconds: new TimeRowCursor(new UnixTimeUtc(options.MaxDate), null),
+            stopAtModifiedUnixTimeSeconds: options.MaxDate == null
+                ? null
+                : new TimeRowCursor(new UnixTimeUtc(options.MaxDate.GetValueOrDefault()), null),
             requiredSecurityGroup: requiredSecurityGroup,
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
@@ -295,7 +297,7 @@ public class DriveQuery(
 
         tx.Commit();
     }
-    
+
     public async Task SaveReactionSummary(StorageDrive drive, Guid fileId, ReactionSummary summary)
     {
         var json = summary == null ? "" : OdinSystemSerializer.Serialize(summary);
@@ -449,7 +451,7 @@ public class DriveQuery(
         return null;
     }
 
-  
+
     private async Task<(QueryBatchCursor cursor, List<DriveMainIndexRecord> fileIds, bool hasMoreRows)> GetBatchExplicitOrderingAsync(
         StorageDrive drive,
         IOdinContext odinContext,
