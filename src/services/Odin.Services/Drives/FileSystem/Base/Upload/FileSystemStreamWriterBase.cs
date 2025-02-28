@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
@@ -30,10 +31,15 @@ public abstract class FileSystemStreamWriterBase
 
     private readonly DriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
+    private readonly ILogger _logger;
 
     /// <summary />
-    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext,
-        DriveManager driveManager, PeerOutgoingTransferService peerOutgoingTransferService)
+    protected FileSystemStreamWriterBase(
+        IDriveFileSystem fileSystem,
+        TenantContext tenantContext,
+        DriveManager driveManager,
+        PeerOutgoingTransferService peerOutgoingTransferService,
+        ILogger logger)
     {
         FileSystem = fileSystem;
 
@@ -41,6 +47,7 @@ public abstract class FileSystemStreamWriterBase
 
         _driveManager = driveManager;
         _peerOutgoingTransferService = peerOutgoingTransferService;
+        _logger = logger;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -119,10 +126,15 @@ public abstract class FileSystemStreamWriterBase
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
 
-        if (bytesWritten > 0)
+        if (bytesWritten <= 0)
         {
-            Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
+            _logger.LogError("Zero bytes written while uploading payload with fileId [{file}] with " +
+                             "extension [{extension}]", Package.InternalFile, extension);
+
+            throw new OdinSystemException("Failed while writing temp file during upload");
         }
+
+        Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -156,15 +168,23 @@ public abstract class FileSystemStreamWriterBase
         }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+        string extension = DriveFileUtility.GetThumbnailFileExtension(
             result.PayloadKey,
             result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
 
+        if (bytesWritten <= 0)
+        {
+            _logger.LogError("Zero bytes written while uploading thumbnail with fileId [{file}] with " +
+                             "extension [{extension}]", Package.InternalFile, extension);
+
+            throw new OdinSystemException("Failed while writing temp file during upload");
+        }
+        
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
@@ -182,6 +202,8 @@ public abstract class FileSystemStreamWriterBase
     /// </summary>
     public async Task<UploadResult> FinalizeUploadAsync(IOdinContext odinContext)
     {
+        _logger.LogDebug("Entering FinalizeUploadAsync");
+
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
         await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata);
@@ -255,6 +277,8 @@ public abstract class FileSystemStreamWriterBase
             GlobalTransitId = metadata.GlobalTransitId,
             RecipientStatus = recipientStatus
         };
+
+        _logger.LogDebug("Leaving FinalizeUploadAsync");
 
         return uploadResult;
     }
@@ -530,7 +554,7 @@ public abstract class FileSystemStreamWriterBase
                 }
             }
         }
-        
+
         DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
         DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
     }

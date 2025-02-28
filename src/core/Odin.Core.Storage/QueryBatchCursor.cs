@@ -131,7 +131,7 @@ namespace Odin.Core.Storage
                 this.stopAtBoundary = deserializedCursor.stopAtBoundary;
                 this.cursorType = deserializedCursor.cursorType;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 pagingCursor = null;
                 stopAtBoundary = null;

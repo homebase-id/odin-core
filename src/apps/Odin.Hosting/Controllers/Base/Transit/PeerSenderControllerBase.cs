@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
@@ -12,7 +13,6 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
@@ -23,8 +23,9 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <remarks>
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
-    public abstract class PeerSenderControllerBase(PeerOutgoingTransferService peerOutgoingTransferService)
-        : DriveUploadControllerBase
+    public abstract class PeerSenderControllerBase(
+        ILogger logger, PeerOutgoingTransferService peerOutgoingTransferService)
+        : DriveUploadControllerBase(logger)
     {
         /// <summary>
         /// Uploads a file using multi-part form data

@@ -673,7 +673,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // the same for QueryModified and for QueryBatch
                 // Ok, we need an actual cursor with a rowid otherwise the tests will fail for
                 // rows inserted on the same ms.
-                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.milliseconds}, {stopAtModifiedUnixTimeSeconds. ROWID})");
+                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.milliseconds}, {stopAtModifiedUnixTimeSeconds.milliseconds})"); // XXX ROWID HACK DOESNT WORK
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,

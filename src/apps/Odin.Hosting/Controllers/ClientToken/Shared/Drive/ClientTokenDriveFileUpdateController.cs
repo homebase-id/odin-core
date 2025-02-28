@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Hosting.Controllers.Base.Drive.Update;
 using Odin.Hosting.Controllers.ClientToken.App;
-using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 {
@@ -11,7 +10,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstants.DriveStorageV1)]
     // [Route(GuestApiPathConstants.DriveStorageV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenDriveFileUpdateController : DriveFileUpdateControllerBase
+    public class ClientTokenDriveFileUpdateController(ILogger<ClientTokenDriveFileUpdateController> logger)
+        : DriveFileUpdateControllerBase(logger)
     {
     }
 }
