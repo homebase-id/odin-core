@@ -30,6 +30,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<uint> WriteStream(StorageDrive drive, Guid fileId, string extension, Stream stream)
         {
             string filePath = GetTempFilenameAndPath(drive, fileId, extension, true);
+            logger.LogDebug("Writing temp file: {filePath}", filePath);
             uint bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
             return bytesWritten;
         }
