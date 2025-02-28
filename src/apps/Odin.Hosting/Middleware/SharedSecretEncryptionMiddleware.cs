@@ -122,8 +122,8 @@ namespace Odin.Hosting.Middleware
             var allExtensions = MimeTypeHelper.SubtypeToExtension.Select(kvp => kvp.Value);
             foreach (var extension in allExtensions)
             {
-                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveV1}/files/thumb.{extension}");
-                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb.{extension}");
+                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveV1}/files/thumb{extension}");
+                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb{extension}");
             }
         }
 
