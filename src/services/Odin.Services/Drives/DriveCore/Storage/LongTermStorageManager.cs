@@ -363,14 +363,25 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task MovePayloadToLongTerm(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
+            if (!File.Exists(sourceFile))
+            {
+                throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
+            }
+
             var destinationFile = GetPayloadFilePath(drive, targetFileId, descriptor, ensureExists: true);
             await _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
+            _logger.LogDebug("Payload: moved {sourceFile} to {destinationFile}", sourceFile, destinationFile);
         }
 
         public async Task MoveThumbnailToLongTermAsync(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
+            if (!File.Exists(sourceThumbnailFilePath))
+            {
+                throw new OdinSystemException($"Thumbnail: source file does not exist: {sourceThumbnailFilePath}");
+            }
+
             var payloadKey = payloadDescriptor.Key;
 
             DriveFileUtility.AssertValidPayloadKey(payloadKey);
@@ -383,7 +394,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             _driveFileReaderWriter.CreateDirectory(dir);
 
             await _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
-            _logger.LogDebug("File Moved to {destinationFile}", destinationFile);
+            _logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
+                sourceThumbnailFilePath, destinationFile);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
