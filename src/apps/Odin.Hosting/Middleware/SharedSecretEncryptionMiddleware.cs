@@ -109,8 +109,10 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
                 $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
+                $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb.jpg",
 
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
+                $"{GuestApiPathConstants.DriveV1}/files/thumb.jpg",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",
                 "/cdn",
             };

@@ -55,6 +55,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         }
 
         [HttpGet("thumb")]
+        [HttpGet("thumb.jpg")] // for link-preview support in signal/whatsapp
         public async Task<IActionResult> GetThumbnailStreamByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type,
             [FromQuery] int width,
             [FromQuery] int height,

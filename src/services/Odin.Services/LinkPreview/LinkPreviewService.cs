@@ -43,6 +43,7 @@ public class LinkPreviewService(
     private const string DefaultTitle = "Homebase.id";
     private const string DefaultDescription = "Decentralized identity powered by Homebase.id";
 
+    public const string PublicImageSuffix = "pub/image.jpg";
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
 
     private const int ChannelDefinitionFileType = 103;
@@ -130,7 +131,7 @@ public class LinkPreviewService(
 
             if (string.IsNullOrEmpty(imageUrl))
             {
-                imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+                imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/{PublicImageSuffix}";
             }
 
             if (string.IsNullOrEmpty(description))
@@ -233,7 +234,7 @@ public class LinkPreviewService(
 
                 var builder = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
                 {
-                    Path = "api/guest/v1/drive/files/thumb",
+                    Path = "api/guest/v1/drive/files/thumb.jpg",
                     Query = b.ToString()
                 };
 
@@ -437,7 +438,7 @@ public class LinkPreviewService(
         string odinId = context.Request.Host.Host;
         var person = await GeneratePersonSchema();
 
-        var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+        var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/{PublicImageSuffix}";
 
         string suffix = DefaultTitle;
         string siteType = "profile";
