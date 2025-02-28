@@ -240,20 +240,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await tempStorageManager.GetAllFileBytes(drive, file.FileId, extension);
         }
 
-        public async Task DeleteTempFile(InternalDriveFileId file, string extension, IOdinContext odinContext)
-        {
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            await tempStorageManager.EnsureDeleted(drive, file.FileId, extension);
-        }
-
-        public async Task DeleteTempFiles(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            await tempStorageManager.EnsureDeleted(drive, file.FileId);
-        }
-
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
             int width,
             int height,
