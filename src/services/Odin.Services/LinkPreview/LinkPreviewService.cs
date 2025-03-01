@@ -208,6 +208,7 @@ public class LinkPreviewService(
         catch (Exception e)
         {
             logger.LogError(e, "Failed deserializing post content. json: [{json}]", json);
+            throw;
         }
 
         var context = httpContextAccessor.HttpContext;
