@@ -2,14 +2,14 @@ namespace Odin.Services.Drives.DriveCore.Query;
 
 public class QueryModifiedResultOptions : ResultOptions
 {
-    public long MaxDate { get; set; }
+    public long? MaxDate { get; set; }
     public string Cursor { get; set; }
 
     public static QueryModifiedResultOptions Default()
     {
         return new QueryModifiedResultOptions()
         {
-            MaxDate = default,
+            MaxDate = null,
             ExcludePreviewThumbnail = true,
             MaxRecords = 100,
             Cursor = default,

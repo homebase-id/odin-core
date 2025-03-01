@@ -32,7 +32,7 @@ public class QueryBatchResponse
         {
             QueryTime = batch.QueryTime,
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
-            CursorState = batch.Cursor.ToState(),
+            CursorState = batch.Cursor.ToJson(),
             SearchResults = batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>()
         };
 
