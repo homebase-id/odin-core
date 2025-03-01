@@ -16,11 +16,13 @@ public class PostContent
 
     [JsonPropertyName("caption")] 
     public string Caption { get; set; }
-
+    
+    // Marked as ignore since we dont need this field. however I
+    // do not want the deserializer to fail due to a missing member
+    [JsonIgnore]
     [JsonPropertyName("captionAsRichText")]
-    //captionAsRichText?: RichText;
-    public string CaptionAsRichText { get; set; }
-
+    public object CaptionAsRichText { get; set; }
+    
     [JsonPropertyName("abstract")]
     public string Abstract { get; set; }
 

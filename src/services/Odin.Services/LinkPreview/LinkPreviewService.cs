@@ -185,18 +185,30 @@ public class LinkPreviewService(
 
         PostContent content = null;
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.Key == DefaultPayloadKey);
-        if (payloadHeader == null)
+        var json = "";
+        try
         {
-            logger.LogDebug("Using content used from AppData.Content");
-            content = OdinSystemSerializer.Deserialize<PostContent>(postFile.FileMetadata.AppData.Content);
+            if (payloadHeader == null)
+            {
+                logger.LogDebug("Using content used from AppData.Content");
+                json = postFile.FileMetadata.AppData.Content;
+            }
+            else
+            {
+                // if there is a default payload, then all content is there;
+                logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
+                var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
+                var reader = new StreamReader(payloadStream.Stream);
+                json = await reader.ReadToEndAsync(cancellationToken);
+                reader.Close();
+            }
+
+            content = OdinSystemSerializer.Deserialize<PostContent>(json);
         }
-        else
+        catch (Exception e)
         {
-            // if there is a default payload, then all content is there;
-            var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-            content = await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken);
-            payloadStream.Stream.Close();
-            logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
+            logger.LogError(e, "Failed deserializing post content. json: [{json}]", json);
+            throw;
         }
 
         var context = httpContextAccessor.HttpContext;
@@ -244,11 +256,11 @@ public class LinkPreviewService(
             }
         }
 
-        logger.LogDebug("Returning post content.  " +
-                        "title:[{title}], description: {desc} imageUrl:{img}",
-            content.Caption,
-            imageUrl,
-            content.Abstract);
+        // logger.LogDebug("Returning post content.  " +
+        //                 "title:[{title}], description: {desc} imageUrl:{img}",
+        //     content.Caption,
+        //     imageUrl,
+        //     content.Abstract);
 
         return (true, content.Caption, imageUrl, content.Abstract);
     }
