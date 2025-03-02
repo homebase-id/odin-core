@@ -24,6 +24,60 @@ namespace Odin.Core.Storage
             return time.ToString() + "," + rowId.ToString();
         }
 
+        public string ToJson()
+        {
+            return JsonSerializer.Serialize(this);
+        }
+
+        public static TimeRowCursor FromJson(string json)
+        {
+            try
+            {
+                var deserializedCursor = JsonSerializer.Deserialize<TimeRowCursor>(json);
+                return deserializedCursor;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+
+        public static TimeRowCursor FromJsonOrOldString(string s)
+        {
+            if (s == null)
+                return null;
+
+            var cursor = TimeRowCursor.FromJson(s);
+
+            if (cursor != null)
+                return cursor;
+
+            var parts = s.Split(',');
+
+            if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
+            {
+                // This section is only for "old" cursors
+                // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
+                if (ts > 1L << 42)
+                    ts = ts >> 16;
+
+                return new TimeRowCursor(ts, null);
+            }
+            else if (parts.Length == 2 &&
+                        long.TryParse(parts[0], out long ts2) &&
+                        long.TryParse(parts[1], out long rowId))
+            {
+                if (ts2 > 1L << 42)
+                    ts2 = ts2 >> 16;
+
+                return new TimeRowCursor(ts2, rowId);
+            }
+
+            return null;
+        }
+
+
         public bool Equals(TimeRowCursor other)
         {
             return this.time.milliseconds == other.time.milliseconds && this.rowId == other.rowId;

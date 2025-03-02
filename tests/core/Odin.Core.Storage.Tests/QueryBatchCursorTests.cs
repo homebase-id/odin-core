@@ -8,6 +8,65 @@ namespace Odin.Core.Storage.Tests
     public class QueryBatchCursorTests
     {
         [Test]
+        public void TimeCursorEmptyStateTest()
+        {
+            var cursor = TimeRowCursor.FromJsonOrOldString(null);
+            Assert.That(cursor == null);
+            cursor = TimeRowCursor.FromJsonOrOldString("");
+            Assert.That(cursor == null);
+            Assert.Pass();
+        }
+
+        [Test]
+        public void TimeCursorInvalidStateTest()
+        {
+            var cursor = TimeRowCursor.FromJsonOrOldString("asdasda");
+            Assert.That(cursor == null);
+            cursor = TimeRowCursor.FromJsonOrOldString("1,2,3");
+            Assert.That(cursor == null);
+            Assert.Pass();
+        }
+
+
+        [Test]
+        public void TimeStringTests()
+        {
+            var cursor = TimeRowCursor.FromJsonOrOldString("42");
+            Assert.That(cursor.time == 42);
+            Assert.That(cursor.rowId == null);
+
+            cursor = TimeRowCursor.FromJsonOrOldString("42,7");
+            Assert.That(cursor.time == 42);
+            Assert.That(cursor.rowId == 7);
+
+            Assert.Pass();
+        }
+
+
+        [Test]
+        public void TimeJsonTests()
+        {
+            var cursor = new TimeRowCursor(42,7);
+            var json = cursor.ToJson();
+
+            var copy = TimeRowCursor.FromJson(json);
+
+            Assert.That(cursor.time == copy.time);
+            Assert.That(cursor.rowId == copy.rowId);
+
+            cursor = new TimeRowCursor(42, null);
+            json = cursor.ToJson();
+
+            copy = TimeRowCursor.FromJson(json);
+
+            Assert.That(cursor.time == copy.time);
+            Assert.That(cursor.rowId == copy.rowId);
+
+            Assert.Pass();
+        }
+
+
+        [Test]
         public void EmptyStateTest()
         {
             var cursor = new QueryBatchCursor();

@@ -1,20 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.VisualBasic.FileIO;
-using System.Xml;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
-using System.Runtime.Caching;
-using Odin.Core.Storage.SQLite.Migrations;
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
 {
@@ -560,61 +553,17 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
 
-        public static string CreateModifiedCursor(UnixTimeUtc? utc, long? rowId)
-        {
-            UnixTimeUtc c = UnixTimeUtc.ZeroTime;
-
-            if (utc == null)
-                return null;
-            else 
-                return utc!.ToString() + "," + rowId!.ToString();
-        }
-
-        /// <summary>
-        /// Cursor format is a string of "timestamp,rowid" but old cursors will just be "timestamp" with no ",rowid"
-        /// </summary>
-        /// <returns>true if parsed successfully, if false, return longs are null if can't be parsed</returns>
-        public static bool TryParseModifiedCursor(string cursor, out UnixTimeUtc? timestamp, out long? rowId)
-        {
-            timestamp = null;
-            rowId = null;
-
-            if (cursor == null)
-                return false;
-
-            var parts = cursor.Split(',');
-
-            if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
-            {
-                // This section is only for "old" cursors
-                // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
-                if (ts > 1L << 42)
-                    timestamp = ts >> 16;  
-                return true;
-            }
-            else if (parts.Length == 2 &&
-                     long.TryParse(parts[0], out long ts2) &&
-                     long.TryParse(parts[1], out long parsedRowId))
-            {
-                timestamp = ts2;
-                rowId = parsedRowId;
-                return true;
-            }
-
-            return false;
-        }
-
         /// <summary>
         /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
         /// </summary>
         /// 
         /// <param name="noOfItems">Maximum number of rows you want back</param>
-        /// <param name="cursor">Set to null to get any item ever modified. Keep passing.</param>
+        /// <param name="cursorString">Set to null to get any item ever modified. Keep passing.</param>
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
         public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
-            string cursor,
+            string cursorString,
             TimeRowCursor stopAtModifiedUnixTimeSeconds = null,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
@@ -649,15 +598,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var listWhereAnd = new List<string>();
 
-            TryParseModifiedCursor(cursor, out var modifiedTimeCursor, out var rowIdCursor);
+            var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-            if (modifiedTimeCursor == null)
-                modifiedTimeCursor = 0;
+            if (cursor == null)
+                cursor = new TimeRowCursor(0, 0);
 
-            if (rowIdCursor == null)
-                rowIdCursor = 0;
+            if (cursor.rowId == null)
+                cursor.rowId = 0;
 
-            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({modifiedTimeCursor}, {rowIdCursor})");
+            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({cursor.time}, {cursor.rowId})");
 
             if (stopAtModifiedUnixTimeSeconds != null)
             {
@@ -704,9 +653,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
 
                 if (i > 0) // Should the cursor be set to null if there are no results!?
-                    cursor =  MainIndexMeta.CreateModifiedCursor(ts, rid);
+                    cursorString =  new TimeRowCursor(ts, rid).ToJson();
 
-                return (result, await rdr.ReadAsync(), cursor);
+                return (result, await rdr.ReadAsync(), cursorString);
             } // using rdr
         }
 
