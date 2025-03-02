@@ -57,7 +57,7 @@ public class TableConnections(
     {
         var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, cursor?.time, cursor?.rowId);
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, cursor?.Time, cursor?.rowId);
 
         return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }
@@ -66,7 +66,7 @@ public class TableConnections(
     {
         var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, cursor?.time, cursor?.rowId);
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, cursor?.Time, cursor?.rowId);
 
         return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }

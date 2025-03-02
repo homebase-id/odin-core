@@ -320,7 +320,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         cursor.pagingCursor.rowId = 0;
                 }
 
-                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {sign} ({cursor.pagingCursor.time.milliseconds}, {cursor.pagingCursor.rowId})");
+                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {sign} ({cursor.pagingCursor.Time.milliseconds}, {cursor.pagingCursor.rowId})");
             }
 
             if (cursor.stopAtBoundary != null)
@@ -333,7 +333,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         cursor.stopAtBoundary.rowId = 0;
                 }
 
-                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {isign} ({cursor.stopAtBoundary.time.milliseconds}, {cursor.stopAtBoundary.rowId})");
+                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {isign} ({cursor.stopAtBoundary.Time.milliseconds}, {cursor.stopAtBoundary.rowId})");
             }
 
             if (IsSet(fileStateAnyOf))
@@ -591,12 +591,15 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 throw new OdinSystemException("Must QueryModified() no less than one item.");
             }
 
+            if (noOfItems == int.MaxValue)
+            {
+                noOfItems--;
+            }
+
             if (requiredSecurityGroup == null)
             {
                 throw new Exception($"{nameof(requiredSecurityGroup)} is required");
             }
-
-            var listWhereAnd = new List<string>();
 
             var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
@@ -606,7 +609,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (cursor.rowId == null)
                 cursor.rowId = 0;
 
-            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({cursor.time}, {cursor.rowId})");
+            var listWhereAnd = new List<string>();
+
+            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({cursor.Time}, {cursor.rowId})");
 
             if (stopAtModifiedUnixTimeSeconds != null)
             {
@@ -617,7 +622,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 if (stopAtModifiedUnixTimeSeconds.rowId == null)
                     stopAtModifiedUnixTimeSeconds.rowId = 0; // Must behave like QueryBatchAsync as well as the above rowIdCursor=0 (we're ASCending)
 
-                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.time.milliseconds}, {stopAtModifiedUnixTimeSeconds.rowId})");
+                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.Time.milliseconds}, {stopAtModifiedUnixTimeSeconds.rowId})");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
@@ -653,7 +658,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
 
                 if (i > 0) // Should the cursor be set to null if there are no results!?
-                    cursorString =  new TimeRowCursor(ts, rid).ToJson();
+                    cursorString = new TimeRowCursor(ts, rid).ToJson();
 
                 return (result, await rdr.ReadAsync(), cursorString);
             } // using rdr

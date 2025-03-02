@@ -32,11 +32,11 @@ namespace Odin.Core.Storage.Tests
         public void TimeStringTests()
         {
             var cursor = TimeRowCursor.FromJsonOrOldString("42");
-            Assert.That(cursor.time == 42);
+            Assert.That(cursor.Time == 42);
             Assert.That(cursor.rowId == null);
 
             cursor = TimeRowCursor.FromJsonOrOldString("42,7");
-            Assert.That(cursor.time == 42);
+            Assert.That(cursor.Time == 42);
             Assert.That(cursor.rowId == 7);
 
             Assert.Pass();
@@ -51,7 +51,7 @@ namespace Odin.Core.Storage.Tests
 
             var copy = TimeRowCursor.FromJson(json);
 
-            Assert.That(cursor.time == copy.time);
+            Assert.That(cursor.Time == copy.Time);
             Assert.That(cursor.rowId == copy.rowId);
 
             cursor = new TimeRowCursor(42, null);
@@ -59,7 +59,7 @@ namespace Odin.Core.Storage.Tests
 
             copy = TimeRowCursor.FromJson(json);
 
-            Assert.That(cursor.time == copy.time);
+            Assert.That(cursor.Time == copy.Time);
             Assert.That(cursor.rowId == copy.rowId);
 
             Assert.Pass();
@@ -93,7 +93,7 @@ namespace Odin.Core.Storage.Tests
             var newcursor = new QueryBatchCursor(json);
             Assert.That(newcursor, Is.Not.Null);
             Assert.That(newcursor.pagingCursor != null);
-            Assert.That(newcursor.pagingCursor.time.Equals(cursor.pagingCursor.time));
+            Assert.That(newcursor.pagingCursor.Time.Equals(cursor.pagingCursor.Time));
             Assert.That(newcursor.pagingCursor.rowId.Equals(cursor.pagingCursor.rowId));
             Assert.That(newcursor.nextBoundaryCursor == null);
             Assert.That(newcursor.stopAtBoundary == null);

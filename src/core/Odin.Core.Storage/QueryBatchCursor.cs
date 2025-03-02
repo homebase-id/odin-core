@@ -7,21 +7,36 @@ namespace Odin.Core.Storage
 {
     public class TimeRowCursor
     {
+        private UnixTimeUtc _timeUtc;
+
         [JsonPropertyName("time")]
-        public UnixTimeUtc time { get; set; }
-        
+        public UnixTimeUtc Time
+        {
+            get => _timeUtc;
+            set
+            {
+                _timeUtc = value;
+
+                if (_timeUtc.milliseconds > 1L << 42)
+                {
+                    _timeUtc = new UnixTimeUtc(Time.milliseconds >> 16);
+                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value >> 16 {shiftedValue} ", time.milliseconds);
+                }
+            }
+        }
+
         [JsonPropertyName("row")]
         public long? rowId { get; set; }
 
         public TimeRowCursor(UnixTimeUtc time, long? rowId)
         {
-            this.time = time;
+            this.Time = time;
             this.rowId = rowId;
         }
 
         public override string ToString()
         {
-            return time.ToString() + "," + rowId.ToString();
+            return Time.ToString() + "," + rowId.ToString();
         }
 
         public string ToJson()
@@ -57,10 +72,15 @@ namespace Odin.Core.Storage
 
             if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
             {
+                logger.LogInfo("CursorLog: INFO TimeRowCursor original string one long {cursor} ", s);
+
                 // This section is only for "old" cursors
                 // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
                 if (ts > 1L << 42)
+                {
                     ts = ts >> 16;
+                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value >> 16 {shiftedValue} ", ts);
+                }
 
                 return new TimeRowCursor(ts, null);
             }
@@ -68,8 +88,13 @@ namespace Odin.Core.Storage
                         long.TryParse(parts[0], out long ts2) &&
                         long.TryParse(parts[1], out long rowId))
             {
+                logger.LogInfo("CursorLog: INFO TimeRowCursor string long pair {cursor} ", s);
+
                 if (ts2 > 1L << 42)
+                {
                     ts2 = ts2 >> 16;
+                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value >> 16 {shiftedValue} ", ts);
+                }
 
                 return new TimeRowCursor(ts2, rowId);
             }
@@ -80,7 +105,7 @@ namespace Odin.Core.Storage
 
         public bool Equals(TimeRowCursor other)
         {
-            return this.time.milliseconds == other.time.milliseconds && this.rowId == other.rowId;
+            return this.Time.milliseconds == other.Time.milliseconds && this.rowId == other.rowId;
         }
     }
 
@@ -187,6 +212,8 @@ namespace Odin.Core.Storage
             }
             catch (Exception)
             {
+                logger.LogInfo("CursorLog: ERR QueryBatchCursor unable to parse string {cursor} ", jsonString);
+
                 pagingCursor = null;
                 stopAtBoundary = null;
                 nextBoundaryCursor = null;

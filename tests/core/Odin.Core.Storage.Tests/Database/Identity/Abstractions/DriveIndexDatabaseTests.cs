@@ -124,7 +124,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             Debug.Assert(refCursor.pagingCursor == null);
             Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(result[0].created == refCursor.stopAtBoundary.time);
+            Debug.Assert(result[0].created == refCursor.stopAtBoundary.Time);
             Debug.Assert(result[0].rowId == refCursor.stopAtBoundary.rowId);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
@@ -459,7 +459,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(new UnixTimeUtc(2000) == cursor.stopAtBoundary.time);
+            Debug.Assert(new UnixTimeUtc(2000) == cursor.stopAtBoundary.Time);
             Debug.Assert(moreRows == false);
 
             Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
@@ -547,7 +547,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 3);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(new UnixTimeUtc(-1000) == cursor.stopAtBoundary.time);
+            Debug.Assert(new UnixTimeUtc(-1000) == cursor.stopAtBoundary.Time);
             Debug.Assert(moreRows == false);
 
             Debug.Assert(ByteArrayUtil.muidcmp(f5, result[0].fileId) == 0);
@@ -1171,7 +1171,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(new TimeRowCursor(new UnixTimeUtc(42), 2).Equals(refCursor.pagingCursor));
-            Debug.Assert(refCursor.pagingCursor.time.milliseconds == 42);
+            Debug.Assert(refCursor.pagingCursor.Time.milliseconds == 42);
 
         }
 

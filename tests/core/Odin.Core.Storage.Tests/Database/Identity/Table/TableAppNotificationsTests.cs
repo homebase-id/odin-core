@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             Debug.Assert(results.Count == 1);
             Debug.Assert(cursor != null);
             var c = TimeRowCursor.FromJsonOrOldString(cursor);
-            Debug.Assert(c.time == results[0].created);
+            Debug.Assert(c.Time == results[0].created);
             Debug.Assert(c.rowId == 2);
 
             (results, cursor) = await tblAppNotificationsTable.PagingByCreatedAsync(1, cursor);
