@@ -19,8 +19,8 @@ namespace Odin.Core.Storage
 
                 if (_timeUtc.milliseconds > 1L << 42)
                 {
+                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", _timeUtc.milliseconds, _timeUtc.milliseconds >> 16);
                     _timeUtc = new UnixTimeUtc(Time.milliseconds >> 16);
-                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value >> 16 {shiftedValue} ", time.milliseconds);
                 }
             }
         }
@@ -78,8 +78,8 @@ namespace Odin.Core.Storage
                 // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
                 if (ts > 1L << 42)
                 {
+                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", ts.milliseconds, ts.milliseconds >> 16);
                     ts = ts >> 16;
-                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value >> 16 {shiftedValue} ", ts);
                 }
 
                 return new TimeRowCursor(ts, null);
@@ -92,8 +92,8 @@ namespace Odin.Core.Storage
 
                 if (ts2 > 1L << 42)
                 {
+                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", ts2.milliseconds, ts2.milliseconds >> 16);
                     ts2 = ts2 >> 16;
-                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value >> 16 {shiftedValue} ", ts);
                 }
 
                 return new TimeRowCursor(ts2, rowId);
