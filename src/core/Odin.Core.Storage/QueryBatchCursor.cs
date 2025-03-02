@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Time;
+using Serilog;
 
 namespace Odin.Core.Storage
 {
@@ -19,7 +20,7 @@ namespace Odin.Core.Storage
 
                 if (_timeUtc.milliseconds > 1L << 42)
                 {
-                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", _timeUtc.milliseconds, _timeUtc.milliseconds >> 16);
+                    Log.Logger.Information("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", _timeUtc.milliseconds, _timeUtc.milliseconds >> 16);
                     _timeUtc = new UnixTimeUtc(Time.milliseconds >> 16);
                 }
             }
@@ -72,13 +73,13 @@ namespace Odin.Core.Storage
 
             if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
             {
-                logger.LogInfo("CursorLog: INFO TimeRowCursor original string one long {cursor} ", s);
+                Log.Logger.Information("CursorLog: INFO TimeRowCursor original string one long {cursor} ", s);
 
                 // This section is only for "old" cursors
                 // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
                 if (ts > 1L << 42)
                 {
-                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", ts.milliseconds, ts.milliseconds >> 16);
+                    Log.Logger.Information("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", ts, ts >> 16);
                     ts = ts >> 16;
                 }
 
@@ -88,11 +89,11 @@ namespace Odin.Core.Storage
                         long.TryParse(parts[0], out long ts2) &&
                         long.TryParse(parts[1], out long rowId))
             {
-                logger.LogInfo("CursorLog: INFO TimeRowCursor string long pair {cursor} ", s);
+                Log.Logger.Information("CursorLog: INFO TimeRowCursor string long pair {cursor} ", s);
 
                 if (ts2 > 1L << 42)
                 {
-                    logger.LogInfo("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", ts2.milliseconds, ts2.milliseconds >> 16);
+                    Log.Logger.Information("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", ts2, ts2 >> 16);
                     ts2 = ts2 >> 16;
                 }
 
@@ -220,7 +221,7 @@ namespace Odin.Core.Storage
                 var bytes = Convert.FromBase64String(jsonString);
                 if (bytes.Length == 3 * 16)
                 {
-                    logger.LogInfo("CursorLog: INFO creating QueryBatchCursor from 3 x 16 bytes {cursor} ", jsonString);
+                    Log.Logger.Information("CursorLog: INFO creating QueryBatchCursor from 3 x 16 bytes {cursor} ", jsonString);
 
                     var (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(bytes, 16, 16, 16);
 
@@ -241,7 +242,7 @@ namespace Odin.Core.Storage
                 }
                 else if (bytes.Length == 3 * 16 + 3 * 1 + 3 * 8)
                 {
-                    logger.LogInfo("CursorLog: INFO creating QueryBatchCursor from 3 x 16 + 3 + 24 bytes {cursor} ", jsonString);
+                    Log.Logger.Information("CursorLog: INFO creating QueryBatchCursor from 3 x 16 + 3 + 24 bytes {cursor} ", jsonString);
 
                     var (c1, nullBytes, c2) = ByteArrayUtil.Split(bytes, 3 * 16, 3 * 1, 3 * 8);
 
