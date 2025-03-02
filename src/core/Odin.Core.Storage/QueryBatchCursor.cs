@@ -212,60 +212,72 @@ namespace Odin.Core.Storage
             }
             catch (Exception)
             {
-                logger.LogInfo("CursorLog: ERR QueryBatchCursor unable to parse string {cursor} ", jsonString);
-
                 pagingCursor = null;
                 stopAtBoundary = null;
                 nextBoundaryCursor = null;
 
-                // Probably the old format
-                /*
-                    var bytes = Convert.FromBase64String(base64CursorState);
-                    if (bytes.Length == 3 * 16)
-                    {
-                        (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(bytes, 16, 16, 16);
+                // Let's see if we can convert the old format
+                var bytes = Convert.FromBase64String(jsonString);
+                if (bytes.Length == 3 * 16)
+                {
+                    logger.LogInfo("CursorLog: INFO creating QueryBatchCursor from 3 x 16 bytes {cursor} ", jsonString);
 
-                        if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
-                            pagingCursor = null;
+                    var (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(bytes, 16, 16, 16);
 
-                        if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
-                            stopAtBoundary = null;
-
-                        if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
-                            nextBoundaryCursor = null;
-                    }
-                    else if (bytes.Length == 3 * 16 + 3 * 1 + 3 * 8)
-                    {
-                        var (c1, nullBytes, c2) = ByteArrayUtil.Split(bytes, 3*16, 3*1, 3*8);
-
-                        (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(c1, 16, 16, 16);
-
-                        if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
-                            pagingCursor = null;
-
-                        if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
-                            stopAtBoundary = null;
-
-                        if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
-                            nextBoundaryCursor = null;
-
-                        var (bd1,bd2,bd3) = ByteArrayUtil.Split(c2, 8, 8, 8);
-
-                        userDatePagingCursor = ByteArrayUtil.BytesToInt64(bd1);
-                        if (nullBytes[0] == 0)
-                            userDatePagingCursor = null;
-
-                        userDateStopAtBoundary = ByteArrayUtil.BytesToInt64(bd2);
-                        if (nullBytes[1] == 0)
-                            userDateStopAtBoundary = null;
-
-                        userDateNextBoundaryCursor = ByteArrayUtil.BytesToInt64(bd3);
-                        if (nullBytes[2] == 0)
-                            userDateNextBoundaryCursor = null;
-                    }
+                    if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
+                        this.pagingCursor = null;
                     else
-                        throw new Exception("Invalid cursor state");
-                 */
+                        this.pagingCursor = new TimeRowCursor(SequentialGuid.ToUnixTimeUtc(new Guid(pagingCursor)), null);
+
+                    if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
+                        this.stopAtBoundary = null;
+                    else
+                        this.stopAtBoundary = new TimeRowCursor(SequentialGuid.ToUnixTimeUtc(new Guid(stopAtBoundary)), null);
+
+                    if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
+                        this.nextBoundaryCursor = null;
+                    else
+                        this.nextBoundaryCursor = new TimeRowCursor(SequentialGuid.ToUnixTimeUtc(new Guid(nextBoundaryCursor)), null);
+                }
+                else if (bytes.Length == 3 * 16 + 3 * 1 + 3 * 8)
+                {
+                    logger.LogInfo("CursorLog: INFO creating QueryBatchCursor from 3 x 16 + 3 + 24 bytes {cursor} ", jsonString);
+
+                    var (c1, nullBytes, c2) = ByteArrayUtil.Split(bytes, 3 * 16, 3 * 1, 3 * 8);
+
+                    var (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(c1, 16, 16, 16);
+
+                    if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
+                        this.pagingCursor = null;
+                    else
+                        this.pagingCursor = new TimeRowCursor(SequentialGuid.ToUnixTimeUtc(new Guid(pagingCursor)), null);
+
+                    if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
+                        this.stopAtBoundary = null;
+                    else
+                        this.stopAtBoundary = new TimeRowCursor(SequentialGuid.ToUnixTimeUtc(new Guid(stopAtBoundary)), null);
+
+                    if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
+                        this.nextBoundaryCursor = null;
+                    else
+                        this.nextBoundaryCursor = new TimeRowCursor(SequentialGuid.ToUnixTimeUtc(new Guid(nextBoundaryCursor)), null);
+
+                    var (bd1, bd2, bd3) = ByteArrayUtil.Split(c2, 8, 8, 8);
+
+                    this.pagingCursor = new TimeRowCursor(new UnixTimeUtc(ByteArrayUtil.BytesToInt64(bd1)), null);
+                    if (nullBytes[0] == 0)
+                        this.pagingCursor = null;
+
+                    this.stopAtBoundary = new TimeRowCursor(new UnixTimeUtc(ByteArrayUtil.BytesToInt64(bd2)), null);
+                    if (nullBytes[1] == 0)
+                        this.stopAtBoundary = null;
+
+                    this.stopAtBoundary = new TimeRowCursor(new UnixTimeUtc(ByteArrayUtil.BytesToInt64(bd3)), null);
+                    if (nullBytes[2] == 0)
+                        this.nextBoundaryCursor = null;
+                }
+                else
+                    throw new Exception("Invalid cursor state");
             }
         }
 
