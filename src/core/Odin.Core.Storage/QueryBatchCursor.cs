@@ -110,12 +110,6 @@ namespace Odin.Core.Storage
         }
     }
 
-    public enum QueryBatchCursorType
-    {
-        Created = 1,
-        UserDate = 2
-    };
-
     public class QueryBatchCursor
     {
         /// <summary>
@@ -129,8 +123,6 @@ namespace Odin.Core.Storage
         /// nextBoundaryCursur: Used by the QueryBatchAuto() to manage getting continuous datasets.
         /// 
         /// </summary>
-        public QueryBatchCursorType cursorType { get; set; }
-
         [JsonPropertyName("paging")] 
         public TimeRowCursor pagingCursor { get; set; }
 
@@ -139,11 +131,6 @@ namespace Odin.Core.Storage
 
         [JsonPropertyName("next")]
         public TimeRowCursor nextBoundaryCursor { get; set; }
-
-        public bool IsUserDateSort()
-        {
-            return cursorType == QueryBatchCursorType.UserDate;
-        }
 
         public QueryBatchCursor()
         {
@@ -209,7 +196,6 @@ namespace Odin.Core.Storage
                 this.pagingCursor = deserializedCursor.pagingCursor;
                 this.nextBoundaryCursor = deserializedCursor.nextBoundaryCursor;
                 this.stopAtBoundary = deserializedCursor.stopAtBoundary;
-                this.cursorType = deserializedCursor.cursorType;
             }
             catch (Exception)
             {
