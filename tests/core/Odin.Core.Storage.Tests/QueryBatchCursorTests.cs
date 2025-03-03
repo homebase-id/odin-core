@@ -123,7 +123,6 @@ namespace Odin.Core.Storage.Tests
         {
             var cursor = new QueryBatchCursor();
             cursor.stopAtBoundary = new TimeRowCursor(new UnixTimeUtc(42), 69);
-            cursor.pagingCursor = new TimeRowCursor(new UnixTimeUtc(41), null);
 
             var json = cursor.ToJson();
             Assert.That(json, Is.Not.Null);
