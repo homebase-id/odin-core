@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Apps;
@@ -425,6 +426,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 ResultOptions = new()
                 {
                     MaxRecords = 10,
+                    MaxDate = UnixTimeUtc.Now().AddDays(1).milliseconds,
                     IncludeTransferHistory = true
                 }
             };
