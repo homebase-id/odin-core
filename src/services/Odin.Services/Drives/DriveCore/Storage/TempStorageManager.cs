@@ -34,16 +34,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
             if (bytesWritten == 0)
             {
-                logger.LogDebug("Woooot, I didn't write anything to {filePath}", filePath);
+                // Sanity #1
+                logger.LogDebug("I didn't write anything to {filePath}", filePath);
             }
             else if (!File.Exists(filePath))
             {
-                logger.LogDebug("Woooot, I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
-            }
-            else
-            {
-                var sizeInBytes = new FileInfo(filePath).Length;
-                logger.LogDebug("I wrote {count} bytes. File size is {size}. file: {filePath}", bytesWritten, sizeInBytes, filePath);
+                // Sanity #2
+                logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
             }
 
             return bytesWritten;
