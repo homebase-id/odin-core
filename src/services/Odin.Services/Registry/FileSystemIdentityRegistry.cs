@@ -26,7 +26,6 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
-using Odin.Services.Util;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
@@ -36,6 +35,8 @@ namespace Odin.Services.Registry;
 /// </summary>
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
+    public const string TempPath = "temp";
+
     public string RegistrationRoot { get; private set; }
     public string ShardablePayloadRoot { get; private set; }
 
@@ -64,7 +65,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tenantDataRootPath = config.Host.TenantDataRootPath;
         RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
         ShardablePayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
-        _tempFolderRoot = Path.Combine(tenantDataRootPath, "temp");
+        _tempFolderRoot = Path.Combine(tenantDataRootPath, TempPath);
 
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
