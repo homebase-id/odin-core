@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.Anonymous
                     "Content-Type", "Accept", YouAuthConstants.AppCookieName, YouAuthConstants.SubscriberCookieName,
                     OdinHeaderNames.FileSystemTypeHeader
                 });
-            Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH");
             Response.Headers.Append("Access-Control-Allow-Credentials", "true");
             Response.Headers.Append("Access-Control-Expose-Headers", "*");
             Response.Headers.Append("Access-Control-Max-Age", "86400");
