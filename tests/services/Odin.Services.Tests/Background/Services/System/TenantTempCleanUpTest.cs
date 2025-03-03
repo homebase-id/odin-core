@@ -10,8 +10,8 @@ namespace Odin.Services.Tests.Background.Services.System;
 
 public class TenantTempCleanUpTest
 {
-    private string _testDir;
-    private Mock<ILogger> _loggerMock;
+    private string _testDir = "";
+    private readonly Mock<ILogger> _loggerMock = new Mock<ILogger>();
 
     [SetUp]
     public void SetUp()
@@ -20,8 +20,6 @@ public class TenantTempCleanUpTest
         _testDir = Path.Combine(Path.GetTempPath(), $"TenantTempCleanUpTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDir);
 
-        // Setup logger mock
-        _loggerMock = new Mock<ILogger>();
     }
 
     [TearDown]
@@ -49,9 +47,9 @@ public class TenantTempCleanUpTest
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains(nonExistentPath)),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains(nonExistentPath)),
                 null,
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()!),
             Times.Once());
         // No files should be deleted, no other logs
     }
