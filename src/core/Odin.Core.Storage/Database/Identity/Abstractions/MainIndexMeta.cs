@@ -1,13 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.VisualBasic.FileIO;
-using System.Xml;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -232,7 +227,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="noOfItems">Maximum number of results you want back</param>
         /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page. pagingCursor will be updated. When no more data is available, pagingCursor is set to null (query will restart if you keep passing it)</param>
         /// <param name="newestFirstOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
-        /// <param name="fileIdSort">true to order by fileId, false to order by usedDate, fileId</param>
+        /// <param name="createdSort">true to order by fileId, false to order by usedDate, fileId</param>
         /// <param name="requiredSecurityGroup"></param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
@@ -247,7 +242,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             int noOfItems,
             QueryBatchCursor cursor,
             bool newestFirstOrder,
-            bool fileIdSort = true,
+            bool createdSort = true,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -311,34 +306,34 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 direction = "ASC";
             }
 
+            string timeField = createdSort ? "created" : "userDate";
+
             var listWhereAnd = new List<string>();
 
             if (cursor.pagingCursor != null)
             {
-                if (fileIdSort)
-                    listWhereAnd.Add($"driveMainIndex.fileid {sign} {cursor.pagingCursor.ToSql(_databaseType)}");
-                else
+                if (cursor.pagingCursor.rowId == null)
                 {
-                    if (cursor.userDatePagingCursor == null)
-                        throw new Exception("userDatePagingCursor cannot be null, cursor initialized incorrectly");
-
-                    listWhereAnd.Add(
-                        $"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND driveMainIndex.fileid {sign} {cursor.pagingCursor.ToSql(_databaseType)}) OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
+                    if (newestFirstOrder)
+                        cursor.pagingCursor.rowId = long.MaxValue;
+                    else
+                        cursor.pagingCursor.rowId = 0;
                 }
+
+                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {sign} ({cursor.pagingCursor.Time.milliseconds}, {cursor.pagingCursor.rowId})");
             }
 
             if (cursor.stopAtBoundary != null)
             {
-                if (fileIdSort)
-                    listWhereAnd.Add($"driveMainIndex.fileid {isign} {cursor.stopAtBoundary.ToSql(_databaseType)}");
-                else
+                if (cursor.stopAtBoundary.rowId == null)
                 {
-                    if (cursor.userDateStopAtBoundary == null)
-                        throw new Exception("userDateStopAtBoundary cannot be null, cursor initialized incorrectly");
-
-                    listWhereAnd.Add(
-                        $"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND driveMainIndex.fileid {isign} {cursor.stopAtBoundary.ToSql(_databaseType)}) OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
+                    if (newestFirstOrder)
+                        cursor.stopAtBoundary.rowId = long.MaxValue;
+                    else
+                        cursor.stopAtBoundary.rowId = 0;
                 }
+
+                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {isign} ({cursor.stopAtBoundary.Time.milliseconds}, {cursor.stopAtBoundary.rowId})");
             }
 
             if (IsSet(fileStateAnyOf))
@@ -357,15 +352,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             else
                 selectOutputFields = "driveMainIndex.fileId, userDate";*/
 
-            string order;
-            if (fileIdSort)
-            {
-                order = "driveMainIndex.fileId " + direction;
-            }
-            else
-            {
-                order = "userDate " + direction + ", driveMainIndex.fileId " + direction;
-            }
+            var order = $"driveMainIndex.{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
@@ -376,19 +363,19 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
                 var result = new List<DriveMainIndexRecord>();
-                byte[] _fileId = null;
-                long _userDate = 0;
+                UnixTimeUtc datatime = 0;
+                long rowid = 0;
 
                 int i = 0;
                 while (await rdr.ReadAsync())
                 {
                     var r = driveMainIndex.ReadAllColumns(rdr, driveId);
-                    _fileId = r.fileId.ToByteArray();
 
-                    result.Add(r); // XXX
+                    result.Add(r);
 
-                    if (fileIdSort == false)
-                        _userDate = r.userDate.milliseconds;
+
+                    rowid = r.rowId;
+                    datatime = createdSort ? r.created : r.userDate;
 
                     i++;
                     if (i >= noOfItems)
@@ -396,11 +383,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
 
                 if (i > 0)
-                { 
-                    if (_fileId == null) throw new Exception("impossible");
-                    cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
-                    if (fileIdSort == false)
-                        cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
+                {
+                    cursor.pagingCursor = new TimeRowCursor(datatime, rowid);
                 }
 
                 bool hasMoreRows = await rdr.ReadAsync(); // Unfortunately, this seems like the only way to know if there's more rows
@@ -452,7 +436,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 QueryBatchAsync(driveId, noOfItems,
                     cursor,
                     newestFirstOrder: true,
-                    fileIdSort: true,
+                    createdSort: true,
                     fileSystemType,
                     fileStateAnyOf,
                     requiredSecurityGroup,
@@ -482,7 +466,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
                 if (pagingCursorWasNull)
-                    refCursor.nextBoundaryCursor = result[0].fileId.ToByteArray(); // Set to the newest cursor
+                    refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].created, result[0].rowId); // Set to the newest cursor
 
                 if (result.Count < noOfItems)
                 {
@@ -569,62 +553,18 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
 
-        public static string CreateModifiedCursor(UnixTimeUtc? utc, long? rowId)
-        {
-            UnixTimeUtc c = UnixTimeUtc.ZeroTime;
-
-            if (utc == null)
-                return null;
-            else 
-                return utc!.ToString() + "," + rowId!.ToString();
-        }
-
-        /// <summary>
-        /// Cursor format is a string of "timestamp,rowid" but old cursors will just be "timestamp" with no ",rowid"
-        /// </summary>
-        /// <returns>true if parsed successfully, if false, return longs are null if can't be parsed</returns>
-        public static bool TryParseModifiedCursor(string cursor, out UnixTimeUtc? timestamp, out long? rowId)
-        {
-            timestamp = null;
-            rowId = null;
-
-            if (cursor == null)
-                return false;
-
-            var parts = cursor.Split(',');
-
-            if (parts.Length == 1 && long.TryParse(parts[0], out long ts))
-            {
-                // This section is only for "old" cursors
-                // Old cursors are in UnixTimeUtcUnique, so make them into a UnixTimeUtc
-                if (ts > 1L << 42)
-                    timestamp = ts >> 16;  
-                return true;
-            }
-            else if (parts.Length == 2 &&
-                     long.TryParse(parts[0], out long ts2) &&
-                     long.TryParse(parts[1], out long parsedRowId))
-            {
-                timestamp = ts2;
-                rowId = parsedRowId;
-                return true;
-            }
-
-            return false;
-        }
-
         /// <summary>
         /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
         /// </summary>
         /// 
         /// <param name="noOfItems">Maximum number of rows you want back</param>
-        /// <param name="cursor">Set to null to get any item ever modified. Keep passing.</param>
+        /// <param name="cursorString">Set to null to get any item ever modified. Keep passing.</param>
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
         public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
-            string cursor,
-            UnixTimeUtc stopAtModifiedUnixTimeSeconds = default(UnixTimeUtc),
+            string cursorString,
+            TimeRowCursor stopAtModifiedUnixTimeSeconds = null,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
@@ -651,26 +591,38 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 throw new OdinSystemException("Must QueryModified() no less than one item.");
             }
 
+            if (noOfItems == int.MaxValue)
+            {
+                noOfItems--;
+            }
+
             if (requiredSecurityGroup == null)
             {
                 throw new Exception($"{nameof(requiredSecurityGroup)} is required");
             }
 
+            var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
+
+            if (cursor == null)
+                cursor = new TimeRowCursor(0, 0);
+
+            if (cursor.rowId == null)
+                cursor.rowId = 0;
+
             var listWhereAnd = new List<string>();
 
-            TryParseModifiedCursor(cursor, out var modifiedTimeCursor, out var rowIdCursor);
+            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({cursor.Time}, {cursor.rowId})");
 
-            if (modifiedTimeCursor == null)
-                modifiedTimeCursor = 0;
-
-            if (rowIdCursor == null)
-                rowIdCursor = 0;
-
-            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({modifiedTimeCursor}, {rowIdCursor})");
-
-            if (stopAtModifiedUnixTimeSeconds.milliseconds > 0)
+            if (stopAtModifiedUnixTimeSeconds != null)
             {
-                listWhereAnd.Add($"modified <= {stopAtModifiedUnixTimeSeconds.milliseconds}");
+                // You can argue if it should be < or <= but important that stopBoundary is
+                // the same for QueryModified and for QueryBatch
+                // Ok, we need an actual cursor with a rowid otherwise the tests will fail for
+                // rows inserted on the same ms.
+                if (stopAtModifiedUnixTimeSeconds.rowId == null)
+                    stopAtModifiedUnixTimeSeconds.rowId = 0; // Must behave like QueryBatchAsync as well as the above rowIdCursor=0 (we're ASCending)
+
+                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.Time.milliseconds}, {stopAtModifiedUnixTimeSeconds.rowId})");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
@@ -706,9 +658,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 }
 
                 if (i > 0) // Should the cursor be set to null if there are no results!?
-                    cursor =  MainIndexMeta.CreateModifiedCursor(ts, rid);
+                    cursorString = new TimeRowCursor(ts, rid).ToJson();
 
-                return (result, await rdr.ReadAsync(), cursor);
+                return (result, await rdr.ReadAsync(), cursorString);
             } // using rdr
         }
 
@@ -830,7 +782,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        internal async Task AddEntryPassalongToUpsertAsync(Guid driveId, Guid fileId,
+        internal async Task<UnixTimeUtc> AddEntryPassalongToUpsertAsync(Guid driveId, Guid fileId,
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
@@ -877,6 +829,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
             };
             await BaseUpsertEntryZapZapAsync(r, accessControlList: accessControlList, tagIdList: tagIdList);
+
+            return (r.created);
         }
 
 

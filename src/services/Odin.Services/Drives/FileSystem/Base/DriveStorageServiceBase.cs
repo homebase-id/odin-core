@@ -793,7 +793,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // note: I'm just avoiding re-reading the file.
             header.ServerMetadata.TransferHistory = updatedHistory;
-            header.FileMetadata.Updated = modifiedTime.uniqueTime;
+            header.FileMetadata.Updated = modifiedTime.milliseconds;
 
             if (await ShouldRaiseDriveEventAsync(file))
             {
@@ -835,7 +835,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // note: I'm just avoiding re-reading the file.
             header.ServerMetadata.TransferHistory = updatedHistory;
-            header.FileMetadata.Updated = modifiedTime.uniqueTime;
+            header.FileMetadata.Updated = modifiedTime.milliseconds;
 
             if (await ShouldRaiseDriveEventAsync(file))
             {

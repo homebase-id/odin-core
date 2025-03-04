@@ -53,21 +53,21 @@ public class TableConnections(
     }
 
 
-    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, Int32 status, string cursor)
+    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, Int32 status, string cursorString)
     {
-        MainIndexMeta.TryParseModifiedCursor(cursor, out var utc, out var rowId);
+        var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, utc, rowId);
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, cursor?.Time, cursor?.rowId);
 
-        return (r, MainIndexMeta.CreateModifiedCursor(tsc, ri));
+        return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }
 
-    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursor)
+    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursorString)
     {
-        MainIndexMeta.TryParseModifiedCursor(cursor, out var utc, out var rowId);
+        var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, utc, rowId);
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, cursor?.Time, cursor?.rowId);
 
-        return (r, MainIndexMeta.CreateModifiedCursor(tsc, ri));
+        return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }
 }
