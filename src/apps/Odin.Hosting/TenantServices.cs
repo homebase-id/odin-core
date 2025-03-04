@@ -89,11 +89,12 @@ public static class TenantServices
         //
 
         cb.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedOdinContextCache<>)).SingleInstance();
         cb.RegisterGeneric(typeof(SharedConcurrentDictionary<,,>)).SingleInstance();
         cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
+
+        cb.RegisterType<OdinContextCache>().SingleInstance();
 
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
@@ -258,16 +259,10 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionDeletedNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
-        cb.RegisterInstance(
-            new SharedOdinContextCache<TransitAuthenticationService>(odinConfig.Host.CacheSlidingExpirationSeconds));
 
         cb.RegisterType<IdentitiesIFollowAuthenticationService>().InstancePerLifetimeScope();
-        cb.RegisterInstance(
-            new SharedOdinContextCache<IdentitiesIFollowAuthenticationService>(odinConfig.Host.CacheSlidingExpirationSeconds));
 
         cb.RegisterType<FollowerAuthenticationService>().InstancePerLifetimeScope();
-        cb.RegisterInstance(
-            new SharedOdinContextCache<FollowerAuthenticationService>(odinConfig.Host.CacheSlidingExpirationSeconds));
 
         cb.RegisterType<FeedDriveDistributionRouter>()
             .As<INotificationHandler<DriveFileAddedNotification>>()
