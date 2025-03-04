@@ -8,9 +8,9 @@
         <IsPackable>false</IsPackable>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(USER)' == 'seb'">
-        <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>
-    </PropertyGroup>
+<!--    <PropertyGroup Condition="'$(USER)' == 'seb'">-->
+<!--        <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>-->
+<!--    </PropertyGroup>-->
 
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.2" />

@@ -28,7 +28,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly HomeRegistrationStorage _storage;
         private readonly CircleMembershipService _circleMembershipService;
         private readonly ILogger<HomeAuthenticatorService> _logger;
-        private readonly SharedOdinContextCache<HomeAuthenticatorService> _cache;
+        private readonly OdinContextCache _cache;
 
         //
 
@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             HomeRegistrationStorage storage,
             CircleMembershipService circleMembershipService,
             ILogger<HomeAuthenticatorService> logger,
-            SharedOdinContextCache<HomeAuthenticatorService> cache
+            OdinContextCache cache
         )
         {
             _circleNetworkService = circleNetworkService;
@@ -384,22 +384,19 @@ namespace Odin.Hosting.Controllers.Home.Service
             throw new OdinSecurityException("Invalid auth token");
         }
 
-        public Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
         {
-            _cache.EnqueueIdentityForReset(notification.OdinId);
-            return Task.CompletedTask;
+            await _cache.ResetAsync();
         }
 
-        public Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
         {
-            _cache.EnqueueIdentityForReset(notification.OdinId);
-            return Task.CompletedTask;
+            await _cache.ResetAsync();
         }
 
-        public Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
         {
-            _cache.EnqueueIdentityForReset(notification.OdinId);
-            return Task.CompletedTask;
+            await _cache.ResetAsync();
         }
     }
 }

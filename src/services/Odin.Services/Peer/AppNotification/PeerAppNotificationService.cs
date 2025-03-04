@@ -40,12 +40,14 @@ public class PeerAppNotificationService : PeerServiceBase
         TableKeyThreeValue tableKeyThreeValue,
         OdinConfiguration config,
         PushNotificationService pushNotificationService,
-        FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+        FileSystemResolver fileSystemResolver,
+        OdinContextCache cache
+        ) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
         _tableKeyThreeValue = tableKeyThreeValue;
         _pushNotificationService = pushNotificationService;
-        _cache = new(config.Host.CacheSlidingExpirationSeconds);
+        _cache = cache;
 
         const string subscriptionContextKey = "e6981b6c-360f-477e-83e3-ed1f5be35209";
         _notificationSubscriptionStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(subscriptionContextKey));

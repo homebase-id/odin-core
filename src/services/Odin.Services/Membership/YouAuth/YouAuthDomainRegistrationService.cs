@@ -36,7 +36,7 @@ namespace Odin.Services.Membership.YouAuth
         private readonly CircleMembershipService _circleMembershipService;
         private readonly IdentityDatabase _db;
 
-        private readonly SharedOdinContextCache<YouAuthDomainRegistrationService> _cache;
+        private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
         public YouAuthDomainRegistrationService(
@@ -45,7 +45,7 @@ namespace Odin.Services.Membership.YouAuth
             CircleNetworkService circleNetworkService,
             CircleMembershipService circleMembershipService,
             IdentityDatabase db,
-            SharedOdinContextCache<YouAuthDomainRegistrationService> cache)
+            OdinContextCache cache)
         {
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
@@ -169,7 +169,7 @@ namespace Odin.Services.Membership.YouAuth
             domainReg.ConsentRequirements = consentRequirements;
 
             await SaveRegistrationAsync(domainReg, odinContext);
-            ResetPermissionContextCache();
+            await ResetPermissionContextCacheAsync();
         }
 
         public async Task RevokeDomainAsync(AsciiDomainName domain, IOdinContext odinContext)
@@ -185,7 +185,7 @@ namespace Odin.Services.Membership.YouAuth
             //TODO: do we do anything with storage DEK here?
             domainReg.IsRevoked = true;
             await SaveRegistrationAsync(domainReg, odinContext);
-            ResetPermissionContextCache();
+            await ResetPermissionContextCacheAsync();
         }
 
         public async Task RemoveDomainRevocationAsync(AsciiDomainName domain, IOdinContext odinContext)
@@ -201,7 +201,7 @@ namespace Odin.Services.Membership.YouAuth
             //TODO: do we do anything with storage DEK here?
             domainReg.IsRevoked = false;
             await SaveRegistrationAsync(domainReg, odinContext);
-            ResetPermissionContextCache();
+            await ResetPermissionContextCacheAsync();
         }
 
         public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClientsAsync(AsciiDomainName domain, IOdinContext odinContext)
@@ -330,7 +330,7 @@ namespace Odin.Services.Membership.YouAuth
 
             await SaveRegistrationAsync(registration, odinContext);
 
-            ResetPermissionContextCache();
+            await ResetPermissionContextCacheAsync();
         }
 
         /// <summary>
@@ -356,7 +356,7 @@ namespace Odin.Services.Membership.YouAuth
 
             await SaveRegistrationAsync(registration, odinContext);
 
-            ResetPermissionContextCache();
+            await ResetPermissionContextCacheAsync();
         }
 
         // 
@@ -443,9 +443,9 @@ namespace Odin.Services.Membership.YouAuth
         /// <summary>
         /// Empties the cache and creates a new instance that can be built
         /// </summary>
-        private void ResetPermissionContextCache()
+        private async Task ResetPermissionContextCacheAsync()
         {
-            _cache.Reset();
+            await _cache.ResetAsync();
         }
 
         private Guid GetDomainKey(AsciiDomainName domainName)

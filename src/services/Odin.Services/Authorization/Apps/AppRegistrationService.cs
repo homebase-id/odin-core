@@ -38,7 +38,7 @@ namespace Odin.Services.Authorization.Apps
         private readonly ILogger<AppRegistrationService> _logger;
         private readonly TableKeyThreeValue _tblKeyThreeValue;
 
-        private readonly SharedOdinContextCache<AppRegistrationService> _cache;
+        private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
         private readonly IMediator _mediator;
@@ -51,7 +51,7 @@ namespace Odin.Services.Authorization.Apps
             IcrKeyService icrKeyService,
             ILogger<AppRegistrationService> logger,
             TableKeyThreeValue tblKeyThreeValue,
-            SharedOdinContextCache<AppRegistrationService> cache)
+            OdinContextCache cache)
         {
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
@@ -159,7 +159,7 @@ namespace Odin.Services.Authorization.Apps
 
             await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
 
-            ResetAppPermissionContextCache();
+            await ResetAppPermissionContextCacheAsync();
         }
 
         public async Task UpdateAuthorizedCirclesAsync(UpdateAuthorizedCirclesRequest request, IOdinContext odinContext)
@@ -204,7 +204,7 @@ namespace Odin.Services.Authorization.Apps
             //TODO: consider optimize by checking if anything actually changed before calling notify app changed
 
             await NotifyAppChanged(oldRegistration, updatedAppReg, odinContext);
-            ResetAppPermissionContextCache();
+            await ResetAppPermissionContextCacheAsync();
         }
 
         public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
@@ -357,7 +357,7 @@ namespace Odin.Services.Authorization.Apps
             
             await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
 
-            ResetAppPermissionContextCache();
+            await ResetAppPermissionContextCacheAsync();
         }
 
         public async Task RemoveAppRevocationAsync(GuidId appId, IOdinContext odinContext)
@@ -373,7 +373,7 @@ namespace Odin.Services.Authorization.Apps
 
             await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
 
-            ResetAppPermissionContextCache();
+            await ResetAppPermissionContextCacheAsync();
         }
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext)
@@ -543,9 +543,9 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Empties the cache and creates a new instance that can be built
         /// </summary>
-        private void ResetAppPermissionContextCache()
+        private async Task ResetAppPermissionContextCacheAsync()
         {
-            _cache.Reset();
+            await _cache.ResetAsync();
         }
 
         private bool HasRequestedTransit(PermissionSet? permissionSet)
