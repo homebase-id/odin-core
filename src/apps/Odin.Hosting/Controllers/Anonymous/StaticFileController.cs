@@ -14,6 +14,7 @@ using Odin.Services.Optimization.Cdn;
 using Odin.Services.Tenant;
 using Odin.Services.Util;
 using Odin.Core.Time;
+using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting.Controllers.Anonymous
 {
@@ -41,6 +42,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         /// Returns the public profile image
         /// </summary>
         [HttpGet("pub/image")]
+        [HttpGet(LinkPreviewService.PublicImagePath)]
         public async Task<IActionResult> GetPublicImage()
         {
             return await this.SendStream(StaticFileConstants.ProfileImageFileName);

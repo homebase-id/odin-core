@@ -31,17 +31,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             string filePath = GetTempFilenameAndPath(drive, fileId, extension, true);
             logger.LogDebug("Writing temp file: {filePath}", filePath);
-            uint bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
-            return bytesWritten;
-        }
+            var bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
+            if (bytesWritten == 0)
+            {
+                // Sanity #1
+                logger.LogDebug("I didn't write anything to {filePath}", filePath);
+            }
+            else if (!File.Exists(filePath))
+            {
+                // Sanity #2
+                logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
+            }
 
-        /// <summary>
-        /// Deletes the file matching <param name="fileId"></param> and extension.
-        /// </summary>
-        public async Task EnsureDeleted(StorageDrive drive, Guid fileId, string extension)
-        {
-            string filePath = GetTempFilenameAndPath(drive, fileId, extension);
-            await driveFileReaderWriter.DeleteFileAsync(filePath);
+            return bytesWritten;
         }
 
         /// <summary>
@@ -53,7 +55,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             // var dir = new DirectoryInfo(GetFileDirectory(fileId));
             var dir = GetFileDirectory(drive, fileId);
-            await driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern: GetFilename(fileId, "*"));
+            // logger.LogDebug("Delete temp files in dir: {filePath}", dir);
+            // await driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern: GetFilename(fileId, "*"));
+            
+            await Task.CompletedTask;
+            logger.LogDebug("no-op: delete on temp files called yet we've removed this. path {filePath}", dir);
         }
 
         /// <summary>

@@ -111,6 +111,14 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             await WaitForEmptyInboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(90));
 
+            // Wait long enough for all notifications to be flushed
+            await Task.Delay(TimeSpan.FromSeconds(10));
+
+            if (_filesSentByFrodo.Count != _filesReceivedBySam.Count)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10));
+            }
+            
             Console.WriteLine("Parameters:");
 
             Console.WriteLine("\tApp Notifications:");
@@ -128,9 +136,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             PerformanceCounter.WriteCounters();
 
-            // Wait long enough for all notifications to be flushed
-            await Task.Delay(TimeSpan.FromSeconds(10));
-
+            
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
             // CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
             //     "mismatch in number of read-receipts send by sam to the files received");

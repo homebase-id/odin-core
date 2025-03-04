@@ -112,6 +112,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         }
 
         [HttpGet("files/thumb")]
+        [HttpGet("files/thumb.{extension}")] // for link-preview support in signal/whatsapp
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type,
             [FromQuery] int width, [FromQuery] int height,
