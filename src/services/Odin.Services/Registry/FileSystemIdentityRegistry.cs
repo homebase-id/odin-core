@@ -26,6 +26,7 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
+using Odin.Services.Util;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
@@ -35,8 +36,6 @@ namespace Odin.Services.Registry;
 /// </summary>
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
-    public const string TempPath = "temp";
-
     public string RegistrationRoot { get; private set; }
     public string ShardablePayloadRoot { get; private set; }
 
@@ -65,7 +64,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tenantDataRootPath = config.Host.TenantDataRootPath;
         RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
         ShardablePayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
-        _tempFolderRoot = Path.Combine(tenantDataRootPath, TempPath);
+        _tempFolderRoot = tenantDataRootPath;
 
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
@@ -125,8 +124,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
         return new TenantStorageConfig(
             headerDataStoragePath: Path.Combine(rootPath, "headers"),
-            tempStoragePath: _tempFolderRoot,
-            payloadStoragePath: Path.Combine(ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder),
+            tempStoragePath: Path.Combine(_tempFolderRoot, "temp", regIdFolder),
+            payloadStoragePath: Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder),
             staticFileStoragePath: Path.Combine(rootPath, "static")
         );
     }

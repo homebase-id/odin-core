@@ -11,8 +11,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class TempStorageManager(DriveFileReaderWriter driveFileReaderWriter, ILogger<TempStorageManager> logger)
     {
-        private const char PartsSeparator = '~';
-
         // public StorageDrive Drive { get; }
 
         /// <summary>
@@ -20,7 +18,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<byte[]> GetAllFileBytes(StorageDrive drive, Guid fileId, string extension)
         {
-            var path = GetTempFilenameAndPath(drive, fileId, extension);
+            string path = GetTempFilenameAndPath(drive, fileId, extension);
             logger.LogDebug("Getting temp file bytes for [{path}]", path);
             var bytes = await driveFileReaderWriter.GetAllFileBytes(path);
             return bytes;
@@ -31,7 +29,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<uint> WriteStream(StorageDrive drive, Guid fileId, string extension, Stream stream)
         {
-            var filePath = GetTempFilenameAndPath(drive, fileId, extension);
+            string filePath = GetTempFilenameAndPath(drive, fileId, extension, true);
             logger.LogDebug("Writing temp file: {filePath}", filePath);
             var bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
             if (bytesWritten == 0)
@@ -53,31 +51,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         /// <param name="drive"></param>
         /// <param name="fileId"></param>
-        // SEB:TODO delete this
-        public Task EnsureDeleted(StorageDrive drive, Guid fileId)
+        public async Task EnsureDeleted(StorageDrive drive, Guid fileId)
         {
-            var dir = "xxx";
+            // var dir = new DirectoryInfo(GetFileDirectory(fileId));
+            var dir = GetFileDirectory(drive, fileId);
+            // logger.LogDebug("Delete temp files in dir: {filePath}", dir);
+            // await driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern: GetFilename(fileId, "*"));
+            
+            await Task.CompletedTask;
             logger.LogDebug("no-op: delete on temp files called yet we've removed this. path {filePath}", dir);
-            return Task.CompletedTask;
-        }
-
-        public void CleanUp(StorageDrive drive, Guid fileId)
-        {
-            var searchPath = drive.GetTempStoragePath();
-            var fileMask =
-                drive.OwnerTenantId.ToString("N") +
-                PartsSeparator +
-                drive.Id.ToString("N") +
-                PartsSeparator +
-                DriveFileUtility.GetFileIdForStorage(fileId) +
-                "*";
-
-            var files = Directory.GetFiles(searchPath, fileMask);
-
-            foreach (var file in files)
-            {
-                File.Delete(file);
-            }
         }
 
         /// <summary>
@@ -85,29 +67,47 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public Task<string> GetPath(StorageDrive drive, Guid fileId, string extension)
         {
-            var filePath = GetTempFilenameAndPath(drive, fileId, extension);
+            string filePath = GetTempFilenameAndPath(drive, fileId, extension);
             return Task.FromResult(filePath);
         }
 
-        private string GetFilename(StorageDrive drive, Guid fileId, string extension)
+        private string GetFileDirectory(StorageDrive drive, Guid fileId, bool ensureExists = false)
         {
-            // tenant-id (guid)                 drive id (guid)                  file id (guid)
-            // 069bc32232514be5a9fdbfa7294002e2~0374b698e6794eadb25502e1b31c6e02~000c4819c0b0ea008c07feb329de6fd2.dflt_key-113126827408162816-139x300.thumb
+            string path = drive.GetTempStoragePath();
 
-            var file =
-                drive.OwnerTenantId.ToString("N") +
-                PartsSeparator +
-                drive.Id.ToString("N") +
-                PartsSeparator +
-                DriveFileUtility.GetFileIdForStorage(fileId);
+            //07e5070f-173b-473b-ff03-ffec2aa1b7b8
+            //The positions in the time guid are hex values as follows
+            //from new DateTimeOffset(2021, 7, 21, 23, 59, 59, TimeSpan.Zero);
+            //07e5=year,07=month,0f=day,17=hour,3b=minute
 
+            var parts = fileId.ToString().Split("-");
+            var yearMonthDay = parts[0];
+            var year = yearMonthDay.Substring(0, 4);
+            var month = yearMonthDay.Substring(4, 2);
+            var day = yearMonthDay.Substring(6, 2);
+            var hourMinute = parts[1];
+            var hour = hourMinute[..2];
+
+            string dir = Path.Combine(path, year, month, day, hour);
+
+            if (ensureExists)
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            return dir;
+        }
+
+        private string GetFilename(Guid fileId, string extension)
+        {
+            string file = DriveFileUtility.GetFileIdForStorage(fileId);
             return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
         }
 
-        private string GetTempFilenameAndPath(StorageDrive drive, Guid fileId, string extension)
+        private string GetTempFilenameAndPath(StorageDrive drive, Guid fileId, string extension, bool ensureExists = false)
         {
-            var dir = drive.GetTempStoragePath();
-            return Path.Combine(dir, GetFilename(drive, fileId, extension));
+            string dir = GetFileDirectory(drive, fileId, ensureExists);
+            return Path.Combine(dir, GetFilename(fileId, extension));
         }
     }
 }
