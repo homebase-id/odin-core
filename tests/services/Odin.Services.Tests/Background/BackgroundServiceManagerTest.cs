@@ -20,7 +20,7 @@ namespace Odin.Services.Tests.Background;
 
 public class BackgroundServiceManagerTest
 {
-    private readonly Odin.Services.Tenant.Tenant _tenant = new ("frodo.hobbit");
+    private readonly Services.Tenant.Tenant _tenant = new ("frodo.hobbit");
 
     private ILifetimeScope _container = null!;
     private LogEventMemoryStore _logEventMemoryStore = null!;
