@@ -43,6 +43,7 @@ public class LinkPreviewService(
     private const string DefaultTitle = "Homebase.id";
     private const string DefaultDescription = "Decentralized identity powered by Homebase.id";
 
+    public const string PublicImagePath = "pub/image.jpg";
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
 
     private const int ChannelDefinitionFileType = 103;
@@ -130,7 +131,7 @@ public class LinkPreviewService(
 
             if (string.IsNullOrEmpty(imageUrl))
             {
-                imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+                imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
             }
 
             if (string.IsNullOrEmpty(description))
@@ -184,18 +185,30 @@ public class LinkPreviewService(
 
         PostContent content = null;
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.Key == DefaultPayloadKey);
-        if (payloadHeader == null)
+        var json = "";
+        try
         {
-            logger.LogDebug("Using content used from AppData.Content");
-            content = OdinSystemSerializer.Deserialize<PostContent>(postFile.FileMetadata.AppData.Content);
+            if (payloadHeader == null)
+            {
+                logger.LogDebug("Using content used from AppData.Content");
+                json = postFile.FileMetadata.AppData.Content;
+            }
+            else
+            {
+                // if there is a default payload, then all content is there;
+                logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
+                var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
+                var reader = new StreamReader(payloadStream.Stream);
+                json = await reader.ReadToEndAsync(cancellationToken);
+                reader.Close();
+            }
+
+            content = OdinSystemSerializer.Deserialize<PostContent>(json);
         }
-        else
+        catch (Exception e)
         {
-            // if there is a default payload, then all content is there;
-            var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-            content = await OdinSystemSerializer.Deserialize<PostContent>(payloadStream.Stream, cancellationToken);
-            payloadStream.Stream.Close();
-            logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
+            logger.LogError(e, "Failed deserializing post content. json: [{json}]", json);
+            throw;
         }
 
         var context = httpContextAccessor.HttpContext;
@@ -213,11 +226,11 @@ public class LinkPreviewService(
             var mediaPayload = postFile.FileMetadata.Payloads
                 .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
 
-            bool hasUsableThumbnail = mediaPayload?.Thumbnails
-                                          .Any(t => t.PixelHeight > minThumbHeight
-                                                    && t.PixelWidth > minThumbWidth)
-                                      ?? false;
-            if (hasUsableThumbnail)
+            var theThumbnail = mediaPayload?.Thumbnails.OrderBy(t => t.PixelWidth)
+                .LastOrDefault(t => t.PixelHeight > minThumbHeight
+                                    && t.PixelWidth > minThumbWidth);
+
+            if (theThumbnail != null)
             {
                 logger.LogDebug("Post has usable thumbnail");
 
@@ -231,9 +244,11 @@ public class LinkPreviewService(
                 b.Append($"&xfst=Standard"); // note: No comment support
                 b.Append($"&iac=true");
 
+                var extension = MimeTypeHelper.GetFileExtensionFromMimeType(theThumbnail.ContentType) ?? ".jpg";
+
                 var builder = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
                 {
-                    Path = "api/guest/v1/drive/files/thumb",
+                    Path = $"api/guest/v1/drive/files/thumb{extension}",
                     Query = b.ToString()
                 };
 
@@ -241,11 +256,11 @@ public class LinkPreviewService(
             }
         }
 
-        logger.LogDebug("Returning post content.  " +
-                        "title:[{title}], description: {desc} imageUrl:{img}",
-            content.Caption,
-            imageUrl,
-            content.Abstract);
+        // logger.LogDebug("Returning post content.  " +
+        //                 "title:[{title}], description: {desc} imageUrl:{img}",
+        //     content.Caption,
+        //     imageUrl,
+        //     content.Abstract);
 
         return (true, content.Caption, imageUrl, content.Abstract);
     }
@@ -419,9 +434,9 @@ public class LinkPreviewService(
 
         StringBuilder b = new StringBuilder(500);
 
-        b.Append($"<title>{title}</title>");
+        b.Append($"<title>{title}</title>\n");
         b.Append($"<meta property='description' content='{description}'/>\n");
-        b.Append($"<meta name='robots' content='index, follow'>");
+        b.Append($"<meta name='robots' content='index, follow'>\n");
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
         b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
@@ -437,7 +452,7 @@ public class LinkPreviewService(
         string odinId = context.Request.Host.Host;
         var person = await GeneratePersonSchema();
 
-        var imageUrl = person?.Image ?? $"{context.Request.Scheme}://{odinId}/pub/image";
+        var imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
 
         string suffix = DefaultTitle;
         string siteType = "profile";
@@ -466,7 +481,7 @@ public class LinkPreviewService(
     {
         var builder = PrepareBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />");
+        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
         builder.Append(PrepareIdentityContent(person));
 
         var indexTemplate = await globalCache.GetOrSetAsync(
