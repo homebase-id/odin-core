@@ -16,17 +16,25 @@ namespace Odin.Services.Drives
     [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
     public sealed class StorageDrive : StorageDriveBase
     {
+        public readonly Guid OwnerTenantId; // Drive owner tenant
         private readonly string _tempDataRootPath;
         private readonly string _driveFolderName;
         private readonly string _longTermPayloadPath;
 
         private readonly StorageDriveBase _inner;
 
-        public StorageDrive(string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
+        public StorageDrive(Guid ownerTenantId, string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
         {
+            // Sanity
+            if (ownerTenantId == Guid.Empty)
+            {
+                throw new OdinSystemException($"Invalid ownerTenantId: {ownerTenantId.ToString()}");
+            }
+            OwnerTenantId = ownerTenantId;
+
             _inner = inner;
-            _driveFolderName = this.Id.ToString("N");
-            _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
+            _driveFolderName = Id.ToString("N");
+            _tempDataRootPath = tempDataRootPath;
 
             // value = \data\tenant\payloads\p1\{driveId}\
             // note: p1 is the CIFS mapped drive.
@@ -114,7 +122,7 @@ namespace Odin.Services.Drives
 
         public string GetTempStoragePath()
         {
-            return Path.Combine(_tempDataRootPath, "files");
+            return _tempDataRootPath;
         }
 
         public void EnsureDirectories()
