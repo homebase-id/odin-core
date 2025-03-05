@@ -118,6 +118,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             else
                    rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveReactions("
                    +rowid
@@ -127,7 +128,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"postId BYTEA NOT NULL, "
                    +"singleReaction TEXT NOT NULL "
                    +", UNIQUE(identityId,driveId,identity,postId,singleReaction)"
-                   +") ;"
+                   +$"){wori};"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

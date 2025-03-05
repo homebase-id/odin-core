@@ -306,6 +306,9 @@ namespace Odin.Core.Storage.Database.System.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
                 await cmd.ExecuteNonQueryAsync();
             }
+            var wori = "";
+            if (_scopedConnectionFactory.DatabaseType != DatabaseType.Postgres)
+                   wori = " WITHOUT ROWID";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS jobs("
                    +"id BYTEA NOT NULL UNIQUE, "
@@ -328,7 +331,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
                    +", PRIMARY KEY (id)"
-                   +") WITHOUT ROWID;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
                    +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"

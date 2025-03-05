@@ -203,6 +203,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
             var rowid = "";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyChain("
                    +rowid
@@ -214,7 +215,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                    +"publicKeyJwkBase64Url TEXT NOT NULL UNIQUE, "
                    +"recordHash BYTEA NOT NULL UNIQUE "
                    +", UNIQUE(identity,publicKeyJwkBase64Url)"
-                   +") ;"
+                   +$"){wori};"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
         }

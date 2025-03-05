@@ -99,13 +99,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS keyValue;";
                 await cmd.ExecuteNonQueryAsync();
             }
+            var wori = "";
+            if (_scopedConnectionFactory.DatabaseType != DatabaseType.Postgres)
+                   wori = " WITHOUT ROWID";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyValue("
                    +"identityId BYTEA NOT NULL, "
                    +"key BYTEA NOT NULL, "
                    +"data BYTEA  "
                    +", PRIMARY KEY (identityId,key)"
-                   +") WITHOUT ROWID;"
+                   +$"){wori};"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

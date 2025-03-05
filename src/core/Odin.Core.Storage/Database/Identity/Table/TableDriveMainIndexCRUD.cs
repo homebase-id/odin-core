@@ -448,6 +448,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             else
                    rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveMainIndex("
                    +rowid
@@ -484,7 +485,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,driveId,uniqueId)"
                    +", UNIQUE(identityId,driveId,globalTransitId)"
                    +", UNIQUE(identityId,hdrVersionTag)"
-                   +") ;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,created,rowId);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
                    +"CREATE INDEX IF NOT EXISTS Idx2TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"

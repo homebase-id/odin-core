@@ -78,6 +78,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS driveAclIndex;";
                 await cmd.ExecuteNonQueryAsync();
             }
+            var wori = "";
+            if (_scopedConnectionFactory.DatabaseType != DatabaseType.Postgres)
+                   wori = " WITHOUT ROWID";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveAclIndex("
                    +"identityId BYTEA NOT NULL, "
@@ -85,7 +88,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"fileId BYTEA NOT NULL, "
                    +"aclMemberId BYTEA NOT NULL "
                    +", PRIMARY KEY (identityId,driveId,fileId,aclMemberId)"
-                   +") WITHOUT ROWID;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(identityId,driveId,aclMemberId);"
                    ;
             await cmd.ExecuteNonQueryAsync();

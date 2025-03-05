@@ -162,6 +162,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             else
                    rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS connections("
                    +rowid
@@ -174,7 +175,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,identity)"
-                   +") ;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
                    ;
             await cmd.ExecuteNonQueryAsync();

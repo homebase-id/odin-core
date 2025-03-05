@@ -160,6 +160,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             else
                    rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS AppNotifications("
                    +rowid
@@ -172,7 +173,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,notificationId)"
-                   +") ;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
                    ;
             await cmd.ExecuteNonQueryAsync();

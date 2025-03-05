@@ -227,6 +227,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
             var rowid = "";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS notaryChain("
                    +rowid
@@ -239,7 +240,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    +"notarySignature BYTEA NOT NULL UNIQUE, "
                    +"recordHash BYTEA NOT NULL UNIQUE "
                    +", UNIQUE(notarySignature)"
-                   +") ;"
+                   +$"){wori};"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
         }

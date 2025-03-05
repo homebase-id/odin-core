@@ -91,6 +91,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 cmd.CommandText = "DROP TABLE IF EXISTS attestationStatus;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS attestationStatus("
                    +"attestationId BYTEA NOT NULL UNIQUE, "
@@ -98,7 +99,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
                    +", PRIMARY KEY (attestationId)"
-                   +") WITHOUT ROWID;"
+                   +$"){wori};"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
         }

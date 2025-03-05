@@ -106,6 +106,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
                 await cmd.ExecuteNonQueryAsync();
             }
+            var wori = "";
+            if (_scopedConnectionFactory.DatabaseType != DatabaseType.Postgres)
+                   wori = " WITHOUT ROWID";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS followsMe("
                    +"identityId BYTEA NOT NULL, "
@@ -114,7 +117,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
                    +", PRIMARY KEY (identityId,identity,driveId)"
-                   +") WITHOUT ROWID;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
                    ;
             await cmd.ExecuteNonQueryAsync();

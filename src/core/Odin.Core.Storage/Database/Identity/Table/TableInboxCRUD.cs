@@ -178,6 +178,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             else
                    rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS inbox("
                    +rowid
@@ -192,7 +193,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,fileId)"
-                   +") ;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
                    +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"

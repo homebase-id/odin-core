@@ -140,6 +140,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS keyThreeValue;";
                 await cmd.ExecuteNonQueryAsync();
             }
+            var wori = "";
+            if (_scopedConnectionFactory.DatabaseType != DatabaseType.Postgres)
+                   wori = " WITHOUT ROWID";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyThreeValue("
                    +"identityId BYTEA NOT NULL, "
@@ -148,7 +151,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"key3 BYTEA , "
                    +"data BYTEA  "
                    +", PRIMARY KEY (identityId,key1)"
-                   +") WITHOUT ROWID;"
+                   +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableKeyThreeValueCRUD ON keyThreeValue(identityId,key2);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableKeyThreeValueCRUD ON keyThreeValue(key3);"
                    ;
