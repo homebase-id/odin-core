@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class InboxRecord
     {
+        private long _rowId;
+        public long rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -164,11 +174,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+                   rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+                   rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS inbox("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL UNIQUE, "
                    +"boxId BYTEA NOT NULL, "
@@ -179,9 +191,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"correlationId TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,fileId)"
-                   +");"
+                   +", UNIQUE(identityId,fileId)"
+                   +") ;"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
                    +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
                    +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
@@ -465,6 +476,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("fileId");
             sl.Add("boxId");
@@ -478,7 +490,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified
+        // SELECT rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified
         protected InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<InboxRecord>();
@@ -487,18 +499,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new InboxRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.boxId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.timeStamp = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.valueNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.fileId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.boxId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.priority = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.timeStamp = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.valueNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
-            item.popStamp = (rdr[6] == DBNull.Value) ? null : new Guid((byte[])rdr[6]);
-            item.correlationIdNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
-            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
-            item.modified = (rdr[9] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[9]);
+            item.popStamp = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
+            item.correlationIdNoLengthCheck = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
+            item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
+            item.modified = (rdr[10] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[10]);
             return item;
        }
 
@@ -533,16 +546,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new InboxRecord();
             item.identityId = identityId;
             item.fileId = fileId;
-            item.boxId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.priority = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.timeStamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.valueNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.boxId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.priority = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.timeStamp = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.valueNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
-            item.popStamp = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
-            item.correlationIdNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
-            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
-            item.modified = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[7]);
+            item.popStamp = (rdr[5] == DBNull.Value) ? null : new Guid((byte[])rdr[5]);
+            item.correlationIdNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.modified = (rdr[8] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -551,7 +565,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
+                get0Command.CommandText = "SELECT rowId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";

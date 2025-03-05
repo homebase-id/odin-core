@@ -102,11 +102,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS appGrants("
                    +"identityId BYTEA NOT NULL, "
@@ -114,9 +109,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"appId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL, "
                    +"data BYTEA  "
-                   + rowid
                    +", PRIMARY KEY (identityId,odinHashId,appId,circleId)"
-                   +");"
+                   +") WITHOUT ROWID;"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

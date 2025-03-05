@@ -17,8 +17,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class ConnectionsRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
+        private long _rowId;
+        public long rowId
         {
            get {
                    return _rowId;
@@ -158,11 +158,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+                   rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+                   rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS connections("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
                    +"displayName TEXT NOT NULL, "
@@ -171,9 +173,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,identity)"
-                   +");"
+                   +", UNIQUE(identityId,identity)"
+                   +") ;"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
                    ;
             await cmd.ExecuteNonQueryAsync();

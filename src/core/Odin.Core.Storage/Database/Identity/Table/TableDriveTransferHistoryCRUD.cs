@@ -118,11 +118,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS driveTransferHistory;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveTransferHistory("
                    +"identityId BYTEA NOT NULL, "
@@ -133,9 +128,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"isInOutbox BOOLEAN NOT NULL, "
                    +"latestSuccessfullyDeliveredVersionTag BYTEA , "
                    +"isReadByRecipient BOOLEAN NOT NULL "
-                   + rowid
                    +", PRIMARY KEY (identityId,driveId,fileId,remoteIdentityId)"
-                   +");"
+                   +") WITHOUT ROWID;"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);"
                    ;
             await cmd.ExecuteNonQueryAsync();

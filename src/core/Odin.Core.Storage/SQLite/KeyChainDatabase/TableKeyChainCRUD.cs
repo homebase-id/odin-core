@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
     public class KeyChainRecord
     {
+        private long _rowId;
+        public long rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private byte[] _previousHash;
         public byte[] previousHash
         {
@@ -192,8 +202,10 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 await conn.ExecuteNonQueryAsync(cmd);
             }
             var rowid = "";
+            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS keyChain("
+                   +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "
                    +"timestamp BIGINT NOT NULL, "
@@ -201,9 +213,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                    +"algorithm TEXT NOT NULL, "
                    +"publicKeyJwkBase64Url TEXT NOT NULL UNIQUE, "
                    +"recordHash BYTEA NOT NULL UNIQUE "
-                   + rowid
-                   +", PRIMARY KEY (identity,publicKeyJwkBase64Url)"
-                   +");"
+                   +", UNIQUE(identity,publicKeyJwkBase64Url)"
+                   +") ;"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
         }
@@ -399,6 +410,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("previousHash");
             sl.Add("identity");
             sl.Add("timestamp");
@@ -409,7 +421,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return sl;
         }
 
-        // SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash
+        // SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash
         public KeyChainRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyChainRecord>();
@@ -418,17 +430,18 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyChainRecord();
-            item.previousHashNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.previousHashNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-            item.identityNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.signedPreviousHashNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            item.identityNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.timestamp = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.signedPreviousHashNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-            item.algorithmNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.publicKeyJwkBase64UrlNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.recordHashNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[6]);
+            item.algorithmNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.publicKeyJwkBase64UrlNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.recordHashNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
             if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
@@ -478,15 +491,16 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             var item = new KeyChainRecord();
             item.identity = identity;
             item.publicKeyJwkBase64Url = publicKeyJwkBase64Url;
-            item.previousHashNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.previousHashNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-            item.timestamp = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
-            item.signedPreviousHashNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
+            item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.signedPreviousHashNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-            item.algorithmNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
-            item.recordHashNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
+            item.algorithmNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.recordHashNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[5]);
             if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
@@ -505,7 +519,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 return (KeyChainRecord)cacheObject;
             using (var get0Command = conn.db.CreateCommand())
             {
-                get0Command.CommandText = "SELECT previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM keyChain " +
+                get0Command.CommandText = "SELECT rowId,previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM keyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identity";

@@ -17,8 +17,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class DriveMainIndexRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
+        private long _rowId;
+        public long rowId
         {
            get {
                    return _rowId;
@@ -444,11 +444,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+                   rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+                   rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveMainIndex("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
@@ -478,13 +480,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"hdrTmpDriveType BYTEA NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,driveId,fileId)"
+                   +", UNIQUE(identityId,driveId,fileId)"
                    +", UNIQUE(identityId,driveId,uniqueId)"
                    +", UNIQUE(identityId,driveId,globalTransitId)"
                    +", UNIQUE(identityId,hdrVersionTag)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
+                   +") ;"
+                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,created,rowId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

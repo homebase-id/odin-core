@@ -95,15 +95,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
-            var rowid = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS attestationRequest("
                    +"attestationId TEXT NOT NULL UNIQUE, "
                    +"requestEnvelope TEXT NOT NULL UNIQUE, "
                    +"timestamp BIGINT NOT NULL "
-                   + rowid
                    +", PRIMARY KEY (attestationId)"
-                   +");"
+                   +") WITHOUT ROWID;"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
         }
@@ -336,22 +334,22 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            using (var getPaging1Command = conn.db.CreateCommand())
+            using (var getPaging0Command = conn.db.CreateCommand())
             {
-                getPaging1Command.CommandText = "SELECT attestationId,requestEnvelope,timestamp FROM attestationRequest " +
+                getPaging0Command.CommandText = "SELECT attestationId,requestEnvelope,timestamp FROM attestationRequest " +
                                             "WHERE attestationId > @attestationId  ORDER BY attestationId ASC  LIMIT @count;";
-                var getPaging1Param1 = getPaging1Command.CreateParameter();
-                getPaging1Param1.ParameterName = "@attestationId";
-                getPaging1Command.Parameters.Add(getPaging1Param1);
-                var getPaging1Param2 = getPaging1Command.CreateParameter();
-                getPaging1Param2.ParameterName = "@count";
-                getPaging1Command.Parameters.Add(getPaging1Param2);
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@attestationId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                getPaging1Param1.Value = inCursor;
-                getPaging1Param2.Value = count+1;
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
 
                 {
-                    await using (var rdr = await conn.ExecuteReaderAsync(getPaging1Command, System.Data.CommandBehavior.Default))
+                    await using (var rdr = await conn.ExecuteReaderAsync(getPaging0Command, System.Data.CommandBehavior.Default))
                     {
                         var result = new List<AttestationRequestRecord>();
                         string nextCursor;

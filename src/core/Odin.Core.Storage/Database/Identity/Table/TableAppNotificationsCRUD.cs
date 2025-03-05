@@ -17,8 +17,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class AppNotificationsRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
+        private long _rowId;
+        public long rowId
         {
            get {
                    return _rowId;
@@ -156,11 +156,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+                   rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+                   rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS AppNotifications("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"notificationId BYTEA NOT NULL UNIQUE, "
                    +"unread BIGINT NOT NULL, "
@@ -169,9 +171,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,notificationId)"
-                   +");"
+                   +", UNIQUE(identityId,notificationId)"
+                   +") ;"
                    +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
                    ;
             await cmd.ExecuteNonQueryAsync();

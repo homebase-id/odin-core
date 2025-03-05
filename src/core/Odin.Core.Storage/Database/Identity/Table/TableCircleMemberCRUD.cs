@@ -92,20 +92,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS circleMember("
                    +"identityId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL, "
                    +"memberId BYTEA NOT NULL, "
                    +"data BYTEA  "
-                   + rowid
                    +", PRIMARY KEY (identityId,circleId,memberId)"
-                   +");"
+                   +") WITHOUT ROWID;"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

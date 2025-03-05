@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class DriveReactionsRecord
     {
+        private long _rowId;
+        public long rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -104,19 +114,20 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+                   rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+                   rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveReactions("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
                    +"postId BYTEA NOT NULL, "
                    +"singleReaction TEXT NOT NULL "
-                   + rowid
-                   +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
-                   +");"
+                   +", UNIQUE(identityId,driveId,identity,postId,singleReaction)"
+                   +") ;"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -292,6 +303,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("driveId");
             sl.Add("identity");
@@ -319,7 +331,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT identityId,driveId,identity,postId,singleReaction
+        // SELECT rowId,identityId,driveId,identity,postId,singleReaction
         protected DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveReactionsRecord>();
@@ -328,11 +340,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveReactionsRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
-            item.postId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.singleReactionNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.identity = (rdr[3] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[3]);
+            item.postId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
+            item.singleReactionNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             return item;
        }
 
@@ -417,6 +430,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identity = identity;
             item.postId = postId;
             item.singleReaction = singleReaction;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             return item;
        }
 
@@ -428,7 +442,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT identityId,driveId,identity,postId,singleReaction FROM driveReactions " +
+                get0Command.CommandText = "SELECT rowId FROM driveReactions " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";

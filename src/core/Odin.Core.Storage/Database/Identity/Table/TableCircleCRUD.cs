@@ -106,20 +106,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS circle;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS circle("
                    +"identityId BYTEA NOT NULL, "
                    +"circleName TEXT NOT NULL, "
                    +"circleId BYTEA NOT NULL UNIQUE, "
                    +"data BYTEA  "
-                   + rowid
                    +", PRIMARY KEY (identityId,circleId)"
-                   +");"
+                   +") WITHOUT ROWID;"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -390,26 +384,26 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 inCursor = Guid.Empty;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var getPaging3Command = cn.CreateCommand();
+            await using var getPaging2Command = cn.CreateCommand();
             {
-                getPaging3Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
+                getPaging2Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
                                             "WHERE (identityId = @identityId) AND circleId > @circleId  ORDER BY circleId ASC  LIMIT @count;";
-                var getPaging3Param1 = getPaging3Command.CreateParameter();
-                getPaging3Param1.ParameterName = "@circleId";
-                getPaging3Command.Parameters.Add(getPaging3Param1);
-                var getPaging3Param2 = getPaging3Command.CreateParameter();
-                getPaging3Param2.ParameterName = "@count";
-                getPaging3Command.Parameters.Add(getPaging3Param2);
-                var getPaging3Param3 = getPaging3Command.CreateParameter();
-                getPaging3Param3.ParameterName = "@identityId";
-                getPaging3Command.Parameters.Add(getPaging3Param3);
+                var getPaging2Param1 = getPaging2Command.CreateParameter();
+                getPaging2Param1.ParameterName = "@circleId";
+                getPaging2Command.Parameters.Add(getPaging2Param1);
+                var getPaging2Param2 = getPaging2Command.CreateParameter();
+                getPaging2Param2.ParameterName = "@count";
+                getPaging2Command.Parameters.Add(getPaging2Param2);
+                var getPaging2Param3 = getPaging2Command.CreateParameter();
+                getPaging2Param3.ParameterName = "@identityId";
+                getPaging2Command.Parameters.Add(getPaging2Param3);
 
-                getPaging3Param1.Value = inCursor?.ToByteArray();
-                getPaging3Param2.Value = count+1;
-                getPaging3Param3.Value = identityId.ToByteArray();
+                getPaging2Param1.Value = inCursor?.ToByteArray();
+                getPaging2Param2.Value = count+1;
+                getPaging2Param3.Value = identityId.ToByteArray();
 
                 {
-                    await using (var rdr = await getPaging3Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging2Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<CircleRecord>();
                         Guid? nextCursor;
