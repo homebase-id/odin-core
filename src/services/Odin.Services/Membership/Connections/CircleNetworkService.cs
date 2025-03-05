@@ -542,6 +542,21 @@ namespace Odin.Services.Membership.Connections
 
                 if (icr.IsConnected() && hasCg)
                 {
+                    if (icr.AccessGrant == null)
+                    {
+                        logger.LogError("icr for {odinID} has null access grant", odinId);
+                    }
+
+                    if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                    {
+                        logger.LogDebug("Upgrading KSK Encryption for {id}", icr.OdinId);
+
+                        var eccKeyStoreKey = await publicPrivateKeyService.EccDecryptPayload(icr.TempWeakKeyStoreKey, odinContext);
+
+                        var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(eccKeyStoreKey));
+                        await circleNetworkStorage.UpdateKeyStoreKeyAsync(icr.OdinId, icr.Status, masterKeyEncryptedKeyStoreKey);
+                    }
+
                     // Re-create the circle grant so
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                     icr.AccessGrant.CircleGrants[circleKey] =
@@ -1197,6 +1212,7 @@ namespace Odin.Services.Membership.Connections
                     await circleNetworkStorage.UpsertAsync(icr, odinContext);
                     logger.LogDebug("SaveIcrAsync -> after UpsertAsync");
                 }
+
                 logger.LogDebug("SaveIcrAsync -> Releasing");
             }
         }
