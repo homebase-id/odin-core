@@ -242,7 +242,7 @@ namespace Odin.Services.Authentication.Owner
         public async Task<IOdinContext> GetDotYouContextAsync(ClientAuthenticationToken token, OdinClientContext clientContext,
             IOdinContext odinContext)
         {
-            var creator = new Func<Task<IOdinContext>>(async delegate
+            var creator = new Func<Task<IOdinContext>>(async () =>
             {
                 var dotYouContext = new OdinContext();
                 var (masterKey, permissionContext) = await GetPermissionContextAsync(token, odinContext);

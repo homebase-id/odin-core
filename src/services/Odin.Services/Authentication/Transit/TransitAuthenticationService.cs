@@ -30,7 +30,7 @@ public class TransitAuthenticationService :
     /// </summary>
     public async Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var creator = new Func<Task<IOdinContext>>(async delegate
+        var creator = new Func<Task<IOdinContext>>(async () =>
         {
             var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, token, odinContext);
