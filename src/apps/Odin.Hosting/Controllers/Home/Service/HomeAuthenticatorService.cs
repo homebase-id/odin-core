@@ -93,7 +93,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         /// </summary>
         public async Task<IOdinContext?> GetDotYouContextAsync(ClientAuthenticationToken token, IOdinContext odinContext)
         {
-            var creator = new Func<Task<IOdinContext?>>(async delegate
+            var creator = new Func<Task<IOdinContext?>>(async () =>
             {
                 var dotYouContext = new OdinContext();
                 var (callerContext, permissionContext) = await GetPermissionContextAsync(token, odinContext);
