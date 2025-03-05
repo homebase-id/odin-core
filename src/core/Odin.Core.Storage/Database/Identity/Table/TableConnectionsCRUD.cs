@@ -158,10 +158,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-                   rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
-                   rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS connections("
