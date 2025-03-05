@@ -17,8 +17,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
     public class KeyChainRecord
     {
-        private long _rowId;
-        public long rowId
+        private Int64 _rowId;
+        public Int64 rowId
         {
            get {
                    return _rowId;
