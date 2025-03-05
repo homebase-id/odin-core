@@ -547,14 +547,11 @@ namespace Odin.Services.Membership.Connections
                         logger.LogError("icr for {odinID} has null access grant", odinId);
                     }
 
-                    if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                    await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+                    if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
                     {
-                        logger.LogDebug("Upgrading KSK Encryption for {id}", icr.OdinId);
-
-                        var eccKeyStoreKey = await publicPrivateKeyService.EccDecryptPayload(icr.TempWeakKeyStoreKey, odinContext);
-
-                        var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(eccKeyStoreKey));
-                        await circleNetworkStorage.UpdateKeyStoreKeyAsync(icr.OdinId, icr.Status, masterKeyEncryptedKeyStoreKey);
+                        // refetch the record since the above method just writes to db
+                        icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                     }
 
                     // Re-create the circle grant so
