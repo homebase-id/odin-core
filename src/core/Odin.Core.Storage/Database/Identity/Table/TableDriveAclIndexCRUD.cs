@@ -89,7 +89,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"aclMemberId BYTEA NOT NULL "
                    +", PRIMARY KEY (identityId,driveId,fileId,aclMemberId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(identityId,driveId,aclMemberId);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

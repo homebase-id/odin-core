@@ -89,7 +89,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"tagId BYTEA NOT NULL "
                    +", PRIMARY KEY (identityId,driveId,fileId,tagId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTagIndexCRUD ON driveTagIndex(identityId,driveId,fileId);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

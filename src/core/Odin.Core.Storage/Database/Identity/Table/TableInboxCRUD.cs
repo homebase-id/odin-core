@@ -37,16 +37,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _identityId = value;
                }
         }
-        private Guid _fileId;
-        public Guid fileId
-        {
-           get {
-                   return _fileId;
-               }
-           set {
-                  _fileId = value;
-               }
-        }
         private Guid _boxId;
         public Guid boxId
         {
@@ -55,6 +45,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                   _boxId = value;
+               }
+        }
+        private Guid _fileId;
+        public Guid fileId
+        {
+           get {
+                   return _fileId;
+               }
+           set {
+                  _fileId = value;
                }
         }
         private Int32 _priority;
@@ -182,8 +182,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 "CREATE TABLE IF NOT EXISTS inbox("
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL UNIQUE, "
                    +"boxId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL UNIQUE, "
                    +"priority BIGINT NOT NULL, "
                    +"timeStamp BIGINT NOT NULL, "
                    +"value BYTEA , "
@@ -203,22 +203,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> InsertAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
-                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified)";
+                insertCommand.CommandText = "INSERT INTO inbox (identityId,boxId,fileId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
+                                             "VALUES (@identityId,@boxId,@fileId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.ParameterName = "@fileId";
+                insertParam2.ParameterName = "@boxId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@boxId";
+                insertParam3.ParameterName = "@fileId";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@priority";
@@ -242,8 +242,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam10.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam10);
                 insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.fileId.ToByteArray();
-                insertParam3.Value = item.boxId.ToByteArray();
+                insertParam2.Value = item.boxId.ToByteArray();
+                insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.priority;
                 insertParam5.Value = item.timeStamp.milliseconds;
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
@@ -265,23 +265,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<bool> TryInsertAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
-                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified) " +
+                insertCommand.CommandText = "INSERT INTO inbox (identityId,boxId,fileId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
+                                             "VALUES (@identityId,@boxId,@fileId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.ParameterName = "@fileId";
+                insertParam2.ParameterName = "@boxId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@boxId";
+                insertParam3.ParameterName = "@fileId";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@priority";
@@ -305,8 +305,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam10.ParameterName = "@modified";
                 insertCommand.Parameters.Add(insertParam10);
                 insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.fileId.ToByteArray();
-                insertParam3.Value = item.boxId.ToByteArray();
+                insertParam2.Value = item.boxId.ToByteArray();
+                insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.priority;
                 insertParam5.Value = item.timeStamp.milliseconds;
                 insertParam6.Value = item.value ?? (object)DBNull.Value;
@@ -328,14 +328,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpsertAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created) " +
-                                             "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created)"+
+                upsertCommand.CommandText = "INSERT INTO inbox (identityId,boxId,fileId,priority,timeStamp,value,popStamp,correlationId,created) " +
+                                             "VALUES (@identityId,@boxId,@fileId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created)"+
                                              "ON CONFLICT (identityId,fileId) DO UPDATE "+
                                              "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = @modified "+
                                              "RETURNING created, modified;";
@@ -343,10 +343,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.ParameterName = "@fileId";
+                upsertParam2.ParameterName = "@boxId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.ParameterName = "@boxId";
+                upsertParam3.ParameterName = "@fileId";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
                 upsertParam4.ParameterName = "@priority";
@@ -371,8 +371,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.Parameters.Add(upsertParam10);
                 var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.fileId.ToByteArray();
-                upsertParam3.Value = item.boxId.ToByteArray();
+                upsertParam2.Value = item.boxId.ToByteArray();
+                upsertParam3.Value = item.fileId.ToByteArray();
                 upsertParam4.Value = item.priority;
                 upsertParam5.Value = item.timeStamp.milliseconds;
                 upsertParam6.Value = item.value ?? (object)DBNull.Value;
@@ -399,8 +399,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpdateAsync(InboxRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
@@ -412,10 +412,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.ParameterName = "@fileId";
+                updateParam2.ParameterName = "@boxId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.ParameterName = "@boxId";
+                updateParam3.ParameterName = "@fileId";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
                 updateParam4.ParameterName = "@priority";
@@ -440,8 +440,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.Parameters.Add(updateParam10);
                 var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.fileId.ToByteArray();
-                updateParam3.Value = item.boxId.ToByteArray();
+                updateParam2.Value = item.boxId.ToByteArray();
+                updateParam3.Value = item.fileId.ToByteArray();
                 updateParam4.Value = item.priority;
                 updateParam5.Value = item.timeStamp.milliseconds;
                 updateParam6.Value = item.value ?? (object)DBNull.Value;
@@ -478,8 +478,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("fileId");
             sl.Add("boxId");
+            sl.Add("fileId");
             sl.Add("priority");
             sl.Add("timeStamp");
             sl.Add("value");
@@ -490,7 +490,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified
+        // SELECT rowId,identityId,boxId,fileId,priority,timeStamp,value,popStamp,correlationId,created,modified
         protected InboxRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<InboxRecord>();
@@ -501,8 +501,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new InboxRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.fileId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.boxId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.boxId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.priority = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.timeStamp = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
             item.valueNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);

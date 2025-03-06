@@ -27,6 +27,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _identityId = value;
                }
         }
+        private Guid _circleId;
+        public Guid circleId
+        {
+           get {
+                   return _circleId;
+               }
+           set {
+                  _circleId = value;
+               }
+        }
         private string _circleName;
         public string circleName
         {
@@ -49,16 +59,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 2) throw new Exception("Too short");
                   _circleName = value;
-               }
-        }
-        private Guid _circleId;
-        public Guid circleId
-        {
-           get {
-                   return _circleId;
-               }
-           set {
-                  _circleId = value;
                }
         }
         private byte[] _data;
@@ -112,8 +112,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS circle("
                    +"identityId BYTEA NOT NULL, "
-                   +"circleName TEXT NOT NULL, "
                    +"circleId BYTEA NOT NULL UNIQUE, "
+                   +"circleName TEXT NOT NULL, "
                    +"data BYTEA  "
                    +", PRIMARY KEY (identityId,circleId)"
                    +$"){wori};"
@@ -128,23 +128,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
-                                             "VALUES (@identityId,@circleName,@circleId,@data)";
+                insertCommand.CommandText = "INSERT INTO circle (identityId,circleId,circleName,data) " +
+                                             "VALUES (@identityId,@circleId,@circleName,@data)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.ParameterName = "@circleName";
+                insertParam2.ParameterName = "@circleId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@circleId";
+                insertParam3.ParameterName = "@circleName";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.circleName;
-                insertParam3.Value = item.circleId.ToByteArray();
+                insertParam2.Value = item.circleId.ToByteArray();
+                insertParam3.Value = item.circleName;
                 insertParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -162,24 +162,24 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
-                                             "VALUES (@identityId,@circleName,@circleId,@data) " +
+                insertCommand.CommandText = "INSERT INTO circle (identityId,circleId,circleName,data) " +
+                                             "VALUES (@identityId,@circleId,@circleName,@data) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.ParameterName = "@circleName";
+                insertParam2.ParameterName = "@circleId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@circleId";
+                insertParam3.ParameterName = "@circleName";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.circleName;
-                insertParam3.Value = item.circleId.ToByteArray();
+                insertParam2.Value = item.circleId.ToByteArray();
+                insertParam3.Value = item.circleName;
                 insertParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -197,8 +197,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO circle (identityId,circleName,circleId,data) " +
-                                             "VALUES (@identityId,@circleName,@circleId,@data)"+
+                upsertCommand.CommandText = "INSERT INTO circle (identityId,circleId,circleName,data) " +
+                                             "VALUES (@identityId,@circleId,@circleName,@data)"+
                                              "ON CONFLICT (identityId,circleId) DO UPDATE "+
                                              "SET circleName = @circleName,data = @data "+
                                              ";";
@@ -206,17 +206,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.ParameterName = "@circleName";
+                upsertParam2.ParameterName = "@circleId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.ParameterName = "@circleId";
+                upsertParam3.ParameterName = "@circleName";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
                 upsertParam4.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam4);
                 upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.circleName;
-                upsertParam3.Value = item.circleId.ToByteArray();
+                upsertParam2.Value = item.circleId.ToByteArray();
+                upsertParam3.Value = item.circleName;
                 upsertParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -238,17 +238,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.ParameterName = "@circleName";
+                updateParam2.ParameterName = "@circleId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.ParameterName = "@circleId";
+                updateParam3.ParameterName = "@circleName";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
                 updateParam4.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam4);
                 updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.circleName;
-                updateParam3.Value = item.circleId.ToByteArray();
+                updateParam2.Value = item.circleId.ToByteArray();
+                updateParam3.Value = item.circleName;
                 updateParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -278,13 +278,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             var sl = new List<string>();
             sl.Add("identityId");
-            sl.Add("circleName");
             sl.Add("circleId");
+            sl.Add("circleName");
             sl.Add("data");
             return sl;
         }
 
-        // SELECT identityId,circleName,circleId,data
+        // SELECT identityId,circleId,circleName,data
         protected CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleRecord>();
@@ -294,8 +294,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new CircleRecord();
             item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.circleNameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.circleId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.circleId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.circleNameNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
@@ -387,26 +387,26 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 inCursor = Guid.Empty;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var getPaging2Command = cn.CreateCommand();
+            await using var getPaging1Command = cn.CreateCommand();
             {
-                getPaging2Command.CommandText = "SELECT identityId,circleName,circleId,data FROM circle " +
+                getPaging1Command.CommandText = "SELECT identityId,circleId,circleName,data FROM circle " +
                                             "WHERE (identityId = @identityId) AND circleId > @circleId  ORDER BY circleId ASC  LIMIT @count;";
-                var getPaging2Param1 = getPaging2Command.CreateParameter();
-                getPaging2Param1.ParameterName = "@circleId";
-                getPaging2Command.Parameters.Add(getPaging2Param1);
-                var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.ParameterName = "@count";
-                getPaging2Command.Parameters.Add(getPaging2Param2);
-                var getPaging2Param3 = getPaging2Command.CreateParameter();
-                getPaging2Param3.ParameterName = "@identityId";
-                getPaging2Command.Parameters.Add(getPaging2Param3);
+                var getPaging1Param1 = getPaging1Command.CreateParameter();
+                getPaging1Param1.ParameterName = "@circleId";
+                getPaging1Command.Parameters.Add(getPaging1Param1);
+                var getPaging1Param2 = getPaging1Command.CreateParameter();
+                getPaging1Param2.ParameterName = "@count";
+                getPaging1Command.Parameters.Add(getPaging1Param2);
+                var getPaging1Param3 = getPaging1Command.CreateParameter();
+                getPaging1Param3.ParameterName = "@identityId";
+                getPaging1Command.Parameters.Add(getPaging1Param3);
 
-                getPaging2Param1.Value = inCursor?.ToByteArray();
-                getPaging2Param2.Value = count+1;
-                getPaging2Param3.Value = identityId.ToByteArray();
+                getPaging1Param1.Value = inCursor?.ToByteArray();
+                getPaging1Param2.Value = count+1;
+                getPaging1Param3.Value = identityId.ToByteArray();
 
                 {
-                    await using (var rdr = await getPaging2Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<CircleRecord>();
                         Guid? nextCursor;
