@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class CircleRecord
     {
+        private Int64 _rowId;
+        public Int64 rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -106,16 +116,20 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS circle;";
                 await cmd.ExecuteNonQueryAsync();
             }
+            var rowid = "";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
-            if (_scopedConnectionFactory.DatabaseType != DatabaseType.Postgres)
-                   wori = " WITHOUT ROWID";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS circle("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL UNIQUE, "
                    +"circleName TEXT NOT NULL, "
                    +"data BYTEA  "
-                   +", PRIMARY KEY (identityId,circleId)"
+                   +", UNIQUE(identityId,circleId)"
                    +$"){wori};"
                    ;
             await cmd.ExecuteNonQueryAsync();
@@ -277,6 +291,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("circleId");
             sl.Add("circleName");
@@ -284,7 +299,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT identityId,circleId,circleName,data
+        // SELECT rowId,identityId,circleId,circleName,data
         protected CircleRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CircleRecord>();
@@ -293,10 +308,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new CircleRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.circleId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.circleNameNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
-            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.circleId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.circleNameNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
+            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -335,8 +351,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new CircleRecord();
             item.identityId = identityId;
             item.circleId = circleId;
-            item.circleNameNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
-            item.dataNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.circleNameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -350,7 +367,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT circleName,data FROM circle " +
+                get0Command.CommandText = "SELECT rowId,circleName,data FROM circle " +
                                              "WHERE identityId = @identityId AND circleId = @circleId LIMIT 1;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
@@ -387,26 +404,26 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 inCursor = Guid.Empty;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var getPaging1Command = cn.CreateCommand();
+            await using var getPaging2Command = cn.CreateCommand();
             {
-                getPaging1Command.CommandText = "SELECT identityId,circleId,circleName,data FROM circle " +
+                getPaging2Command.CommandText = "SELECT rowId,identityId,circleId,circleName,data FROM circle " +
                                             "WHERE (identityId = @identityId) AND circleId > @circleId  ORDER BY circleId ASC  LIMIT @count;";
-                var getPaging1Param1 = getPaging1Command.CreateParameter();
-                getPaging1Param1.ParameterName = "@circleId";
-                getPaging1Command.Parameters.Add(getPaging1Param1);
-                var getPaging1Param2 = getPaging1Command.CreateParameter();
-                getPaging1Param2.ParameterName = "@count";
-                getPaging1Command.Parameters.Add(getPaging1Param2);
-                var getPaging1Param3 = getPaging1Command.CreateParameter();
-                getPaging1Param3.ParameterName = "@identityId";
-                getPaging1Command.Parameters.Add(getPaging1Param3);
+                var getPaging2Param1 = getPaging2Command.CreateParameter();
+                getPaging2Param1.ParameterName = "@circleId";
+                getPaging2Command.Parameters.Add(getPaging2Param1);
+                var getPaging2Param2 = getPaging2Command.CreateParameter();
+                getPaging2Param2.ParameterName = "@count";
+                getPaging2Command.Parameters.Add(getPaging2Param2);
+                var getPaging2Param3 = getPaging2Command.CreateParameter();
+                getPaging2Param3.ParameterName = "@identityId";
+                getPaging2Command.Parameters.Add(getPaging2Param3);
 
-                getPaging1Param1.Value = inCursor?.ToByteArray();
-                getPaging1Param2.Value = count+1;
-                getPaging1Param3.Value = identityId.ToByteArray();
+                getPaging2Param1.Value = inCursor?.ToByteArray();
+                getPaging2Param2.Value = count+1;
+                getPaging2Param3.Value = identityId.ToByteArray();
 
                 {
-                    await using (var rdr = await getPaging1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging2Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<CircleRecord>();
                         Guid? nextCursor;
