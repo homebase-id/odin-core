@@ -310,13 +310,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        protected virtual async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM driveLocalTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
@@ -326,26 +326,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var delete0Param3 = delete0Command.CreateParameter();
                 delete0Param3.ParameterName = "@fileId";
                 delete0Command.Parameters.Add(delete0Param3);
-                var delete0Param4 = delete0Command.CreateParameter();
-                delete0Param4.ParameterName = "@tagId";
-                delete0Command.Parameters.Add(delete0Param4);
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = driveId.ToByteArray();
                 delete0Param3.Value = fileId.ToByteArray();
-                delete0Param4.Value = tagId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected virtual async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
             {
                 delete1Command.CommandText = "DELETE FROM driveLocalTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId";
                 var delete1Param1 = delete1Command.CreateParameter();
                 delete1Param1.ParameterName = "@identityId";
                 delete1Command.Parameters.Add(delete1Param1);
@@ -355,38 +351,26 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var delete1Param3 = delete1Command.CreateParameter();
                 delete1Param3.ParameterName = "@fileId";
                 delete1Command.Parameters.Add(delete1Param3);
+                var delete1Param4 = delete1Command.CreateParameter();
+                delete1Param4.ParameterName = "@tagId";
+                delete1Command.Parameters.Add(delete1Param4);
 
                 delete1Param1.Value = identityId.ToByteArray();
                 delete1Param2.Value = driveId.ToByteArray();
                 delete1Param3.Value = fileId.ToByteArray();
+                delete1Param4.Value = tagId.ToByteArray();
                 var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected DriveLocalTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
-        {
-            var result = new List<DriveLocalTagIndexRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new DriveLocalTagIndexRecord();
-            item.identityId = identityId;
-            item.driveId = driveId;
-            item.fileId = fileId;
-            item.tagId = tagId;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            return item;
-       }
-
-        protected virtual async Task<DriveLocalTagIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        protected virtual async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId FROM driveLocalTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId LIMIT 1;";
+                get0Command.CommandText = "SELECT tagId FROM driveLocalTagIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -396,50 +380,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var get0Param3 = get0Command.CreateParameter();
                 get0Param3.ParameterName = "@fileId";
                 get0Command.Parameters.Add(get0Param3);
-                var get0Param4 = get0Command.CreateParameter();
-                get0Param4.ParameterName = "@tagId";
-                get0Command.Parameters.Add(get0Param4);
 
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = driveId.ToByteArray();
                 get0Param3.Value = fileId.ToByteArray();
-                get0Param4.Value = tagId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            return null;
-                        }
-                        var r = ReadRecordFromReader0(rdr, identityId,driveId,fileId,tagId);
-                        return r;
-                    } // using
-                } //
-            } // using
-        }
-
-        protected virtual async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
-            {
-                get1Command.CommandText = "SELECT tagId FROM driveLocalTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.ParameterName = "@fileId";
-                get1Command.Parameters.Add(get1Param3);
-
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
-                {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
@@ -469,6 +415,109 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 } //
             } // using
         }
+
+        protected DriveLocalTagIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        {
+            var result = new List<DriveLocalTagIndexRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveLocalTagIndexRecord();
+            item.identityId = identityId;
+            item.driveId = driveId;
+            item.fileId = fileId;
+            item.tagId = tagId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            return item;
+       }
+
+        protected virtual async Task<DriveLocalTagIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT rowId FROM driveLocalTagIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId LIMIT 1;";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@driveId";
+                get1Command.Parameters.Add(get1Param2);
+                var get1Param3 = get1Command.CreateParameter();
+                get1Param3.ParameterName = "@fileId";
+                get1Command.Parameters.Add(get1Param3);
+                var get1Param4 = get1Command.CreateParameter();
+                get1Param4.ParameterName = "@tagId";
+                get1Command.Parameters.Add(get1Param4);
+
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = driveId.ToByteArray();
+                get1Param3.Value = fileId.ToByteArray();
+                get1Param4.Value = tagId.ToByteArray();
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader1(rdr, identityId,driveId,fileId,tagId);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected virtual async Task<(List<DriveLocalTagIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,tagId FROM driveLocalTagIndex " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<DriveLocalTagIndexRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }

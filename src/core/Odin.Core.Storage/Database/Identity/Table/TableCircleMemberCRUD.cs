@@ -335,7 +335,117 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
+        protected CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
+        {
+            var result = new List<CircleMemberRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new CircleMemberRecord();
+            item.identityId = identityId;
+            item.circleId = circleId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.memberId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid identityId,Guid circleId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT rowId,memberId,data FROM circleMember " +
+                                             "WHERE identityId = @identityId AND circleId = @circleId;";
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.ParameterName = "@circleId";
+                get0Command.Parameters.Add(get0Param2);
+
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = circleId.ToByteArray();
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString(), null);
+                            return new List<CircleMemberRecord>();
+                        }
+                        var result = new List<CircleMemberRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr, identityId,circleId));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid memberId)
+        {
+            var result = new List<CircleMemberRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new CircleMemberRecord();
+            item.identityId = identityId;
+            item.memberId = memberId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.circleId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid identityId,Guid memberId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT rowId,circleId,data FROM circleMember " +
+                                             "WHERE identityId = @identityId AND memberId = @memberId;";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@memberId";
+                get1Command.Parameters.Add(get1Param2);
+
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = memberId.ToByteArray();
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+memberId.ToString(), null);
+                            return new List<CircleMemberRecord>();
+                        }
+                        var result = new List<CircleMemberRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr, identityId,memberId));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
 #pragma warning disable CS0168
@@ -359,32 +469,32 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (CircleMemberRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var get2Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,data FROM circleMember " +
+                get2Command.CommandText = "SELECT rowId,data FROM circleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@circleId";
-                get0Command.Parameters.Add(get0Param2);
-                var get0Param3 = get0Command.CreateParameter();
-                get0Param3.ParameterName = "@memberId";
-                get0Command.Parameters.Add(get0Param3);
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@circleId";
+                get2Command.Parameters.Add(get2Param2);
+                var get2Param3 = get2Command.CreateParameter();
+                get2Param3.ParameterName = "@memberId";
+                get2Command.Parameters.Add(get2Param3);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = circleId.ToByteArray();
-                get0Param3.Value = memberId.ToByteArray();
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = circleId.ToByteArray();
+                get2Param3.Value = memberId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,circleId,memberId);
+                        var r = ReadRecordFromReader2(rdr, identityId,circleId,memberId);
                         _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), r);
                         return r;
                     } // using
@@ -392,115 +502,54 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid circleId)
+        protected virtual async Task<(List<CircleMemberRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
         {
-            var result = new List<CircleMemberRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new CircleMemberRecord();
-            item.identityId = identityId;
-            item.circleId = circleId;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.memberId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
-            if (item.data?.Length < 0)
-                throw new Exception("Too little data in data...");
-            return item;
-       }
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
 
-        protected virtual async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid identityId,Guid circleId)
-        {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
+            await using var getPaging0Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,memberId,data FROM circleMember " +
-                                             "WHERE identityId = @identityId AND circleId = @circleId;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@circleId";
-                get1Command.Parameters.Add(get1Param2);
+                getPaging0Command.CommandText = "SELECT rowId,identityId,circleId,memberId,data FROM circleMember " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = circleId.ToByteArray();
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString(), null);
-                            return new List<CircleMemberRecord>();
-                        }
                         var result = new List<CircleMemberRecord>();
-                        while (true)
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
                         {
-                            result.Add(ReadRecordFromReader1(rdr, identityId,circleId));
-                            if (!await rdr.ReadAsync())
-                                break;
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
                         }
-                        return result;
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
                     } // using
                 } //
-            } // using
-        }
-
-        protected CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid memberId)
-        {
-            var result = new List<CircleMemberRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new CircleMemberRecord();
-            item.identityId = identityId;
-            item.memberId = memberId;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.circleId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
-            if (item.data?.Length < 0)
-                throw new Exception("Too little data in data...");
-            return item;
-       }
-
-        protected virtual async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid identityId,Guid memberId)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get2Command = cn.CreateCommand();
-            {
-                get2Command.CommandText = "SELECT rowId,circleId,data FROM circleMember " +
-                                             "WHERE identityId = @identityId AND memberId = @memberId;";
-                var get2Param1 = get2Command.CreateParameter();
-                get2Param1.ParameterName = "@identityId";
-                get2Command.Parameters.Add(get2Param1);
-                var get2Param2 = get2Command.CreateParameter();
-                get2Param2.ParameterName = "@memberId";
-                get2Command.Parameters.Add(get2Param2);
-
-                get2Param1.Value = identityId.ToByteArray();
-                get2Param2.Value = memberId.ToByteArray();
-                {
-                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.Default))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+memberId.ToString(), null);
-                            return new List<CircleMemberRecord>();
-                        }
-                        var result = new List<CircleMemberRecord>();
-                        while (true)
-                        {
-                            result.Add(ReadRecordFromReader2(rdr, identityId,memberId));
-                            if (!await rdr.ReadAsync())
-                                break;
-                        }
-                        return result;
-                    } // using
-                } //
-            } // using
-        }
+            } // using 
+        } // PagingGet
 
     }
 }

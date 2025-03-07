@@ -349,16 +349,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
+        protected virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
-            if (singleReaction == null) throw new Exception("Cannot be null");
-            if (singleReaction?.Length < 3) throw new Exception("Too short");
-            if (singleReaction?.Length > 80) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM driveReactions " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
@@ -366,32 +363,31 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param2.ParameterName = "@driveId";
                 delete0Command.Parameters.Add(delete0Param2);
                 var delete0Param3 = delete0Command.CreateParameter();
-                delete0Param3.ParameterName = "@postId";
+                delete0Param3.ParameterName = "@identity";
                 delete0Command.Parameters.Add(delete0Param3);
                 var delete0Param4 = delete0Command.CreateParameter();
-                delete0Param4.ParameterName = "@identity";
+                delete0Param4.ParameterName = "@postId";
                 delete0Command.Parameters.Add(delete0Param4);
-                var delete0Param5 = delete0Command.CreateParameter();
-                delete0Param5.ParameterName = "@singleReaction";
-                delete0Command.Parameters.Add(delete0Param5);
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = driveId.ToByteArray();
-                delete0Param3.Value = postId.ToByteArray();
-                delete0Param4.Value = identity.DomainName;
-                delete0Param5.Value = singleReaction;
+                delete0Param3.Value = identity.DomainName;
+                delete0Param4.Value = postId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
+            if (singleReaction == null) throw new Exception("Cannot be null");
+            if (singleReaction?.Length < 3) throw new Exception("Too short");
+            if (singleReaction?.Length > 80) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
             {
                 delete1Command.CommandText = "DELETE FROM driveReactions " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction";
                 var delete1Param1 = delete1Command.CreateParameter();
                 delete1Param1.ParameterName = "@identityId";
                 delete1Command.Parameters.Add(delete1Param1);
@@ -399,16 +395,20 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete1Param2.ParameterName = "@driveId";
                 delete1Command.Parameters.Add(delete1Param2);
                 var delete1Param3 = delete1Command.CreateParameter();
-                delete1Param3.ParameterName = "@identity";
+                delete1Param3.ParameterName = "@postId";
                 delete1Command.Parameters.Add(delete1Param3);
                 var delete1Param4 = delete1Command.CreateParameter();
-                delete1Param4.ParameterName = "@postId";
+                delete1Param4.ParameterName = "@identity";
                 delete1Command.Parameters.Add(delete1Param4);
+                var delete1Param5 = delete1Command.CreateParameter();
+                delete1Param5.ParameterName = "@singleReaction";
+                delete1Command.Parameters.Add(delete1Param5);
 
                 delete1Param1.Value = identityId.ToByteArray();
                 delete1Param2.Value = driveId.ToByteArray();
-                delete1Param3.Value = identity.DomainName;
-                delete1Param4.Value = postId.ToByteArray();
+                delete1Param3.Value = postId.ToByteArray();
+                delete1Param4.Value = identity.DomainName;
+                delete1Param5.Value = singleReaction;
                 var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -478,6 +478,55 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 } //
             } // using
         }
+
+        protected virtual async Task<(List<DriveReactionsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,postId,identity,singleReaction FROM driveReactions " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<DriveReactionsRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }
