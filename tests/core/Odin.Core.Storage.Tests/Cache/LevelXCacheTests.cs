@@ -40,7 +40,7 @@ public class LevelXCacheTests
 
     //
 
-    private async Task RegisterServicesAsync(Level2CacheType level2CacheType)
+    private async Task RegisterServicesAsync(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
         if (level2CacheType == Level2CacheType.Redis)
         {
@@ -61,7 +61,8 @@ public class LevelXCacheTests
         services.AddCoreCacheServices(new CacheConfiguration
         {
             Level2CacheType = level2CacheType,
-            Level2Configuration = _redisContainer?.GetConnectionString() ?? ""
+            Level2Configuration = _redisContainer?.GetConnectionString() ?? "",
+            Level2BypassMemoryAccess = level2BypassMemoryAccess // true: explicitly test the L2 cache operations
         });
 
         var builder = new ContainerBuilder();
@@ -75,13 +76,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldCreateCorrectCacheKeys(Level2CacheType level2CacheType)
+    public async Task ItShouldCreateCorrectCacheKeys(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var globalLevel1Cache = _services!.Resolve<IGlobalLevel1Cache>();
         Assert.That(globalLevel1Cache.CacheKeyPrefix, Is.EqualTo("global:L1"));
@@ -111,13 +113,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldGetAndSet(Level2CacheType level2CacheType)
+    public async Task ItShouldGetAndSet(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
 
@@ -152,13 +155,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldGetAndSetGeneric(Level2CacheType level2CacheType)
+    public async Task ItShouldGetAndSetGeneric(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache<LevelXCacheTests>>();
 
@@ -193,13 +197,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldGetNonNullValues(Level2CacheType level2CacheType)
+    public async Task ItShouldGetNonNullValues(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
 
@@ -223,13 +228,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldGetNullValues(Level2CacheType level2CacheType)
+    public async Task ItShouldGetNullValues(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
 
@@ -260,13 +266,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldSetAndRetrieveValues(Level2CacheType level2CacheType)
+    public async Task ItShouldSetAndRetrieveValues(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
 
@@ -288,13 +295,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldRemoveValues(Level2CacheType level2CacheType)
+    public async Task ItShouldRemoveValues(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
 
@@ -329,13 +337,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldCheckKeyExistence(Level2CacheType level2CacheType)
+    public async Task ItShouldCheckKeyExistence(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
 
@@ -362,13 +371,14 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldRespectExpiration(Level2CacheType level2CacheType)
+    public async Task ItShouldRespectExpiration(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
 
@@ -377,7 +387,7 @@ public class LevelXCacheTests
         var expectedRecord = new PocoA { Id = id, Uuid = Guid.NewGuid() };
 
         // Set the value with a short expiration
-        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMilliseconds(500));
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMilliseconds(5000));
 
         // Ensure it's retrievable
         var record1 = cache.GetOrDefault<PocoA?>(key);
@@ -394,15 +404,17 @@ public class LevelXCacheTests
     //
 
     [Test]
-    [TestCase(Level2CacheType.None)]
+    [TestCase(Level2CacheType.None, false)]
 #if RUN_REDIS_TESTS
-    [TestCase(Level2CacheType.Redis)]
+    [TestCase(Level2CacheType.Redis, false)]
+    [TestCase(Level2CacheType.Redis, true)]
 #endif
-    public async Task ItShouldRemoveByTag(Level2CacheType level2CacheType)
+    public async Task ItShouldRemoveByTag(Level2CacheType level2CacheType, bool level2BypassMemoryAccess)
     {
-        await RegisterServicesAsync(level2CacheType);
+        await RegisterServicesAsync(level2CacheType, level2BypassMemoryAccess);
 
         var cache = _services!.Resolve<ITenantLevel2Cache>();
+        var logger = _services!.Resolve<ILogger<LevelXCacheTests>>();
 
         var id = Guid.NewGuid();
         var key = $"poco:{id}";
@@ -413,7 +425,7 @@ public class LevelXCacheTests
         await cache.SetAsync(key, expectedRecord, TimeSpan.FromSeconds(500), tags);
 
         // Ensure it's retrievable
-        var record1 = cache.GetOrDefault<PocoA?>(key);
+        var record1 = await cache.GetOrDefaultAsync<PocoA?>(key);
         Assert.That(record1, Is.Not.Null);
 
         await cache.RemoveByTagAsync("foo");
@@ -422,7 +434,7 @@ public class LevelXCacheTests
         await Task.Delay(100);
 
         // Ensure it's gone
-        var record2 = cache.GetOrDefault<PocoA?>(key);
+        var record2 = await cache.GetOrDefaultAsync<PocoA?>(key);
         Assert.That(record2, Is.Null);
     }
 

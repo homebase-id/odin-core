@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.NeueccMessagePack;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace Odin.Core.Storage.Cache;
 
@@ -16,6 +17,8 @@ public static class FusionCacheWrapperExtensions
         this IServiceCollection services,
         CacheConfiguration cacheConfiguration)
     {
+        services.AddSingleton(cacheConfiguration);
+
         var builder = services.AddFusionCache()
             .WithOptions(options =>
             {
@@ -38,6 +41,7 @@ public static class FusionCacheWrapperExtensions
             })
             .WithSerializer(
                 new FusionCacheNeueccMessagePackSerializer()
+                // new FusionCacheSystemTextJsonSerializer()
             );
 
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)

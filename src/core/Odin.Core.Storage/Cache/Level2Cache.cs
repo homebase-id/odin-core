@@ -22,11 +22,18 @@ public abstract class Level2Cache : FusionCacheWrapper, ILevel2Cache
 
     //
 
-    protected Level2Cache(string prefix, IFusionCache cache) : base(prefix + ":L2", cache)
+    protected Level2Cache(string prefix, IFusionCache cache, CacheConfiguration config) : base(prefix + ":L2", cache)
     {
         _defaultOptions = cache.DefaultEntryOptions.Duplicate();
         _defaultOptions.SkipDistributedCacheRead = false;
         _defaultOptions.SkipDistributedCacheWrite = false;
+
+        // Bypass level 1 cache if we need to explicitly test cache hits on level 2 cache:
+        if (config.Level2CacheType != Level2CacheType.None && config.Level2BypassMemoryAccess)
+        {
+            _defaultOptions.SkipMemoryCacheRead = true;
+            _defaultOptions.SkipMemoryCacheWrite = true;
+        }
     }
 
     //
@@ -38,8 +45,8 @@ public abstract class Level2Cache : FusionCacheWrapper, ILevel2Cache
 
 //
 
-public abstract class Level2Cache<T>(string prefix, IFusionCache cache) :
-    Level2Cache(prefix + ":" + typeof(T).FullName, cache),
+public abstract class Level2Cache<T>(string prefix, IFusionCache cache, CacheConfiguration config) :
+    Level2Cache(prefix + ":" + typeof(T).FullName, cache, config),
     ILevel2Cache<T>
 {
     // This space is intentionally left blank

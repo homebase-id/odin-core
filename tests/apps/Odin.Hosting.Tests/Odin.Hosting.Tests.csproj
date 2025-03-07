@@ -12,9 +12,9 @@
     <DebugType>full</DebugType>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(USER)' == 'seb'">
-    <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>
-  </PropertyGroup>
+<!--  <PropertyGroup Condition="'$(USER)' == 'seb'">-->
+<!--    <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>-->
+<!--  </PropertyGroup>-->
 
 <!--  <PropertyGroup Condition="'$(USER)' == 'todd'">-->
 <!--    <DefineConstants>RUN_POSTGRES_TESTS</DefineConstants>-->

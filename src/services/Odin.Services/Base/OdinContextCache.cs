@@ -1,73 +1,40 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
-using LazyCache;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Primitives;
-using Odin.Core.Identity;
+using Odin.Core.Storage.Cache;
 using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Services.Base;
 
-public class OdinContextCache
+public class OdinContextCache(ITenantLevel2Cache<OdinContextCache> cache)
 {
-    private readonly int _ttlSeconds;
-    private readonly IAppCache _dotYouContextCache;
-    private readonly CancellationTokenSource _expiryTokenSource = new();
+    private readonly List<string> _tags = [Guid.NewGuid().ToString()];
 
-    public OdinContextCache(int ttlSeconds = 60)
-    {
-        this._ttlSeconds = ttlSeconds;
-        _dotYouContextCache = new CachingService();
-    }
+    //
 
-    public async Task<IOdinContext> GetOrAddContextAsync(ClientAuthenticationToken token, Func<Task<IOdinContext>> dotYouContextFactory)
+    public async Task<IOdinContext> GetOrAddContextAsync(
+        ClientAuthenticationToken token,
+        Func<Task<IOdinContext>> dotYouContextFactory,
+        int ttlSeconds = 60)
     {
         var key = token.AsKey().ToString().ToLower();
-        var policy = new MemoryCacheEntryOptions()
-        {
-            SlidingExpiration = TimeSpan.FromSeconds(_ttlSeconds)
-        };
 
-        policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
-        var result = await _dotYouContextCache.GetOrAddAsync<IOdinContext>(key, dotYouContextFactory, policy);
-
-        //TODO: Need some locking on _identitiesRequiringReset
-        // var rebuildContext = _identitiesRequiringReset.Contains(result.Caller.OdinId);
-        // if (rebuildContext)
-        // {
-        //     _dotYouContextCache.Remove(key);
-        //     result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
-        //     _identitiesRequiringReset.Remove(result.Caller.OdinId);
-        //     
-        // }
+        var result = await cache.GetOrSetAsync<IOdinContext>(
+            key,
+            _ => dotYouContextFactory(),
+            TimeSpan.FromSeconds(ttlSeconds),
+            _tags
+        );
 
         return result;
     }
 
-    /// <summary>
-    /// Fully empties the Cache
-    /// </summary>
-    public void Reset()
-    {
-        //from: https://github.com/alastairtree/LazyCache/wiki/API-documentation-(v-2.x)#empty-the-entire-cache
-        _expiryTokenSource.Cancel();
-    }
+    //
 
-    public void EnqueueIdentityForReset(OdinId identity)
+    public async Task ResetAsync()
     {
-        //TODO: need to find a way to do this per identity instead all items
-        //todo: locking
-        // if (!_identitiesRequiringReset.Contains(identity))
-        // {
-        //     _identitiesRequiringReset.Add(identity);
-        // }
-
-        this.Reset();
+        await cache.RemoveByTagAsync(_tags);
     }
 }
 
-// SEB:TODO fusion cache L1 or L2 ?
-public class SharedOdinContextCache<TRegisteredService>(int ttlSeconds = 60) : OdinContextCache(ttlSeconds);
 
