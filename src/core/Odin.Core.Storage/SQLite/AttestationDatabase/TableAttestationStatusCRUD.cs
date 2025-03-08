@@ -314,7 +314,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public AttestationStatusRecord ReadRecordFromReader0(DbDataReader rdr, byte[] attestationId)
+        public AttestationStatusRecord ReadRecordFromReader0(DbDataReader rdr,byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 16) throw new Exception("Too short");
@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public virtual async Task<AttestationStatusRecord> GetAsync(DatabaseConnection conn, byte[] attestationId)
+        public virtual async Task<AttestationStatusRecord> GetAsync(DatabaseConnection conn,byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 16) throw new Exception("Too short");
@@ -343,7 +343,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var get0Command = conn.db.CreateCommand())
             {
                 get0Command.CommandText = "SELECT status,created,modified FROM attestationStatus " +
-                                             "WHERE attestationId = @attestationId LIMIT 1;";
+                                             "WHERE attestationId = @attestationId LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@attestationId";
                 get0Command.Parameters.Add(get0Param1);
@@ -357,7 +358,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                             _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, attestationId);
+                        var r = ReadRecordFromReader0(rdr,attestationId);
                         _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), r);
                         return r;
                     } // using

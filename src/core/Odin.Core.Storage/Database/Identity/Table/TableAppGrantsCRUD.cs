@@ -359,7 +359,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
+        protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
 #pragma warning disable CS0168
@@ -383,7 +383,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId;";
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -404,7 +405,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<AppGrantsRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,odinHashId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,odinHashId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -414,7 +415,53 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr)
+        {
+            var result = new List<AppGrantsRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new AppGrantsRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.odinHashId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.appId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.circleId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<List<AppGrantsRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT identityId,odinHashId,appId,circleId,data FROM appGrants " +
+                                             ";";
+
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<AppGrantsRecord>();
+                        }
+                        var result = new List<AppGrantsRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected AppGrantsRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
 #pragma warning disable CS0168
@@ -438,36 +485,37 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (AppGrantsRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
+            await using var get2Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT data FROM appGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@odinHashId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.ParameterName = "@appId";
-                get1Command.Parameters.Add(get1Param3);
-                var get1Param4 = get1Command.CreateParameter();
-                get1Param4.ParameterName = "@circleId";
-                get1Command.Parameters.Add(get1Param4);
+                get2Command.CommandText = "SELECT data FROM appGrants " +
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;"+
+                                             ";";
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@odinHashId";
+                get2Command.Parameters.Add(get2Param2);
+                var get2Param3 = get2Command.CreateParameter();
+                get2Param3.ParameterName = "@appId";
+                get2Command.Parameters.Add(get2Param3);
+                var get2Param4 = get2Command.CreateParameter();
+                get2Param4.ParameterName = "@circleId";
+                get2Command.Parameters.Add(get2Param4);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = odinHashId.ToByteArray();
-                get1Param3.Value = appId.ToByteArray();
-                get1Param4.Value = circleId.ToByteArray();
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = odinHashId.ToByteArray();
+                get2Param3.Value = appId.ToByteArray();
+                get2Param4.Value = circleId.ToByteArray();
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,odinHashId,appId,circleId);
+                        var r = ReadRecordFromReader2(rdr,identityId,odinHashId,appId,circleId);
                         _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), r);
                         return r;
                     } // using

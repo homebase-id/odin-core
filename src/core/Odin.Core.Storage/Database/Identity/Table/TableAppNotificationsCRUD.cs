@@ -475,7 +475,58 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
+        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr)
+        {
+            var result = new List<AppNotificationsRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new AppNotificationsRecord();
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.notificationId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.unread = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.senderIdNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (string)rdr[4];
+            item.timestamp = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.dataNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.modified = (rdr[8] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[8]);
+            return item;
+       }
+
+        protected virtual async Task<List<AppNotificationsRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
+                                             "ORDER BY rowId ASC "+
+                                             ";";
+
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<AppNotificationsRecord>();
+                        }
+                        var result = new List<AppNotificationsRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected AppNotificationsRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
 #pragma warning disable CS0168
@@ -503,28 +554,29 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (AppNotificationsRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var get1Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
-                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@notificationId";
-                get0Command.Parameters.Add(get0Param2);
+                get1Command.CommandText = "SELECT rowId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
+                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@notificationId";
+                get1Command.Parameters.Add(get1Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = notificationId.ToByteArray();
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = notificationId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,notificationId);
+                        var r = ReadRecordFromReader1(rdr,identityId,notificationId);
                         _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), r);
                         return r;
                     } // using

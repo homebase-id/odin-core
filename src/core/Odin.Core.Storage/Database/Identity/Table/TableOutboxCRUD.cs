@@ -678,7 +678,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
 #pragma warning disable CS0168
@@ -712,7 +712,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -736,7 +737,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<OutboxRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,driveId,fileId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,driveId,fileId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -746,7 +747,64 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr)
+        {
+            var result = new List<OutboxRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new OutboxRecord();
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.recipientNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.type = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.priority = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.dependencyFileId = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
+            item.checkOutCount = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.nextRunTime = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
+            item.valueNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (byte[])(rdr[10]);
+            if (item.value?.Length < 0)
+                throw new Exception("Too little data in value...");
+            item.checkOutStamp = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
+            item.correlationIdNoLengthCheck = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
+            item.created = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[13]);
+            item.modified = (rdr[14] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[14]);
+            return item;
+       }
+
+        protected virtual async Task<List<OutboxRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT rowId,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
+                                             "ORDER BY rowId ASC "+
+                                             ";";
+
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<OutboxRecord>();
+                        }
+                        var result = new List<OutboxRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected OutboxRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -783,35 +841,36 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (recipient?.Length < 0) throw new Exception("Too short");
             if (recipient?.Length > 65535) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
+            await using var get2Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.ParameterName = "@fileId";
-                get1Command.Parameters.Add(get1Param3);
-                var get1Param4 = get1Command.CreateParameter();
-                get1Param4.ParameterName = "@recipient";
-                get1Command.Parameters.Add(get1Param4);
+                get2Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;"+
+                                             ";";
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@driveId";
+                get2Command.Parameters.Add(get2Param2);
+                var get2Param3 = get2Command.CreateParameter();
+                get2Param3.ParameterName = "@fileId";
+                get2Command.Parameters.Add(get2Param3);
+                var get2Param4 = get2Command.CreateParameter();
+                get2Param4.ParameterName = "@recipient";
+                get2Command.Parameters.Add(get2Param4);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
-                get1Param4.Value = recipient;
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = driveId.ToByteArray();
+                get2Param3.Value = fileId.ToByteArray();
+                get2Param4.Value = recipient;
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,driveId,fileId,recipient);
+                        var r = ReadRecordFromReader2(rdr,identityId,driveId,fileId,recipient);
                         return r;
                     } // using
                 } //

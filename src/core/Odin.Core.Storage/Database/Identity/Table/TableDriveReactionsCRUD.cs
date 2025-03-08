@@ -401,7 +401,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
+        protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -429,7 +429,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT identityId,driveId,identity,postId,singleReaction FROM driveReactions " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -458,8 +459,52 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,driveId,identity,postId,singleReaction);
+                        var r = ReadRecordFromReader0(rdr,identityId,driveId,identity,postId,singleReaction);
                         return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected DriveReactionsRecord ReadRecordFromReader1(DbDataReader rdr)
+        {
+            var result = new List<DriveReactionsRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveReactionsRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.postId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.singleReactionNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            return item;
+       }
+
+        protected virtual async Task<List<DriveReactionsRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT identityId,driveId,identity,postId,singleReaction FROM driveReactions " +
+                                             ";";
+
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<DriveReactionsRecord>();
+                        }
+                        var result = new List<DriveReactionsRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
                     } // using
                 } //
             } // using

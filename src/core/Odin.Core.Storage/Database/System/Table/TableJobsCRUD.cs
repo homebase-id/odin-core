@@ -821,7 +821,65 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public JobsRecord ReadRecordFromReader0(DbDataReader rdr, Guid id)
+        public JobsRecord ReadRecordFromReader0(DbDataReader rdr)
+        {
+            var result = new List<JobsRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new JobsRecord();
+            item.id = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.nameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.state = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.nextRun = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.lastRun = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
+            item.runCount = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.maxAttempts = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.retryDelay = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
+            item.onSuccessDeleteAfter = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
+            item.onFailureDeleteAfter = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
+            item.expiresAt = (rdr[11] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[11]);
+            item.correlationIdNoLengthCheck = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
+            item.jobTypeNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.jobDataNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
+            item.jobHashNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
+            item.lastErrorNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
+            item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[17]);
+            item.modified = (rdr[18] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[18]);
+            return item;
+       }
+
+        public virtual async Task<List<JobsRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
+                                             ";";
+
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<JobsRecord>();
+                        }
+                        var result = new List<JobsRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        public JobsRecord ReadRecordFromReader1(DbDataReader rdr,Guid id)
         {
             var result = new List<JobsRecord>();
 #pragma warning disable CS0168
@@ -854,23 +912,24 @@ namespace Odin.Core.Storage.Database.System.Table
         public virtual async Task<JobsRecord> GetAsync(Guid id)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var get1Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
-                                             "WHERE id = @id LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@id";
-                get0Command.Parameters.Add(get0Param1);
+                get1Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
+                                             "WHERE id = @id LIMIT 1;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@id";
+                get1Command.Parameters.Add(get1Param1);
 
-                get0Param1.Value = id.ToByteArray();
+                get1Param1.Value = id.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, id);
+                        var r = ReadRecordFromReader1(rdr,id);
                         return r;
                     } // using
                 } //

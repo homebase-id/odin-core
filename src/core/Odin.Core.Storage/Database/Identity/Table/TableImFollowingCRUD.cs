@@ -350,7 +350,105 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
+        protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId identity)
+        {
+            var result = new List<ImFollowingRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new ImFollowingRecord();
+            item.identityId = identityId;
+            item.identity = identity;
+            item.driveId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
+            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
+            return item;
+       }
+
+        protected virtual async Task<List<ImFollowingRecord>> GetAsync(Guid identityId,OdinId identity)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT driveId,created,modified FROM imFollowing " +
+                                             "WHERE identityId = @identityId AND identity = @identity;"+
+                                             ";";
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.ParameterName = "@identity";
+                get0Command.Parameters.Add(get0Param2);
+
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = identity.DomainName;
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
+                            return new List<ImFollowingRecord>();
+                        }
+                        var result = new List<ImFollowingRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr,identityId,identity));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr)
+        {
+            var result = new List<ImFollowingRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new ImFollowingRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.identity = (rdr[1] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
+            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[4] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[4]);
+            return item;
+       }
+
+        protected virtual async Task<List<ImFollowingRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT identityId,identity,driveId,created,modified FROM imFollowing " +
+                                             ";";
+
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<ImFollowingRecord>();
+                        }
+                        var result = new List<ImFollowingRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected ImFollowingRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,OdinId identity,Guid driveId)
         {
             var result = new List<ImFollowingRecord>();
 #pragma warning disable CS0168
@@ -372,87 +470,35 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (ImFollowingRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var get2Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT created,modified FROM imFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@identity";
-                get0Command.Parameters.Add(get0Param2);
-                var get0Param3 = get0Command.CreateParameter();
-                get0Param3.ParameterName = "@driveId";
-                get0Command.Parameters.Add(get0Param3);
+                get2Command.CommandText = "SELECT created,modified FROM imFollowing " +
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
+                                             ";";
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.ParameterName = "@identity";
+                get2Command.Parameters.Add(get2Param2);
+                var get2Param3 = get2Command.CreateParameter();
+                get2Param3.ParameterName = "@driveId";
+                get2Command.Parameters.Add(get2Param3);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = identity.DomainName;
-                get0Param3.Value = driveId.ToByteArray();
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = identity.DomainName;
+                get2Param3.Value = driveId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,identity,driveId);
+                        var r = ReadRecordFromReader2(rdr,identityId,identity,driveId);
                         _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), r);
                         return r;
-                    } // using
-                } //
-            } // using
-        }
-
-        protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,OdinId identity)
-        {
-            var result = new List<ImFollowingRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new ImFollowingRecord();
-            item.identityId = identityId;
-            item.identity = identity;
-            item.driveId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
-            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
-            return item;
-       }
-
-        protected virtual async Task<List<ImFollowingRecord>> GetAsync(Guid identityId,OdinId identity)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
-            {
-                get1Command.CommandText = "SELECT driveId,created,modified FROM imFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@identity";
-                get1Command.Parameters.Add(get1Param2);
-
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = identity.DomainName;
-                {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
-                            return new List<ImFollowingRecord>();
-                        }
-                        var result = new List<ImFollowingRecord>();
-                        while (true)
-                        {
-                            result.Add(ReadRecordFromReader1(rdr, identityId,identity));
-                            if (!await rdr.ReadAsync())
-                                break;
-                        }
-                        return result;
                     } // using
                 } //
             } // using

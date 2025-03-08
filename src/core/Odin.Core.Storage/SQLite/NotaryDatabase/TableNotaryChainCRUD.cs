@@ -500,7 +500,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr, byte[] notarySignature)
+        public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr,byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");
@@ -528,7 +528,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             return item;
        }
 
-        public virtual async Task<NotaryChainRecord> GetAsync(DatabaseConnection conn, byte[] notarySignature)
+        public virtual async Task<NotaryChainRecord> GetAsync(DatabaseConnection conn,byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null");
             if (notarySignature?.Length < 16) throw new Exception("Too short");
@@ -539,7 +539,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             using (var get0Command = conn.db.CreateCommand())
             {
                 get0Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM notaryChain " +
-                                             "WHERE notarySignature = @notarySignature LIMIT 1;";
+                                             "WHERE notarySignature = @notarySignature LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@notarySignature";
                 get0Command.Parameters.Add(get0Param1);
@@ -553,7 +554,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                             _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToBase64(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, notarySignature);
+                        var r = ReadRecordFromReader0(rdr,notarySignature);
                         _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToBase64(), r);
                         return r;
                     } // using

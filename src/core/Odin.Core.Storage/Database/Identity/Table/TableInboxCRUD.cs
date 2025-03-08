@@ -523,7 +523,58 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
+        protected InboxRecord ReadRecordFromReader0(DbDataReader rdr)
+        {
+            var result = new List<InboxRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new InboxRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.boxId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.timeStamp = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.valueNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
+            if (item.value?.Length < 0)
+                throw new Exception("Too little data in value...");
+            item.popStamp = (rdr[6] == DBNull.Value) ? null : new Guid((byte[])rdr[6]);
+            item.correlationIdNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[9]);
+            return item;
+       }
+
+        protected virtual async Task<List<InboxRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
+                                             ";";
+
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<InboxRecord>();
+                        }
+                        var result = new List<InboxRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected InboxRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
 #pragma warning disable CS0168
@@ -549,27 +600,28 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<InboxRecord> GetAsync(Guid identityId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var get1Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
-                                             "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@fileId";
-                get0Command.Parameters.Add(get0Param2);
+                get1Command.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
+                                             "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@fileId";
+                get1Command.Parameters.Add(get1Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = fileId.ToByteArray();
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = fileId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,fileId);
+                        var r = ReadRecordFromReader1(rdr,identityId,fileId);
                         return r;
                     } // using
                 } //

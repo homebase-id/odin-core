@@ -352,7 +352,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        protected DriveTagIndexRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             var result = new List<DriveTagIndexRecord>();
 #pragma warning disable CS0168
@@ -373,7 +373,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT identityId,driveId,fileId,tagId FROM driveTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -398,7 +399,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,driveId,fileId,tagId);
+                        var r = ReadRecordFromReader0(rdr,identityId,driveId,fileId,tagId);
                         return r;
                     } // using
                 } //
@@ -411,7 +412,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT tagId FROM driveTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -452,6 +454,49 @@ namespace Odin.Core.Storage.Database.Identity.Table
                            break;
                     } // while
                     return thelistresult;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected DriveTagIndexRecord ReadRecordFromReader2(DbDataReader rdr)
+        {
+            var result = new List<DriveTagIndexRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveTagIndexRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.fileId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.tagId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            return item;
+       }
+
+        protected virtual async Task<List<DriveTagIndexRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get2Command = cn.CreateCommand();
+            {
+                get2Command.CommandText = "SELECT identityId,driveId,fileId,tagId FROM driveTagIndex " +
+                                             ";";
+
+                {
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<DriveTagIndexRecord>();
+                        }
+                        var result = new List<DriveTagIndexRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader2(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
                     } // using
                 } //
             } // using

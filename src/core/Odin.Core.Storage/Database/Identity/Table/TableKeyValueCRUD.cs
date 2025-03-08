@@ -303,7 +303,53 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key)
+        protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr)
+        {
+            var result = new List<KeyValueRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new KeyValueRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.keyNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key?.Length < 16)
+                throw new Exception("Too little data in key...");
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<List<KeyValueRecord>> GetAllAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT identityId,key,data FROM keyValue " +
+                                             ";";
+
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<KeyValueRecord>();
+                        }
+                        var result = new List<KeyValueRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected KeyValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -331,28 +377,29 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (KeyValueRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var get1Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT data FROM keyValue " +
-                                             "WHERE identityId = @identityId AND key = @key LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@key";
-                get0Command.Parameters.Add(get0Param2);
+                get1Command.CommandText = "SELECT data FROM keyValue " +
+                                             "WHERE identityId = @identityId AND key = @key LIMIT 1;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@key";
+                get1Command.Parameters.Add(get1Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = key;
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = key;
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,key);
+                        var r = ReadRecordFromReader1(rdr,identityId,key);
                         _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), r);
                         return r;
                     } // using
