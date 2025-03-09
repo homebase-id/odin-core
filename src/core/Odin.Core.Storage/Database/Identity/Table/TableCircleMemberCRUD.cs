@@ -335,7 +335,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid circleId)
+        protected CircleMemberRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid circleId)
         {
             var result = new List<CircleMemberRecord>();
 #pragma warning disable CS0168
@@ -359,7 +359,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,memberId,data FROM circleMember " +
-                                             "WHERE identityId = @identityId AND circleId = @circleId;";
+                                             "WHERE identityId = @identityId AND circleId = @circleId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -380,7 +381,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<CircleMemberRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,circleId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,circleId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -390,7 +391,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid memberId)
+        protected CircleMemberRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
 #pragma warning disable CS0168
@@ -414,7 +415,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,circleId,data FROM circleMember " +
-                                             "WHERE identityId = @identityId AND memberId = @memberId;";
+                                             "WHERE identityId = @identityId AND memberId = @memberId;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -435,7 +437,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<CircleMemberRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader1(rdr, identityId,memberId));
+                            result.Add(ReadRecordFromReader1(rdr,identityId,memberId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -445,7 +447,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid circleId,Guid memberId)
+        protected CircleMemberRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid circleId,Guid memberId)
         {
             var result = new List<CircleMemberRecord>();
 #pragma warning disable CS0168
@@ -472,7 +474,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT rowId,data FROM circleMember " +
-                                             "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;"+
+                                             ";";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Param1.ParameterName = "@identityId";
                 get2Command.Parameters.Add(get2Param1);
@@ -494,7 +497,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader2(rdr, identityId,circleId,memberId);
+                        var r = ReadRecordFromReader2(rdr,identityId,circleId,memberId);
                         _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), r);
                         return r;
                     } // using

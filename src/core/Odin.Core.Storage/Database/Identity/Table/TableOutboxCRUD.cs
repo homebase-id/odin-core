@@ -251,7 +251,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,driveId,fileId,recipient)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0outbox ON outbox(identityId,nextRunTime);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -679,7 +679,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
 #pragma warning disable CS0168
@@ -713,7 +713,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -737,7 +738,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<OutboxRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,driveId,fileId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,driveId,fileId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -747,7 +748,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
@@ -787,7 +788,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -812,7 +814,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,driveId,fileId,recipient);
+                        var r = ReadRecordFromReader1(rdr,identityId,driveId,fileId,recipient);
                         return r;
                     } // using
                 } //

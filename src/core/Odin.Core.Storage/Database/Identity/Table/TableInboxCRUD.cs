@@ -193,9 +193,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,fileId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(identityId,timeStamp);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(identityId,boxId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(identityId,popStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0inbox ON inbox(identityId,timeStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1inbox ON inbox(identityId,boxId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2inbox ON inbox(identityId,popStamp);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -536,7 +536,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected InboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid fileId)
+        protected InboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
 #pragma warning disable CS0168
@@ -566,7 +566,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
-                                             "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -583,7 +584,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,fileId);
+                        var r = ReadRecordFromReader0(rdr,identityId,fileId);
                         return r;
                     } // using
                 } //

@@ -132,7 +132,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,identity,driveId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identityId,identity);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0followsMe ON followsMe(identityId,identity);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -382,7 +382,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,string identity)
+        protected FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -411,7 +411,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,driveId,created,modified FROM followsMe " +
-                                             "WHERE identityId = @identityId AND identity = @identity;";
+                                             "WHERE identityId = @identityId AND identity = @identity;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -432,7 +433,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<FollowsMeRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,identity));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,identity));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -442,7 +443,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,string identity,Guid driveId)
+        protected FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -474,7 +475,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,created,modified FROM followsMe " +
-                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -496,7 +498,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,identity,driveId);
+                        var r = ReadRecordFromReader1(rdr,identityId,identity,driveId);
                         _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), r);
                         return r;
                     } // using

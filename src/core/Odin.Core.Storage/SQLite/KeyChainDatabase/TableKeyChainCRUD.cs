@@ -476,7 +476,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
         }
 
-        public KeyChainRecord ReadRecordFromReader0(DbDataReader rdr, string identity,string publicKeyJwkBase64Url)
+        public KeyChainRecord ReadRecordFromReader0(DbDataReader rdr,string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -507,7 +507,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public virtual async Task<KeyChainRecord> GetAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public virtual async Task<KeyChainRecord> GetAsync(DatabaseConnection conn,string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
@@ -521,7 +521,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var get0Command = conn.db.CreateCommand())
             {
                 get0Command.CommandText = "SELECT rowId,previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM keyChain " +
-                                             "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;";
+                                             "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identity";
                 get0Command.Parameters.Add(get0Param1);
@@ -539,7 +540,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                             _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identity,publicKeyJwkBase64Url);
+                        var r = ReadRecordFromReader0(rdr,identity,publicKeyJwkBase64Url);
                         _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, r);
                         return r;
                     } // using

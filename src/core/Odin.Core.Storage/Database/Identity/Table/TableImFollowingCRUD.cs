@@ -116,7 +116,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,identity,driveId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableImFollowingCRUD ON imFollowing(identityId,identity);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0imFollowing ON imFollowing(identityId,identity);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -363,7 +363,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
+        protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId identity)
         {
             var result = new List<ImFollowingRecord>();
 #pragma warning disable CS0168
@@ -386,7 +386,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,driveId,created,modified FROM imFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity;";
+                                             "WHERE identityId = @identityId AND identity = @identity;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -407,7 +408,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<ImFollowingRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,identity));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,identity));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -417,7 +418,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
+        protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,OdinId identity,Guid driveId)
         {
             var result = new List<ImFollowingRecord>();
 #pragma warning disable CS0168
@@ -443,7 +444,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,created,modified FROM imFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -465,7 +467,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,identity,driveId);
+                        var r = ReadRecordFromReader1(rdr,identityId,identity,driveId);
                         _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), r);
                         return r;
                     } // using

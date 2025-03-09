@@ -316,7 +316,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key)
+        protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key)
         {
             if (key == null) throw new Exception("Cannot be null");
             if (key?.Length < 16) throw new Exception("Too short");
@@ -348,7 +348,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,data FROM keyValue " +
-                                             "WHERE identityId = @identityId AND key = @key LIMIT 1;";
+                                             "WHERE identityId = @identityId AND key = @key LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -366,7 +367,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,key);
+                        var r = ReadRecordFromReader0(rdr,identityId,key);
                         _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), r);
                         return r;
                     } // using

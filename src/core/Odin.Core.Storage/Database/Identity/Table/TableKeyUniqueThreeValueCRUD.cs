@@ -171,8 +171,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,key1)"
                    +", UNIQUE(identityId,key2,key3)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0keyUniqueThreeValue ON keyUniqueThreeValue(identityId,key2);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1keyUniqueThreeValue ON keyUniqueThreeValue(key3);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -415,7 +415,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT data FROM keyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2;";
+                                             "WHERE identityId = @identityId AND key2 = @key2;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -467,7 +468,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT data FROM keyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key3 = @key3;";
+                                             "WHERE identityId = @identityId AND key3 = @key3;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -510,7 +512,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected KeyUniqueThreeValueRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,byte[] key2,byte[] key3)
+        protected KeyUniqueThreeValueRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,byte[] key2,byte[] key3)
         {
             if (key2 == null) throw new Exception("Cannot be null");
             if (key2?.Length < 0) throw new Exception("Too short");
@@ -549,7 +551,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT rowId,key1,data FROM keyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2 AND key3 = @key3;";
+                                             "WHERE identityId = @identityId AND key2 = @key2 AND key3 = @key3;"+
+                                             ";";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Param1.ParameterName = "@identityId";
                 get2Command.Parameters.Add(get2Param1);
@@ -574,7 +577,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<KeyUniqueThreeValueRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader2(rdr, identityId,key2,key3));
+                            result.Add(ReadRecordFromReader2(rdr,identityId,key2,key3));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -584,7 +587,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected KeyUniqueThreeValueRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,byte[] key1)
+        protected KeyUniqueThreeValueRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -622,7 +625,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get3Command = cn.CreateCommand();
             {
                 get3Command.CommandText = "SELECT rowId,key2,key3,data FROM keyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;";
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                                             ";";
                 var get3Param1 = get3Command.CreateParameter();
                 get3Param1.ParameterName = "@identityId";
                 get3Command.Parameters.Add(get3Param1);
@@ -640,7 +644,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader3(rdr, identityId,key1);
+                        var r = ReadRecordFromReader3(rdr,identityId,key1);
                         _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), r);
                         return r;
                     } // using

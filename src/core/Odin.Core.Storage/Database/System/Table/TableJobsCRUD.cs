@@ -346,10 +346,10 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"modified BIGINT  "
                    +", UNIQUE(id)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableJobsCRUD ON jobs(state);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1TableJobsCRUD ON jobs(expiresAt);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2TableJobsCRUD ON jobs(nextRun,priority);"
-                   +"CREATE INDEX IF NOT EXISTS Idx3TableJobsCRUD ON jobs(jobHash);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0jobs ON jobs(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1jobs ON jobs(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2jobs ON jobs(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx3jobs ON jobs(jobHash);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -834,7 +834,7 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public JobsRecord ReadRecordFromReader0(DbDataReader rdr, Guid id)
+        public JobsRecord ReadRecordFromReader0(DbDataReader rdr,Guid id)
         {
             var result = new List<JobsRecord>();
 #pragma warning disable CS0168
@@ -871,7 +871,8 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
-                                             "WHERE id = @id LIMIT 1;";
+                                             "WHERE id = @id LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@id";
                 get0Command.Parameters.Add(get0Param1);
@@ -884,7 +885,7 @@ namespace Odin.Core.Storage.Database.System.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, id);
+                        var r = ReadRecordFromReader0(rdr,id);
                         return r;
                     } // using
                 } //

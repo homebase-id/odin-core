@@ -414,7 +414,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
+        protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -443,7 +443,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId FROM driveReactions " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -472,7 +473,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,driveId,postId,identity,singleReaction);
+                        var r = ReadRecordFromReader0(rdr,identityId,driveId,postId,identity,singleReaction);
                         return r;
                     } // using
                 } //

@@ -175,7 +175,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,identity)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identityId,created);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0connections ON connections(identityId,created);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -474,7 +474,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity)
+        protected ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId identity)
         {
             var result = new List<ConnectionsRecord>();
 #pragma warning disable CS0168
@@ -505,7 +505,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                             "WHERE identityId = @identityId AND identity = @identity LIMIT 1;";
+                                             "WHERE identityId = @identityId AND identity = @identity LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -523,7 +524,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableConnectionsCRUD", identityId.ToString()+identity.DomainName, null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,identity);
+                        var r = ReadRecordFromReader0(rdr,identityId,identity);
                         _cache.AddOrUpdate("TableConnectionsCRUD", identityId.ToString()+identity.DomainName, r);
                         return r;
                     } // using

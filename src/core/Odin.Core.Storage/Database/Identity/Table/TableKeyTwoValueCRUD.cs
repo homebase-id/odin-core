@@ -143,7 +143,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA  "
                    +", UNIQUE(identityId,key1)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyTwoValueCRUD ON keyTwoValue(identityId,key2);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0keyTwoValue ON keyTwoValue(identityId,key2);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -357,7 +357,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key2)
+        protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key2)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 128) throw new Exception("Too long");
@@ -387,7 +387,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,key1,data FROM keyTwoValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2;";
+                                             "WHERE identityId = @identityId AND key2 = @key2;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -408,7 +409,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<KeyTwoValueRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,key2));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,key2));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -418,7 +419,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,byte[] key1)
+        protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -453,7 +454,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,key2,data FROM keyTwoValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;";
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -471,7 +473,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,key1);
+                        var r = ReadRecordFromReader1(rdr,identityId,key1);
                         _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), r);
                         return r;
                     } // using

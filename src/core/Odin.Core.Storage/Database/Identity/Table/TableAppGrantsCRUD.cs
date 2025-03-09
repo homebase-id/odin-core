@@ -372,7 +372,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
+        protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
 #pragma warning disable CS0168
@@ -397,7 +397,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,appId,circleId,data FROM appGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId;";
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -418,7 +419,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<AppGrantsRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,odinHashId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,odinHashId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -428,7 +429,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
 #pragma warning disable CS0168
@@ -456,7 +457,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,data FROM appGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -482,7 +484,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,odinHashId,appId,circleId);
+                        var r = ReadRecordFromReader1(rdr,identityId,odinHashId,appId,circleId);
                         _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), r);
                         return r;
                     } // using

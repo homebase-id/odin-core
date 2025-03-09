@@ -147,7 +147,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"isReadByRecipient BOOLEAN NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,remoteIdentityId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveTransferHistoryCRUD ON driveTransferHistory(identityId,driveId,fileId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0driveTransferHistory ON driveTransferHistory(identityId,driveId,fileId);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -481,7 +481,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected DriveTransferHistoryRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected DriveTransferHistoryRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveTransferHistoryRecord>();
 #pragma warning disable CS0168
@@ -507,7 +507,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -531,7 +532,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<DriveTransferHistoryRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,driveId,fileId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,driveId,fileId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -541,7 +542,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected DriveTransferHistoryRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,OdinId remoteIdentityId)
+        protected DriveTransferHistoryRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,OdinId remoteIdentityId)
         {
             var result = new List<DriveTransferHistoryRecord>();
 #pragma warning disable CS0168
@@ -567,7 +568,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM driveTransferHistory " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -592,7 +594,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,driveId,fileId,remoteIdentityId);
+                        var r = ReadRecordFromReader1(rdr,identityId,driveId,fileId,remoteIdentityId);
                         return r;
                     } // using
                 } //

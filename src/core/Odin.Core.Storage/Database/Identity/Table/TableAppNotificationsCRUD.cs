@@ -173,7 +173,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,notificationId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0AppNotifications ON AppNotifications(identityId,created);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -476,7 +476,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
+        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
 #pragma warning disable CS0168
@@ -507,7 +507,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
-                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -525,7 +526,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,notificationId);
+                        var r = ReadRecordFromReader0(rdr,identityId,notificationId);
                         _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), r);
                         return r;
                     } // using
