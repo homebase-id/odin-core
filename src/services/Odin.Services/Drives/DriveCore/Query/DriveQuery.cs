@@ -467,7 +467,7 @@ public class DriveQuery(
             drive.Id,
             noOfItems: options.MaxRecords,
             cursor,
-            createdSort: options.Sorting == Sorting.FileId,
+            createdSort: options.Sorting is Sorting.FileId or Sorting.CreateDate,
             newestFirstOrder: options.Ordering == Ordering.NewestFirst,
             fileSystemType: (Int32)fileSystemType,
             requiredSecurityGroup: securityRange,
