@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class DriveAclIndexRecord
     {
+        private Int64 _rowId;
+        public Int64 rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -80,19 +90,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS driveAclIndex("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
                    +"aclMemberId BYTEA NOT NULL "
-                   + rowid
-                   +", PRIMARY KEY (identityId,driveId,fileId,aclMemberId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveAclIndexCRUD ON driveAclIndex(identityId,driveId,aclMemberId);"
+                   +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
+                   +$"){wori};"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -256,6 +266,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("driveId");
             sl.Add("fileId");
@@ -282,7 +293,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT identityId,driveId,fileId,aclMemberId
+        // SELECT rowId,identityId,driveId,fileId,aclMemberId
         protected DriveAclIndexRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveAclIndexRecord>();
@@ -291,20 +302,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new DriveAclIndexRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.fileId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.aclMemberId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.aclMemberId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
             return item;
        }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
+        protected virtual async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM driveAclIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
@@ -314,26 +326,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var delete0Param3 = delete0Command.CreateParameter();
                 delete0Param3.ParameterName = "@fileId";
                 delete0Command.Parameters.Add(delete0Param3);
-                var delete0Param4 = delete0Command.CreateParameter();
-                delete0Param4.ParameterName = "@aclMemberId";
-                delete0Command.Parameters.Add(delete0Param4);
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = driveId.ToByteArray();
                 delete0Param3.Value = fileId.ToByteArray();
-                delete0Param4.Value = aclMemberId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected virtual async Task<int> DeleteAllRowsAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
             {
                 delete1Command.CommandText = "DELETE FROM driveAclIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId";
                 var delete1Param1 = delete1Command.CreateParameter();
                 delete1Param1.ParameterName = "@identityId";
                 delete1Command.Parameters.Add(delete1Param1);
@@ -343,37 +351,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var delete1Param3 = delete1Command.CreateParameter();
                 delete1Param3.ParameterName = "@fileId";
                 delete1Command.Parameters.Add(delete1Param3);
+                var delete1Param4 = delete1Command.CreateParameter();
+                delete1Param4.ParameterName = "@aclMemberId";
+                delete1Command.Parameters.Add(delete1Param4);
 
                 delete1Param1.Value = identityId.ToByteArray();
                 delete1Param2.Value = driveId.ToByteArray();
                 delete1Param3.Value = fileId.ToByteArray();
+                delete1Param4.Value = aclMemberId.ToByteArray();
                 var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected DriveAclIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
-        {
-            var result = new List<DriveAclIndexRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new DriveAclIndexRecord();
-            item.identityId = identityId;
-            item.driveId = driveId;
-            item.fileId = fileId;
-            item.aclMemberId = aclMemberId;
-            return item;
-       }
-
-        protected virtual async Task<DriveAclIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
+        protected virtual async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT identityId,driveId,fileId,aclMemberId FROM driveAclIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1;";
+                get0Command.CommandText = "SELECT aclMemberId FROM driveAclIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -383,50 +381,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var get0Param3 = get0Command.CreateParameter();
                 get0Param3.ParameterName = "@fileId";
                 get0Command.Parameters.Add(get0Param3);
-                var get0Param4 = get0Command.CreateParameter();
-                get0Param4.ParameterName = "@aclMemberId";
-                get0Command.Parameters.Add(get0Param4);
 
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = driveId.ToByteArray();
                 get0Param3.Value = fileId.ToByteArray();
-                get0Param4.Value = aclMemberId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            return null;
-                        }
-                        var r = ReadRecordFromReader0(rdr, identityId,driveId,fileId,aclMemberId);
-                        return r;
-                    } // using
-                } //
-            } // using
-        }
-
-        protected virtual async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
-            {
-                get1Command.CommandText = "SELECT aclMemberId FROM driveAclIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.ParameterName = "@fileId";
-                get1Command.Parameters.Add(get1Param3);
-
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
-                {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
@@ -456,6 +416,110 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 } //
             } // using
         }
+
+        protected DriveAclIndexRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
+        {
+            var result = new List<DriveAclIndexRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveAclIndexRecord();
+            item.identityId = identityId;
+            item.driveId = driveId;
+            item.fileId = fileId;
+            item.aclMemberId = aclMemberId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            return item;
+       }
+
+        protected virtual async Task<DriveAclIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid aclMemberId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT rowId FROM driveAclIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@driveId";
+                get1Command.Parameters.Add(get1Param2);
+                var get1Param3 = get1Command.CreateParameter();
+                get1Param3.ParameterName = "@fileId";
+                get1Command.Parameters.Add(get1Param3);
+                var get1Param4 = get1Command.CreateParameter();
+                get1Param4.ParameterName = "@aclMemberId";
+                get1Command.Parameters.Add(get1Param4);
+
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = driveId.ToByteArray();
+                get1Param3.Value = fileId.ToByteArray();
+                get1Param4.Value = aclMemberId.ToByteArray();
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader1(rdr,identityId,driveId,fileId,aclMemberId);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected virtual async Task<(List<DriveAclIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId FROM driveAclIndex " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<DriveAclIndexRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }
