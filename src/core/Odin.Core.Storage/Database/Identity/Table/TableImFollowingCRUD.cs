@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class ImFollowingRecord
     {
+        private Int64 _rowId;
+        public Int64 rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -92,20 +102,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS imFollowing("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,identity,driveId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableImFollowingCRUD ON imFollowing(identityId,identity);"
+                   +", UNIQUE(identityId,identity,driveId)"
+                   +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0imFollowing ON imFollowing(identityId,identity);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -298,6 +309,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("identity");
             sl.Add("driveId");
@@ -306,7 +318,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT identityId,identity,driveId,created,modified
+        // SELECT rowId,identityId,identity,driveId,created,modified
         protected ImFollowingRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ImFollowingRecord>();
@@ -315,11 +327,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new ImFollowingRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.identity = (rdr[1] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
-            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.modified = (rdr[4] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[4]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.driveId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.created = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.modified = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
             return item;
        }
 
@@ -350,7 +363,62 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,OdinId identity,Guid driveId)
+        protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId identity)
+        {
+            var result = new List<ImFollowingRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new ImFollowingRecord();
+            item.identityId = identityId;
+            item.identity = identity;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.modified = (rdr[3] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[3]);
+            return item;
+       }
+
+        protected virtual async Task<List<ImFollowingRecord>> GetAsync(Guid identityId,OdinId identity)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT rowId,driveId,created,modified FROM imFollowing " +
+                                             "WHERE identityId = @identityId AND identity = @identity;"+
+                                             ";";
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.ParameterName = "@identity";
+                get0Command.Parameters.Add(get0Param2);
+
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = identity.DomainName;
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
+                            return new List<ImFollowingRecord>();
+                        }
+                        var result = new List<ImFollowingRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr,identityId,identity));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,OdinId identity,Guid driveId)
         {
             var result = new List<ImFollowingRecord>();
 #pragma warning disable CS0168
@@ -361,8 +429,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.identity = identity;
             item.driveId = driveId;
-            item.created = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[0]);
-            item.modified = (rdr[1] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[1]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
+            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 
@@ -372,32 +441,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (ImFollowingRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var get1Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT created,modified FROM imFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@identity";
-                get0Command.Parameters.Add(get0Param2);
-                var get0Param3 = get0Command.CreateParameter();
-                get0Param3.ParameterName = "@driveId";
-                get0Command.Parameters.Add(get0Param3);
+                get1Command.CommandText = "SELECT rowId,created,modified FROM imFollowing " +
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.ParameterName = "@identity";
+                get1Command.Parameters.Add(get1Param2);
+                var get1Param3 = get1Command.CreateParameter();
+                get1Param3.ParameterName = "@driveId";
+                get1Command.Parameters.Add(get1Param3);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = identity.DomainName;
-                get0Param3.Value = driveId.ToByteArray();
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = identity.DomainName;
+                get1Param3.Value = driveId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,identity,driveId);
+                        var r = ReadRecordFromReader1(rdr,identityId,identity,driveId);
                         _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), r);
                         return r;
                     } // using
@@ -405,58 +475,54 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,OdinId identity)
+        protected virtual async Task<(List<ImFollowingRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
         {
-            var result = new List<ImFollowingRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new ImFollowingRecord();
-            item.identityId = identityId;
-            item.identity = identity;
-            item.driveId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
-            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
-            return item;
-       }
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
 
-        protected virtual async Task<List<ImFollowingRecord>> GetAsync(Guid identityId,OdinId identity)
-        {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
+            await using var getPaging0Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT driveId,created,modified FROM imFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity;";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@identity";
-                get1Command.Parameters.Add(get1Param2);
+                getPaging0Command.CommandText = "SELECT rowId,identityId,identity,driveId,created,modified FROM imFollowing " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = identity.DomainName;
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
-                            return new List<ImFollowingRecord>();
-                        }
                         var result = new List<ImFollowingRecord>();
-                        while (true)
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
                         {
-                            result.Add(ReadRecordFromReader1(rdr, identityId,identity));
-                            if (!await rdr.ReadAsync())
-                                break;
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
                         }
-                        return result;
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
                     } // using
                 } //
-            } // using
-        }
+            } // using 
+        } // PagingGet
 
     }
 }

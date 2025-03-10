@@ -15,18 +15,8 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class DriveReactionsRecord
+    public class DriveReactionsOldRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -47,16 +37,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _driveId = value;
                }
         }
-        private Guid _postId;
-        public Guid postId
-        {
-           get {
-                   return _postId;
-               }
-           set {
-                  _postId = value;
-               }
-        }
         private OdinId _identity;
         public OdinId identity
         {
@@ -65,6 +45,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                   _identity = value;
+               }
+        }
+        private Guid _postId;
+        public Guid postId
+        {
+           get {
+                   return _postId;
+               }
+           set {
+                  _postId = value;
                }
         }
         private string _singleReaction;
@@ -91,13 +81,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _singleReaction = value;
                }
         }
-    } // End of class DriveReactionsRecord
+    } // End of class DriveReactionsOldRecord
 
-    public abstract class TableDriveReactionsCRUD
+    public class TableDriveReactionsOldCRUD
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableDriveReactionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        public TableDriveReactionsOldCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
@@ -109,30 +99,29 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS driveReactions;";
+                cmd.CommandText = "DROP TABLE IF EXISTS DriveReactionsOld;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveReactions("
-                   +rowid
+                "CREATE TABLE IF NOT EXISTS DriveReactionsOld("
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
-                   +"postId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
+                   +"postId BYTEA NOT NULL, "
                    +"singleReaction TEXT NOT NULL "
-                   +", UNIQUE(identityId,driveId,postId,identity,singleReaction)"
-                   +$"){wori};"
+                   + rowid
+                   +", PRIMARY KEY (identityId,driveId,identity,postId,singleReaction)"
+                   +");"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
 
-        protected virtual async Task<int> InsertAsync(DriveReactionsRecord item)
+        public virtual async Task<int> InsertAsync(DriveReactionsOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -140,8 +129,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,postId,identity,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)";
+                insertCommand.CommandText = "INSERT INTO DriveReactionsOld (identityId,driveId,identity,postId,singleReaction) " +
+                                             "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -149,18 +138,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.ParameterName = "@driveId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@postId";
+                insertParam3.ParameterName = "@identity";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.ParameterName = "@identity";
+                insertParam4.ParameterName = "@postId";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@singleReaction";
                 insertCommand.Parameters.Add(insertParam5);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.postId.ToByteArray();
-                insertParam4.Value = item.identity.DomainName;
+                insertParam3.Value = item.identity.DomainName;
+                insertParam4.Value = item.postId.ToByteArray();
                 insertParam5.Value = item.singleReaction;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -170,7 +159,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<bool> TryInsertAsync(DriveReactionsRecord item)
+        public virtual async Task<bool> TryInsertAsync(DriveReactionsOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -178,8 +167,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,postId,identity,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction) " +
+                insertCommand.CommandText = "INSERT INTO DriveReactionsOld (identityId,driveId,identity,postId,singleReaction) " +
+                                             "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -188,18 +177,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.ParameterName = "@driveId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@postId";
+                insertParam3.ParameterName = "@identity";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.ParameterName = "@identity";
+                insertParam4.ParameterName = "@postId";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
                 insertParam5.ParameterName = "@singleReaction";
                 insertCommand.Parameters.Add(insertParam5);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.postId.ToByteArray();
-                insertParam4.Value = item.identity.DomainName;
+                insertParam3.Value = item.identity.DomainName;
+                insertParam4.Value = item.postId.ToByteArray();
                 insertParam5.Value = item.singleReaction;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -209,7 +198,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> UpsertAsync(DriveReactionsRecord item)
+        public virtual async Task<int> UpsertAsync(DriveReactionsOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -217,9 +206,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO driveReactions (identityId,driveId,postId,identity,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
-                                             "ON CONFLICT (identityId,driveId,postId,identity,singleReaction) DO UPDATE "+
+                upsertCommand.CommandText = "INSERT INTO DriveReactionsOld (identityId,driveId,identity,postId,singleReaction) " +
+                                             "VALUES (@identityId,@driveId,@identity,@postId,@singleReaction)"+
+                                             "ON CONFLICT (identityId,driveId,identity,postId,singleReaction) DO UPDATE "+
                                              "SET  "+
                                              ";";
                 var upsertParam1 = upsertCommand.CreateParameter();
@@ -229,24 +218,24 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam2.ParameterName = "@driveId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.ParameterName = "@postId";
+                upsertParam3.ParameterName = "@identity";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.ParameterName = "@identity";
+                upsertParam4.ParameterName = "@postId";
                 upsertCommand.Parameters.Add(upsertParam4);
                 var upsertParam5 = upsertCommand.CreateParameter();
                 upsertParam5.ParameterName = "@singleReaction";
                 upsertCommand.Parameters.Add(upsertParam5);
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.driveId.ToByteArray();
-                upsertParam3.Value = item.postId.ToByteArray();
-                upsertParam4.Value = item.identity.DomainName;
+                upsertParam3.Value = item.identity.DomainName;
+                upsertParam4.Value = item.postId.ToByteArray();
                 upsertParam5.Value = item.singleReaction;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
                 return count;
             }
         }
-        protected virtual async Task<int> UpdateAsync(DriveReactionsRecord item)
+        public virtual async Task<int> UpdateAsync(DriveReactionsOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -254,9 +243,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE driveReactions " +
+                updateCommand.CommandText = "UPDATE DriveReactionsOld " +
                                              "SET  "+
-                                             "WHERE (identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction)";
+                                             "WHERE (identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction)";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
@@ -264,18 +253,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam2.ParameterName = "@driveId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.ParameterName = "@postId";
+                updateParam3.ParameterName = "@identity";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.ParameterName = "@identity";
+                updateParam4.ParameterName = "@postId";
                 updateCommand.Parameters.Add(updateParam4);
                 var updateParam5 = updateCommand.CreateParameter();
                 updateParam5.ParameterName = "@singleReaction";
                 updateCommand.Parameters.Add(updateParam5);
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.driveId.ToByteArray();
-                updateParam3.Value = item.postId.ToByteArray();
-                updateParam4.Value = item.identity.DomainName;
+                updateParam3.Value = item.identity.DomainName;
+                updateParam4.Value = item.postId.ToByteArray();
                 updateParam5.Value = item.singleReaction;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
@@ -285,13 +274,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountAsync()
+        public virtual async Task<int> RenameAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
+            {
+                getCountCommand.CommandText = "ALTER TABLE driveReactions RENAME TO DriveReactionsOld;";
+                var count = await getCountCommand.ExecuteScalarAsync();
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
+        }
+
+        public virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM driveReactions;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM DriveReactionsOld;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -303,22 +306,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
-            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("driveId");
-            sl.Add("postId");
             sl.Add("identity");
+            sl.Add("postId");
             sl.Add("singleReaction");
             return sl;
         }
 
-        protected virtual async Task<int> GetDriveCountAsync(Guid driveId)
+        public virtual async Task<int> GetDriveCountAsync(Guid driveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountDriveCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM driveReactions WHERE driveId = $driveId;";
+                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM DriveReactionsOld WHERE driveId = $driveId;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
@@ -331,31 +333,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        // SELECT rowId,identityId,driveId,postId,identity,singleReaction
-        protected DriveReactionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        // SELECT identityId,driveId,identity,postId,singleReaction
+        public DriveReactionsOldRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
-            var result = new List<DriveReactionsRecord>();
+            var result = new List<DriveReactionsOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new DriveReactionsRecord();
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            var item = new DriveReactionsOldRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
             item.postId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.identity = (rdr[4] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[4]);
-            item.singleReactionNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.singleReactionNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             return item;
        }
 
-        protected virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
+        public virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
+            if (singleReaction == null) throw new Exception("Cannot be null");
+            if (singleReaction?.Length < 3) throw new Exception("Too short");
+            if (singleReaction?.Length > 80) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM driveReactions " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId";
+                delete0Command.CommandText = "DELETE FROM DriveReactionsOld " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
@@ -368,26 +372,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var delete0Param4 = delete0Command.CreateParameter();
                 delete0Param4.ParameterName = "@postId";
                 delete0Command.Parameters.Add(delete0Param4);
+                var delete0Param5 = delete0Command.CreateParameter();
+                delete0Param5.ParameterName = "@singleReaction";
+                delete0Command.Parameters.Add(delete0Param5);
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = driveId.ToByteArray();
                 delete0Param3.Value = identity.DomainName;
                 delete0Param4.Value = postId.ToByteArray();
+                delete0Param5.Value = singleReaction;
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
+        public virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
-            if (singleReaction == null) throw new Exception("Cannot be null");
-            if (singleReaction?.Length < 3) throw new Exception("Too short");
-            if (singleReaction?.Length > 80) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
             {
-                delete1Command.CommandText = "DELETE FROM driveReactions " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction";
+                delete1Command.CommandText = "DELETE FROM DriveReactionsOld " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId";
                 var delete1Param1 = delete1Command.CreateParameter();
                 delete1Param1.ParameterName = "@identityId";
                 delete1Command.Parameters.Add(delete1Param1);
@@ -395,46 +400,41 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete1Param2.ParameterName = "@driveId";
                 delete1Command.Parameters.Add(delete1Param2);
                 var delete1Param3 = delete1Command.CreateParameter();
-                delete1Param3.ParameterName = "@postId";
+                delete1Param3.ParameterName = "@identity";
                 delete1Command.Parameters.Add(delete1Param3);
                 var delete1Param4 = delete1Command.CreateParameter();
-                delete1Param4.ParameterName = "@identity";
+                delete1Param4.ParameterName = "@postId";
                 delete1Command.Parameters.Add(delete1Param4);
-                var delete1Param5 = delete1Command.CreateParameter();
-                delete1Param5.ParameterName = "@singleReaction";
-                delete1Command.Parameters.Add(delete1Param5);
 
                 delete1Param1.Value = identityId.ToByteArray();
                 delete1Param2.Value = driveId.ToByteArray();
-                delete1Param3.Value = postId.ToByteArray();
-                delete1Param4.Value = identity.DomainName;
-                delete1Param5.Value = singleReaction;
+                delete1Param3.Value = identity.DomainName;
+                delete1Param4.Value = postId.ToByteArray();
                 var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
+        public DriveReactionsOldRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
             if (singleReaction?.Length > 80) throw new Exception("Too long");
-            var result = new List<DriveReactionsRecord>();
+            var result = new List<DriveReactionsOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new DriveReactionsRecord();
+            var item = new DriveReactionsOldRecord();
             item.identityId = identityId;
             item.driveId = driveId;
-            item.postId = postId;
             item.identity = identity;
+            item.postId = postId;
             item.singleReaction = singleReaction;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             return item;
        }
 
-        protected virtual async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
+        public virtual async Task<DriveReactionsOldRecord> GetAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
             if (singleReaction?.Length < 3) throw new Exception("Too short");
@@ -442,8 +442,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId FROM driveReactions " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction LIMIT 1;"+
+                get0Command.CommandText = "SELECT identityId,driveId,identity,postId,singleReaction FROM DriveReactionsOld " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId AND singleReaction = @singleReaction LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
@@ -452,10 +452,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param2.ParameterName = "@driveId";
                 get0Command.Parameters.Add(get0Param2);
                 var get0Param3 = get0Command.CreateParameter();
-                get0Param3.ParameterName = "@postId";
+                get0Param3.ParameterName = "@identity";
                 get0Command.Parameters.Add(get0Param3);
                 var get0Param4 = get0Command.CreateParameter();
-                get0Param4.ParameterName = "@identity";
+                get0Param4.ParameterName = "@postId";
                 get0Command.Parameters.Add(get0Param4);
                 var get0Param5 = get0Command.CreateParameter();
                 get0Param5.ParameterName = "@singleReaction";
@@ -463,8 +463,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = driveId.ToByteArray();
-                get0Param3.Value = postId.ToByteArray();
-                get0Param4.Value = identity.DomainName;
+                get0Param3.Value = identity.DomainName;
+                get0Param4.Value = postId.ToByteArray();
                 get0Param5.Value = singleReaction;
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
@@ -473,61 +473,56 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr,identityId,driveId,postId,identity,singleReaction);
+                        var r = ReadRecordFromReader0(rdr,identityId,driveId,identity,postId,singleReaction);
                         return r;
                     } // using
                 } //
             } // using
         }
 
-        protected virtual async Task<(List<DriveReactionsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        public DriveReactionsOldRecord ReadRecordFromReader1(DbDataReader rdr)
         {
-            if (count < 1)
-                throw new Exception("Count must be at least 1.");
-            if (count == int.MaxValue)
-                count--; // avoid overflow when doing +1 on the param below
-            if (inCursor == null)
-                inCursor = 0;
+            var result = new List<DriveReactionsOldRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveReactionsOldRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.postId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.singleReactionNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            return item;
+       }
 
+        public virtual async Task<List<DriveReactionsOldRecord>> GetAllAsync()
+        {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var getPaging0Command = cn.CreateCommand();
+            await using var get1Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,postId,identity,singleReaction FROM driveReactions " +
-                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
-                var getPaging0Param1 = getPaging0Command.CreateParameter();
-                getPaging0Param1.ParameterName = "@rowId";
-                getPaging0Command.Parameters.Add(getPaging0Param1);
-                var getPaging0Param2 = getPaging0Command.CreateParameter();
-                getPaging0Param2.ParameterName = "@count";
-                getPaging0Command.Parameters.Add(getPaging0Param2);
-
-                getPaging0Param1.Value = inCursor;
-                getPaging0Param2.Value = count+1;
+                get1Command.CommandText = "SELECT identityId,driveId,identity,postId,singleReaction FROM DriveReactionsOld " +
+                                             ";";
 
                 {
-                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
-                        var result = new List<DriveReactionsRecord>();
-                        Int64? nextCursor;
-                        int n = 0;
-                        while ((n < count) && await rdr.ReadAsync())
+                        if (await rdr.ReadAsync() == false)
                         {
-                            n++;
-                            result.Add(ReadRecordFromReaderAll(rdr));
-                        } // while
-                        if ((n > 0) && await rdr.ReadAsync())
-                        {
-                                nextCursor = result[n - 1].rowId;
+                            return new List<DriveReactionsOldRecord>();
                         }
-                        else
+                        var result = new List<DriveReactionsOldRecord>();
+                        while (true)
                         {
-                            nextCursor = null;
+                            result.Add(ReadRecordFromReader1(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
                         }
-                        return (result, nextCursor);
+                        return result;
                     } // using
                 } //
-            } // using 
-        } // PagingGet
+            } // using
+        }
 
     }
 }

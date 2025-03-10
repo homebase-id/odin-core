@@ -164,29 +164,19 @@ public static class CommandLine
             return (true, 0);
         }
         
-        
-        //
-        // Command line: convert header files to database
-        //
-        // examples:
-        //
-        //   dotnet run -- --header2database
-        //
-        //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --header2database
-        //
-        //
-        // if (args.Length == 1 && args[0] == "--header2database")
-        // {
-        //     Header2Database.Execute(args);
-        //     return (true, 0);
-        // }
-
         if (args.Length == 2 && args[0] == "--rowidstep2")
         {
             RowIdStep2.Execute(args[1]);
             return (true, 0);
         }
-        
+
+        if (args.Length == 2 && args[0] == "--create-rowid")
+        {
+            CreateRowId.Execute(args[1]).GetAwaiter().GetResult();
+            return (true, 0);
+        }
+
+
         return (false, 0);
     }
 }

@@ -15,7 +15,7 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {
-    public class AttestationStatusRecord
+    public class AttestationStatusOldRecord
     {
         private byte[] _attestationId;
         public byte[] attestationId
@@ -71,13 +71,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _modified = value;
                }
         }
-    } // End of class AttestationStatusRecord
+    } // End of class AttestationStatusOldRecord
 
-    public class TableAttestationStatusCRUD
+    public class TableAttestationStatusOldCRUD
     {
         private readonly CacheHelper _cache;
 
-        public TableAttestationStatusCRUD(CacheHelper cache)
+        public TableAttestationStatusOldCRUD(CacheHelper cache)
         {
             _cache = cache;
         }
@@ -88,27 +88,28 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             await using var cmd = conn.db.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS attestationStatus;";
+                cmd.CommandText = "DROP TABLE IF EXISTS AttestationStatusOld;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
-            var wori = "";
+            var rowid = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS attestationStatus("
+                "CREATE TABLE IF NOT EXISTS AttestationStatusOld("
                    +"attestationId BYTEA NOT NULL UNIQUE, "
                    +"status BIGINT NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
+                   + rowid
                    +", PRIMARY KEY (attestationId)"
-                   +$"){wori};"
+                   +");"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
         }
 
-        public virtual async Task<int> InsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<int> InsertAsync(DatabaseConnection conn, AttestationStatusOldRecord item)
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO AttestationStatusOld (attestationId,status,created,modified) " +
                                              "VALUES (@attestationId,@status,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
@@ -132,17 +133,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (count > 0)
                 {
                      item.created = now;
-                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
+                    _cache.AddOrUpdate("TableAttestationStatusOldCRUD", item.attestationId.ToBase64(), item);
                 }
                 return count;
             }
         }
 
-        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, AttestationStatusOldRecord item)
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO AttestationStatusOld (attestationId,status,created,modified) " +
                                              "VALUES (@attestationId,@status,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -167,17 +168,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (count > 0)
                 {
                     item.created = now;
-                   _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
+                   _cache.AddOrUpdate("TableAttestationStatusOldCRUD", item.attestationId.ToBase64(), item);
                 }
                 return count > 0;
             }
         }
 
-        public virtual async Task<int> UpsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<int> UpsertAsync(DatabaseConnection conn, AttestationStatusOldRecord item)
         {
             using (var upsertCommand = conn.db.CreateCommand())
             {
-                upsertCommand.CommandText = "INSERT INTO attestationStatus (attestationId,status,created) " +
+                upsertCommand.CommandText = "INSERT INTO AttestationStatusOld (attestationId,status,created) " +
                                              "VALUES (@attestationId,@status,@created)"+
                                              "ON CONFLICT (attestationId) DO UPDATE "+
                                              "SET status = @status,modified = @modified "+
@@ -209,18 +210,18 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
-                   _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
+                   _cache.AddOrUpdate("TableAttestationStatusOldCRUD", item.attestationId.ToBase64(), item);
                    return 1;
                 }
                 return 0;
             }
         }
 
-        public virtual async Task<int> UpdateAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<int> UpdateAsync(DatabaseConnection conn, AttestationStatusOldRecord item)
         {
             using (var updateCommand = conn.db.CreateCommand())
             {
-                updateCommand.CommandText = "UPDATE attestationStatus " +
+                updateCommand.CommandText = "UPDATE AttestationStatusOld " +
                                              "SET status = @status,modified = @modified "+
                                              "WHERE (attestationId = @attestationId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -244,9 +245,22 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (count > 0)
                 {
                      item.modified = now;
-                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
+                    _cache.AddOrUpdate("TableAttestationStatusOldCRUD", item.attestationId.ToBase64(), item);
                 }
                 return count;
+            }
+        }
+
+        public virtual async Task<int> RenameAsync(DatabaseConnection conn)
+        {
+            using (var getCountCommand = conn.db.CreateCommand())
+            {
+                getCountCommand.CommandText = "ALTER TABLE attestationStatus RENAME TO AttestationStatusOld;";
+                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
             }
         }
 
@@ -255,7 +269,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var getCountCommand = conn.db.CreateCommand())
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM attestationStatus;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM AttestationStatusOld;";
                 var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -275,14 +289,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         }
 
         // SELECT attestationId,status,created,modified
-        public AttestationStatusRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        public AttestationStatusOldRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
-            var result = new List<AttestationStatusRecord>();
+            var result = new List<AttestationStatusOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new AttestationStatusRecord();
+            var item = new AttestationStatusOldRecord();
             item.attestationIdNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
             if (item.attestationId?.Length < 16)
                 throw new Exception("Too little data in attestationId...");
@@ -299,7 +313,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (attestationId?.Length > 64) throw new Exception("Too long");
             using (var delete0Command = conn.db.CreateCommand())
             {
-                delete0Command.CommandText = "DELETE FROM attestationStatus " +
+                delete0Command.CommandText = "DELETE FROM AttestationStatusOld " +
                                              "WHERE attestationId = @attestationId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@attestationId";
@@ -308,22 +322,22 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 delete0Param1.Value = attestationId;
                 var count = await conn.ExecuteNonQueryAsync(delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableAttestationStatusCRUD", attestationId.ToBase64());
+                    _cache.Remove("TableAttestationStatusOldCRUD", attestationId.ToBase64());
                 return count;
             }
         }
 
-        public AttestationStatusRecord ReadRecordFromReader0(DbDataReader rdr,byte[] attestationId)
+        public AttestationStatusOldRecord ReadRecordFromReader0(DbDataReader rdr,byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 16) throw new Exception("Too short");
             if (attestationId?.Length > 64) throw new Exception("Too long");
-            var result = new List<AttestationStatusRecord>();
+            var result = new List<AttestationStatusOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new AttestationStatusRecord();
+            var item = new AttestationStatusOldRecord();
             item.attestationId = attestationId;
             item.status = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[0];
             item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
@@ -331,17 +345,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public virtual async Task<AttestationStatusRecord> GetAsync(DatabaseConnection conn,byte[] attestationId)
+        public virtual async Task<AttestationStatusOldRecord> GetAsync(DatabaseConnection conn,byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null");
             if (attestationId?.Length < 16) throw new Exception("Too short");
             if (attestationId?.Length > 64) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableAttestationStatusCRUD", attestationId.ToBase64());
+            var (hit, cacheObject) = _cache.Get("TableAttestationStatusOldCRUD", attestationId.ToBase64());
             if (hit)
-                return (AttestationStatusRecord)cacheObject;
+                return (AttestationStatusOldRecord)cacheObject;
             using (var get0Command = conn.db.CreateCommand())
             {
-                get0Command.CommandText = "SELECT status,created,modified FROM attestationStatus " +
+                get0Command.CommandText = "SELECT status,created,modified FROM AttestationStatusOld " +
                                              "WHERE attestationId = @attestationId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -354,11 +368,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), null);
+                            _cache.AddOrUpdate("TableAttestationStatusOldCRUD", attestationId.ToBase64(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,attestationId);
-                        _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), r);
+                        _cache.AddOrUpdate("TableAttestationStatusOldCRUD", attestationId.ToBase64(), r);
                         return r;
                     } // using
                 } //
