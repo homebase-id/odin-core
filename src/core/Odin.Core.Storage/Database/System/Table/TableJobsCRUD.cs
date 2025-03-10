@@ -344,7 +344,6 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"lastError TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", UNIQUE(id)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0jobs ON jobs(state);"
                    +"CREATE INDEX IF NOT EXISTS Idx1jobs ON jobs(expiresAt);"

@@ -239,7 +239,6 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    +"publicKeyJwkBase64Url TEXT NOT NULL, "
                    +"notarySignature BYTEA NOT NULL UNIQUE, "
                    +"recordHash BYTEA NOT NULL UNIQUE "
-                   +", UNIQUE(notarySignature)"
                    +$"){wori};"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
