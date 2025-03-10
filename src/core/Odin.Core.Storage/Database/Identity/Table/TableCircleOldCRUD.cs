@@ -15,18 +15,8 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class KeyTwoValueRecord
+    public class CircleOldRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -37,50 +27,38 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _identityId = value;
                }
         }
-        private byte[] _key1;
-        public byte[] key1
+        private string _circleName;
+        public string circleName
         {
            get {
-                   return _key1;
+                   return _circleName;
                }
            set {
                     if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 48) throw new Exception("Too long");
-                  _key1 = value;
+                    if (value?.Length < 2) throw new Exception("Too short");
+                    if (value?.Length > 80) throw new Exception("Too long");
+                  _circleName = value;
                }
         }
-        internal byte[] key1NoLengthCheck
+        internal string circleNameNoLengthCheck
         {
            get {
-                   return _key1;
+                   return _circleName;
                }
            set {
                     if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                  _key1 = value;
+                    if (value?.Length < 2) throw new Exception("Too short");
+                  _circleName = value;
                }
         }
-        private byte[] _key2;
-        public byte[] key2
+        private Guid _circleId;
+        public Guid circleId
         {
            get {
-                   return _key2;
+                   return _circleId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 128) throw new Exception("Too long");
-                  _key2 = value;
-               }
-        }
-        internal byte[] key2NoLengthCheck
-        {
-           get {
-                   return _key2;
-               }
-           set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                  _key2 = value;
+                  _circleId = value;
                }
         }
         private byte[] _data;
@@ -91,7 +69,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 1048576) throw new Exception("Too long");
+                    if (value?.Length > 65000) throw new Exception("Too long");
                   _data = value;
                }
         }
@@ -105,14 +83,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _data = value;
                }
         }
-    } // End of class KeyTwoValueRecord
+    } // End of class CircleOldRecord
 
-    public abstract class TableKeyTwoValueCRUD
+    public class TableCircleOldCRUD
     {
         private readonly CacheHelper _cache;
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableKeyTwoValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        public TableCircleOldCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
@@ -125,170 +103,186 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS keyTwoValue;";
+                cmd.CommandText = "DROP TABLE IF EXISTS CircleOld;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS keyTwoValue("
-                   +rowid
+                "CREATE TABLE IF NOT EXISTS CircleOld("
                    +"identityId BYTEA NOT NULL, "
-                   +"key1 BYTEA NOT NULL, "
-                   +"key2 BYTEA , "
+                   +"circleName TEXT NOT NULL, "
+                   +"circleId BYTEA NOT NULL UNIQUE, "
                    +"data BYTEA  "
-                   +", UNIQUE(identityId,key1)"
-                   +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0keyTwoValue ON keyTwoValue(identityId,key2);"
+                   + rowid
+                   +", PRIMARY KEY (identityId,circleId)"
+                   +");"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
 
-        protected virtual async Task<int> InsertAsync(KeyTwoValueRecord item)
+        public virtual async Task<int> InsertAsync(CircleOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO keyTwoValue (identityId,key1,key2,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@data)";
+                insertCommand.CommandText = "INSERT INTO CircleOld (identityId,circleName,circleId,data) " +
+                                             "VALUES (@identityId,@circleName,@circleId,@data)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.ParameterName = "@key1";
+                insertParam2.ParameterName = "@circleName";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@key2";
+                insertParam3.ParameterName = "@circleId";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.key1;
-                insertParam3.Value = item.key2 ?? (object)DBNull.Value;
+                insertParam2.Value = item.circleName;
+                insertParam3.Value = item.circleId.ToByteArray();
                 insertParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                    _cache.AddOrUpdate("TableCircleOldCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
                 }
                 return count;
             }
         }
 
-        protected virtual async Task<bool> TryInsertAsync(KeyTwoValueRecord item)
+        public virtual async Task<bool> TryInsertAsync(CircleOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO keyTwoValue (identityId,key1,key2,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@data) " +
+                insertCommand.CommandText = "INSERT INTO CircleOld (identityId,circleName,circleId,data) " +
+                                             "VALUES (@identityId,@circleName,@circleId,@data) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.ParameterName = "@key1";
+                insertParam2.ParameterName = "@circleName";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@key2";
+                insertParam3.ParameterName = "@circleId";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.key1;
-                insertParam3.Value = item.key2 ?? (object)DBNull.Value;
+                insertParam2.Value = item.circleName;
+                insertParam3.Value = item.circleId.ToByteArray();
                 insertParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await insertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
-                   _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                   _cache.AddOrUpdate("TableCircleOldCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
                 }
                 return count > 0;
             }
         }
 
-        protected virtual async Task<int> UpsertAsync(KeyTwoValueRecord item)
+        public virtual async Task<int> UpsertAsync(CircleOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO keyTwoValue (identityId,key1,key2,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@data)"+
-                                             "ON CONFLICT (identityId,key1) DO UPDATE "+
-                                             "SET key2 = @key2,data = @data "+
+                upsertCommand.CommandText = "INSERT INTO CircleOld (identityId,circleName,circleId,data) " +
+                                             "VALUES (@identityId,@circleName,@circleId,@data)"+
+                                             "ON CONFLICT (identityId,circleId) DO UPDATE "+
+                                             "SET circleName = @circleName,data = @data "+
                                              ";";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.ParameterName = "@key1";
+                upsertParam2.ParameterName = "@circleName";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.ParameterName = "@key2";
+                upsertParam3.ParameterName = "@circleId";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
                 upsertParam4.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam4);
                 upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.key1;
-                upsertParam3.Value = item.key2 ?? (object)DBNull.Value;
+                upsertParam2.Value = item.circleName;
+                upsertParam3.Value = item.circleId.ToByteArray();
                 upsertParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await upsertCommand.ExecuteNonQueryAsync();
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                    _cache.AddOrUpdate("TableCircleOldCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
                 return count;
             }
         }
-        protected virtual async Task<int> UpdateAsync(KeyTwoValueRecord item)
+        public virtual async Task<int> UpdateAsync(CircleOldRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE keyTwoValue " +
-                                             "SET key2 = @key2,data = @data "+
-                                             "WHERE (identityId = @identityId AND key1 = @key1)";
+                updateCommand.CommandText = "UPDATE CircleOld " +
+                                             "SET circleName = @circleName,data = @data "+
+                                             "WHERE (identityId = @identityId AND circleId = @circleId)";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.ParameterName = "@key1";
+                updateParam2.ParameterName = "@circleName";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.ParameterName = "@key2";
+                updateParam3.ParameterName = "@circleId";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
                 updateParam4.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam4);
                 updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.key1;
-                updateParam3.Value = item.key2 ?? (object)DBNull.Value;
+                updateParam2.Value = item.circleName;
+                updateParam3.Value = item.circleId.ToByteArray();
                 updateParam4.Value = item.data ?? (object)DBNull.Value;
                 var count = await updateCommand.ExecuteNonQueryAsync();
                 if (count > 0)
                 {
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                    _cache.AddOrUpdate("TableCircleOldCRUD", item.identityId.ToString()+item.circleId.ToString(), item);
                 }
                 return count;
             }
         }
 
-        protected virtual async Task<int> GetCountAsync()
+        public virtual async Task<int> RenameAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
+            {
+                getCountCommand.CommandText = "ALTER TABLE circle RENAME TO CircleOld;";
+                var count = await getCountCommand.ExecuteScalarAsync();
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
+        }
+
+        public virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM keyTwoValue;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM CircleOld;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -300,116 +294,90 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
-            sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("key1");
-            sl.Add("key2");
+            sl.Add("circleName");
+            sl.Add("circleId");
             sl.Add("data");
             return sl;
         }
 
-        // SELECT rowId,identityId,key1,key2,data
-        protected KeyTwoValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        // SELECT identityId,circleName,circleId,data
+        public CircleOldRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
-            var result = new List<KeyTwoValueRecord>();
+            var result = new List<CircleOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new KeyTwoValueRecord();
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.key1NoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
-            if (item.key1?.Length < 16)
-                throw new Exception("Too little data in key1...");
-            item.key2NoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
-            if (item.key2?.Length < 0)
-                throw new Exception("Too little data in key2...");
-            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
+            var item = new CircleOldRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.circleNameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.circleId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
        }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key1)
+        public virtual async Task<int> DeleteAsync(Guid identityId,Guid circleId)
         {
-            if (key1 == null) throw new Exception("Cannot be null");
-            if (key1?.Length < 16) throw new Exception("Too short");
-            if (key1?.Length > 48) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM keyTwoValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1";
+                delete0Command.CommandText = "DELETE FROM CircleOld " +
+                                             "WHERE identityId = @identityId AND circleId = @circleId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
-                delete0Param2.ParameterName = "@key1";
+                delete0Param2.ParameterName = "@circleId";
                 delete0Command.Parameters.Add(delete0Param2);
 
                 delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = key1;
+                delete0Param2.Value = circleId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
-                    _cache.Remove("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64());
+                    _cache.Remove("TableCircleOldCRUD", identityId.ToString()+circleId.ToString());
                 return count;
             }
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key2)
+        public CircleOldRecord ReadRecordFromReader0(DbDataReader rdr)
         {
-            if (key2?.Length < 0) throw new Exception("Too short");
-            if (key2?.Length > 128) throw new Exception("Too long");
-            var result = new List<KeyTwoValueRecord>();
+            var result = new List<CircleOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new KeyTwoValueRecord();
-            item.identityId = identityId;
-            item.key2 = key2;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
-            if (item.key1?.Length < 16)
-                throw new Exception("Too little data in key1...");
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            var item = new CircleOldRecord();
+            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.circleNameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.circleId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
        }
 
-        protected virtual async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
+        public virtual async Task<List<CircleOldRecord>> GetAllAsync()
         {
-            if (key2?.Length < 0) throw new Exception("Too short");
-            if (key2?.Length > 128) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,key1,data FROM keyTwoValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2;"+
+                get0Command.CommandText = "SELECT identityId,circleName,circleId,data FROM CircleOld " +
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.ParameterName = "@key2";
-                get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = key2 ?? (object)DBNull.Value;
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key2.ToBase64(), null);
-                            return new List<KeyTwoValueRecord>();
+                            return new List<CircleOldRecord>();
                         }
-                        var result = new List<KeyTwoValueRecord>();
+                        var result = new List<CircleOldRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr,identityId,key2));
+                            result.Add(ReadRecordFromReader0(rdr));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -419,97 +387,92 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key1)
+        public CircleOldRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid circleId)
         {
-            if (key1 == null) throw new Exception("Cannot be null");
-            if (key1?.Length < 16) throw new Exception("Too short");
-            if (key1?.Length > 48) throw new Exception("Too long");
-            var result = new List<KeyTwoValueRecord>();
+            var result = new List<CircleOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new KeyTwoValueRecord();
+            var item = new CircleOldRecord();
             item.identityId = identityId;
-            item.key1 = key1;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.key2NoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
-            if (item.key2?.Length < 0)
-                throw new Exception("Too little data in key2...");
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            item.circleId = circleId;
+            item.circleNameNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
+            item.dataNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
        }
 
-        protected virtual async Task<KeyTwoValueRecord> GetAsync(Guid identityId,byte[] key1)
+        public virtual async Task<CircleOldRecord> GetAsync(Guid identityId,Guid circleId)
         {
-            if (key1 == null) throw new Exception("Cannot be null");
-            if (key1?.Length < 16) throw new Exception("Too short");
-            if (key1?.Length > 48) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64());
+            var (hit, cacheObject) = _cache.Get("TableCircleOldCRUD", identityId.ToString()+circleId.ToString());
             if (hit)
-                return (KeyTwoValueRecord)cacheObject;
+                return (CircleOldRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,key2,data FROM keyTwoValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                get1Command.CommandText = "SELECT circleName,data FROM CircleOld " +
+                                             "WHERE identityId = @identityId AND circleId = @circleId LIMIT 1;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
                 var get1Param2 = get1Command.CreateParameter();
-                get1Param2.ParameterName = "@key1";
+                get1Param2.ParameterName = "@circleId";
                 get1Command.Parameters.Add(get1Param2);
 
                 get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = key1;
+                get1Param2.Value = circleId.ToByteArray();
                 {
                     using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), null);
+                            _cache.AddOrUpdate("TableCircleOldCRUD", identityId.ToString()+circleId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr,identityId,key1);
-                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), r);
+                        var r = ReadRecordFromReader1(rdr,identityId,circleId);
+                        _cache.AddOrUpdate("TableCircleOldCRUD", identityId.ToString()+circleId.ToString(), r);
                         return r;
                     } // using
                 } //
             } // using
         }
 
-        protected virtual async Task<(List<KeyTwoValueRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        public virtual async Task<(List<CircleOldRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (count == int.MaxValue)
                 count--; // avoid overflow when doing +1 on the param below
             if (inCursor == null)
-                inCursor = 0;
+                inCursor = Guid.Empty;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var getPaging0Command = cn.CreateCommand();
+            await using var getPaging3Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,key1,key2,data FROM keyTwoValue " +
-                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
-                var getPaging0Param1 = getPaging0Command.CreateParameter();
-                getPaging0Param1.ParameterName = "@rowId";
-                getPaging0Command.Parameters.Add(getPaging0Param1);
-                var getPaging0Param2 = getPaging0Command.CreateParameter();
-                getPaging0Param2.ParameterName = "@count";
-                getPaging0Command.Parameters.Add(getPaging0Param2);
+                getPaging3Command.CommandText = "SELECT identityId,circleName,circleId,data FROM CircleOld " +
+                                            "WHERE (identityId = @identityId) AND circleId > @circleId  ORDER BY circleId ASC  LIMIT @count;";
+                var getPaging3Param1 = getPaging3Command.CreateParameter();
+                getPaging3Param1.ParameterName = "@circleId";
+                getPaging3Command.Parameters.Add(getPaging3Param1);
+                var getPaging3Param2 = getPaging3Command.CreateParameter();
+                getPaging3Param2.ParameterName = "@count";
+                getPaging3Command.Parameters.Add(getPaging3Param2);
+                var getPaging3Param3 = getPaging3Command.CreateParameter();
+                getPaging3Param3.ParameterName = "@identityId";
+                getPaging3Command.Parameters.Add(getPaging3Param3);
 
-                getPaging0Param1.Value = inCursor;
-                getPaging0Param2.Value = count+1;
+                getPaging3Param1.Value = inCursor?.ToByteArray();
+                getPaging3Param2.Value = count+1;
+                getPaging3Param3.Value = identityId.ToByteArray();
 
                 {
-                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging3Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
-                        var result = new List<KeyTwoValueRecord>();
-                        Int64? nextCursor;
+                        var result = new List<CircleOldRecord>();
+                        Guid? nextCursor;
                         int n = 0;
                         while ((n < count) && await rdr.ReadAsync())
                         {
@@ -518,7 +481,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         } // while
                         if ((n > 0) && await rdr.ReadAsync())
                         {
-                                nextCursor = result[n - 1].rowId;
+                                nextCursor = result[n - 1].circleId;
                         }
                         else
                         {

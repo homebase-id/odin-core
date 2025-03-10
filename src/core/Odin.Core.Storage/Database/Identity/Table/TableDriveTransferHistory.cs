@@ -113,6 +113,12 @@ public class TableDriveTransferHistory(
         return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
     }
 
+    public new async Task<int> InsertAsync(DriveTransferHistoryRecord item)
+    {
+        item.identityId = identityKey;
+        return await base.InsertAsync(item);
+    }
+
     public Task<bool> TryAddInitialRecordAsync(Guid driveId, Guid fileId, OdinId recipient)
     {
         var item = new DriveTransferHistoryRecord

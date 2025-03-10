@@ -18,7 +18,7 @@ public class TableDriveReactions(
 
     public async Task<int> DeleteAsync(Guid driveId, OdinId identity, Guid postId, string singleReaction)
     {
-        return await base.DeleteAsync(identityKey, driveId, identity, postId, singleReaction);
+        return await base.DeleteAsync(identityKey, driveId, postId, identity, singleReaction);
     }
 
     public async Task<int> DeleteAllReactionsAsync(Guid driveId, OdinId identity, Guid postId)

@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database;
+using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Factory;
 
@@ -162,6 +163,13 @@ public class DbConnectionPool(
             _disposed = true;
         }
         await ClearAllAsync();
+    }
+
+    //
+
+    ~DbConnectionPool()
+    {
+        FinalizerError.ReportMissingDispose(GetType(), logger);
     }
 
     //

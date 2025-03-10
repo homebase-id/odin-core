@@ -15,18 +15,8 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Database.System.Table
 {
-    public class JobsRecord
+    public class JobsOldRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
         private Guid _id;
         public Guid id
         {
@@ -295,13 +285,13 @@ namespace Odin.Core.Storage.Database.System.Table
                   _modified = value;
                }
         }
-    } // End of class JobsRecord
+    } // End of class JobsOldRecord
 
-    public abstract class TableJobsCRUD
+    public class TableJobsOldCRUD
     {
         private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
 
-        protected TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        public TableJobsOldCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
@@ -313,18 +303,16 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS jobs;";
+                cmd.CommandText = "DROP TABLE IF EXISTS JobsOld;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
+            {
+                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
+            }
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS jobs("
-                   +rowid
+                "CREATE TABLE IF NOT EXISTS JobsOld("
                    +"id BYTEA NOT NULL UNIQUE, "
                    +"name TEXT NOT NULL, "
                    +"state BIGINT NOT NULL, "
@@ -344,22 +332,24 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"lastError TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0jobs ON jobs(state);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1jobs ON jobs(expiresAt);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2jobs ON jobs(nextRun,priority);"
-                   +"CREATE INDEX IF NOT EXISTS Idx3jobs ON jobs(jobHash);"
+                   + rowid
+                   +", PRIMARY KEY (id)"
+                   +");"
+                   +"CREATE INDEX IF NOT EXISTS Idx0JobsOld ON JobsOld(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1JobsOld ON JobsOld(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2JobsOld ON JobsOld(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx3JobsOld ON JobsOld(jobHash);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
 
-        public virtual async Task<int> InsertAsync(JobsRecord item)
+        public virtual async Task<int> InsertAsync(JobsOldRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO JobsOld (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@id";
@@ -448,13 +438,13 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public virtual async Task<bool> TryInsertAsync(JobsRecord item)
+        public virtual async Task<bool> TryInsertAsync(JobsOldRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO JobsOld (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -544,13 +534,13 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public virtual async Task<int> UpsertAsync(JobsRecord item)
+        public virtual async Task<int> UpsertAsync(JobsOldRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
+                upsertCommand.CommandText = "INSERT INTO JobsOld (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
                                              "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created)"+
                                              "ON CONFLICT (id) DO UPDATE "+
                                              "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
@@ -648,13 +638,13 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public virtual async Task<int> UpdateAsync(JobsRecord item)
+        public virtual async Task<int> UpdateAsync(JobsOldRecord item)
         {
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE jobs " +
+                updateCommand.CommandText = "UPDATE JobsOld " +
                                              "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
                                              "WHERE (id = @id)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -743,13 +733,27 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
+        public virtual async Task<int> RenameAsync()
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
+            {
+                getCountCommand.CommandText = "ALTER TABLE jobs RENAME TO JobsOld;";
+                var count = await getCountCommand.ExecuteScalarAsync();
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
+        }
+
         public virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM jobs;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM JobsOld;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -761,7 +765,6 @@ namespace Odin.Core.Storage.Database.System.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
-            sl.Add("rowId");
             sl.Add("id");
             sl.Add("name");
             sl.Add("state");
@@ -784,65 +787,16 @@ namespace Odin.Core.Storage.Database.System.Table
             return sl;
         }
 
-        // SELECT rowId,id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified
-        public JobsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        // SELECT id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified
+        public JobsOldRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
-            var result = new List<JobsRecord>();
+            var result = new List<JobsOldRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new JobsRecord();
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.id = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.nameNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
-            item.state = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.priority = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.nextRun = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.lastRun = (rdr[6] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[6]);
-            item.runCount = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
-            item.maxAttempts = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
-            item.retryDelay = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
-            item.onSuccessDeleteAfter = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
-            item.onFailureDeleteAfter = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[11];
-            item.expiresAt = (rdr[12] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[12]);
-            item.correlationIdNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-            item.jobTypeNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
-            item.jobDataNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
-            item.jobHashNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
-            item.lastErrorNoLengthCheck = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
-            item.created = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
-            item.modified = (rdr[19] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[19]);
-            return item;
-       }
-
-        public virtual async Task<int> DeleteAsync(Guid id)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var delete0Command = cn.CreateCommand();
-            {
-                delete0Command.CommandText = "DELETE FROM jobs " +
-                                             "WHERE id = @id";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.ParameterName = "@id";
-                delete0Command.Parameters.Add(delete0Param1);
-
-                delete0Param1.Value = id.ToByteArray();
-                var count = await delete0Command.ExecuteNonQueryAsync();
-                return count;
-            }
-        }
-
-        public JobsRecord ReadRecordFromReader0(DbDataReader rdr,Guid id)
-        {
-            var result = new List<JobsRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new JobsRecord();
-            item.id = id;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            var item = new JobsOldRecord();
+            item.id = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
             item.nameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.state = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
@@ -864,27 +818,132 @@ namespace Odin.Core.Storage.Database.System.Table
             return item;
        }
 
-        public virtual async Task<JobsRecord> GetAsync(Guid id)
+        public virtual async Task<int> DeleteAsync(Guid id)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
+            {
+                delete0Command.CommandText = "DELETE FROM JobsOld " +
+                                             "WHERE id = @id";
+                var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.ParameterName = "@id";
+                delete0Command.Parameters.Add(delete0Param1);
+
+                delete0Param1.Value = id.ToByteArray();
+                var count = await delete0Command.ExecuteNonQueryAsync();
+                return count;
+            }
+        }
+
+        public JobsOldRecord ReadRecordFromReader0(DbDataReader rdr)
+        {
+            var result = new List<JobsOldRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new JobsOldRecord();
+            item.id = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
+            item.nameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.state = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.nextRun = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.lastRun = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
+            item.runCount = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.maxAttempts = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.retryDelay = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
+            item.onSuccessDeleteAfter = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
+            item.onFailureDeleteAfter = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
+            item.expiresAt = (rdr[11] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[11]);
+            item.correlationIdNoLengthCheck = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
+            item.jobTypeNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.jobDataNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
+            item.jobHashNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
+            item.lastErrorNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
+            item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[17]);
+            item.modified = (rdr[18] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[18]);
+            return item;
+       }
+
+        public virtual async Task<List<JobsOldRecord>> GetAllAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM jobs " +
+                get0Command.CommandText = "SELECT id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM JobsOld " +
+                                             ";";
+
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<JobsOldRecord>();
+                        }
+                        var result = new List<JobsOldRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader0(rdr));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
+        public JobsOldRecord ReadRecordFromReader1(DbDataReader rdr,Guid id)
+        {
+            var result = new List<JobsOldRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new JobsOldRecord();
+            item.id = id;
+            item.nameNoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[0];
+            item.state = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
+            item.priority = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.nextRun = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.lastRun = (rdr[4] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[4]);
+            item.runCount = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.maxAttempts = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.retryDelay = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[7];
+            item.onSuccessDeleteAfter = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[8];
+            item.onFailureDeleteAfter = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
+            item.expiresAt = (rdr[10] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[10]);
+            item.correlationIdNoLengthCheck = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[11];
+            item.jobTypeNoLengthCheck = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
+            item.jobDataNoLengthCheck = (rdr[13] == DBNull.Value) ? null : (string)rdr[13];
+            item.jobHashNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
+            item.lastErrorNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
+            item.created = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[16]);
+            item.modified = (rdr[17] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[17]);
+            return item;
+       }
+
+        public virtual async Task<JobsOldRecord> GetAsync(Guid id)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM JobsOld " +
                                              "WHERE id = @id LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.ParameterName = "@id";
-                get0Command.Parameters.Add(get0Param1);
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.ParameterName = "@id";
+                get1Command.Parameters.Add(get1Param1);
 
-                get0Param1.Value = id.ToByteArray();
+                get1Param1.Value = id.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr,id);
+                        var r = ReadRecordFromReader1(rdr,id);
                         return r;
                     } // using
                 } //
