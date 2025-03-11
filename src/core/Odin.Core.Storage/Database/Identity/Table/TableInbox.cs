@@ -63,7 +63,7 @@ public class TableInbox(
 
         cmd.CommandText =
             "UPDATE inbox SET popstamp=@popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT @count); " +
-            "SELECT identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp ORDER BY rowId ASC";
+            "SELECT rowid, identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp ORDER BY rowId ASC";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
