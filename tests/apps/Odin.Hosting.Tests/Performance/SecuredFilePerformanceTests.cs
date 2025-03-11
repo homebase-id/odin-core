@@ -121,7 +121,7 @@ namespace Odin.Hosting.Tests.Performance
             // 
 
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var sw = new Stopwatch();
             int fileByteLength = 0;
 

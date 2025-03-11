@@ -92,19 +92,19 @@ namespace Odin.Core.Tests
         public void DateUtc03()
         {
             var tz = new DateUtc(1, 1, 1);
-            Debug.Assert(tz.ToString() == "1-01-01 CE");
+            ClassicAssert.IsTrue(tz.ToString() == "1-01-01 CE");
 
             tz = new DateUtc(0, 12, 31);
-            Debug.Assert(tz.ToString() == "0-12-31 CE");
+            ClassicAssert.IsTrue(tz.ToString() == "0-12-31 CE");
 
             tz = new DateUtc(-1,12,31);
-            Debug.Assert(tz.ToString() == "-1-12-31 CE");
+            ClassicAssert.IsTrue(tz.ToString() == "-1-12-31 CE");
 
             tz = new DateUtc(9999,7,1);
-            Debug.Assert(tz.ToString() == "9999-07-01 CE");
+            ClassicAssert.IsTrue(tz.ToString() == "9999-07-01 CE");
 
             tz = new DateUtc(-9999, 9, 1);
-            Debug.Assert(tz.ToString() == "-9999-09-01 CE");
+            ClassicAssert.IsTrue(tz.ToString() == "-9999-09-01 CE");
 
             Assert.Pass();
         }
