@@ -269,13 +269,13 @@ namespace Odin.Core.Tests
         public void MiscTestsMovedFromOtherCode()
         {
             // Test valid labels
-            Debug.Assert(AsciiDomainNameValidator.TryValidateDomain("") == false, "Empty name error");
-            Debug.Assert(AsciiDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aa") == true,
+            ClassicAssert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("") == false, "Empty name error");
+            ClassicAssert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aa") == true,
                 "63 chars not allowed");
-            Debug.Assert(AsciiDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aa") == false,
+            ClassicAssert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aa") == false,
                 "64 chars allowed");
-            Debug.Assert(AsciiDomainNameValidator.TryValidateDomain("-a.aa") == false, "Allowed to start with -");
-            Debug.Assert(AsciiDomainNameValidator.TryValidateDomain("a-.aa") == false, "Allowed to end with -");
+            ClassicAssert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("-a.aa") == false, "Allowed to start with -");
+            ClassicAssert.IsTrue(AsciiDomainNameValidator.TryValidateDomain("a-.aa") == false, "Allowed to end with -");
 
             AsciiDomainNameValidator.AssertValidDomain("a.com");
 
@@ -298,10 +298,10 @@ namespace Odin.Core.Tests
         //     string s;
         //
         //     s = AsciiDomainNameValidator.CNameLookup("alias.id.pub");
-        //     Debug.Assert(s == "odin.earth.");
+        //     ClassicAssert.IsTrue(s == "odin.earth.");
         //
         //     s = AsciiDomainNameValidator.CNameLookup("corleone.com");
-        //     Debug.Assert(s == null);
+        //     ClassicAssert.IsTrue(s == null);
         //
         //     Assert.Pass();
         // }

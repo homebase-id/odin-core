@@ -72,7 +72,7 @@ public class DatabaseConnectionTests : IocTestBase
         var v2 = Guid.NewGuid().ToByteArray();
 
         var r =await  tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
        await  tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
        await  tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
@@ -112,7 +112,7 @@ public class DatabaseConnectionTests : IocTestBase
         var v3 = Guid.NewGuid().ToByteArray();
 
         var r =await  tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
         await  tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
         await  tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });

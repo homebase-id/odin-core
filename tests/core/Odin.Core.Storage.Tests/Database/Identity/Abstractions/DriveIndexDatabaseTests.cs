@@ -56,28 +56,28 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Do twice on each to ensure nothing changes state wise
 
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(refCursor.stopAtBoundary == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(refCursor.stopAtBoundary == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
 
             string inCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             string outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, inCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(outCursor == "0");
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(outCursor == "0");
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, inCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(outCursor == "0");
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(outCursor == "0");
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
         }
 
 
@@ -116,36 +116,36 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
 
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5); // Check we got everything, we are done because result.Count < 100
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5); // Check we got everything, we are done because result.Count < 100
+            ClassicAssert.IsTrue(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
 
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(result[0].created == refCursor.stopAtBoundary.Time);
-            Debug.Assert(result[0].rowId == refCursor.stopAtBoundary.rowId);
-
-            // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
-            (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            // Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(moreRows == false);
-
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(result[0].created == refCursor.stopAtBoundary.Time);
+            ClassicAssert.IsTrue(result[0].rowId == refCursor.stopAtBoundary.rowId);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            // Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            // ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
+
+
+            // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, refCursor, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            // ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f5.ToByteArray(), refCursor.stopAtBoundary) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
         }
 
         /// <summary>
@@ -181,39 +181,39 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.nextBoundaryCursor));
-            Debug.Assert(new TimeRowCursor(c4, 4).Equals(refCursor.pagingCursor));
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(refCursor.stopAtBoundary == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(c4, 4).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(moreRows == true);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(refCursor.stopAtBoundary == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.nextBoundaryCursor));
-            Debug.Assert(new TimeRowCursor(c2, 2).Equals(refCursor.pagingCursor));
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(refCursor.stopAtBoundary == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(moreRows == true);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
         }
 
         /// <summary>
@@ -248,20 +248,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
 
             // Now there should be no more items
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
@@ -272,27 +272,27 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Later we do a new query, with a NULL startFromCursor, because then we'll get the newest items first.
             // But stop at stopAtBoundaryCursor: pagingCursor
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Now there should be no more items
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Double check
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
         }
 
 
@@ -337,8 +337,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                     break;
             }
 
-            Debug.Assert(c == 5);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(c == 5);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Add two more items
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null, 1);
@@ -354,8 +354,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                     break;
             }
 
-            Debug.Assert(c == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(c == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Add five more items
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
@@ -374,8 +374,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                     break;
             }
 
-            Debug.Assert(c == 5);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(c == 5);
+            ClassicAssert.IsTrue(moreRows == false);
         }
 
 
@@ -413,13 +413,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = new QueryBatchCursor(c4);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, createdSort: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(cursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
         }
 
 
@@ -457,14 +457,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000), true);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(new UnixTimeUtc(2000) == cursor.stopAtBoundary.Time);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(cursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(new UnixTimeUtc(2000) == cursor.stopAtBoundary.Time);
+            ClassicAssert.IsTrue(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f1, result[0].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
         }
 
         /// <summary>
@@ -502,14 +502,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = new QueryBatchCursor(c4); // Behaves differently now
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, createdSort: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 4);
-            Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 4);
+            ClassicAssert.IsTrue(cursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[0].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[2].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5, result[3].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f3, result[0].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f2, result[1].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f1, result[2].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f5, result[3].fileId) == 0);
         }
 
 
@@ -545,14 +545,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000), true);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(new UnixTimeUtc(-1000) == cursor.stopAtBoundary.Time);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(cursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(new UnixTimeUtc(-1000) == cursor.stopAtBoundary.Time);
+            ClassicAssert.IsTrue(moreRows == false);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(f5, result[0].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f4, result[1].fileId) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f5, result[0].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f4, result[1].fileId) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(f3, result[2].fileId) == 0);
 
         }
 
@@ -587,12 +587,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, null, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
 
             var r = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, gtid1);
-            Debug.Assert(r != null);
-            Debug.Assert(r.globalTransitId == gtid1);
+            ClassicAssert.IsTrue(r != null);
+            ClassicAssert.IsTrue(r.globalTransitId == gtid1);
 
             r = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uid1);
-            Debug.Assert(r != null);
-            Debug.Assert(r.uniqueId == uid1);
+            ClassicAssert.IsTrue(r != null);
+            ClassicAssert.IsTrue(r.uniqueId == uid1);
 
         }
 
@@ -627,18 +627,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 0 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 3 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 1, 2 });
-            Debug.Assert(result.Count == 4);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 4);
+            ClassicAssert.IsTrue(moreRows == false);
 
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             r.fileState = 42;
@@ -646,8 +646,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             string c2 = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, var outc2) = await metaIndex.QueryModifiedAsync(driveId, 10, c2, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             r = await tblDriveMainIndex.GetAsync(driveId, f2);
             r.fileState = 43;
@@ -655,8 +655,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, fileStateAnyOf: new List<Int32>() { 42, 43 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -693,34 +693,34 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 6);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 6);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 0 });
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 1 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 2 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, archivalStatusAnyOf: new List<Int32>() { 0, 1 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(moreRows == false);
 
             string c2 = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             string outc2 = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outc2) = await metaIndex.QueryModifiedAsync(driveId, 10, c2, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             r.archivalStatus = 7;
@@ -728,13 +728,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             c2 = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outc2) = await metaIndex.QueryModifiedAsync(driveId, 10, c2, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             r = await tblDriveMainIndex.GetAsync(driveId, f2);
             r.archivalStatus = 7;
@@ -742,8 +742,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -781,11 +781,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
@@ -795,19 +795,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Now there should be no more items (recursive call in QueryBatch())
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Now there should be no more items (recursive call in QueryBatch())
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c7, 7).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -857,24 +857,24 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[2].fileId, f3) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[3].fileId, f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f4) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[2].fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[3].fileId, f2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Now there should be no more items
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Now add three more items
             var f6 = SequentialGuid.CreateGuid();
@@ -886,13 +886,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Now we get two of the three new items, we get the newest first f8 & f7
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f8) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f7) == 0);
-            Debug.Assert(new TimeRowCursor(c7, 7).Equals(refCursor.pagingCursor));
-            Debug.Assert(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(new TimeRowCursor(c8, 8).Equals(refCursor.nextBoundaryCursor));
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f8) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f7) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c7, 7).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(new TimeRowCursor(c8, 8).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(moreRows == true);
 
 
             // Now add two more items
@@ -908,23 +908,23 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // waiting for the next query
             //
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f6) == 0);
-            Debug.Assert(new TimeRowCursor(c10, 10).Equals(refCursor.pagingCursor));
-            Debug.Assert(new TimeRowCursor(c8, 8).Equals(refCursor.stopAtBoundary));
-            Debug.Assert(new TimeRowCursor(c10, 10).Equals(refCursor.nextBoundaryCursor));
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f6) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c10, 10).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(c8, 8).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(new TimeRowCursor(c10, 10).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(moreRows == true);
 
             // Now we get two more items, only one should be left (f9)
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f9) == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f9) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
-            Debug.Assert(refCursor.nextBoundaryCursor == null);
-            Debug.Assert(refCursor.pagingCursor == null);
-            Debug.Assert(new TimeRowCursor(c10, 10).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(c10, 10).Equals(refCursor.stopAtBoundary));
 
         }
 
@@ -955,16 +955,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
 
         }
 
@@ -995,16 +995,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
 
         }
 
@@ -1035,16 +1035,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
 
         }
 
@@ -1075,16 +1075,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
 
         }
 
@@ -1115,19 +1115,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
-            Debug.Assert(new TimeRowCursor(c2, 2).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
+            ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c1, 1).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c1, 1).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c1,1).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c1,1).Equals(refCursor.pagingCursor));
         }
 
 
@@ -1157,21 +1157,21 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(42), 2).Equals(refCursor.pagingCursor));
-            Debug.Assert(refCursor.pagingCursor.Time.milliseconds == 42);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(new UnixTimeUtc(42), 2).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(refCursor.pagingCursor.Time.milliseconds == 42);
 
         }
 
@@ -1209,19 +1209,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             string cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f3) == 0);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f3) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 1, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 1, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
         }
 
         [Test]
@@ -1261,12 +1261,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             string cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, cursor, stopAtModifiedUnixTimeSeconds: new TimeRowCursor(new UnixTimeUtc(t), null), requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1); // Up to and NOT including the boundary
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 1); // Up to and NOT including the boundary
+            ClassicAssert.IsTrue(hasRows == false);
 
             (result, hasRows, refCursor) = await metaIndex.QueryModifiedAsync(driveId, 10, cursor, stopAtModifiedUnixTimeSeconds: new TimeRowCursor(new UnixTimeUtc(t), 2), requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1); // Up to and NOT including the boundary
-            Debug.Assert(hasRows == false);
+            ClassicAssert.IsTrue(result.Count == 1); // Up to and NOT including the boundary
+            ClassicAssert.IsTrue(hasRows == false);
         }
 
 
@@ -1296,19 +1296,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
-            Debug.Assert(new TimeRowCursor(c2,2).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
+            ClassicAssert.IsTrue(new TimeRowCursor(c2,2).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c3, 3).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c3, 3).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c3, 3).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c3, 3).Equals(refCursor.pagingCursor));
 
         }
 
@@ -1339,22 +1339,22 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == true);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
-            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(1000), 1).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == true);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(new UnixTimeUtc(1000), 1).Equals(refCursor.pagingCursor));
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(2000), 3).Equals(refCursor.pagingCursor));
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(new UnixTimeUtc(2000), 3).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
 
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, refCursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(new UnixTimeUtc(2000), 3).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(new UnixTimeUtc(2000), 3).Equals(refCursor.pagingCursor));
         }
 
 
@@ -1386,11 +1386,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f3) == 0);
 
             cursor = null;
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 1, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
 
         }
 
@@ -1432,10 +1432,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            Debug.Assert(new TimeRowCursor(c1,1).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c1,1).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
@@ -1445,10 +1445,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
-            Debug.Assert(new TimeRowCursor(c6, 5).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c6, 5).Equals(cursor.pagingCursor));
         }
 
 
@@ -1492,10 +1492,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            Debug.Assert(new TimeRowCursor(c1, 1).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c1, 1).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
@@ -1505,10 +1505,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
-            Debug.Assert(new TimeRowCursor(c6, 5).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(c6, 5).Equals(cursor.pagingCursor));
 
         }
 
@@ -1552,11 +1552,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[2].fileId, f6) == 0);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[2].fileId, f6) == 0);
 
             //
             // ====== Now do the same, oldest first
@@ -1566,10 +1566,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, createdSort: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f2) == 0);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f2) == 0);
 
         }
 
@@ -1610,15 +1610,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
@@ -1628,15 +1628,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
         }
 
@@ -1678,15 +1678,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             //
             // ====== Now do the same, oldest first
@@ -1696,15 +1696,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(hasRows == false);
-            Debug.Assert(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(hasRows == false);
+            ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
         }
 
@@ -1742,15 +1742,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             string cursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0); // Nothing in the DB should be modified
-            Debug.Assert(Convert.ToInt64(outCursor) == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0); // Nothing in the DB should be modified
+            ClassicAssert.IsTrue(Convert.ToInt64(outCursor) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Do a double check that even if the timestamp is "everything forever" then we still get nothing.
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0); // Nothing in the DB should be modified
-            Debug.Assert(Convert.ToInt64(outCursor) == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0); // Nothing in the DB should be modified
+            ClassicAssert.IsTrue(Convert.ToInt64(outCursor) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
         }
 
 
@@ -1788,21 +1788,21 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             string cursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Modify one item make sure we can get it.
             await tblDriveMainIndex.TestTouchAsync(driveId, f2);
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 2, outCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
-            // Debug.Assert(ByteArrayUtil.muidcmp(cursor, f2.ToByteArray()) == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            // ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(cursor, f2.ToByteArray()) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Make sure cursor is updated and we're at the end
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 2, outCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -1840,38 +1840,38 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
 
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 4, end: 10));
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 2));
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -1907,8 +1907,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             string inCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0); // Nothing has been modified
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0); // Nothing has been modified
+            ClassicAssert.IsTrue(moreRows == false);
 
             await tblDriveMainIndex.TestTouchAsync(driveId, f1);
             await tblDriveMainIndex.TestTouchAsync(driveId, f2);
@@ -1918,33 +1918,33 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5); // Ensure everything is now "modified"
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5); // Ensure everything is now "modified"
+            ClassicAssert.IsTrue(moreRows == false);
 
             outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, inCursor, requiredSecurityGroup: new IntRange(start: 2, end: 3));
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -1987,44 +1987,44 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // For any security group, we should have 5 entries
             cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For any security group, and an ACL, test the AND statement
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For NO valid security group, and a valid ACL, just the valid ACLs
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For just security Group 1 we have 2 entries
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For security Group 1 or any of the ACLs a1 we have 3
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For security Group 1 or any of the ACLs a3, a4 we have 3
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a3, a4 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For no security Group 1 getting ACLs a1we have 2
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -2071,110 +2071,110 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ACL: Any security group, no circles. We should have 5 entries
             cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, no circles. We should have 2 entries
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 0, no circles. We should have 0 entries
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ======== TEST any RSG with circle combinations
 
             // ACL: Any security group, circles a4. We should have 2 (one with a4, one with no circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Any security group, circles a2. We should have 3 (two with a2, one with no circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a2 });
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Any security group, circles a1, a2. We should have 4 (two with a2, one with a1, one with no circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 4);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 4);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Any security group, circles a5. We should have 1 (none with a5, one with no circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ======== TEST no RSG with circles
 
             // ACL: No security group, circles a4. We should have none
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: No security group, circles a2. We should have none
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a2 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: No security group, circles a1, a2. We should have none
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: No security group, circles a5. We should have none
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ======== Test partial RSG with circle combinations
 
             // ACL: One security group 2, circles a2. We should have 2 (one with a2, one with no circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a2 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, circles a4. We should have 0 (none with a4, none with circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, circles a1, a2. We should have 2
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 2, circles a1, a2. We should have 2
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, circles a5. We should have 0 (none with a5, none with circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 2, circles a5. We should have 1 (none with a5, one with no circles)
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ========
         }
@@ -2229,110 +2229,110 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ACL: Any security group, no circles. We should have 5 entries
             cursor = "0";
             var (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 5);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, no circles. We should have 2 entries
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 0, no circles. We should have 0 entries
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ======== TEST any RSG with circle combinations
 
             // ACL: Any security group, circles a4. We should have 2 (one with a4, one with no circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Any security group, circles a2. We should have 3 (two with a2, one with no circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a2 });
-            Debug.Assert(result.Count == 3);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 3);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Any security group, circles a1, a2. We should have 4 (two with a2, one with a1, one with no circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 4);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 4);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Any security group, circles a5. We should have 1 (none with a5, one with no circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ======== TEST no RSG with circles
 
             // ACL: No security group, circles a4. We should have none
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: No security group, circles a2. We should have none
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a2 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: No security group, circles a1, a2. We should have none
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: No security group, circles a5. We should have none
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ======== Test partial RSG with circle combinations
 
             // ACL: One security group 2, circles a2. We should have 2 (one with a2, one with no circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a2 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, circles a4. We should have 0 (none with a4, none with circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, circles a1, a2. We should have 2
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 2, circles a1, a2. We should have 2
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 1, circles a5. We should have 0 (none with a5, none with circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ACL: Security group 2, circles a5. We should have 1 (none with a5, one with no circles)
             cursor = "0";
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 400, cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2), aclAnyOf: new List<Guid>() { a5 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // ========
 
@@ -2367,11 +2367,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
             cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -2402,15 +2402,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f2);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
         }
 
@@ -2474,11 +2474,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
             cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(data.globalTransitId == null);
+            ClassicAssert.IsTrue(data.globalTransitId == null);
 
         }
 
@@ -2509,20 +2509,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = null;
             // We shouldn't be able to find any like this:
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor, globalTransitIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Now we should be able to find it
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             string inCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             string outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             await tblDriveMainIndex.TestTouchAsync(driveId, f1); // Make sure we can find it
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 1, inCursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -2552,15 +2552,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
             await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, globalTransitId: g2, archivalStatus: 7);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
             await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, globalTransitId: g3);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g3) == 0);
         }
 
 
@@ -2590,11 +2590,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
             cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
         }
 
@@ -2625,15 +2625,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f2);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f1) == 0);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
         }
 
@@ -2697,11 +2697,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
             cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f1) == 0);
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(data.uniqueId == null);
+            ClassicAssert.IsTrue(data.uniqueId == null);
 
         }
 
@@ -2732,20 +2732,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = null;
             // We shouldn't be able to find any like this:
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor, uniqueIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // Now we should be able to find it
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             string inCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             string outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             await tblDriveMainIndex.TestTouchAsync(driveId, f1); // Make sure we can find it
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 1, inCursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 
@@ -2775,15 +2775,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
             await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, uniqueId: u2);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 
             await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, uniqueId: u3);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u3) == 0);
 
         }
 
@@ -2835,32 +2835,32 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Check the specified tag counts
             QueryBatchCursor cursor= null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAnyOf: new List<Guid>() { a4 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For any security group, and an ACL, test the AND statement
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAnyOf: new List<Guid>() { a2 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For any security group, and an ACL, test the AND statement
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAllOf: new List<Guid>() { a1 });
-            Debug.Assert(result.Count == 2);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For any security group, and an ACL, test the AND statement
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAllOf: new List<Guid>() { a1, a2 });
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // For any security group, and an ACL, test the AND statement
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange, localTagsAllOf: new List<Guid>() { a1, a2, a3 });
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
         }
 
 
@@ -2894,7 +2894,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             for (int i = 0; i < _taglist.Count; i++)
                 taglist.Add(_taglist[i]);
 
-            Debug.Assert(taglist.Count == 4);
+            ClassicAssert.IsTrue(taglist.Count == 4);
 
             var acladd = new List<Guid>();
             var tagadd = new List<Guid>();
@@ -2933,44 +2933,44 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor cursor = null;
 
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 400);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 1]) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[399].fileId, fileId[fileId.Count - 400]) == 0);
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 400);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 1]) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[399].fileId, fileId[fileId.Count - 400]) == 0);
+            ClassicAssert.IsTrue(moreRows == true);
 
             var md = await tblDriveMainIndex.GetAsync(driveId, fileId[0]);
 
             var p1 = await tblDriveAclIndex.GetAsync(driveId, fileId[0]);
-            Debug.Assert(p1 != null);
-            Debug.Assert(p1.Count == 4);
+            ClassicAssert.IsTrue(p1 != null);
+            ClassicAssert.IsTrue(p1.Count == 4);
 
             var p2 = await tblDriveTagIndex.GetAsync(driveId, fileId[0]);
-            Debug.Assert(p2 != null);
-            Debug.Assert(p2.Count == 4);
+            ClassicAssert.IsTrue(p2 != null);
+            ClassicAssert.IsTrue(p2.Count == 4);
 
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 400);
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 400);
+            ClassicAssert.IsTrue(moreRows == true);
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 200); // We put 1,000 lines into the index. 400+400+200 = 1,000
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 200); // We put 1,000 lines into the index. 400+400+200 = 1,000
+            ClassicAssert.IsTrue(moreRows == false);
 
             stopWatch.Stop();
             TestBenchmark.StopWatchStatus("Built in QueryBatch(driveId, )", stopWatch);
 
             // Try to get a batch stopping at boundaryCursor. We should get none.
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0); // There should be no more
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0); // There should be no more
+            ClassicAssert.IsTrue(moreRows == false);
 
             string inCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             string outCursor = UnixTimeUtc.ZeroTime.milliseconds.ToString();
             // Now let's be sure that there are no modified items. 0 gets everything that was ever modified
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, inCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             var theguid = conversationId[42];
 
@@ -2986,34 +2986,34 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Now check that we can find the one modified item with our cursor timestamp
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, outCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[420]) == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, fileId[420]) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             md = await tblDriveMainIndex.GetAsync(driveId, fileId[420]);
-            Debug.Assert(md.fileType == 5);
-            Debug.Assert(md.dataType == 6);
-            Debug.Assert(md.userDate == new UnixTimeUtc(42));
+            ClassicAssert.IsTrue(md.fileType == 5);
+            ClassicAssert.IsTrue(md.dataType == 6);
+            ClassicAssert.IsTrue(md.userDate == new UnixTimeUtc(42));
 
             ClassicAssert.True(md.requiredSecurityGroup == 333);
 
             // UInt64 tmpCursor = UnixTime.UnixTimeMillisecondsUnique();
             // Now check that we can't find the one modified item with a newer cursor 
             (result, moreRows, outCursor) = await metaIndex.QueryModifiedAsync(driveId, 100, outCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 0);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(moreRows == false);
 
             // KIND : TimeSeries
             // Test that if we fetch the first record, it is the latest fileId
             //
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == true);
 
             if (true)
             {
-                Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 1]) == 0);
+                ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 1]) == 0);
             }
             else
             {
@@ -3021,11 +3021,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             }
 
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, refCursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(moreRows == true);
             if (true)
             {
-                Debug.Assert(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 2]) == 0);
+                ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, fileId[fileId.Count - 2]) == 0);
             }
             else
             {
@@ -3037,8 +3037,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             //
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor, filetypesAnyOf: new List<int>() { 0, 4 }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(moreRows == true);
-            Debug.Assert(result.Count >= 1);
+            ClassicAssert.IsTrue(moreRows == true);
+            ClassicAssert.IsTrue(result.Count >= 1);
 
             //
             // Test that we can find a row with Tags. We know row 0 has tag 0..3
@@ -3046,8 +3046,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor,
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count >= 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count >= 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
 
             //
@@ -3056,8 +3056,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor,
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count >= 1);
-            Debug.Assert(moreRows == true);
+            ClassicAssert.IsTrue(result.Count >= 1);
+            ClassicAssert.IsTrue(moreRows == true);
 
 
             //
@@ -3067,20 +3067,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor,
                 tagsAllOf: new List<Guid>() { tags[0] }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count >= 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count >= 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1] }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count >= 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count >= 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 1, cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1], tags[2] }, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count >= 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count >= 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             //
             // Test that we can execute a query with all main attributes set
@@ -3094,7 +3094,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 groupIdAnyOf: new List<Guid>() { tags[0] },
                 userdateSpan: new UnixTimeUtcRange(new UnixTimeUtc(7), new UnixTimeUtc(42)),
                 requiredSecurityGroup: allIntRange);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(moreRows == false);
 
             //
             // Test that we can find a row with Acls AND Tags
@@ -3104,8 +3104,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] },
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] },
                 requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count >= 1);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count >= 1);
+            ClassicAssert.IsTrue(moreRows == false);
 
             //
             // Test that we can find a row with Acls AND Tags
@@ -3115,9 +3115,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 tagsAllOf: new List<Guid>() { tags[0], tags[1], tags[2] },
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] },
                 requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count >= 1);
-            Debug.Assert(result.Count < 100);
-            Debug.Assert(moreRows == false);
+            ClassicAssert.IsTrue(result.Count >= 1);
+            ClassicAssert.IsTrue(result.Count < 100);
+            ClassicAssert.IsTrue(moreRows == false);
 
         }
 

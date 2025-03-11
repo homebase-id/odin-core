@@ -90,13 +90,13 @@ namespace Odin.Core.Tests
         public void TimeUtc03()
         {
             var tz = new TimeUtc(0, 0, 0);
-            Debug.Assert(tz.ToString() == "00:00:00");
+            ClassicAssert.IsTrue(tz.ToString() == "00:00:00");
 
             tz = new TimeUtc(1, 1, 1);
-            Debug.Assert(tz.ToString() == "01:01:01");
+            ClassicAssert.IsTrue(tz.ToString() == "01:01:01");
 
             tz = new TimeUtc(23,59,59);
-            Debug.Assert(tz.ToString() == "23:59:59");
+            ClassicAssert.IsTrue(tz.ToString() == "23:59:59");
 
             Assert.Pass();
         }

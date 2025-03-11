@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Core.Storage.Tests
 {
@@ -16,15 +17,15 @@ namespace Odin.Core.Storage.Tests
             cache.AddOrUpdate("table", "3", null);
 
             var (hit1, o1) = cache.Get("table", "1");
-            Debug.Assert(hit1);
-            Debug.Assert((string) o1 == "hej");
+            ClassicAssert.IsTrue(hit1);
+            ClassicAssert.IsTrue((string) o1 == "hej");
             var (hit2, o2) = cache.Get("table", "2");
-            Debug.Assert(hit2);
-            Debug.Assert((string) o2 == "");
+            ClassicAssert.IsTrue(hit2);
+            ClassicAssert.IsTrue((string) o2 == "");
 
             var (hit3, o3) = cache.Get("table", "3");
-            Debug.Assert(hit3);
-            Debug.Assert((string) o3 == null);
+            ClassicAssert.IsTrue(hit3);
+            ClassicAssert.IsTrue((string) o3 == null);
         }
 
         [Test]
@@ -40,14 +41,14 @@ namespace Odin.Core.Storage.Tests
             cache.AddOrUpdate("table", "3", null);
 
             var (hit1, r1) = cache.Get("table", "1");
-            Debug.Assert(hit1);
-            Debug.Assert(ByteArrayUtil.muidcmp((byte[]) r1, b1) == 0);
+            ClassicAssert.IsTrue(hit1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp((byte[]) r1, b1) == 0);
             var (hit2, r2) = cache.Get("table", "2");
-            Debug.Assert(((byte[])r2).Length == 0);
-            Debug.Assert(hit2);
+            ClassicAssert.IsTrue(((byte[])r2).Length == 0);
+            ClassicAssert.IsTrue(hit2);
             var (hit3, r3) = cache.Get("table", "3");
-            Debug.Assert((byte[])r3 == null);
-            Debug.Assert(hit3);
+            ClassicAssert.IsTrue((byte[])r3 == null);
+            ClassicAssert.IsTrue(hit3);
         }
 
         private class testItem
@@ -70,20 +71,20 @@ namespace Odin.Core.Storage.Tests
             cache.AddOrUpdate("table", "3", null);
 
             var (hit1, r1) = cache.Get("table", "1");
-            Debug.Assert(hit1);
-            Debug.Assert(ByteArrayUtil.muidcmp(((testItem)r1).Id, b1.Id) == 0);
-            Debug.Assert(((testItem)r1).Name == b1.Name);
-            Debug.Assert(ByteArrayUtil.muidcmp(((testItem)r1).Value, b1.Value) == 0);
+            ClassicAssert.IsTrue(hit1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(((testItem)r1).Id, b1.Id) == 0);
+            ClassicAssert.IsTrue(((testItem)r1).Name == b1.Name);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(((testItem)r1).Value, b1.Value) == 0);
 
             var (hit2, r2) = cache.Get("table", "2");
-            Debug.Assert(hit2);
-            Debug.Assert(ByteArrayUtil.muidcmp(((testItem)r2).Id, b2.Id) == 0);
-            Debug.Assert(((testItem)r2).Name == b2.Name);
-            Debug.Assert(ByteArrayUtil.muidcmp(((testItem)r2).Value, b2.Value) == 0);
+            ClassicAssert.IsTrue(hit2);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(((testItem)r2).Id, b2.Id) == 0);
+            ClassicAssert.IsTrue(((testItem)r2).Name == b2.Name);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(((testItem)r2).Value, b2.Value) == 0);
 
             var (hit3, r3) = cache.Get("table", "3");
-            Debug.Assert(hit3);
-            Debug.Assert((testItem) r3 == null);
+            ClassicAssert.IsTrue(hit3);
+            ClassicAssert.IsTrue((testItem) r3 == null);
         }
     }
 }

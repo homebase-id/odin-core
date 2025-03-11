@@ -39,10 +39,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var n = await tblConnections.InsertAsync(item1);
 
             // Validate that INSERT has a NULL modified and a "now" created
-            Debug.Assert(n == 1);
-            Debug.Assert(item1.modified == null);
-            Debug.Assert(item1.created <= UnixTimeUtc.Now());
-            Debug.Assert(item1.created > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(item1.modified == null);
+            ClassicAssert.IsTrue(item1.created <= UnixTimeUtc.Now());
+            ClassicAssert.IsTrue(item1.created > UnixTimeUtc.Now().AddSeconds(-1));
 
             var copy = item1.created;
             Thread.Sleep(1000);
@@ -50,14 +50,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             try
             {
                 n = await tblConnections.InsertAsync(item1);
-                Debug.Assert(n == 0);
+                ClassicAssert.IsTrue(n == 0);
             }
             catch (Exception)
             {
             }
             // Validate that trying to insert it again doesn't mess up the values
-            Debug.Assert(item1.modified == null);
-            Debug.Assert(item1.created.milliseconds == copy.milliseconds);
+            ClassicAssert.IsTrue(item1.modified == null);
+            ClassicAssert.IsTrue(item1.created.milliseconds == copy.milliseconds);
 
             // Validate that loading the record yields the same results
             var loaded = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
@@ -142,10 +142,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var n = await tblConnections.UpsertAsync(item1);
 
             // Validate the Upsert behaves as an INSERT for the first record
-            Debug.Assert(n == 1);
-            Debug.Assert(item1.modified == null);
-            Debug.Assert(item1.created <= UnixTimeUtc.Now());
-            Debug.Assert(item1.created > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(n == 1);
+            ClassicAssert.IsTrue(item1.modified == null);
+            ClassicAssert.IsTrue(item1.created <= UnixTimeUtc.Now());
+            ClassicAssert.IsTrue(item1.created > UnixTimeUtc.Now().AddSeconds(-1));
 
             var copyCreated = item1.created;
             Thread.Sleep(1000);

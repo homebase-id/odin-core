@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -53,21 +54,21 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // everyone except Heimdal. Let's do a page size of 3
             //
             var (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(3, d1, null);
-            Debug.Assert(r.Count == 3);
-            Debug.Assert(nextCursor == r[2]); // Drive has 3 entires, so we got them all here.
+            ClassicAssert.IsTrue(r.Count == 3);
+            ClassicAssert.IsTrue(nextCursor == r[2]); // Drive has 3 entires, so we got them all here.
 
             // Get the second page. Always use the last result as the cursor
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(3, d1, nextCursor);
-            Debug.Assert(r.Count == 1);  // We know this is the last page because 1 < 3
+            ClassicAssert.IsTrue(r.Count == 1);  // We know this is the last page because 1 < 3
                                          // but if we call again anyway, we get 0 back.
-            Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
+            ClassicAssert.IsTrue(nextCursor == null, message: "rdr.HasRows is the sinner");
 
 
             // Now Frodo does a post to d2 which means Freja, Heimdal, Loke gets it
             // So first page is all the data, and there is no more data
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(3, d2, null);
-            Debug.Assert(r.Count == 3);
-            Debug.Assert(nextCursor == null);
+            ClassicAssert.IsTrue(r.Count == 3);
+            ClassicAssert.IsTrue(nextCursor == null);
         }
 
 
@@ -92,13 +93,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = "thor.valhalla.com", driveId = g1 });
 
             var r = await tblFollowsMe.GetAsync(i1);
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
-            Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
 
             // This is OK {odin.vahalla.com, {000000}}
             await tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i1, driveId = Guid.Empty });
             r = await tblFollowsMe.GetAsync(i1);
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
         }
 
 
@@ -129,7 +130,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 {
                     ok = true;
                 }
-                Debug.Assert(ok);
+                ClassicAssert.IsTrue(ok);
 
 
                 ok = false;
@@ -142,7 +143,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 {
                     ok = true;
                 }
-                Debug.Assert(ok);
+                ClassicAssert.IsTrue(ok);
 
                 ok = false;
                 try
@@ -153,7 +154,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 {
                     ok = true;
                 }
-                Debug.Assert(ok);
+                ClassicAssert.IsTrue(ok);
 
 
                 ok = false;
@@ -165,7 +166,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 {
                     ok = true;
                 }
-                Debug.Assert(ok);
+                ClassicAssert.IsTrue(ok);
 
 
                 ok = false;
@@ -178,7 +179,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 {
                     ok = true;
                 }
-                Debug.Assert(ok);
+                ClassicAssert.IsTrue(ok);
 
         }
 
@@ -207,12 +208,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblFollowsMe.DeleteByIdentityAsync(i2);
 
             var r = await tblFollowsMe.GetAsync(i1);
-            Debug.Assert(r.Count == 1);
+            ClassicAssert.IsTrue(r.Count == 1);
             r = await tblFollowsMe.GetAsync(i2);
-            Debug.Assert(r.Count == 0);
+            ClassicAssert.IsTrue(r.Count == 0);
             await tblFollowsMe.DeleteByIdentityAsync(i1);
             r = await tblFollowsMe.GetAsync(i2);
-            Debug.Assert(r.Count == 0);
+            ClassicAssert.IsTrue(r.Count == 0);
 
         }
 
@@ -241,23 +242,23 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             await tblFollowsMe.DeleteAsync(i1, d2);
             var r = await tblFollowsMe.GetAsync(i1);
-            Debug.Assert(r.Count == 1);
+            ClassicAssert.IsTrue(r.Count == 1);
 
             await tblFollowsMe.DeleteAsync(i1, d1);
             r = await tblFollowsMe.GetAsync(i1);
-            Debug.Assert(r.Count == 0);
+            ClassicAssert.IsTrue(r.Count == 0);
 
             await tblFollowsMe.DeleteAsync(i2, d1);
             r = await tblFollowsMe.GetAsync(i2);
-            Debug.Assert(r.Count == 2);
+            ClassicAssert.IsTrue(r.Count == 2);
 
             await tblFollowsMe.DeleteAsync(i2, d2);
             r = await tblFollowsMe.GetAsync(i2);
-            Debug.Assert(r.Count == 1);
+            ClassicAssert.IsTrue(r.Count == 1);
 
             await tblFollowsMe.DeleteAsync(i2, Guid.Empty);
             r = await tblFollowsMe.GetAsync(i2);
-            Debug.Assert(r.Count == 0);
+            ClassicAssert.IsTrue(r.Count == 0);
 
         }
 
@@ -284,7 +285,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             {
                 ok = true;
             }
-            Debug.Assert(ok);
+            ClassicAssert.IsTrue(ok);
 
         }
 
@@ -313,19 +314,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // Get the all drive (only)
             var (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(100, d3, null);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0] == i2);
-            Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0] == i2);
+            ClassicAssert.IsTrue(nextCursor == null, message: "rdr.HasRows is the sinner");
 
             // Get all d1 (and empty) drive.
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(100, d1, "");
-            Debug.Assert(r.Count == 2);
-            Debug.Assert(nextCursor == null);
+            ClassicAssert.IsTrue(r.Count == 2);
+            ClassicAssert.IsTrue(nextCursor == null);
 
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(100, d2, "");
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0] == i2);
-            Debug.Assert(nextCursor == null);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0] == i2);
+            ClassicAssert.IsTrue(nextCursor == null);
 
         }
 
@@ -357,25 +358,25 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblFollowsMe.InsertAsync(new FollowsMeRecord() { identity = i5, driveId = Guid.Empty });
 
             var (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(2, d1, null);
-            Debug.Assert(r.Count == 2);
-            Debug.Assert(r[0] == i3);
-            Debug.Assert(r[1] == i4);
-            Debug.Assert(nextCursor == r[1]);
+            ClassicAssert.IsTrue(r.Count == 2);
+            ClassicAssert.IsTrue(r[0] == i3);
+            ClassicAssert.IsTrue(r[1] == i4);
+            ClassicAssert.IsTrue(nextCursor == r[1]);
 
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(2, d1, r[1]);
-            Debug.Assert(r.Count == 2);
-            Debug.Assert(r[0] == i5);
-            Debug.Assert(r[1] == i1);
-            Debug.Assert(nextCursor == r[1]);
+            ClassicAssert.IsTrue(r.Count == 2);
+            ClassicAssert.IsTrue(r[0] == i5);
+            ClassicAssert.IsTrue(r[1] == i1);
+            ClassicAssert.IsTrue(nextCursor == r[1]);
 
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(2, d1, r[1]);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0] == i2);
-            Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0] == i2);
+            ClassicAssert.IsTrue(nextCursor == null, message: "rdr.HasRows is the sinner");
 
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(2, d1, r[0]);
-            Debug.Assert(r.Count == 0);
-            Debug.Assert(nextCursor == null);
+            ClassicAssert.IsTrue(r.Count == 0);
+            ClassicAssert.IsTrue(nextCursor == null);
 
         }
     }

@@ -32,8 +32,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var r = await tblCircleMember.GetCircleMembersAsync(c1);
 
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m1) == 0);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].memberId, m1) == 0);
         }
 
 
@@ -94,7 +94,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             {
                 ok = true;
             }
-            Debug.Assert(ok);
+            ClassicAssert.IsTrue(ok);
         }
 
 
@@ -125,7 +125,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var r = await tblCircleMember.GetCircleMembersAsync(c1);
 
-            Debug.Assert(r.Count == 3);
+            ClassicAssert.IsTrue(r.Count == 3);
         }
 
 
@@ -166,9 +166,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblCircleMember.UpsertCircleMembersAsync(cl2);
 
             var r = await tblCircleMember.GetCircleMembersAsync(c1);
-            Debug.Assert(r.Count == 3);
+            ClassicAssert.IsTrue(r.Count == 3);
             r = await tblCircleMember.GetCircleMembersAsync(c2);
-            Debug.Assert(r.Count == 4);
+            ClassicAssert.IsTrue(r.Count == 4);
 
         }
 
@@ -212,14 +212,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblCircleMember.RemoveCircleMembersAsync(c1, new List<Guid>() { m1, m2 });
 
             var r = await tblCircleMember.GetCircleMembersAsync(c1);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);
 
             await tblCircleMember.RemoveCircleMembersAsync(c2, new List<Guid>() { m3, m4 });
             r = await tblCircleMember.GetCircleMembersAsync(c2);
-            Debug.Assert(r.Count == 2);
+            ClassicAssert.IsTrue(r.Count == 2);
         }
 
 
@@ -243,7 +243,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             {
                 ok = true;
             }
-            Debug.Assert(ok);
+            ClassicAssert.IsTrue(ok);
         }
 
 
@@ -286,11 +286,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblCircleMember.DeleteMembersFromAllCirclesAsync(new List<Guid>() { m1, m2 });
 
             var r = await tblCircleMember.GetCircleMembersAsync(c1);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
 
             r = await tblCircleMember.GetCircleMembersAsync(c2);
-            Debug.Assert(r.Count == 3);
+            ClassicAssert.IsTrue(r.Count == 3);
         }
 
         [Test]
@@ -332,16 +332,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblCircleMember.UpsertCircleMembersAsync(cl2);
 
             var r = await tblCircleMember.GetMemberCirclesAndDataAsync(m1);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].memberId, m1) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);
 
             r = await tblCircleMember.GetMemberCirclesAndDataAsync(m2);
-            Debug.Assert(r.Count == 2);
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0].data, d1) == 0) || (ByteArrayUtil.muidcmp(r[0].data, d2) == 0));
-            Debug.Assert((ByteArrayUtil.muidcmp(r[1].data, d1) == 0) || (ByteArrayUtil.muidcmp(r[1].data, d2) == 0));
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0].data, r[1].data) != 0));
+            ClassicAssert.IsTrue(r.Count == 2);
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r[0].data, d1) == 0) || (ByteArrayUtil.muidcmp(r[0].data, d2) == 0));
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r[1].data, d1) == 0) || (ByteArrayUtil.muidcmp(r[1].data, d2) == 0));
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r[0].data, r[1].data) != 0));
         }
     }
 }

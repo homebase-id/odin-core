@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography.Crypto;
 
 namespace Odin.Hosting.Tests.Performance
@@ -52,7 +53,7 @@ namespace Odin.Hosting.Tests.Performance
                     var resultTuple = functionToExecute(threadIndex, iterations);
                     long bw = resultTuple.Result.Item1;
                     long[] measurements = resultTuple.Result.Item2;
-                    Debug.Assert(measurements.Length == iterations);
+                    ClassicAssert.IsTrue(measurements.Length == iterations);
                     lock (timers)
                     {
                         timers.Add(measurements);
@@ -73,13 +74,13 @@ namespace Odin.Hosting.Tests.Performance
 
             sw.Stop();
 
-            Debug.Assert(timers.Count == maxThreads);
+            ClassicAssert.IsTrue(timers.Count == maxThreads);
             long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (maxThreads * iterations));
+            ClassicAssert.IsTrue(oneDimensionalArray.Length == (maxThreads * iterations));
 
             Array.Sort(oneDimensionalArray);
             for (var i = 1; i < maxThreads * iterations; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
+                ClassicAssert.IsTrue(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
             PerformanceLog(maxThreads, iterations, sw.ElapsedMilliseconds, oneDimensionalArray);
             if (fileByteLength > 0)
@@ -104,7 +105,7 @@ namespace Odin.Hosting.Tests.Performance
                 tasks[i] = Task.Run(async () =>
                 {
                     (long bw, long[] measurements) = await functionToExecute(threadIndex, iterations);
-                    Debug.Assert(measurements.Length == iterations);
+                    ClassicAssert.IsTrue(measurements.Length == iterations);
                     lock (timers)
                     {
                         timers.Add(measurements);
@@ -117,13 +118,13 @@ namespace Odin.Hosting.Tests.Performance
 
             sw.Stop();
 
-            Debug.Assert(timers.Count == maxThreads);
+            ClassicAssert.IsTrue(timers.Count == maxThreads);
             long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (maxThreads * iterations));
+            ClassicAssert.IsTrue(oneDimensionalArray.Length == (maxThreads * iterations));
 
             Array.Sort(oneDimensionalArray);
             for (int i = 1; i < maxThreads * iterations; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
+                ClassicAssert.IsTrue(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
             PerformanceLog(maxThreads, iterations, sw.ElapsedMilliseconds, oneDimensionalArray);
             if (fileByteLength > 0)
