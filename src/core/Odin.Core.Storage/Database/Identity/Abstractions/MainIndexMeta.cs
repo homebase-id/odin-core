@@ -11,6 +11,22 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
 {
+    public enum Sorting
+    {
+        FileId = 0, // OBSOLETE
+        UserDate = 1,
+        CreatedDate = 2,
+        ModifiedDate = 3
+    }
+
+    public enum Ordering
+    {
+        Default = 0,
+        NewestFirst = 1,
+        OldestFirst = 2
+    }
+
+
     public class MainIndexMeta(
         ScopedIdentityConnectionFactory scopedConnectionFactory,
         IdentityKey identityKey,
@@ -242,7 +258,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             int noOfItems,
             QueryBatchCursor cursor,
             bool newestFirstOrder,
-            bool createdSort = true,
+            Sorting sort = Sorting.CreatedDate,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -306,7 +322,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 direction = "ASC";
             }
 
-            string timeField = createdSort ? "created" : "userDate";
+            string timeField = "created";
+            if (sort == Sorting.CreatedDate)
+                timeField = "driveMainIndex.created";
+            if (sort == Sorting.UserDate)
+                timeField = "driveMainIndex.userDate";
+            if (sort == Sorting.ModifiedDate)
+                timeField = "COALESCE(driveMainIndex.modified,driveMainIndex.created)"; // TODO FIX THIS
 
             var listWhereAnd = new List<string>();
 
@@ -320,7 +342,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         cursor.pagingCursor.rowId = 0;
                 }
 
-                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {sign} ({cursor.pagingCursor.Time.milliseconds}, {cursor.pagingCursor.rowId})");
+                listWhereAnd.Add($"({timeField}, driveMainIndex.rowId) {sign} ({cursor.pagingCursor.Time.milliseconds}, {cursor.pagingCursor.rowId})");
             }
 
             if (cursor.stopAtBoundary != null)
@@ -333,7 +355,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                         cursor.stopAtBoundary.rowId = 0;
                 }
 
-                listWhereAnd.Add($"(driveMainIndex.{timeField}, driveMainIndex.rowId) {isign} ({cursor.stopAtBoundary.Time.milliseconds}, {cursor.stopAtBoundary.rowId})");
+                listWhereAnd.Add($"({timeField}, driveMainIndex.rowId) {isign} ({cursor.stopAtBoundary.Time.milliseconds}, {cursor.stopAtBoundary.rowId})");
             }
 
             if (IsSet(fileStateAnyOf))
@@ -345,14 +367,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
                 fileSystemType, driveId);
 
-            // string selectOutputFields    = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData, hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
-            // string selectOutputFields = "driveMainIndex.fileId, globalTransitId, fileState, requiredSecurityGroup, fileSystemType, userDate, fileType, dataType, archivalStatus, historyStatus, senderId, groupId, uniqueId, byteCount, hdrEncryptedKeyHeader, hdrVersionTag, hdrAppData,                                    hdrReactionSummary, hdrServerData, hdrTransferHistory, hdrFileMetaData, hdrTmpDriveAlias, hdrTmpDriveType, created, modified";
-            /*if (fileIdSort)
-                selectOutputFields = "driveMainIndex.fileId";
-            else
-                selectOutputFields = "driveMainIndex.fileId, userDate";*/
-
-            var order = $"driveMainIndex.{timeField} {direction}, driveMainIndex.rowId {direction}";
+            var order = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
@@ -362,20 +377,16 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             cmd.CommandText = stm;
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
             {
-                var result = new List<DriveMainIndexRecord>();
-                UnixTimeUtc datatime = 0;
-                long rowid = 0;
+                var resultList = new List<DriveMainIndexRecord>();
 
                 int i = 0;
+                DriveMainIndexRecord record = null;
+
                 while (await rdr.ReadAsync())
                 {
-                    var r = driveMainIndex.ReadAllColumns(rdr, driveId);
+                    record = driveMainIndex.ReadAllColumns(rdr, driveId);
 
-                    result.Add(r);
-
-
-                    rowid = r.rowId;
-                    datatime = createdSort ? r.created : r.userDate;
+                    resultList.Add(record);
 
                     i++;
                     if (i >= noOfItems)
@@ -384,12 +395,17 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 if (i > 0)
                 {
-                    cursor.pagingCursor = new TimeRowCursor(datatime, rowid);
+                    if (sort == Sorting.UserDate)
+                        cursor.pagingCursor = new TimeRowCursor(record.userDate, record.rowId);
+                    else if (sort == Sorting.ModifiedDate)
+                        cursor.pagingCursor = new TimeRowCursor(record.modified ?? record.created, record.rowId); // TODO FIX
+                    else
+                        cursor.pagingCursor = new TimeRowCursor(record.created, record.rowId);
                 }
 
                 bool hasMoreRows = await rdr.ReadAsync(); // Unfortunately, this seems like the only way to know if there's more rows
 
-                return (result, hasMoreRows, cursor);
+                return (resultList, hasMoreRows, cursor);
             } // using rdr
         }
 
@@ -436,7 +452,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 QueryBatchAsync(driveId, noOfItems,
                     cursor,
                     newestFirstOrder: true,
-                    createdSort: true,
+                    Sorting.CreatedDate,
                     fileSystemType,
                     fileStateAnyOf,
                     requiredSecurityGroup,

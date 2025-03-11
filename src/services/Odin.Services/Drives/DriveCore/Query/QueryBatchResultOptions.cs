@@ -1,4 +1,5 @@
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 
 namespace Odin.Services.Drives.DriveCore.Query;
 
@@ -8,9 +9,10 @@ public class QueryBatchResultOptions : ResultOptions
 
     public Ordering Ordering { get; set; } = Ordering.Default;
 
-    public Sorting Sorting { get; set; } = Sorting.FileId;
+    public Sorting Sorting { get; set; } = Sorting.CreatedDate;
 }
 
+/*
 public enum Sorting
 {
     FileId = 0,
@@ -22,4 +24,4 @@ public enum Ordering
     Default = 0,
     NewestFirst = 1,
     OldestFirst = 2
-}
+}*/
