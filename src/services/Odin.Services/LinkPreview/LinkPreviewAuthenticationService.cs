@@ -21,7 +21,7 @@ public class LinkPreviewAuthenticationService(DriveManager driveManager)
     /// </summary>
     public async Task<IOdinContext> GetDotYouContextAsync(IOdinContext odinContext)
     {
-        var creator = new Func<Task<IOdinContext>>(async delegate
+        var creator = new Func<Task<IOdinContext>>(async () =>
         {
             var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContextAsync(odinContext);

@@ -36,14 +36,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             var s = r.hdrReactionSummary;
             var m = r.modified;
-            Debug.Assert(m == null);
+            ClassicAssert.IsTrue(m == null);
 
             var s2 = "a new summary";
             await tblDriveMainIndex.UpdateReactionSummaryAsync(driveId, f1, s2);
             var r2 = await tblDriveMainIndex.GetAsync(driveId, f1);
             var m2 = r2.modified;
-            Debug.Assert(r2.hdrReactionSummary == s2);
-            Debug.Assert(m2 != null);
+            ClassicAssert.IsTrue(r2.hdrReactionSummary == s2);
+            ClassicAssert.IsTrue(m2 != null);
         }
 
         [Test]
@@ -69,14 +69,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             var s = r.hdrTransferHistory;
             var m = r.modified;
-            Debug.Assert(m == null);
+            ClassicAssert.IsTrue(m == null);
 
             var s2 = "a new transfer status";
             await tblDriveMainIndex.UpdateTransferSummaryAsync(driveId, f1, s2, UnixTimeUtc.Now());
             var r2 = await tblDriveMainIndex.GetAsync(driveId, f1);
             var m2 = r2.modified;
-            Debug.Assert(r2.hdrTransferHistory == s2);
-            Debug.Assert(m2 != null);
+            ClassicAssert.IsTrue(r2.hdrTransferHistory == s2);
+            ClassicAssert.IsTrue(m2 != null);
         }
 
         [Test]

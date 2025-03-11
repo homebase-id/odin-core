@@ -44,7 +44,7 @@ public class IdentitiesIFollowAuthenticationService
             ClientTokenType = ClientTokenType.DataProvider
         };
 
-        var creator = new Func<Task<IOdinContext>>(async delegate
+        var creator = new Func<Task<IOdinContext>>(async () =>
         {
             var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContextAsync(callerOdinId, tempToken);

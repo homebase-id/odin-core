@@ -122,13 +122,13 @@ public class NotaryControllerTest
         if (response.StatusCode == HttpStatusCode.OK)
         {
             hashToSignBase64 = await response.Content.ReadAsStringAsync();
-            Debug.Assert(hashToSignBase64.Length > 1);
+            ClassicAssert.IsTrue(hashToSignBase64.Length > 1);
 
             byte[] previousHashToSign = Convert.FromBase64String(hashToSignBase64);
 
             // Assert
-            Debug.Assert(previousHashToSign.Length >= 16);
-            Debug.Assert(previousHashToSign.Length <= 32);
+            ClassicAssert.IsTrue(previousHashToSign.Length >= 16);
+            ClassicAssert.IsTrue(previousHashToSign.Length <= 32);
         }
         return (signedDocument, hashToSignBase64);
     }

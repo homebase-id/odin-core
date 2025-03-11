@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
@@ -27,7 +28,7 @@ public class TableKeyValueTests : IocTestBase
         var v2 = Guid.NewGuid().ToByteArray();
 
         var r = await tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
         await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
         await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
@@ -55,7 +56,7 @@ public class TableKeyValueTests : IocTestBase
         var v2 = Guid.NewGuid().ToByteArray();
 
         var r = await tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
         await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
 
@@ -71,7 +72,7 @@ public class TableKeyValueTests : IocTestBase
             ok = false;
         }
 
-        Debug.Assert(ok == false);
+        ClassicAssert.IsTrue(ok == false);
 
         r = await tblKeyValue.GetAsync(k1);
         if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
@@ -95,7 +96,7 @@ public class TableKeyValueTests : IocTestBase
         var v2 = Guid.NewGuid().ToByteArray();
 
         var r = await tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
         await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
         await tblKeyValue.UpdateAsync(new KeyValueRecord() { key = k1, data = v2 });
@@ -124,7 +125,7 @@ public class TableKeyValueTests : IocTestBase
         var v2 = Guid.NewGuid().ToByteArray();
 
         var r = await tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
         await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
 
@@ -140,7 +141,7 @@ public class TableKeyValueTests : IocTestBase
             ok = false;
         }
 
-        Debug.Assert(ok == true);
+        ClassicAssert.IsTrue(ok == true);
 
     }
 
@@ -163,7 +164,7 @@ public class TableKeyValueTests : IocTestBase
         var v2 = Guid.NewGuid().ToByteArray();
 
         var r = await tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
         await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
         await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
@@ -174,7 +175,7 @@ public class TableKeyValueTests : IocTestBase
 
         await tblKeyValue.DeleteAsync(k1);
         r = await tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
     }
 
 
@@ -196,7 +197,7 @@ public class TableKeyValueTests : IocTestBase
         var v3 = Guid.NewGuid().ToByteArray();
 
         var r = await tblKeyValue.GetAsync(k1);
-        Debug.Assert(r == null);
+        ClassicAssert.IsTrue(r == null);
 
         await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = k1, data = v1 });
         await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = k2, data = v2 });

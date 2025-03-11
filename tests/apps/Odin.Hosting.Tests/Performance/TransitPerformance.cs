@@ -157,7 +157,7 @@ TaskPerformanceTest_Transit
         {
             long fileByteLength = 0;
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var sw = new Stopwatch();
 
             var randomHeaderContent =

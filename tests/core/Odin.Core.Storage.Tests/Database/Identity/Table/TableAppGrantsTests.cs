@@ -30,7 +30,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d2 = Guid.NewGuid().ToByteArray();
 
             var i = await tblAppGrants.InsertAsync(new AppGrantsRecord() { appId = c1, circleId = c2, data = d1, odinHashId = c3 });
-            Debug.Assert(i == 1);
+            ClassicAssert.IsTrue(i == 1);
         }
 
         [Test]

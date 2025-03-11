@@ -79,7 +79,7 @@ namespace Odin.Hosting.Tests.Performance
         public async Task<(long, long[])> DoIdent(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var sw = new Stopwatch();
 
             var anonClient = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
@@ -151,7 +151,7 @@ namespace Odin.Hosting.Tests.Performance
         public async Task<(long, long[])> OwnerPing(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var sw = new Stopwatch();
 
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
@@ -180,7 +180,7 @@ namespace Odin.Hosting.Tests.Performance
         public async Task<(long, long[])> HttpOnlyPing(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var sw = new Stopwatch();
 
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);

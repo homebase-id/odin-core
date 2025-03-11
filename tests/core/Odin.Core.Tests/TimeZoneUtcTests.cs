@@ -72,19 +72,19 @@ namespace Odin.Core.Tests
         public void TimeZoneUtc03()
         {
             var tz = new TimeZoneUtc(1, 0);
-            Debug.Assert(tz.ToString() == "UTC+01:00");
+            ClassicAssert.IsTrue(tz.ToString() == "UTC+01:00");
 
             tz = new TimeZoneUtc(10, 15);
-            Debug.Assert(tz.ToString() == "UTC+10:15");
+            ClassicAssert.IsTrue(tz.ToString() == "UTC+10:15");
 
             tz = new TimeZoneUtc(0, 15);
-            Debug.Assert(tz.ToString() == "UTC+00:15");
+            ClassicAssert.IsTrue(tz.ToString() == "UTC+00:15");
 
             tz = new TimeZoneUtc(-1, 30);
-            Debug.Assert(tz.ToString() == "UTC-01:30");
+            ClassicAssert.IsTrue(tz.ToString() == "UTC-01:30");
 
             tz = new TimeZoneUtc(-11, 45);
-            Debug.Assert(tz.ToString() == "UTC-11:45");
+            ClassicAssert.IsTrue(tz.ToString() == "UTC-11:45");
 
             Assert.Pass();
         }
