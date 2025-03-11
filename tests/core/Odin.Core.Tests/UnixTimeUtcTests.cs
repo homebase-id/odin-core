@@ -15,8 +15,8 @@ namespace Odin.Core.Tests
         {
             var s = new UnixTimeUtc();
             var ms = new UnixTimeUtc(s);
-            Debug.Assert(s.milliseconds == ms.milliseconds);
-            Debug.Assert(s.seconds == ms.seconds);
+            ClassicAssert.IsTrue(s.milliseconds == ms.milliseconds);
+            ClassicAssert.IsTrue(s.seconds == ms.seconds);
         }
 
         [Test]
@@ -24,19 +24,19 @@ namespace Odin.Core.Tests
         {
             var os = new UnixTimeUtc();
             var ts = os;
-            Debug.Assert(ts.milliseconds == os.milliseconds);
+            ClassicAssert.IsTrue(ts.milliseconds == os.milliseconds);
 
             var ns = ts.AddSeconds(1);
-            Debug.Assert(ns.milliseconds == ts.milliseconds + 1000); // The original unchanged
-            Debug.Assert(ns.seconds == ts.seconds + 1);
+            ClassicAssert.IsTrue(ns.milliseconds == ts.milliseconds + 1000); // The original unchanged
+            ClassicAssert.IsTrue(ns.seconds == ts.seconds + 1);
 
             ts = ns.AddMilliseconds(500);
-            Debug.Assert(os.milliseconds + 1500 == ts.milliseconds);
+            ClassicAssert.IsTrue(os.milliseconds + 1500 == ts.milliseconds);
 
             var pp = ts.AddMilliseconds(250);
-            Debug.Assert(os.milliseconds + 1500 == ts.milliseconds);
-            Debug.Assert(os.milliseconds + 1750 == pp.milliseconds);
-            Debug.Assert(pp != os);
+            ClassicAssert.IsTrue(os.milliseconds + 1500 == ts.milliseconds);
+            ClassicAssert.IsTrue(os.milliseconds + 1750 == pp.milliseconds);
+            ClassicAssert.IsTrue(pp != os);
         }
 
 
@@ -46,7 +46,7 @@ namespace Odin.Core.Tests
             var ts1 = UnixTimeUtc.Now();
             Int64 ms = ts1.milliseconds;
             ts1 = ts1.AddSeconds(24 * 3600);
-            Debug.Assert(ts1.milliseconds > ms);
+            ClassicAssert.IsTrue(ts1.milliseconds > ms);
         }
 
 
@@ -55,16 +55,16 @@ namespace Odin.Core.Tests
         {
             var ts1 = UnixTimeUtc.Now();
             var ts2 = ts1;
-            Debug.Assert(ts1 == ts2);
-            Debug.Assert(ts1 >= ts2);
-            Debug.Assert(ts1 <= ts2);
+            ClassicAssert.IsTrue(ts1 == ts2);
+            ClassicAssert.IsTrue(ts1 >= ts2);
+            ClassicAssert.IsTrue(ts1 <= ts2);
 
             ts1 = ts1.AddSeconds(24 * 3600);
-            Debug.Assert(ts1 > ts2);
-            Debug.Assert(ts1 >= ts2);
-            Debug.Assert(ts2 < ts1);
-            Debug.Assert(ts2 <= ts1);
-            Debug.Assert(ts1 != ts2);
+            ClassicAssert.IsTrue(ts1 > ts2);
+            ClassicAssert.IsTrue(ts1 >= ts2);
+            ClassicAssert.IsTrue(ts2 < ts1);
+            ClassicAssert.IsTrue(ts2 <= ts1);
+            ClassicAssert.IsTrue(ts1 != ts2);
         }
 
         [Test]

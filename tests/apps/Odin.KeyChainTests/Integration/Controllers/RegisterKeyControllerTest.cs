@@ -96,7 +96,7 @@ public class RegisterKeyControllerTest
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Debug.Assert(content.Length > 1);
+        ClassicAssert.IsTrue(content.Length > 1);
     }
 
     //
@@ -130,9 +130,9 @@ public class RegisterKeyControllerTest
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Debug.Assert(previousHashBase64.Length > 1);
-        Debug.Assert(previousHash.Length >= 16);
-        Debug.Assert(previousHash.Length <= 32);
+        ClassicAssert.IsTrue(previousHashBase64.Length > 1);
+        ClassicAssert.IsTrue(previousHash.Length >= 16);
+        ClassicAssert.IsTrue(previousHash.Length <= 32);
 
         return (previousHashBase64, signedInstruction);
     }

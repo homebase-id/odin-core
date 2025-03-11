@@ -259,7 +259,7 @@ TaskPerformanceTest
         public async Task<(long, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var sw = new Stopwatch();
             long fileByteLength = 0;
 

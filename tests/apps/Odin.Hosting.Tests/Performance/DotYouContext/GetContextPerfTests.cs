@@ -100,7 +100,7 @@ namespace Odin.Hosting.Tests.Performance.DotYouContext
         public async Task<(long, long[])> AppPing(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var sw = new Stopwatch();
 
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);

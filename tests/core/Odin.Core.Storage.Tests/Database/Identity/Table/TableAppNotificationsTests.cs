@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -30,11 +31,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d2 = Guid.NewGuid().ToByteArray();
 
             var i = await tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
-            Debug.Assert(i == 1);
+            ClassicAssert.IsTrue(i == 1);
             var r = await tblAppNotificationsTable.GetAsync(nid);
-            Debug.Assert(r != null);
-            Debug.Assert(ByteArrayUtil.EquiByteArrayCompare(nid.ToByteArray(), r.notificationId.ToByteArray()) == true);
-            Debug.Assert(r.senderId == "frodo.com");
+            ClassicAssert.IsTrue(r != null);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(nid.ToByteArray(), r.notificationId.ToByteArray()) == true);
+            ClassicAssert.IsTrue(r.senderId == "frodo.com");
         }
 
         [Test]
@@ -56,22 +57,22 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var d2 = Guid.NewGuid().ToByteArray();
 
             var i = await tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
-            Debug.Assert(i == 1);
+            ClassicAssert.IsTrue(i == 1);
             i = await tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord() { notificationId = nid2, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
-            Debug.Assert(i == 1);
+            ClassicAssert.IsTrue(i == 1);
 
             var (results, cursor) = await tblAppNotificationsTable.PagingByCreatedAsync(1, null);
 
-            Debug.Assert(results.Count == 1);
-            Debug.Assert(cursor != null);
+            ClassicAssert.IsTrue(results.Count == 1);
+            ClassicAssert.IsTrue(cursor != null);
             var c = TimeRowCursor.FromJsonOrOldString(cursor);
-            Debug.Assert(c.Time == results[0].created);
-            Debug.Assert(c.rowId == 2);
+            ClassicAssert.IsTrue(c.Time == results[0].created);
+            ClassicAssert.IsTrue(c.rowId == 2);
 
             (results, cursor) = await tblAppNotificationsTable.PagingByCreatedAsync(1, cursor);
 
-            Debug.Assert(results.Count == 1);
-            Debug.Assert(cursor == null);
+            ClassicAssert.IsTrue(results.Count == 1);
+            ClassicAssert.IsTrue(cursor == null);
         }
     }
 }

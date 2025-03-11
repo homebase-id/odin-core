@@ -192,8 +192,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(r.recipient == "frodo.baggins.me");
 
             var (ti, tp, nrt) = await tblOutbox.OutboxStatusAsync();
-            Debug.Assert(ti == 5);
-            Debug.Assert(tp == 1);
+            ClassicAssert.IsTrue(ti == 5);
+            ClassicAssert.IsTrue(tp == 1);
             var (ti1, tp1, nrt1) = await tblOutbox.OutboxStatusDriveAsync(driveId);
             ClassicAssert.IsTrue(ti == ti1);
             ClassicAssert.IsTrue(tp == tp1);
@@ -572,8 +572,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r1 = await tblOutbox.CheckOutItemAsync();
             await tblOutbox.CompleteAndRemoveAsync((Guid)r1.checkOutStamp);
             var (ti, tp, nrt) = await tblOutbox.OutboxStatusAsync();
-            Debug.Assert(ti == 4);
-            Debug.Assert(tp == 0);
+            ClassicAssert.IsTrue(ti == 4);
+            ClassicAssert.IsTrue(tp == 0);
         }
 
 
@@ -646,15 +646,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r2 = await tblOutbox.CheckOutItemAsync();
 
             var (ti, tp, nrt) = await tblOutbox.OutboxStatusAsync();
-            Debug.Assert(ti == 5);
-            Debug.Assert(tp == 2);
+            ClassicAssert.IsTrue(ti == 5);
+            ClassicAssert.IsTrue(tp == 2);
 
             // Recover all items older than the future (=all)
             await tblOutbox.RecoverCheckedOutDeadItemsAsync(UnixTimeUtc.Now().AddSeconds(2));
 
             (ti, tp, nrt) = await tblOutbox.OutboxStatusAsync();
-            Debug.Assert(ti == 5);
-            Debug.Assert(tp == 0);
+            ClassicAssert.IsTrue(ti == 5);
+            ClassicAssert.IsTrue(tp == 0);
 
             r1 = await tblOutbox.CheckOutItemAsync();
             r2 = await tblOutbox.CheckOutItemAsync();
@@ -662,8 +662,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Recover items older than long ago (=none)
             await tblOutbox.RecoverCheckedOutDeadItemsAsync(UnixTimeUtc.Now().AddSeconds(-2));
             (ti, tp, nrt) = await tblOutbox.OutboxStatusAsync();
-            Debug.Assert(ti == 5);
-            Debug.Assert(tp == 2);
+            ClassicAssert.IsTrue(ti == 5);
+            ClassicAssert.IsTrue(tp == 2);
         }
 
         [Test]

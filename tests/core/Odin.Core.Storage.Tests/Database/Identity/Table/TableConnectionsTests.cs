@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -59,16 +60,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // We have three connections, get the first two in the first page, then the last page of one
             //
             var (r, outCursor) = await tblConnections.PagingByIdentityAsync(2, null);
-            Debug.Assert(r.Count == 2);
+            ClassicAssert.IsTrue(r.Count == 2);
 
             (r, outCursor) = await tblConnections.PagingByIdentityAsync(2, outCursor);
-            Debug.Assert(r.Count == 1, message: "rdr.HasRows is the sinner");
-            Debug.Assert(outCursor == null);
+            ClassicAssert.IsTrue(r.Count == 1, message: "rdr.HasRows is the sinner");
+            ClassicAssert.IsTrue(outCursor == null);
 
 
             // Try the filter ones
             (r, outCursor) = await tblConnections.PagingByIdentityAsync(2, 42, null);
-            Debug.Assert(r.Count == 1);
+            ClassicAssert.IsTrue(r.Count == 1);
 
         }
 
@@ -99,11 +100,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblConnections.UpsertAsync(item);
 
             var r = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Debug.Assert(r.identity == "frodo.baggins.me");
-            Debug.Assert(r.displayName == "Frodo Baggins");
-            Debug.Assert(r.status == 42);
-            Debug.Assert(r.accessIsRevoked == 0);
-            Debug.Assert((ByteArrayUtil.muidcmp(r.data, g1.ToByteArray()) == 0));
+            ClassicAssert.IsTrue(r.identity == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r.displayName == "Frodo Baggins");
+            ClassicAssert.IsTrue(r.status == 42);
+            ClassicAssert.IsTrue(r.accessIsRevoked == 0);
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r.data, g1.ToByteArray()) == 0));
 
         }
 
@@ -132,14 +133,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             };
 
             var r = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
             await tblConnections.UpsertAsync(item);
             r = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
-            Debug.Assert(r.identity == "frodo.baggins.me");
-            Debug.Assert(r.displayName == "");
-            Debug.Assert(r.status == 42);
-            Debug.Assert(r.accessIsRevoked == 1);
-            Debug.Assert((ByteArrayUtil.muidcmp(r.data, g1.ToByteArray()) == 0));
+            ClassicAssert.IsTrue(r.identity == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r.displayName == "");
+            ClassicAssert.IsTrue(r.status == 42);
+            ClassicAssert.IsTrue(r.accessIsRevoked == 1);
+            ClassicAssert.IsTrue((ByteArrayUtil.muidcmp(r.data, g1.ToByteArray()) == 0));
 
         }
 
@@ -197,25 +198,25 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             //
 
             var (r, cursor) = await tblConnections.PagingByCreatedAsync(2, null);
-            Debug.Assert(r.Count == 2);
-            Debug.Assert(r[0].identity == "gandalf.white.me");
-            Debug.Assert(r[1].identity == "samwise.gamgee.me");
-            Debug.Assert(cursor != null);
+            ClassicAssert.IsTrue(r.Count == 2);
+            ClassicAssert.IsTrue(r[0].identity == "gandalf.white.me");
+            ClassicAssert.IsTrue(r[1].identity == "samwise.gamgee.me");
+            ClassicAssert.IsTrue(cursor != null);
             (r, cursor) = await tblConnections.PagingByCreatedAsync(2, cursor);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0].identity == "frodo.baggins.me");
-            Debug.Assert(cursor == null);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0].identity == "frodo.baggins.me");
+            ClassicAssert.IsTrue(cursor == null);
 
 
             // TEST THE HANDCODED
             (r, cursor) = await tblConnections.PagingByCreatedAsync(1, 42, null);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0].identity == "gandalf.white.me");
-            Debug.Assert(cursor != null);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0].identity == "gandalf.white.me");
+            ClassicAssert.IsTrue(cursor != null);
             (r, cursor) = await tblConnections.PagingByCreatedAsync(2, 42, cursor);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0].identity == "frodo.baggins.me");
-            Debug.Assert(cursor == null);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0].identity == "frodo.baggins.me");
+            ClassicAssert.IsTrue(cursor == null);
 
         }
 
@@ -267,38 +268,38 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
 
             var (r, outCursor) = await tblConnections.PagingByIdentityAsync(2, null);
-            Debug.Assert(r.Count == 2);
-            Debug.Assert(r[0].identity == "frodo.baggins.me");
-            Debug.Assert(r[1].identity == "gandalf.white.me");
+            ClassicAssert.IsTrue(r.Count == 2);
+            ClassicAssert.IsTrue(r[0].identity == "frodo.baggins.me");
+            ClassicAssert.IsTrue(r[1].identity == "gandalf.white.me");
 
             (r, outCursor) = await tblConnections.PagingByIdentityAsync(2, outCursor);
-            Debug.Assert(r.Count == 1, message: "rdr.HasRows is the sinner");
-            Debug.Assert(r[0].identity == "samwise.gamgee.me");
-            Debug.Assert(outCursor == null);
+            ClassicAssert.IsTrue(r.Count == 1, message: "rdr.HasRows is the sinner");
+            ClassicAssert.IsTrue(r[0].identity == "samwise.gamgee.me");
+            ClassicAssert.IsTrue(outCursor == null);
 
             // TEST HAND CODED STATUS FILTER
             (r, outCursor) = await tblConnections.PagingByIdentityAsync(1, 42, null);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0].identity == "frodo.baggins.me");
-            Debug.Assert(outCursor != null);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0].identity == "frodo.baggins.me");
+            ClassicAssert.IsTrue(outCursor != null);
             (r, outCursor) = await tblConnections.PagingByIdentityAsync(1, 42, outCursor);
-            Debug.Assert(r[0].identity == "gandalf.white.me");
-            Debug.Assert(outCursor == null);
+            ClassicAssert.IsTrue(r[0].identity == "gandalf.white.me");
+            ClassicAssert.IsTrue(outCursor == null);
 
 
 
             // Get most recent (will be a different order)
             (r, var cursor) = await tblConnections.PagingByCreatedAsync(2, null);
-            Debug.Assert(r.Count == 2);
-            Debug.Assert(r[0].identity == "gandalf.white.me");
-            Debug.Assert(r[1].identity == "samwise.gamgee.me");
-            Debug.Assert(cursor != null);
+            ClassicAssert.IsTrue(r.Count == 2);
+            ClassicAssert.IsTrue(r[0].identity == "gandalf.white.me");
+            ClassicAssert.IsTrue(r[1].identity == "samwise.gamgee.me");
+            ClassicAssert.IsTrue(cursor != null);
 
             // TEST THE HANDCODED
             (r, cursor) = await tblConnections.PagingByCreatedAsync(2, 43, null);
-            Debug.Assert(r.Count == 1);
-            Debug.Assert(r[0].identity == "samwise.gamgee.me");
-            Debug.Assert(cursor == null);
+            ClassicAssert.IsTrue(r.Count == 1);
+            ClassicAssert.IsTrue(r[0].identity == "samwise.gamgee.me");
+            ClassicAssert.IsTrue(cursor == null);
 
 
             // PagingByCreated is NOT designed to be used with anything except the first page.

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
@@ -29,7 +30,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = await tblKeyValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
 
             await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k1, data = v1 });
             await tblKeyValue.InsertAsync(new KeyValueRecord() { key = k2, data = v2 });
