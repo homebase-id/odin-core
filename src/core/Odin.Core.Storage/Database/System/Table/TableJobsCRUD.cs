@@ -348,7 +348,6 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"CREATE INDEX IF NOT EXISTS Idx0Jobs ON Jobs(state);"
                    +"CREATE INDEX IF NOT EXISTS Idx1Jobs ON Jobs(expiresAt);"
                    +"CREATE INDEX IF NOT EXISTS Idx2Jobs ON Jobs(nextRun,priority);"
-                   +"CREATE INDEX IF NOT EXISTS Idx3Jobs ON Jobs(jobHash);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }

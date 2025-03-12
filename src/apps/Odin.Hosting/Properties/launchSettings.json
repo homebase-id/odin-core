@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": ""
+      "commandLineArgs": "--create-rowid /home/seb/tmp/create-rowid/data --commit"
     }
   }
 }

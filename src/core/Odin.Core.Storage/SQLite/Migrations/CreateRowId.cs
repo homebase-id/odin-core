@@ -30,8 +30,10 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 //  1) Make sure container is stopped: docker compose down
 //  2) Make sure container is gone: docker container prune
 //  3) Build and deploy docker image with migration code - DO NOT START IT
-//  4) Change to directory /identity-host/data/tenants
-//  5) Backup the registrations: sudo zip -r registrations-backup.zip registrations
+//  4a) Change to directory /identity-host/data/
+//  4b) Backup the system: sudo zip -r system-backup.zip system
+//  5a) Change to directory /identity-host/data/tenants
+//  5b) Backup the registrations: sudo zip -r registrations-backup.zip registrations
 //  6) Change to directory /identity-host
 //  7) Edit the docker-compose.yml file, add the correct command line param to start the migration
 //  8) Start the docker image: docker compose up
@@ -49,9 +51,12 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 //  0) Change to directory /identity-host
 //  1) Make sure container is stopped: docker compose down
 //  2) Make sure container is gone: docker container prune
-//  3) Change to directory /identity-host/data/tenants
-//  4) Remove registrations: sudo rm -rf registrations
-//  5) Restore registrations: sudo unzip registrations-backup.zip
+//  3a) Change to directory /identity-host/data/
+//  3b) Remove system: sudo rm -rf system
+//  3c) Restore system: sudo unzip system-backup.zip
+//  4a) Change to directory /identity-host/data/tenants
+//  4b) Remove registrations: sudo rm -rf registrations
+//  4c) Restore registrations: sudo unzip registrations-backup.zip
 //  6) Redeploy the docker image (this will overwrite the compose changes) - START IT
 //
 
@@ -65,7 +70,7 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 
 // PROD:
 // run params:
-//   --create-rowid /identity-host/data --commit <--dryrun | --commit>
+//   --create-rowid /identity-host/data <--dryrun | --commit>
 
 public class CreateRowId
 {
