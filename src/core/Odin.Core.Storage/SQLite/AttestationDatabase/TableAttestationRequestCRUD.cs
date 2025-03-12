@@ -92,12 +92,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             await using var cmd = conn.db.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS attestationRequest;";
+                cmd.CommandText = "DROP TABLE IF EXISTS AttestationRequest;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS attestationRequest("
+                "CREATE TABLE IF NOT EXISTS AttestationRequest("
                    +"attestationId TEXT NOT NULL UNIQUE, "
                    +"requestEnvelope TEXT NOT NULL UNIQUE, "
                    +"timestamp BIGINT NOT NULL "
@@ -111,7 +111,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
+                insertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
                                              "VALUES (@attestationId,@requestEnvelope,@timestamp)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
@@ -138,7 +138,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
+                insertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
                                              "VALUES (@attestationId,@requestEnvelope,@timestamp) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -166,7 +166,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var upsertCommand = conn.db.CreateCommand())
             {
-                upsertCommand.CommandText = "INSERT INTO attestationRequest (attestationId,requestEnvelope,timestamp) " +
+                upsertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
                                              "VALUES (@attestationId,@requestEnvelope,@timestamp)"+
                                              "ON CONFLICT (attestationId) DO UPDATE "+
                                              "SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
@@ -193,7 +193,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var updateCommand = conn.db.CreateCommand())
             {
-                updateCommand.CommandText = "UPDATE attestationRequest " +
+                updateCommand.CommandText = "UPDATE AttestationRequest " +
                                              "SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
                                              "WHERE (attestationId = @attestationId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -222,7 +222,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var getCountCommand = conn.db.CreateCommand())
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM attestationRequest;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM AttestationRequest;";
                 var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -262,7 +262,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             if (attestationId?.Length > 65535) throw new Exception("Too long");
             using (var delete0Command = conn.db.CreateCommand())
             {
-                delete0Command.CommandText = "DELETE FROM attestationRequest " +
+                delete0Command.CommandText = "DELETE FROM AttestationRequest " +
                                              "WHERE attestationId = @attestationId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@attestationId";
@@ -303,7 +303,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 return (AttestationRequestRecord)cacheObject;
             using (var get0Command = conn.db.CreateCommand())
             {
-                get0Command.CommandText = "SELECT requestEnvelope,timestamp FROM attestationRequest " +
+                get0Command.CommandText = "SELECT requestEnvelope,timestamp FROM AttestationRequest " +
                                              "WHERE attestationId = @attestationId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -338,7 +338,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
             using (var getPaging0Command = conn.db.CreateCommand())
             {
-                getPaging0Command.CommandText = "SELECT attestationId,requestEnvelope,timestamp FROM attestationRequest " +
+                getPaging0Command.CommandText = "SELECT attestationId,requestEnvelope,timestamp FROM AttestationRequest " +
                                             "WHERE attestationId > @attestationId  ORDER BY attestationId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
                 getPaging0Param1.ParameterName = "@attestationId";

@@ -198,14 +198,14 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             await using var cmd = conn.db.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
+                cmd.CommandText = "DROP TABLE IF EXISTS KeyChain;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
             var rowid = "";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS keyChain("
+                "CREATE TABLE IF NOT EXISTS KeyChain("
                    +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "
@@ -224,7 +224,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
+                insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
@@ -267,7 +267,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
+                insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -311,7 +311,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         {
             using (var upsertCommand = conn.db.CreateCommand())
             {
-                upsertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
+                upsertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
                                              "ON CONFLICT (identity,publicKeyJwkBase64Url) DO UPDATE "+
                                              "SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
@@ -354,7 +354,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         {
             using (var updateCommand = conn.db.CreateCommand())
             {
-                updateCommand.CommandText = "UPDATE keyChain " +
+                updateCommand.CommandText = "UPDATE KeyChain " +
                                              "SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
                                              "WHERE (identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -399,7 +399,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var getCountCommand = conn.db.CreateCommand())
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM keyChain;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM KeyChain;";
                 var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -458,7 +458,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (publicKeyJwkBase64Url?.Length > 600) throw new Exception("Too long");
             using (var delete0Command = conn.db.CreateCommand())
             {
-                delete0Command.CommandText = "DELETE FROM keyChain " +
+                delete0Command.CommandText = "DELETE FROM KeyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identity";
@@ -520,7 +520,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 return (KeyChainRecord)cacheObject;
             using (var get0Command = conn.db.CreateCommand())
             {
-                get0Command.CommandText = "SELECT rowId,previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM keyChain " +
+                get0Command.CommandText = "SELECT rowId,previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM KeyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();

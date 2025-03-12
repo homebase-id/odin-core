@@ -99,7 +99,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
+                cmd.CommandText = "DROP TABLE IF EXISTS CircleMember;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
@@ -109,7 +109,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS circleMember("
+                "CREATE TABLE IF NOT EXISTS CircleMember("
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL, "
@@ -129,7 +129,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
+                insertCommand.CommandText = "INSERT INTO CircleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -164,7 +164,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
+                insertCommand.CommandText = "INSERT INTO CircleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -200,7 +200,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO circleMember (identityId,circleId,memberId,data) " +
+                upsertCommand.CommandText = "INSERT INTO CircleMember (identityId,circleId,memberId,data) " +
                                              "VALUES (@identityId,@circleId,@memberId,@data)"+
                                              "ON CONFLICT (identityId,circleId,memberId) DO UPDATE "+
                                              "SET data = @data "+
@@ -235,7 +235,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE circleMember " +
+                updateCommand.CommandText = "UPDATE CircleMember " +
                                              "SET data = @data "+
                                              "WHERE (identityId = @identityId AND circleId = @circleId AND memberId = @memberId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -269,7 +269,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM circleMember;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM CircleMember;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -313,7 +313,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM circleMember " +
+                delete0Command.CommandText = "DELETE FROM CircleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -358,7 +358,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,memberId,data FROM circleMember " +
+                get0Command.CommandText = "SELECT rowId,memberId,data FROM CircleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -414,7 +414,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,circleId,data FROM circleMember " +
+                get1Command.CommandText = "SELECT rowId,circleId,data FROM CircleMember " +
                                              "WHERE identityId = @identityId AND memberId = @memberId;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
@@ -473,7 +473,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT rowId,data FROM circleMember " +
+                get2Command.CommandText = "SELECT rowId,data FROM CircleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;"+
                                              ";";
                 var get2Param1 = get2Command.CreateParameter();
@@ -517,7 +517,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,circleId,memberId,data FROM circleMember " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,circleId,memberId,data FROM CircleMember " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
                 getPaging0Param1.ParameterName = "@rowId";

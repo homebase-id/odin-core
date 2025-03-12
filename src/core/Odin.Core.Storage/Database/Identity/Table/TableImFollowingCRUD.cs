@@ -97,7 +97,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS imFollowing;";
+                cmd.CommandText = "DROP TABLE IF EXISTS ImFollowing;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
@@ -107,7 +107,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS imFollowing("
+                "CREATE TABLE IF NOT EXISTS ImFollowing("
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
@@ -116,7 +116,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,identity,driveId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0imFollowing ON imFollowing(identityId,identity);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0ImFollowing ON ImFollowing(identityId,identity);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -127,7 +127,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
                                              "VALUES (@identityId,@identity,@driveId,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -167,7 +167,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
                                              "VALUES (@identityId,@identity,@driveId,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -208,7 +208,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO imFollowing (identityId,identity,driveId,created) " +
+                upsertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created) " +
                                              "VALUES (@identityId,@identity,@driveId,@created)"+
                                              "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
                                              "SET modified = @modified "+
@@ -257,7 +257,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE imFollowing " +
+                updateCommand.CommandText = "UPDATE ImFollowing " +
                                              "SET modified = @modified "+
                                              "WHERE (identityId = @identityId AND identity = @identity AND driveId = @driveId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -297,7 +297,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM imFollowing;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM ImFollowing;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -341,7 +341,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM imFollowing " +
+                delete0Command.CommandText = "DELETE FROM ImFollowing " +
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -385,7 +385,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,driveId,created,modified FROM imFollowing " +
+                get0Command.CommandText = "SELECT rowId,driveId,created,modified FROM ImFollowing " +
                                              "WHERE identityId = @identityId AND identity = @identity;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -443,7 +443,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,created,modified FROM imFollowing " +
+                get1Command.CommandText = "SELECT rowId,created,modified FROM ImFollowing " +
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
@@ -487,7 +487,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,identity,driveId,created,modified FROM imFollowing " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,identity,driveId,created,modified FROM ImFollowing " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
                 getPaging0Param1.ParameterName = "@rowId";

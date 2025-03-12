@@ -160,12 +160,16 @@ public class CreateRowId
             _logger.LogInformation("Starting migration: {srcDbPath} -> {dstDbPath}", srcDbPath, dstDbPath);
 
             // null-guids in Inbox' fileId
-            var scopedConnectionFactory = srcScope.Resolve<ScopedIdentityConnectionFactory>();
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
+            var srcScopedConnectionFactory = srcScope.Resolve<ScopedIdentityConnectionFactory>();
+            await using var srcCn = await srcScopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = srcCn.CreateCommand();
             cmd.CommandText = "DELETE FROM inbox WHERE fileId = @fileId";
             cmd.Parameters.Add(new SqliteParameter("@fileId", DbType.Binary) { Value = Guid.Empty.ToByteArray() });
             await cmd.ExecuteNonQueryAsync();
+
+            var dstScopedConnectionFactory = dstScope.Resolve<ScopedIdentityConnectionFactory>();
+            await using var dstCn = await dstScopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var dstTx = await dstCn.BeginStackedTransactionAsync();
 
             await MapIt<TableAppGrantsOldCRUD, AppGrantsOldRecord, TableAppGrants, AppGrantsRecord>(srcScope, dstScope);
             await MapIt<TableAppNotificationsOldCRUD, AppNotificationsOldRecord, TableAppNotifications, AppNotificationsRecord>(srcScope, dstScope);
@@ -186,6 +190,8 @@ public class CreateRowId
             await MapIt<TableKeyUniqueThreeValueOldCRUD, KeyUniqueThreeValueOldRecord, TableKeyUniqueThreeValue, KeyUniqueThreeValueRecord>(srcScope, dstScope);
             await MapIt<TableKeyValueOldCRUD, KeyValueOldRecord, TableKeyValue, KeyValueRecord>(srcScope, dstScope);
             await MapIt<TableOutboxOldCRUD, OutboxOldRecord, TableOutbox, OutboxRecord>(srcScope, dstScope);
+
+            dstTx.Commit();
         }
         finally
         {
