@@ -145,7 +145,7 @@ public class LinkPreviewService(
                 description,
                 person,
                 siteType: "website",
-                robotsTag: "",
+                robotsTag: "index, follow",
                 context.RequestAborted);
 
             await WriteAsync(content, context.RequestAborted);
@@ -441,7 +441,6 @@ public class LinkPreviewService(
         b.Append($"<h1 style='display:none;'>Loading {title}</h1>\n");
         b.Append($"<meta property='description' content='{description}'/>\n");
         b.Append($"<meta name='description' content='{description}'/>\n");
-        b.Append($"<meta name='robots' content='index, follow'>\n");
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
         b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
@@ -461,7 +460,8 @@ public class LinkPreviewService(
 
         string suffix = DefaultTitle;
         string siteType = "profile";
-        string robotsTag = "";
+        string robotsTag = "index, follow";
+
         if (IsPath("/links"))
         {
             suffix = "Links";
