@@ -170,9 +170,9 @@ public static class CommandLine
             return (true, 0);
         }
 
-        if (args.Length == 2 && args[0] == "--create-rowid")
+        if (args.Length == 3 && args[0] == "--create-rowid")
         {
-            CreateRowId.Execute(args[1]).GetAwaiter().GetResult();
+            CreateRowId.Execute(args[1], args[2] == "--commit").GetAwaiter().GetResult();
             return (true, 0);
         }
 

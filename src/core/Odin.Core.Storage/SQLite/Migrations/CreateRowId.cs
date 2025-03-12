@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Autofac;
@@ -60,17 +61,17 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 //   rsync -rvz yagni.dk:/identity-host/data/system $HOME/tmp/create-rowid/data
 //   rsync -rvz yagni.dk:/identity-host/data/tenants/registrations $HOME/tmp/create-rowid/data/tenants
 // run params:
-//   --create-rowid $HOME/tmp/create-rowid/data
+//   --create-rowid $HOME/tmp/create-rowid/data <--dryrun | --commit>
 
 // PROD:
 // run params:
-//   --create-rowid /identity-host/data
+//   --create-rowid /identity-host/data --commit <--dryrun | --commit>
 
 public class CreateRowId
 {
     private static ILogger<CreateRowId> _logger = new NullLogger<CreateRowId>();
 
-    public static async Task Execute(string dataRootPath)
+    public static async Task Execute(string dataRootPath, bool commit)
     {
         var systemDir = Path.Combine(dataRootPath, "system");
         await DoSystemDir(systemDir);
@@ -80,6 +81,20 @@ public class CreateRowId
         {
             await DoTenantDir(Guid.Parse(Path.GetFileName(tenantDir)), tenantDir);
         }
+
+        if (!commit)
+        {
+            _logger.LogInformation("Dry run - no changes committed");
+            return;
+        }
+
+        CommitSystemDir(systemDir);
+        foreach (var tenantDir in tenantDirs)
+        {
+            CommitTenantDir(tenantDir);
+        }
+
+        _logger.LogInformation("Changes committed");
     }
 
     //
@@ -123,6 +138,37 @@ public class CreateRowId
             await srcServices.DisposeAsync();
             await dstServices.DisposeAsync();
         }
+    }
+
+    //
+
+    private static void CommitSystemDir(string systemDir)
+    {
+        var patterns = new List<string>{ "*-shm", "*-wal" };
+        var files = patterns.SelectMany(pattern => Directory.GetFiles(systemDir, pattern)).Distinct().ToArray();
+
+        if (files.Length > 0)
+        {
+            throw new Exception("Database files not cleaned up: " + string.Join(", ", files));
+        }
+
+        var dbPath = Path.Combine(systemDir, "sys.db");
+        var srcDbPath = Path.Combine(systemDir, "src_sys.db");
+        var dstDbPath = Path.Combine(systemDir, "dst_sys.db");
+
+        if (!File.Exists(dstDbPath))
+        {
+            throw new Exception("Database not found: " + dbPath);
+        }
+
+        SqliteJournalMode.SetDelete(dbPath);
+        SqliteJournalMode.SetDelete(srcDbPath);
+        SqliteJournalMode.SetDelete(dstDbPath);
+
+        if (File.Exists(srcDbPath)) File.Delete(srcDbPath);
+        if (File.Exists(dbPath)) File.Delete(dbPath);
+
+        File.Move(dstDbPath, dbPath);
     }
 
     //
@@ -198,10 +244,42 @@ public class CreateRowId
             await srcServices.DisposeAsync();
             await dstServices.DisposeAsync();
         }
-
     }
 
-    public static async Task MapIt<TSrcTable, TSrcRecord, TDstTable, TDstRecord>(ILifetimeScope srcScope, ILifetimeScope dstScope)
+    //
+
+    private static void CommitTenantDir(string tenantDir)
+    {
+        var patterns = new List<string>{ "*-shm", "*-wal" };
+        var files = patterns.SelectMany(pattern => Directory.GetFiles(tenantDir, pattern)).Distinct().ToArray();
+
+        if (files.Length > 0)
+        {
+            throw new Exception("Database files not cleaned up: " + string.Join(", ", files));
+        }
+
+        var dbPath = Path.Combine(tenantDir, "headers", "identity.db");
+        var srcDbPath = Path.Combine(tenantDir, "headers", "src_identity.db");
+        var dstDbPath = Path.Combine(tenantDir, "headers", "dst_identity.db");
+
+        if (!File.Exists(dstDbPath))
+        {
+            throw new Exception("Database not found: " + dbPath);
+        }
+
+        SqliteJournalMode.SetDelete(dbPath);
+        SqliteJournalMode.SetDelete(srcDbPath);
+        SqliteJournalMode.SetDelete(dstDbPath);
+
+        if (File.Exists(srcDbPath)) File.Delete(srcDbPath);
+        if (File.Exists(dbPath)) File.Delete(dbPath);
+
+        File.Move(dstDbPath, dbPath);
+    }
+
+    //
+
+    private static async Task MapIt<TSrcTable, TSrcRecord, TDstTable, TDstRecord>(ILifetimeScope srcScope, ILifetimeScope dstScope)
     {
         _logger.LogInformation("  {from} -> {to}", typeof(TSrcTable).Name, typeof(TDstTable).Name);
 
