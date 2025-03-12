@@ -438,7 +438,9 @@ public class LinkPreviewService(
         StringBuilder b = new StringBuilder(500);
 
         b.Append($"<title>{title}</title>\n");
+        b.Append($"<h1 style='display:none;'>Loading {title}</h1>\n");
         b.Append($"<meta property='description' content='{description}'/>\n");
+        b.Append($"<meta name='description' content='{description}'/>\n");
         b.Append($"<meta name='robots' content='index, follow'>\n");
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
