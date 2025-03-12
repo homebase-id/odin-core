@@ -71,10 +71,12 @@ public class LinkPreviewService(
 
     private async Task WriteEnhancedIndexAsync(string indexFilePath, IOdinContext odinContext)
     {
-        if (!await TryWritePostPreview(indexFilePath, odinContext))
+        if (await TryWritePostPreview(indexFilePath, odinContext))
         {
-            await WriteGenericPreview(indexFilePath);
+            return;
         }
+
+        await WriteGenericPreview(indexFilePath);
     }
 
     public bool IsPostPath()
@@ -143,6 +145,7 @@ public class LinkPreviewService(
                 description,
                 person,
                 siteType: "website",
+                robotsTag: "",
                 context.RequestAborted);
 
             await WriteAsync(content, context.RequestAborted);
@@ -456,6 +459,7 @@ public class LinkPreviewService(
 
         string suffix = DefaultTitle;
         string siteType = "profile";
+        string robotsTag = "";
         if (IsPath("/links"))
         {
             suffix = "Links";
@@ -471,17 +475,24 @@ public class LinkPreviewService(
             suffix = "Connections";
         }
 
+        if (IsPath("/preview"))
+        {
+            robotsTag = "noindex, nofollow";
+        }
+
         var title = $"{person?.Name ?? odinId} | {suffix}";
         var description = person?.Description ?? DefaultDescription;
-        return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, cancellationToken);
+        return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, robotsTag, cancellationToken);
     }
 
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
-        PersonSchema person, string siteType, CancellationToken cancellationToken)
+        PersonSchema person, string siteType, string robotsTag, CancellationToken cancellationToken)
     {
         var builder = PrepareBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
         builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
+        builder.Append($"<meta property='robots' content='{robotsTag}'/>\n");
+
         builder.Append(PrepareIdentityContent(person));
 
         var indexTemplate = await globalCache.GetOrSetAsync(
