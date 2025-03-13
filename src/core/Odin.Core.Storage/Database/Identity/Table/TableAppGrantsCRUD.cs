@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class AppGrantsRecord
     {
+        private Int64 _rowId;
+        public Int64 rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -99,24 +109,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
+                cmd.CommandText = "DROP TABLE IF EXISTS AppGrants;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS appGrants("
+                "CREATE TABLE IF NOT EXISTS AppGrants("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"odinHashId BYTEA NOT NULL, "
                    +"appId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL, "
                    +"data BYTEA  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,odinHashId,appId,circleId)"
-                   +");"
+                   +", UNIQUE(identityId,odinHashId,appId,circleId)"
+                   +$"){wori};"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -130,7 +141,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
+                insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -170,7 +181,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
+                insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -211,7 +222,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
+                upsertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
                                              "ON CONFLICT (identityId,odinHashId,appId,circleId) DO UPDATE "+
                                              "SET data = @data "+
@@ -251,7 +262,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE appGrants " +
+                updateCommand.CommandText = "UPDATE AppGrants " +
                                              "SET data = @data "+
                                              "WHERE (identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -289,7 +300,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM appGrants;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM AppGrants;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -301,6 +312,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("odinHashId");
             sl.Add("appId");
@@ -309,7 +321,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT identityId,odinHashId,appId,circleId,data
+        // SELECT rowId,identityId,odinHashId,appId,circleId,data
         protected AppGrantsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppGrantsRecord>();
@@ -318,11 +330,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new AppGrantsRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.odinHashId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.appId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.circleId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.odinHashId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.appId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.circleId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
+            item.dataNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -333,7 +346,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM appGrants " +
+                delete0Command.CommandText = "DELETE FROM AppGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -359,7 +372,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid odinHashId)
+        protected AppGrantsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
 #pragma warning disable CS0168
@@ -369,9 +382,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new AppGrantsRecord();
             item.identityId = identityId;
             item.odinHashId = odinHashId;
-            item.appId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.circleId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.appId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.circleId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -382,8 +396,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId;";
+                get0Command.CommandText = "SELECT rowId,appId,circleId,data FROM AppGrants " +
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -404,7 +419,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<AppGrantsRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,odinHashId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,odinHashId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -414,7 +429,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
+        protected AppGrantsRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
 #pragma warning disable CS0168
@@ -426,7 +441,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.odinHashId = odinHashId;
             item.appId = appId;
             item.circleId = circleId;
-            item.dataNoLengthCheck = (rdr[0] == DBNull.Value) ? null : (byte[])(rdr[0]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.dataNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -440,8 +456,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT data FROM appGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;";
+                get1Command.CommandText = "SELECT rowId,data FROM AppGrants " +
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -467,13 +484,62 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,odinHashId,appId,circleId);
+                        var r = ReadRecordFromReader1(rdr,identityId,odinHashId,appId,circleId);
                         _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), r);
                         return r;
                     } // using
                 } //
             } // using
         }
+
+        protected virtual async Task<(List<AppGrantsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,odinHashId,appId,circleId,data FROM AppGrants " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<AppGrantsRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }

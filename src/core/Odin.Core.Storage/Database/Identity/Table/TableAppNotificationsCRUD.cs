@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length > 256) throw new Exception("Too long");
                   _senderId = value;
                }
         }
@@ -156,11 +156,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS AppNotifications("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"notificationId BYTEA NOT NULL UNIQUE, "
                    +"unread BIGINT NOT NULL, "
@@ -169,10 +171,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,notificationId)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableAppNotificationsCRUD ON AppNotifications(identityId,created);"
+                   +", UNIQUE(identityId,notificationId)"
+                   +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0AppNotifications ON AppNotifications(identityId,created);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -475,7 +476,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid notificationId)
+        protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
 #pragma warning disable CS0168
@@ -506,7 +507,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
-                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;";
+                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -524,7 +526,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,notificationId);
+                        var r = ReadRecordFromReader0(rdr,identityId,notificationId);
                         _cache.AddOrUpdate("TableAppNotificationsCRUD", identityId.ToString()+notificationId.ToString(), r);
                         return r;
                     } // using
@@ -589,6 +591,55 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             nextRowId = 0;
                         }
                         return (result, nextCursor, nextRowId);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
+
+        protected virtual async Task<(List<AppNotificationsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<AppNotificationsRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
                     } // using
                 } //
             } // using 

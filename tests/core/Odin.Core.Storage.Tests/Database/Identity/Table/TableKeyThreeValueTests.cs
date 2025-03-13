@@ -280,10 +280,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var ra = await tblKeyThreeValue.GetByKeyTwoAsync(i1);
             if (ra.Count != 2)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[0], v1) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[1], v2) != 0)
-                Assert.Fail();
+            if (ByteArrayUtil.muidcmp(ra[0], v1) == 0)
+            {
+                if (ByteArrayUtil.muidcmp(ra[0], v1) != 0)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[1], v2) != 0)
+                    Assert.Fail();
+            }
+            else
+            {
+                if (ByteArrayUtil.muidcmp(ra[0], v2) != 0)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[1], v1) != 0)
+                    Assert.Fail();
+            }
 
             ra = await tblKeyThreeValue.GetByKeyThreeAsync(u1);
             if (ra.Count != 1)

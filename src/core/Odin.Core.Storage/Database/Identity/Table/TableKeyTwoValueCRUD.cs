@@ -17,6 +17,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class KeyTwoValueRecord
     {
+        private Int64 _rowId;
+        public Int64 rowId
+        {
+           get {
+                   return _rowId;
+               }
+           set {
+                  _rowId = value;
+               }
+        }
         private Guid _identityId;
         public Guid identityId
         {
@@ -115,24 +125,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS keyTwoValue;";
+                cmd.CommandText = "DROP TABLE IF EXISTS KeyTwoValue;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS keyTwoValue("
+                "CREATE TABLE IF NOT EXISTS KeyTwoValue("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL, "
                    +"key2 BYTEA , "
                    +"data BYTEA  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,key1)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableKeyTwoValueCRUD ON keyTwoValue(identityId,key2);"
+                   +", UNIQUE(identityId,key1)"
+                   +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0KeyTwoValue ON KeyTwoValue(identityId,key2);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -143,7 +154,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO keyTwoValue (identityId,key1,key2,data) " +
+                insertCommand.CommandText = "INSERT INTO KeyTwoValue (identityId,key1,key2,data) " +
                                              "VALUES (@identityId,@key1,@key2,@data)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -176,7 +187,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO keyTwoValue (identityId,key1,key2,data) " +
+                insertCommand.CommandText = "INSERT INTO KeyTwoValue (identityId,key1,key2,data) " +
                                              "VALUES (@identityId,@key1,@key2,@data) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -210,7 +221,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO keyTwoValue (identityId,key1,key2,data) " +
+                upsertCommand.CommandText = "INSERT INTO KeyTwoValue (identityId,key1,key2,data) " +
                                              "VALUES (@identityId,@key1,@key2,@data)"+
                                              "ON CONFLICT (identityId,key1) DO UPDATE "+
                                              "SET key2 = @key2,data = @data "+
@@ -243,7 +254,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE keyTwoValue " +
+                updateCommand.CommandText = "UPDATE KeyTwoValue " +
                                              "SET key2 = @key2,data = @data "+
                                              "WHERE (identityId = @identityId AND key1 = @key1)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -277,7 +288,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM keyTwoValue;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM KeyTwoValue;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -289,6 +300,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
+            sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("key1");
             sl.Add("key2");
@@ -296,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT identityId,key1,key2,data
+        // SELECT rowId,identityId,key1,key2,data
         protected KeyTwoValueRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<KeyTwoValueRecord>();
@@ -305,14 +317,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new KeyTwoValueRecord();
-            item.identityId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[0]);
-            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.key1NoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.key2NoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            item.key2NoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -326,7 +339,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM keyTwoValue " +
+                delete0Command.CommandText = "DELETE FROM KeyTwoValue " +
                                              "WHERE identityId = @identityId AND key1 = @key1";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -344,7 +357,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,byte[] key2)
+        protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key2)
         {
             if (key2?.Length < 0) throw new Exception("Too short");
             if (key2?.Length > 128) throw new Exception("Too long");
@@ -356,10 +369,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyTwoValueRecord();
             item.identityId = identityId;
             item.key2 = key2;
-            item.key1NoLengthCheck = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[0]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.dataNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -372,8 +386,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT key1,data FROM keyTwoValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2;";
+                get0Command.CommandText = "SELECT rowId,key1,data FROM KeyTwoValue " +
+                                             "WHERE identityId = @identityId AND key2 = @key2;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -394,7 +409,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<KeyTwoValueRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,key2));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,key2));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -404,7 +419,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,byte[] key1)
+        protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new Exception("Cannot be null");
             if (key1?.Length < 16) throw new Exception("Too short");
@@ -417,10 +432,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyTwoValueRecord();
             item.identityId = identityId;
             item.key1 = key1;
-            item.key2NoLengthCheck = (rdr[0] == DBNull.Value) ? null : (byte[])(rdr[0]);
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.key2NoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.dataNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -437,8 +453,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT key2,data FROM keyTwoValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;";
+                get1Command.CommandText = "SELECT rowId,key2,data FROM KeyTwoValue " +
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -456,13 +473,62 @@ namespace Odin.Core.Storage.Database.Identity.Table
                             _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), null);
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,key1);
+                        var r = ReadRecordFromReader1(rdr,identityId,key1);
                         _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), r);
                         return r;
                     } // using
                 } //
             } // using
         }
+
+        protected virtual async Task<(List<KeyTwoValueRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,key1,key2,data FROM KeyTwoValue " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<KeyTwoValueRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }

@@ -117,7 +117,7 @@ namespace Odin.KeyChain
         {
             using (var sqlcmd = db.CreateCommand())
             {
-                sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid ASC;";
+                sqlcmd.CommandText = "SELECT rowid,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid ASC;";
 
                 using (var rdr = await conn.ExecuteReaderAsync(sqlcmd, System.Data.CommandBehavior.SingleRow))
                 {

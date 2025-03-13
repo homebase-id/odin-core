@@ -66,7 +66,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length > 256) throw new Exception("Too long");
                   _recipient = value;
                }
         }
@@ -223,16 +223,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
+                cmd.CommandText = "DROP TABLE IF EXISTS Outbox;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS outbox("
+                "CREATE TABLE IF NOT EXISTS Outbox("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
@@ -247,10 +249,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"correlationId TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,driveId,fileId,recipient)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(identityId,nextRunTime);"
+                   +", UNIQUE(identityId,driveId,fileId,recipient)"
+                   +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0Outbox ON Outbox(identityId,nextRunTime);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -265,7 +266,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -344,7 +345,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -424,7 +425,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created) " +
+                upsertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created) " +
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId,recipient) DO UPDATE "+
                                              "SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = @modified "+
@@ -512,7 +513,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE outbox " +
+                updateCommand.CommandText = "UPDATE Outbox " +
                                              "SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = @modified "+
                                              "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -587,7 +588,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM outbox;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM Outbox;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -650,11 +651,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
-            if (recipient?.Length > 65535) throw new Exception("Too long");
+            if (recipient?.Length > 256) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM outbox " +
+                delete0Command.CommandText = "DELETE FROM Outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -678,7 +679,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<OutboxRecord>();
 #pragma warning disable CS0168
@@ -711,8 +712,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;";
+                get0Command.CommandText = "SELECT rowId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -736,7 +738,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<OutboxRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader0(rdr, identityId,driveId,fileId));
+                            result.Add(ReadRecordFromReader0(rdr,identityId,driveId,fileId));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
@@ -746,11 +748,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId,string recipient)
+        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
-            if (recipient?.Length > 65535) throw new Exception("Too long");
+            if (recipient?.Length > 256) throw new Exception("Too long");
             var result = new List<OutboxRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -781,12 +783,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             if (recipient == null) throw new Exception("Cannot be null");
             if (recipient?.Length < 0) throw new Exception("Too short");
-            if (recipient?.Length > 65535) throw new Exception("Too long");
+            if (recipient?.Length > 256) throw new Exception("Too long");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;";
+                get1Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -811,12 +814,61 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,driveId,fileId,recipient);
+                        var r = ReadRecordFromReader1(rdr,identityId,driveId,fileId,recipient);
                         return r;
                     } // using
                 } //
             } // using
         }
+
+        protected virtual async Task<(List<OutboxRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<OutboxRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }

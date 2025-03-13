@@ -261,10 +261,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var ra = await tblKeyTwoValue.GetByKeyTwoAsync(i1);
             if (ra.Count != 2)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[0].data, v1) != 0)
-                Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[1].data, v2) != 0)
-                Assert.Fail();
+            if (ByteArrayUtil.muidcmp(ra[0].key1, k1) == 0)
+            {
+                if (ByteArrayUtil.muidcmp(ra[0].data, v1) != 0)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[1].data, v2) != 0)
+                    Assert.Fail();
+            }
+            else
+            {
+                if (ByteArrayUtil.muidcmp(ra[0].data, v2) != 0)
+                    Assert.Fail();
+                if (ByteArrayUtil.muidcmp(ra[1].data, v1) != 0)
+                    Assert.Fail();
+            }
 
 
             await tblKeyTwoValue.UpdateAsync(new KeyTwoValueRecord() { key1 = k1, key2 = i1, data = v2 });

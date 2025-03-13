@@ -1,4 +1,3 @@
-using System;
 using System.Data.Common;
 using Microsoft.Data.Sqlite;
 
@@ -8,10 +7,12 @@ public static class BackupSqliteDatabase
 {
     public static void Execute(string sourcePath, string destinationPath)
     {
-        using DbConnection connection = new SqliteConnection($"Data Source={sourcePath}");
-        connection.Open();
+        SqliteJournalMode.SetDelete(sourcePath);
+
+        using DbConnection cn = new SqliteConnection($"Data Source={sourcePath}");
+        cn.Open();
 
         using DbConnection backupConnection = new SqliteConnection($"Data Source={destinationPath}");
-        ((SqliteConnection) connection).BackupDatabase((SqliteConnection) backupConnection);
+        ((SqliteConnection) cn).BackupDatabase((SqliteConnection) backupConnection);
     }
 }

@@ -155,7 +155,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length > 256) throw new Exception("Too long");
                   _senderId = value;
                }
         }
@@ -242,7 +242,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 21504) throw new Exception("Too long");
+                    if (value?.Length > 70000) throw new Exception("Too long");
                   _hdrAppData = value;
                }
         }
@@ -297,7 +297,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 4096) throw new Exception("Too long");
+                    if (value?.Length > 70000) throw new Exception("Too long");
                   _hdrReactionSummary = value;
                }
         }
@@ -439,16 +439,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS driveMainIndex;";
+                cmd.CommandText = "DROP TABLE IF EXISTS DriveMainIndex;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
-            {
-                   rowid = ", rowid BIGSERIAL NOT NULL UNIQUE ";
-            }
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS driveMainIndex("
+                "CREATE TABLE IF NOT EXISTS DriveMainIndex("
+                   +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL, "
@@ -478,13 +480,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"hdrTmpDriveType BYTEA NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   + rowid
-                   +", PRIMARY KEY (identityId,driveId,fileId)"
+                   +", UNIQUE(identityId,driveId,fileId)"
                    +", UNIQUE(identityId,driveId,uniqueId)"
                    +", UNIQUE(identityId,driveId,globalTransitId)"
                    +", UNIQUE(identityId,hdrVersionTag)"
-                   +");"
-                   +"CREATE INDEX IF NOT EXISTS Idx0TableDriveMainIndexCRUD ON driveMainIndex(identityId,driveId,modified);"
+                   +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,created,rowId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -504,7 +507,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -648,7 +651,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -793,7 +796,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
+                upsertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
                                              "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
                                              "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
@@ -946,7 +949,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE driveMainIndex " +
+                updateCommand.CommandText = "UPDATE DriveMainIndex " +
                                              "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
                                              "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -1081,7 +1084,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM driveMainIndex;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM DriveMainIndex;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -1132,7 +1135,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountDriveCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM driveMainIndex WHERE driveId = $driveId;";
+                getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM DriveMainIndex WHERE driveId = $driveId;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
@@ -1192,7 +1195,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM driveMainIndex " +
+                delete0Command.CommandText = "DELETE FROM DriveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -1212,7 +1215,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr, Guid identityId,Guid driveId,Guid? uniqueId)
+        protected DriveMainIndexRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid? uniqueId)
         {
             var result = new List<DriveMainIndexRecord>();
 #pragma warning disable CS0168
@@ -1258,8 +1261,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;";
+                get0Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;"+
+                                             ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
@@ -1280,14 +1284,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr, identityId,driveId,uniqueId);
+                        var r = ReadRecordFromReader0(rdr,identityId,driveId,uniqueId);
                         return r;
                     } // using
                 } //
             } // using
         }
 
-        protected DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr, Guid identityId,Guid driveId,Guid? globalTransitId)
+        protected DriveMainIndexRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid? globalTransitId)
         {
             var result = new List<DriveMainIndexRecord>();
 #pragma warning disable CS0168
@@ -1333,8 +1337,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;";
+                get1Command.CommandText = "SELECT rowId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;"+
+                                             ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
@@ -1355,14 +1360,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader1(rdr, identityId,driveId,globalTransitId);
+                        var r = ReadRecordFromReader1(rdr,identityId,driveId,globalTransitId);
                         return r;
                     } // using
                 } //
             } // using
         }
 
-        protected DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr, Guid identityId,Guid driveId)
+        protected DriveMainIndexRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid driveId)
         {
             var result = new List<DriveMainIndexRecord>();
 #pragma warning disable CS0168
@@ -1408,8 +1413,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;";
+                get2Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;"+
+                                             ";";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Param1.ParameterName = "@identityId";
                 get2Command.Parameters.Add(get2Param1);
@@ -1426,14 +1432,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader2(rdr, identityId,driveId);
+                        var r = ReadRecordFromReader2(rdr,identityId,driveId);
                         return r;
                     } // using
                 } //
             } // using
         }
 
-        protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr, Guid identityId,Guid driveId,Guid fileId)
+        protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
 #pragma warning disable CS0168
@@ -1479,8 +1485,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
-                get3Command.CommandText = "SELECT rowId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM driveMainIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;";
+                get3Command.CommandText = "SELECT rowId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;"+
+                                             ";";
                 var get3Param1 = get3Command.CreateParameter();
                 get3Param1.ParameterName = "@identityId";
                 get3Command.Parameters.Add(get3Param1);
@@ -1501,12 +1508,61 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader3(rdr, identityId,driveId,fileId);
+                        var r = ReadRecordFromReader3(rdr,identityId,driveId,fileId);
                         return r;
                     } // using
                 } //
             } // using
         }
+
+        protected virtual async Task<(List<DriveMainIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<DriveMainIndexRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }

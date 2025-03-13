@@ -22,7 +22,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         {
             using (var _get0Command = conn.db.CreateCommand())
             {
-                _get0Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid DESC LIMIT 1;";
+                _get0Command.CommandText = "SELECT rowid,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain ORDER BY rowid DESC LIMIT 1;";
 
                 using (var rdr = await conn.ExecuteReaderAsync(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
@@ -46,7 +46,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
             using (var get1Command = conn.db.CreateCommand())
             {
-                get1Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
+                get1Command.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
                                                 "WHERE identity = @identity ORDER BY rowid ASC LIMIT 1;";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Command.Parameters.Add(get1Param1);
@@ -73,7 +73,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
             using (var get2Command = conn.db.CreateCommand())
             {
-                get2Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
+                get2Command.CommandText = "SELECT rowid,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM keyChain " +
                                              "WHERE identity = @identity ORDER BY rowid;";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Command.Parameters.Add(get2Param1);
