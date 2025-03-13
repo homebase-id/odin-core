@@ -511,7 +511,7 @@ public class LinkPreviewService(
         var builder = PrepareHeadBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
         builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
-        builder.Append($"<meta property='robots' content='{robotsTag}'/>\n");
+        builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
 
         builder.Append(PrepareIdentityContent(person));
 
