@@ -109,7 +109,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
+                cmd.CommandText = "DROP TABLE IF EXISTS AppGrants;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
@@ -119,7 +119,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS appGrants("
+                "CREATE TABLE IF NOT EXISTS AppGrants("
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"odinHashId BYTEA NOT NULL, "
@@ -141,7 +141,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
+                insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -181,7 +181,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
+                insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -222,7 +222,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO appGrants (identityId,odinHashId,appId,circleId,data) " +
+                upsertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
                                              "ON CONFLICT (identityId,odinHashId,appId,circleId) DO UPDATE "+
                                              "SET data = @data "+
@@ -262,7 +262,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE appGrants " +
+                updateCommand.CommandText = "UPDATE AppGrants " +
                                              "SET data = @data "+
                                              "WHERE (identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -300,7 +300,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM appGrants;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM AppGrants;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -346,7 +346,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM appGrants " +
+                delete0Command.CommandText = "DELETE FROM AppGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -396,7 +396,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,appId,circleId,data FROM appGrants " +
+                get0Command.CommandText = "SELECT rowId,appId,circleId,data FROM AppGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -456,7 +456,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,data FROM appGrants " +
+                get1Command.CommandText = "SELECT rowId,data FROM AppGrants " +
                                              "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
@@ -504,7 +504,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,odinHashId,appId,circleId,data FROM appGrants " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,odinHashId,appId,circleId,data FROM AppGrants " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
                 getPaging0Param1.ParameterName = "@rowId";

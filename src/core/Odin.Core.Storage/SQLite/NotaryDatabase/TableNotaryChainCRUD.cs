@@ -222,14 +222,14 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             await using var cmd = conn.db.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS notaryChain;";
+                cmd.CommandText = "DROP TABLE IF EXISTS NotaryChain;";
                 await conn.ExecuteNonQueryAsync(cmd);
             }
             var rowid = "";
             rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS notaryChain("
+                "CREATE TABLE IF NOT EXISTS NotaryChain("
                    +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "
@@ -248,7 +248,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
+                insertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
@@ -295,7 +295,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                insertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
+                insertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -343,7 +343,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         {
             using (var upsertCommand = conn.db.CreateCommand())
             {
-                upsertCommand.CommandText = "INSERT INTO notaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
+                upsertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)"+
                                              "ON CONFLICT (notarySignature) DO UPDATE "+
                                              "SET previousHash = @previousHash,identity = @identity,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,publicKeyJwkBase64Url = @publicKeyJwkBase64Url,recordHash = @recordHash "+
@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         {
             using (var updateCommand = conn.db.CreateCommand())
             {
-                updateCommand.CommandText = "UPDATE notaryChain " +
+                updateCommand.CommandText = "UPDATE NotaryChain " +
                                              "SET previousHash = @previousHash,identity = @identity,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,publicKeyJwkBase64Url = @publicKeyJwkBase64Url,recordHash = @recordHash "+
                                              "WHERE (notarySignature = @notarySignature)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -439,7 +439,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             using (var getCountCommand = conn.db.CreateCommand())
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM notaryChain;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM NotaryChain;";
                 var count = await conn.ExecuteScalarAsync(getCountCommand);
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -499,7 +499,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             if (notarySignature?.Length > 200) throw new Exception("Too long");
             using (var delete0Command = conn.db.CreateCommand())
             {
-                delete0Command.CommandText = "DELETE FROM notaryChain " +
+                delete0Command.CommandText = "DELETE FROM NotaryChain " +
                                              "WHERE notarySignature = @notarySignature";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@notarySignature";
@@ -552,7 +552,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 return (NotaryChainRecord)cacheObject;
             using (var get0Command = conn.db.CreateCommand())
             {
-                get0Command.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM notaryChain " +
+                get0Command.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM NotaryChain " +
                                              "WHERE notarySignature = @notarySignature LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();

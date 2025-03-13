@@ -169,7 +169,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
+                cmd.CommandText = "DROP TABLE IF EXISTS Inbox;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
@@ -179,7 +179,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS inbox("
+                "CREATE TABLE IF NOT EXISTS Inbox("
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL UNIQUE, "
@@ -193,9 +193,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT  "
                    +", UNIQUE(identityId,fileId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0inbox ON inbox(identityId,timeStamp);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1inbox ON inbox(identityId,boxId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2inbox ON inbox(identityId,popStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0Inbox ON Inbox(identityId,timeStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1Inbox ON Inbox(identityId,boxId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2Inbox ON Inbox(identityId,popStamp);"
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -209,7 +209,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
                                              "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified)";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
                                              "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created,@modified) " +
                                              "ON CONFLICT DO NOTHING";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -334,7 +334,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created) " +
+                upsertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created) " +
                                              "VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,@created)"+
                                              "ON CONFLICT (identityId,fileId) DO UPDATE "+
                                              "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = @modified "+
@@ -405,7 +405,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                updateCommand.CommandText = "UPDATE inbox " +
+                updateCommand.CommandText = "UPDATE Inbox " +
                                              "SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = @modified "+
                                              "WHERE (identityId = @identityId AND fileId = @fileId)";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -464,7 +464,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM inbox;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM Inbox;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -520,7 +520,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM inbox " +
+                delete0Command.CommandText = "DELETE FROM Inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -565,7 +565,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
+                get0Command.CommandText = "SELECT rowId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM Inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -603,7 +603,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM Inbox " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
                 getPaging0Param1.ParameterName = "@rowId";

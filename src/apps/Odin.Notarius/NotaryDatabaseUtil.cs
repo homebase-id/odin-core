@@ -121,7 +121,7 @@ namespace Odin.KeyChain
             {
                 using (var _sqlcmd = _db.CreateCommand())
                 {
-                    _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
+                    _sqlcmd.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
 
                     using (var rdr = await conn.ExecuteReaderAsync(_sqlcmd, System.Data.CommandBehavior.SingleRow))
                     {
