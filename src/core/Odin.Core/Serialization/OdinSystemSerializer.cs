@@ -35,7 +35,7 @@ public static class OdinSystemSerializer
     {
         JsonSerializer.Serialize(writer, value, JsonSerializerOptions);
     }
-    
+
     public static async Task Serialize(Stream utf8Json,
         object? value,
         Type inputType,
@@ -53,6 +53,12 @@ public static class OdinSystemSerializer
     public static string Serialize<TValue>(TValue value)
     {
         var json = JsonSerializer.Serialize(value, JsonSerializerOptions);
+        return json;
+    }
+
+    public static string Serialize<TValue>(TValue value, JsonSerializerOptions options)
+    {
+        var json = JsonSerializer.Serialize(value, options);
         return json;
     }
 
