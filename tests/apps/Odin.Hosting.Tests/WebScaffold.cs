@@ -6,6 +6,7 @@ using System.Net.Http;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
@@ -67,6 +68,7 @@ namespace Odin.Hosting.Tests
         public Guid SystemProcessApiKey = Guid.NewGuid();
 
         public IServiceProvider Services => _webserver.Services;
+        public ILogger<WebScaffold> Logger { get; }
 
 #if RUN_POSTGRES_TESTS
         protected PostgreSqlContainer PostgresContainer;
@@ -109,6 +111,11 @@ namespace Odin.Hosting.Tests
             this._folder = folder;
             this._uniqueSubPath = fixedSubPath ?? Guid.NewGuid().ToString();
             _oldOwnerApi = new OwnerApiTestUtils(SystemProcessApiKey);
+
+            // NOTE: we create a separate logger for the scaffold to avoid mixing with the host logger.
+            // Logging errors in the scaffold logger will NOT fail tests.
+            // You can get the host logger like this: Services.GetRequiredService<ILogger<WebScaffold>>();
+            Logger = TestLogFactory.CreateConsoleLogger<WebScaffold>(LogEventLevel.Verbose);
         }
 
         public static HttpClient CreateHttpClient<T>()
