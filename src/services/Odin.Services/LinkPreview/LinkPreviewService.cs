@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Apps;
@@ -569,6 +570,9 @@ public class LinkPreviewService(
             profile = OdinSystemSerializer.Deserialize<FrontEndProfile>(data);
         }
 
+        var context = httpContextAccessor.HttpContext;
+        string odinId = context.Request.Host.Host;
+
         var person = new PersonSchema
         {
             Name = profile?.Name,
@@ -579,9 +583,9 @@ public class LinkPreviewService(
             BirthDate = null,
             JobTitle = null,
             Image = profile?.Image,
-            SameAs = profile?.SameAs?.Select(s => s.Url).ToList() ?? []
+            SameAs = profile?.SameAs?.Select(s => s.Url).ToList() ?? [],
+            Identifier = [$"{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}", $"{context.Request.Scheme}://{odinId}/.well-known/did.json"]
         };
-
         return person;
     }
 

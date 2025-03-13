@@ -42,6 +42,9 @@ public class PersonSchema
     [JsonPropertyName("address")]
     public AddressSchema Address { get; set; }
 
+    [JsonPropertyName("identifier")]
+    public List<string> Identifier { get; set; } // Social media or reference URLs
+
     [JsonPropertyName("sameAs")]
     public List<string> SameAs { get; set; } // Social media or reference URLs
     
