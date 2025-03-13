@@ -24,6 +24,7 @@ using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
+using Org.BouncyCastle.Ocsp;
 
 namespace Odin.Services.LinkPreview;
 
@@ -530,8 +531,12 @@ public class LinkPreviewService(
         b.Append($"<meta property='profile:first_name' content='{person?.GivenName}'/>\n");
         b.Append($"<meta property='profile:last_name' content='{person?.FamilyName}'/>\n");
         b.Append($"<meta property='profile:username' content='{context.Request.Host}'/>\n");
-        b.Append($"<link rel='webfinger' content='{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
+        b.Append($"<link rel='webfinger' href='{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
+        b.Append($"<link rel='did' href='{context.Request.Scheme}://{odinId}/.well-known/did.json'/>\n");  // <-- Todd added this one
         b.Append("<script type='application/ld+json'>\n");
+
+        // TODD: It would be nice to not include empty strings... If they are NULL and you set JsonSerializerOptions to DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull then it's fixed
+        // I'm reluctant to mess with your OdinSystemSerializer though. I did set the empty strings to null though.
         b.Append(OdinSystemSerializer.Serialize(person) + "\n");
         b.Append("</script>");
 
@@ -569,10 +574,10 @@ public class LinkPreviewService(
             Name = profile?.Name,
             GivenName = profile?.GiveName,
             FamilyName = profile?.FamilyName,
-            Email = "",
+            Email = null,
             Description = profile?.Bio,
-            BirthDate = "",
-            JobTitle = "",
+            BirthDate = null,
+            JobTitle = null,
             Image = profile?.Image,
             SameAs = profile?.SameAs?.Select(s => s.Url).ToList() ?? []
         };
