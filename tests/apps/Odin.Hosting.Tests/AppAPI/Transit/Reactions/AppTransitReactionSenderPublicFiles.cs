@@ -315,8 +315,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
                 {
                     IncludeMetadataHeader = true,
                     MaxRecords = 10,
-                    Ordering = Ordering.NewestFirst,
-                    Sorting = Sorting.FileId
+                    Ordering = QueryBatchOrdering.NewestFirst,
+                    Sorting = QueryBatchType.FileId
                 }
             };
 

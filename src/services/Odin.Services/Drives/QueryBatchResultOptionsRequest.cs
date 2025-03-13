@@ -26,9 +26,9 @@ public class QueryBatchResultOptionsRequest
     /// </summary>
     public bool IncludeTransferHistory { get; set; }
 
-    public Ordering Ordering { get; set; }
+    public QueryBatchOrdering Ordering { get; set; }
     
-    public Sorting Sorting { get; set; }
+    public QueryBatchType Sorting { get; set; }
     
     public QueryBatchResultOptions ToQueryBatchResultOptions()
     {

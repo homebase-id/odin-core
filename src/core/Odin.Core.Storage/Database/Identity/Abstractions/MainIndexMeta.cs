@@ -11,7 +11,7 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
 {
-    public enum Sorting
+    public enum QueryBatchType
     {
         FileId = 0, // OBSOLETE
         UserDate = 1,
@@ -19,7 +19,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         ModifiedDate = 3
     }
 
-    public enum Ordering
+    public enum QueryBatchOrdering
     {
         Default = 0,
         NewestFirst = 1,
@@ -233,7 +233,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
         /// <summary>
         /// Get a page with up to 'noOfItems' rows in either newest first or oldest first order as
-        /// specified by the 'newestFirstOrder' bool. If the cursor.stopAtBoundary is null, paging will
+        /// specified by the 'sortOrder' bool. If the cursor.stopAtBoundary is null, paging will
         /// continue until the last data row. If set, the paging will stop at the specified point. 
         /// For example if you wanted to get all the latest items but stop
         /// at 2023-03-15, set the stopAtBoundary to this value by constructing a cusor with the 
@@ -242,7 +242,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="driveId">The drive you're querying</param>
         /// <param name="noOfItems">Maximum number of results you want back</param>
         /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page. pagingCursor will be updated. When no more data is available, pagingCursor is set to null (query will restart if you keep passing it)</param>
-        /// <param name="newestFirstOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
+        /// <param name="sortOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
         /// <param name="createdSort">true to order by fileId, false to order by usedDate, fileId</param>
         /// <param name="requiredSecurityGroup"></param>
         /// <param name="filetypesAnyOf"></param>
@@ -257,8 +257,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
             int noOfItems,
             QueryBatchCursor cursor,
-            bool newestFirstOrder,
-            Sorting sort = Sorting.CreatedDate,
+            QueryBatchOrdering sortOrder = QueryBatchOrdering.NewestFirst,
+            QueryBatchType queryType = QueryBatchType.CreatedDate,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -309,7 +309,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             char isign;
             string direction;
 
-            if (newestFirstOrder)
+            if ((sortOrder == QueryBatchOrdering.NewestFirst) || (sortOrder == QueryBatchOrdering.Default))
             {
                 sign = '<';
                 isign = '>';
@@ -323,11 +323,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string timeField = "created";
-            if ((sort == Sorting.CreatedDate) || (sort == Sorting.FileId))
+            if ((queryType == QueryBatchType.CreatedDate) || (queryType == QueryBatchType.FileId))
                 timeField = "driveMainIndex.created";
-            else if (sort == Sorting.UserDate)
+            else if (queryType == QueryBatchType.UserDate)
                 timeField = "driveMainIndex.userDate";
-            else if (sort == Sorting.ModifiedDate)
+            else if (queryType == QueryBatchType.ModifiedDate)
                 timeField = "COALESCE(driveMainIndex.modified,driveMainIndex.created)"; // TODO FIX THIS
             else
                 throw new Exception("Invalid sorting value");
@@ -342,7 +342,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 if (cursor.pagingCursor.rowId == null)
                 {
-                    if (newestFirstOrder)
+                    if (sortOrder == QueryBatchOrdering.NewestFirst)
                         cursor.pagingCursor.rowId = long.MaxValue;
                     else
                         cursor.pagingCursor.rowId = 0;
@@ -355,7 +355,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 if (cursor.stopAtBoundary.rowId == null)
                 {
-                    if (newestFirstOrder)
+                    if (sortOrder == QueryBatchOrdering.NewestFirst)
                         cursor.stopAtBoundary.rowId = long.MaxValue;
                     else
                         cursor.stopAtBoundary.rowId = 0;
@@ -373,10 +373,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
                 fileSystemType, driveId);
 
-            var order = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
+            var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {order} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
 
@@ -401,9 +401,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 if (i > 0)
                 {
-                    if (sort == Sorting.UserDate)
+                    if (queryType == QueryBatchType.UserDate)
                         cursor.pagingCursor = new TimeRowCursor(record.userDate, record.rowId);
-                    else if (sort == Sorting.ModifiedDate)
+                    else if (queryType == QueryBatchType.ModifiedDate)
                         cursor.pagingCursor = new TimeRowCursor(record.modified ?? record.created, record.rowId); // TODO FIX
                     else
                         cursor.pagingCursor = new TimeRowCursor(record.created, record.rowId);
@@ -457,8 +457,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var (result, moreRows, refCursor) = await
                 QueryBatchAsync(driveId, noOfItems,
                     cursor,
-                    newestFirstOrder: true,
-                    Sorting.CreatedDate,
+                    sortOrder: QueryBatchOrdering.NewestFirst,
+                    QueryBatchType.CreatedDate,
                     fileSystemType,
                     fileStateAnyOf,
                     requiredSecurityGroup,
@@ -695,22 +695,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             for (int i = 0; i < len; i++)
             {
                 s += $"{list[i]}";
-
-                if (i < len - 1)
-                    s += ",";
-            }
-
-            return s;
-        }
-
-        private string HexList(List<byte[]> list)
-        {
-            int len = list.Count;
-            string s = "";
-
-            for (int i = 0; i < len; i++)
-            {
-                s +=list[i].ToSql(scopedConnectionFactory.DatabaseType);
 
                 if (i < len - 1)
                     s += ",";

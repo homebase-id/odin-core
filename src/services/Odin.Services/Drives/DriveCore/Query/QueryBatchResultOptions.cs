@@ -7,9 +7,9 @@ public class QueryBatchResultOptions : ResultOptions
 {
     public QueryBatchCursor Cursor { get; set; }
 
-    public Ordering Ordering { get; set; } = Ordering.Default;
+    public QueryBatchOrdering Ordering { get; set; } = QueryBatchOrdering.Default;
 
-    public Sorting Sorting { get; set; } = Sorting.CreatedDate;
+    public QueryBatchType Sorting { get; set; } = QueryBatchType.CreatedDate;
 }
 
 /*
