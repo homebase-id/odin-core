@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using NUnit.Framework.Legacy;
 
 namespace Odin.Core.Storage.Tests
 {
@@ -41,7 +42,7 @@ namespace Odin.Core.Storage.Tests
                 tasks[i] = Task.Run(async () =>
                 {
                     (long bw, long[] measurements) = await functionToExecute(threadIndex, iterations);
-                    Debug.Assert(measurements.Length == iterations);
+                    ClassicAssert.IsTrue(measurements.Length == iterations);
                     lock (timers)
                     {
                         timers.Add(measurements);
@@ -54,13 +55,13 @@ namespace Odin.Core.Storage.Tests
 
             sw.Stop();
 
-            Debug.Assert(timers.Count == maxThreads);
+            ClassicAssert.IsTrue(timers.Count == maxThreads);
             long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (maxThreads * iterations));
+            ClassicAssert.IsTrue(oneDimensionalArray.Length == (maxThreads * iterations));
 
             Array.Sort(oneDimensionalArray);
             for (int i = 1; i < maxThreads * iterations; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
+                ClassicAssert.IsTrue(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
             PerformanceLog(maxThreads, iterations, sw.ElapsedMilliseconds, oneDimensionalArray);
             if (fileByteLength > 0)

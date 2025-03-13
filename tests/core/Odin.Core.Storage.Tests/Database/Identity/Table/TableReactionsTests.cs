@@ -48,20 +48,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Now get the reactions to the post
 
             var (r, c) = await tblDriveReactions.GetPostReactionsAsync(driveId, p1);
-            Debug.Assert(c == 6);
-            Debug.Assert(r.Count == 3);
-            Debug.Assert(r[0] == ":lol:");
-            Debug.Assert(r[1] == ":wink:");
-            Debug.Assert(r[2] == ":smiley:");
+            ClassicAssert.IsTrue(c == 6);
+            ClassicAssert.IsTrue(r.Count == 3);
+            ClassicAssert.IsTrue(r[0] == ":lol:");
+            ClassicAssert.IsTrue(r[1] == ":wink:");
+            ClassicAssert.IsTrue(r[2] == ":smiley:");
 
             Int32? cursor = 0;
             var (r2, nextCursor) = await tblDriveReactions.PagingByRowidAsync(5, cursor, driveId, p1);
-            Debug.Assert(r2.Count == 5);
-            Debug.Assert(nextCursor != null);
+            ClassicAssert.IsTrue(r2.Count == 5);
+            ClassicAssert.IsTrue(nextCursor != null);
 
             (r2, nextCursor) = await tblDriveReactions.PagingByRowidAsync(5, nextCursor, driveId, p1);
-            Debug.Assert(r2.Count == 1);
-            Debug.Assert(nextCursor == null, message: "rdr.HasRows is the sinner");
+            ClassicAssert.IsTrue(r2.Count == 1);
+            ClassicAssert.IsTrue(nextCursor == null, message: "rdr.HasRows is the sinner");
 
             // As a result we had 6 in total, 3 :lol:, 2 :wink: and 1 :smiley:
         }
@@ -275,11 +275,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // 3 lol, 2 wink, 1 smiley
 
             var (r, c) = await tblDriveReactions.GetPostReactionsAsync(driveId, k1);
-            Debug.Assert(c == 6);
-            Debug.Assert(r.Count == 3);
-            Debug.Assert(r[0] == ":lol:");
-            Debug.Assert(r[1] == ":wink:");
-            Debug.Assert(r[2] == ":smiley:");
+            ClassicAssert.IsTrue(c == 6);
+            ClassicAssert.IsTrue(r.Count == 3);
+            ClassicAssert.IsTrue(r[0] == ":lol:");
+            ClassicAssert.IsTrue(r[1] == ":wink:");
+            ClassicAssert.IsTrue(r[2] == ":smiley:");
         }
 
         [Test]
@@ -313,10 +313,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // 3 lol, 2 wink, 1 smiley, 4 additionals; total of 7 emojis, 10 reactions
 
             var (r, c) = await tblDriveReactions.GetPostReactionsAsync(driveId, k1);
-            Debug.Assert(c == 10);
-            Debug.Assert(r.Count == 5);
-            Debug.Assert(r[0] == ":lol:");
-            Debug.Assert(r[1] == ":wink:");
+            ClassicAssert.IsTrue(c == 10);
+            ClassicAssert.IsTrue(r.Count == 5);
+            ClassicAssert.IsTrue(r[0] == ":lol:");
+            ClassicAssert.IsTrue(r[1] == ":wink:");
             // It'll probably be fairly random which of the last ones are 'in' given they all have the same count
         }
     }

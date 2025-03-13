@@ -33,7 +33,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = await tblKeyThreeValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
 
             await tblKeyThreeValue.InsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
             await tblKeyThreeValue.InsertAsync(new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });
@@ -71,7 +71,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = await tblKeyThreeValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
 
             await tblKeyThreeValue.InsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
 
@@ -87,7 +87,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 ok = false;
             }
 
-            Debug.Assert(ok == false);
+            ClassicAssert.IsTrue(ok == false);
 
             r = await tblKeyThreeValue.GetAsync(k1);
             if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
@@ -114,7 +114,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = await tblKeyThreeValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
 
             await tblKeyThreeValue.InsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
             await tblKeyThreeValue.UpdateAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v2 });
@@ -145,7 +145,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = await tblKeyThreeValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
 
             await tblKeyThreeValue.InsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
 
@@ -161,7 +161,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 ok = false;
             }
 
-            Debug.Assert(ok == true);
+            ClassicAssert.IsTrue(ok == true);
 
         }
 
@@ -188,7 +188,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = await tblKeyThreeValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
 
             await tblKeyThreeValue.InsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
             await tblKeyThreeValue.InsertAsync(new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });
@@ -199,7 +199,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             await tblKeyThreeValue.DeleteAsync(k1);
             r = await tblKeyThreeValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
         }
 
 
@@ -225,7 +225,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var v3 = Guid.NewGuid().ToByteArray();
 
             var r = await tblKeyThreeValue.GetAsync(k1);
-            Debug.Assert(r == null);
+            ClassicAssert.IsTrue(r == null);
 
             await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = k111, data = v1 });
             await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = k2, key2 = k22, key3 = k222, data = v2 });

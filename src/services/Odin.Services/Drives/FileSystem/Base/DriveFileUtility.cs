@@ -295,18 +295,18 @@ public static class DriveFileUtility
     public static void AssertValidAppContentLength(string content)
     {
         OdinValidationUtils.AssertMaxStringLength(content, MaxAppDataContentLength,
-            $"local app content is too long; max length is {MaxAppDataContentLength}");
+            $"local app content is too long; max length is {MaxAppDataContentLength} but was {content?.Length}");
     }
     
     public static void AssertValidLocalAppContentLength(string content)
     {
         OdinValidationUtils.AssertMaxStringLength(content, MaxAppDataContentLength,
-            $"local app content is too long; max length is {MaxAppDataContentLength}");
+            $"local app content is too long; max length is {MaxAppDataContentLength} but was but was {content?.Length}");
     }
 
     public static void AssertValidPreviewThumbnail(ThumbnailContent thumbnail)
     {
         OdinValidationUtils.AssertIsTrue((thumbnail?.Content?.Length ?? 0) <= MaxTinyThumbLength,
-            $"max preview thumb size is {MaxTinyThumbLength}");
+            $"max preview thumb size is {MaxTinyThumbLength} but was {thumbnail?.Content?.Length}");
     }
 }

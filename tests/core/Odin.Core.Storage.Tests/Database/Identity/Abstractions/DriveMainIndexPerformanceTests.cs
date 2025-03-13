@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -414,7 +415,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         private async Task<long[]> WriteRowsAsync(int threadno, int iterations, MainIndexMeta metaIndex, Guid driveId)
         {
             long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
+            ClassicAssert.IsTrue(timers.Length == iterations);
             var myRnd = new Random();
             var sw = new Stopwatch();
 

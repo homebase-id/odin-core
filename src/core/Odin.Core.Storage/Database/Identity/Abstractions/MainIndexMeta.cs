@@ -323,12 +323,18 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string timeField = "created";
-            if (sort == Sorting.CreatedDate)
+            if ((sort == Sorting.CreatedDate) || (sort == Sorting.FileId))
                 timeField = "driveMainIndex.created";
-            if (sort == Sorting.UserDate)
+            else if (sort == Sorting.UserDate)
                 timeField = "driveMainIndex.userDate";
-            if (sort == Sorting.ModifiedDate)
+            else if (sort == Sorting.ModifiedDate)
                 timeField = "COALESCE(driveMainIndex.modified,driveMainIndex.created)"; // TODO FIX THIS
+            else
+                throw new Exception("Invalid sorting value");
+
+            // TODO: When retrieving modified, but sure to not include the current ms to avoid
+            // duplicate cursor problems since rowId isn't increasing for modified
+            //
 
             var listWhereAnd = new List<string>();
 
