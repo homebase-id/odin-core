@@ -72,6 +72,8 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 // run params:
 //   --create-rowid /identity-host/data <--dryrun | --commit>
 
+#if false
+
 public class CreateRowId
 {
     private static ILogger<CreateRowId> _logger = new NullLogger<CreateRowId>();
@@ -385,3 +387,4 @@ public class CreateRowId
     #endregion
 }
 
+#endif
