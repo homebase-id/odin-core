@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Util;
@@ -92,6 +93,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
              * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
              */
 
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX start");
+
             // Setup
             var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
 
@@ -103,21 +106,33 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             await SetupSockets(hostIdentity, frodoAppApi, samAppApi, [targetDrive]);
 
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX SendBarrage");
+
             // Act
             // Note just keep these numbers low since we run this test in CI
             await SendBarrage(hostIdentity, frodo, sam, targetDrive, maxThreads: 2, iterations: 10);
 
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX WaitForEmptyOutboxes");
+
             await WaitForEmptyOutboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(60));
+
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX WaitForEmptyInboxes");
 
             await WaitForEmptyInboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(90));
 
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX wait 10s");
+
             // Wait long enough for all notifications to be flushed
             await Task.Delay(TimeSpan.FromSeconds(10));
+
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX loopitbaby");
 
             if (_filesSentByFrodo.Count != _filesReceivedBySam.Count)
             {
                 await Task.Delay(TimeSpan.FromSeconds(10));
             }
+
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX done");
             
             Console.WriteLine("Parameters:");
 
