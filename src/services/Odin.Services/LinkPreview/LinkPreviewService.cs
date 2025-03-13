@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -47,6 +49,7 @@ public class LinkPreviewService(
 
     public const string PublicImagePath = "pub/image.jpg";
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
+    const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
     private const int ChannelDefinitionFileType = 103;
 
@@ -440,7 +443,6 @@ public class LinkPreviewService(
         StringBuilder b = new StringBuilder(500);
 
         b.Append($"<title>{title}</title>\n");
-        b.Append($"<h1 style='display:none;'>Loading {title}</h1>\n");
         b.Append($"<meta property='description' content='{description}'/>\n");
         b.Append($"<meta name='description' content='{description}'/>\n");
         b.Append($"<meta property='og:title' content='{title}'/>\n");
@@ -461,7 +463,7 @@ public class LinkPreviewService(
 
         b.Append($"<h1>{title}</h1>\n");
         b.Append($"<p>You need to enable JavaScript to run this app.</p>");
-        b.Append($"<p>Alternatively, here’s some basic info: {description}</p>");
+        b.Append($"<p>{description}</p>");
 
         return b;
     }
@@ -518,7 +520,10 @@ public class LinkPreviewService(
             _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
             TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
 
-        var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString());
+        var noScriptContent = PrepareNoscriptBuilder(title, description, siteType);
+        var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString())
+            .Replace(NoScriptPlaceholder, noScriptContent.ToString());
+        
         return updatedContent;
     }
 
@@ -533,12 +538,15 @@ public class LinkPreviewService(
         b.Append($"<meta property='profile:last_name' content='{person?.FamilyName}'/>\n");
         b.Append($"<meta property='profile:username' content='{context.Request.Host}'/>\n");
         b.Append($"<link rel='webfinger' href='{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
-        b.Append($"<link rel='did' href='{context.Request.Scheme}://{odinId}/.well-known/did.json'/>\n");  // <-- Todd added this one
+        b.Append($"<link rel='did' href='{context.Request.Scheme}://{odinId}/.well-known/did.json'/>\n");
         b.Append("<script type='application/ld+json'>\n");
-
-        // TODD: It would be nice to not include empty strings... If they are NULL and you set JsonSerializerOptions to DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull then it's fixed
-        // I'm reluctant to mess with your OdinSystemSerializer though. I did set the empty strings to null though.
-        b.Append(OdinSystemSerializer.Serialize(person) + "\n");
+        
+        var options = new JsonSerializerOptions(OdinSystemSerializer.JsonSerializerOptions!)
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+        
+        b.Append(OdinSystemSerializer.Serialize(person, options) + "\n");
         b.Append("</script>");
 
         return b.ToString();
