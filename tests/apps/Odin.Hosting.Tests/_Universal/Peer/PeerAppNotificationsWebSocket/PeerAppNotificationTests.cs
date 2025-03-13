@@ -151,6 +151,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             PerformanceCounter.WriteCounters();
 
+            _scaffold.Logger.LogDebug("XXXXXXXXXXXX oh-no'ing");
+            Assert.Fail();
+
             
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
             // CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
