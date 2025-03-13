@@ -425,12 +425,12 @@ public class LinkPreviewService(
             throw new OdinSystemException("index contents read from cache or disk is empty");
         }
 
-        var markup = PrepareBuilder(DefaultTitle, DefaultDescription, "website");
+        var markup = PrepareHeadBuilder(DefaultTitle, DefaultDescription, "website");
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, markup.ToString());
         return updatedContent;
     }
 
-    private StringBuilder PrepareBuilder(string title, string description, string siteType)
+    private StringBuilder PrepareHeadBuilder(string title, string description, string siteType)
     {
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
@@ -446,6 +446,20 @@ public class LinkPreviewService(
         b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
         b.Append($"<meta property='og:site_name' content='{title}'/>\n");
         b.Append($"<meta property='og:type' content='{siteType}'/>\n");
+
+        return b;
+    }
+
+    private StringBuilder PrepareNoscriptBuilder(string title, string description, string siteType)
+    {
+        title = HttpUtility.HtmlEncode(title);
+        description = HttpUtility.HtmlEncode(description);
+
+        StringBuilder b = new StringBuilder(500);
+
+        b.Append($"<h1>{title}</h1>\n");
+        b.Append($"<p>You need to enable JavaScript to run this app.</p>");
+        b.Append($"<p>Alternatively, here’s some basic info: {description}</p>");
 
         return b;
     }
@@ -490,7 +504,7 @@ public class LinkPreviewService(
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
         PersonSchema person, string siteType, string robotsTag, CancellationToken cancellationToken)
     {
-        var builder = PrepareBuilder(title, description, siteType);
+        var builder = PrepareHeadBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
         builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
         builder.Append($"<meta property='robots' content='{robotsTag}'/>\n");
