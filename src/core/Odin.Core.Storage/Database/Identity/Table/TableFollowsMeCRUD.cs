@@ -234,7 +234,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@identity,@driveId,@created)"+
                                              "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
                                              "SET modified = @modified "+
-                                             "RETURNING created, modified, rowid;";
+                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);

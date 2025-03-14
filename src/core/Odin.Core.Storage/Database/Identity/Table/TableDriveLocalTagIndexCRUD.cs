@@ -118,7 +118,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO DriveLocalTagIndex (identityId,driveId,fileId,tagId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@tagId)"+
-                                             "RETURNING -1;";
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -157,7 +157,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO DriveLocalTagIndex (identityId,driveId,fileId,tagId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@tagId) " +
                                              "ON CONFLICT DO NOTHING "+
-                                             ";";
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -197,7 +197,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@driveId,@fileId,@tagId)"+
                                              "ON CONFLICT (identityId,driveId,fileId,tagId) DO UPDATE "+
                                              "SET  "+
-                                             ";";
+                                             "RETURNING rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);

@@ -144,7 +144,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data) " +
                                              "VALUES (@identityId,@circleId,@circleName,@data)"+
-                                             "RETURNING -1;";
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -182,7 +182,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO Circle (identityId,circleId,circleName,data) " +
                                              "VALUES (@identityId,@circleId,@circleName,@data) " +
                                              "ON CONFLICT DO NOTHING "+
-                                             ";";
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -221,7 +221,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@circleId,@circleName,@data)"+
                                              "ON CONFLICT (identityId,circleId) DO UPDATE "+
                                              "SET circleName = @circleName,data = @data "+
-                                             ";";
+                                             "RETURNING rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);

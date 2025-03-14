@@ -199,7 +199,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                              "VALUES (@attestationId,@status,@created)"+
                                              "ON CONFLICT (attestationId) DO UPDATE "+
                                              "SET status = @status,modified = @modified "+
-                                             "RETURNING created, modified, rowid;";
+                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
