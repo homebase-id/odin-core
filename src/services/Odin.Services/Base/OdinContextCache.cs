@@ -6,24 +6,29 @@ using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Services.Base;
 
-public class OdinContextCache(ITenantLevel2Cache<OdinContextCache> cache)
+#nullable enable
+
+public class OdinContextCache(
+    ITenantLevel1Cache<OdinContextCache> level1Cache,
+    ITenantLevel2Cache<OdinContextCache> level2Cache)
 {
-    private readonly List<string> _tags = [Guid.NewGuid().ToString()];
+    private static readonly TimeSpan DefaultDuration = TimeSpan.FromMinutes(1);
+    private readonly List<string> _cacheTags = [Guid.NewGuid().ToString()];
 
     //
 
-    public async Task<IOdinContext> GetOrAddContextAsync(
+    public async Task<IOdinContext?> GetOrAddContextAsync(
         ClientAuthenticationToken token,
-        Func<Task<IOdinContext>> dotYouContextFactory,
-        int ttlSeconds = 60)
+        Func<Task<IOdinContext?>> dotYouContextFactory,
+        TimeSpan? duration = null)
     {
         var key = token.AsKey().ToString().ToLower();
 
-        var result = await cache.GetOrSetAsync<IOdinContext>(
+        var result = await level1Cache.GetOrSetAsync(
             key,
             _ => dotYouContextFactory(),
-            TimeSpan.FromSeconds(ttlSeconds),
-            _tags
+            duration ?? DefaultDuration,
+            _cacheTags
         );
 
         return result;
@@ -33,7 +38,8 @@ public class OdinContextCache(ITenantLevel2Cache<OdinContextCache> cache)
 
     public async Task ResetAsync()
     {
-        await cache.RemoveByTagAsync(_tags);
+        await level1Cache.RemoveByTagAsync(_cacheTags);
+        await level2Cache.RemoveByTagAsync(_cacheTags);
     }
 }
 

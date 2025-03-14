@@ -363,7 +363,7 @@ namespace Odin.Services.Membership.YouAuth
 
         public async Task<IOdinContext?> GetDotYouContextAsync(ClientAuthenticationToken token, IOdinContext currentOdinContext)
         {
-            async Task<IOdinContext> Creator()
+            async Task<IOdinContext?> Creator()
             {
                 var (isValid, accessReg, domainRegistration) = await ValidateClientAuthTokenAsync(token);
 

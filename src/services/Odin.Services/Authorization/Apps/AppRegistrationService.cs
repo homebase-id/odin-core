@@ -257,7 +257,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task<IOdinContext?> GetAppPermissionContextAsync(ClientAuthenticationToken token, IOdinContext odinContext)
         {
-            async Task<IOdinContext> Creator()
+            async Task<IOdinContext?> Creator()
             {
                 var (isValid, accessReg, appReg) = await ValidateClientAuthTokenAsync(token, odinContext);
 
