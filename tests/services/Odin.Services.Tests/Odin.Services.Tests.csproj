@@ -1,34 +1,34 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <Import Project="$(ProjectDir)../../../common-project.props" />
-    
-    <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <IsPackable>false</IsPackable>
-    </PropertyGroup>
+  <Import Project="$(ProjectDir)../../../common-project.props"/>
 
-<!--    <PropertyGroup Condition="'$(USER)' == 'seb'">-->
-<!--        <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>-->
-<!--    </PropertyGroup>-->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.2" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
-        <PackageReference Include="moq" Version="4.20.72" />
-        <PackageReference Include="NSubstitute" Version="5.3.0" />
-        <PackageReference Include="NUnit" Version="4.3.2" />
-        <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
-        <PackageReference Include="coverlet.collector" Version="6.0.4">
-          <PrivateAssets>all</PrivateAssets>
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
-    </ItemGroup>
+  <PropertyGroup Condition="'$(USER)' == 'seb'">
+    <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS</DefineConstants>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\..\..\src\services\Odin.Services\Odin.Services.csproj" />
-        <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.2"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2"/>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0"/>
+    <PackageReference Include="moq" Version="4.20.72"/>
+    <PackageReference Include="NSubstitute" Version="5.3.0"/>
+    <PackageReference Include="NUnit" Version="4.3.2"/>
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0"/>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\services\Odin.Services\Odin.Services.csproj"/>
+    <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj"/>
+  </ItemGroup>
 
 </Project>

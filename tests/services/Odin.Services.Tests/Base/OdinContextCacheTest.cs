@@ -156,7 +156,6 @@ public class OdinContextCacheTest
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var fusion = _services!.Resolve<ITenantLevel2Cache>();
         var cache = _services!.Resolve<OdinContextCache>();
 
         var token = ClientAuthenticationToken.FromPortableBytes($"my-token-{Guid.NewGuid()}".ToUtf8ByteArray());
@@ -170,11 +169,14 @@ public class OdinContextCacheTest
         var oc1 = await cache.GetOrAddContextAsync(token, creator);
         var oc2 = await cache.GetOrAddContextAsync(token, creator);
 
-        Assert.That(oc2.AuthContext, Is.EqualTo("AuthContext"));
+        Assert.That(oc1, Is.Not.Null);
+        Assert.That(oc2, Is.Not.Null);
+
+        Assert.That(oc2!.AuthContext, Is.EqualTo("AuthContext"));
         Assert.That(oc2.Tenant.DomainName, Is.EqualTo("frodo.me"));
         Assert.That(oc2.AuthTokenCreated, Is.Not.Null);
 
-        Assert.That(oc2.AuthContext, Is.EqualTo(oc1.AuthContext));
+        Assert.That(oc2.AuthContext, Is.EqualTo(oc1!.AuthContext));
         Assert.That(oc2.Tenant.DomainName, Is.EqualTo(oc1.Tenant.DomainName));
         Assert.That(oc2.AuthTokenCreated, Is.EqualTo(oc1.AuthTokenCreated));
     }
