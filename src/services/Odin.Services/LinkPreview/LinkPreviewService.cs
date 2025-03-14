@@ -51,6 +51,8 @@ public class LinkPreviewService(
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
+    private const int MaxDescriptionLength = 155;
+
     private const int ChannelDefinitionFileType = 103;
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
@@ -441,6 +443,9 @@ public class LinkPreviewService(
 
     private StringBuilder PrepareHeadBuilder(string title, string description, string siteType)
     {
+        description = description.Substring(0, MaxDescriptionLength);
+        title = title.Substring(0, MaxDescriptionLength);
+        
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
 
