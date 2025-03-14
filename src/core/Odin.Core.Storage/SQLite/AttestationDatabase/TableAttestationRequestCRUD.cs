@@ -172,7 +172,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                     return true;
                 }

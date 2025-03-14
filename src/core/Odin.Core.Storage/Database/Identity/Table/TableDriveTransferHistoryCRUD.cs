@@ -254,7 +254,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                     return true;
                 }
                 return false;

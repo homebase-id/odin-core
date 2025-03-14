@@ -414,7 +414,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.created = now;
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                     return true;
                 }
                 return false;

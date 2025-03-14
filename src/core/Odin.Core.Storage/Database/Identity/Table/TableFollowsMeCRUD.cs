@@ -216,7 +216,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.created = now;
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return true;
                 }

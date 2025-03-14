@@ -305,7 +305,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                     return true;
                 }
