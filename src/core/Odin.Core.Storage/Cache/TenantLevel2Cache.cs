@@ -12,14 +12,14 @@ public interface ITenantLevel2Cache<T> : ILevel2Cache<T>
     // This space is intentionally left blank
 }
 
-public class TenantLevel2Cache(CacheKeyPrefix prefix, IFusionCache cache, CacheConfiguration config)
-    : Level2Cache(prefix, cache, config), ITenantLevel2Cache
+public class TenantLevel2Cache(CacheKeyPrefix prefix, IFusionCache cache)
+    : Level2Cache(prefix, cache), ITenantLevel2Cache
 {
     // This space is intentionally left blank
 }
 
-public class TenantLevel2Cache<T>(CacheKeyPrefix prefix, IFusionCache cache, CacheConfiguration config)
-    : Level2Cache<T>(prefix, cache, config), ITenantLevel2Cache<T>
+public class TenantLevel2Cache<T>(CacheKeyPrefix prefix, IFusionCache cache)
+    : Level2Cache<T>(prefix, cache), ITenantLevel2Cache<T>
 {
     // This space is intentionally left blank
 }
