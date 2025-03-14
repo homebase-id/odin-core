@@ -225,7 +225,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
-                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)";
+                                             "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
+                                             "RETURNING -1;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -254,12 +255,14 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 insertParam5.Value = item.algorithm;
                 insertParam6.Value = item.publicKeyJwkBase64Url;
                 insertParam7.Value = item.recordHash;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
-                if (count > 0)
+                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
                     _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -269,7 +272,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             {
                 insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             ";";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -298,12 +302,14 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 insertParam5.Value = item.algorithm;
                 insertParam6.Value = item.publicKeyJwkBase64Url;
                 insertParam7.Value = item.recordHash;
-                var count = await conn.ExecuteNonQueryAsync(insertCommand);
-                if (count > 0)
+                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 

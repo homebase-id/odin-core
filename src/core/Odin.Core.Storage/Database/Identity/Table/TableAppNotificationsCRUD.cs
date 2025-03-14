@@ -186,7 +186,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                             "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)";
+                                             "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)"+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -221,13 +222,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam7.Value = now.milliseconds;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                      item.created = now;
+                     item.rowId = (long)rdr[0];
                     _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -240,7 +243,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -275,13 +279,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam7.Value = now.milliseconds;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                     item.created = now;
+                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
@@ -296,7 +302,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created)"+
                                              "ON CONFLICT (identityId,notificationId) DO UPDATE "+
                                              "SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = @modified "+
-                                             "RETURNING created, modified;";
+                                             "RETURNING created, modified, rowid;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -335,6 +341,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                   item.rowId = (long) rdr[2];
                    item.created = new UnixTimeUtc(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtc((long)modified);

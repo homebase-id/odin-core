@@ -144,7 +144,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO FollowsMe (identityId,identity,driveId,created,modified) " +
-                                             "VALUES (@identityId,@identity,@driveId,@created,@modified)";
+                                             "VALUES (@identityId,@identity,@driveId,@created,@modified)"+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -167,13 +168,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.Value = now.milliseconds;
                 item.modified = null;
                 insertParam5.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                      item.created = now;
+                     item.rowId = (long)rdr[0];
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -185,7 +188,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO FollowsMe (identityId,identity,driveId,created,modified) " +
                                              "VALUES (@identityId,@identity,@driveId,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -208,13 +212,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam4.Value = now.milliseconds;
                 item.modified = null;
                 insertParam5.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                     item.created = now;
+                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
@@ -228,7 +234,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@identity,@driveId,@created)"+
                                              "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
                                              "SET modified = @modified "+
-                                             "RETURNING created, modified;";
+                                             "RETURNING created, modified, rowid;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -255,6 +261,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                   item.rowId = (long) rdr[2];
                    item.created = new UnixTimeUtc(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtc((long)modified);

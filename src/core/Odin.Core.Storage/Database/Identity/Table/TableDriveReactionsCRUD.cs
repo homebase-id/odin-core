@@ -141,7 +141,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)";
+                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
+                                             "RETURNING -1;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -162,11 +163,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam3.Value = item.postId.ToByteArray();
                 insertParam4.Value = item.identity.DomainName;
                 insertParam5.Value = item.singleReaction;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -180,7 +183,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
                                              "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             ";";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -201,11 +205,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam3.Value = item.postId.ToByteArray();
                 insertParam4.Value = item.identity.DomainName;
                 insertParam5.Value = item.singleReaction;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
