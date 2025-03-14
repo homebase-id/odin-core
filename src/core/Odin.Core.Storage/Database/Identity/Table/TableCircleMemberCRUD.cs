@@ -210,7 +210,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@circleId,@memberId,@data)"+
                                              "ON CONFLICT (identityId,circleId,memberId) DO UPDATE "+
                                              "SET data = @data "+
-                                             "RETURNING rowId;";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -227,12 +227,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam2.Value = item.circleId.ToByteArray();
                 upsertParam3.Value = item.memberId.ToByteArray();
                 upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(CircleMemberRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");

@@ -353,7 +353,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                                              "VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)"+
                                              "ON CONFLICT (notarySignature) DO UPDATE "+
                                              "SET previousHash = @previousHash,identity = @identity,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,publicKeyJwkBase64Url = @publicKeyJwkBase64Url,recordHash = @recordHash "+
-                                             "RETURNING rowId;";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@previousHash";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -386,12 +386,17 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 upsertParam6.Value = item.publicKeyJwkBase64Url;
                 upsertParam7.Value = item.notarySignature;
                 upsertParam8.Value = item.recordHash;
-                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
-                return count;
+                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
+                   return 1;
+                }
+                return 0;
             }
         }
+
         public virtual async Task<int> UpdateAsync(DatabaseConnection conn, NotaryChainRecord item)
         {
             using (var updateCommand = conn.db.CreateCommand())

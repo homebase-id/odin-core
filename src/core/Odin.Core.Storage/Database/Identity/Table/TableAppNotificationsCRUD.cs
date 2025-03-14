@@ -341,12 +341,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.rowId = (long) rdr[2];
                    item.created = new UnixTimeUtc(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
+                   item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                    return 1;
                 }

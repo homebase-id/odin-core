@@ -222,12 +222,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.rowId = (long) rdr[2];
                    item.created = new UnixTimeUtc(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
+                   item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                    return 1;
                 }

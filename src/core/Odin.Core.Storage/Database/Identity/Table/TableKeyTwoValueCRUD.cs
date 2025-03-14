@@ -231,7 +231,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@key1,@key2,@data)"+
                                              "ON CONFLICT (identityId,key1) DO UPDATE "+
                                              "SET key2 = @key2,data = @data "+
-                                             "RETURNING rowId;";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -248,12 +248,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam2.Value = item.key1;
                 upsertParam3.Value = item.key2 ?? (object)DBNull.Value;
                 upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(KeyTwoValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");

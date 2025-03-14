@@ -227,7 +227,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
                                              "ON CONFLICT (identityId,driveId,postId,identity,singleReaction) DO UPDATE "+
                                              "SET  "+
-                                             "RETURNING rowId;";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -248,10 +248,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam3.Value = item.postId.ToByteArray();
                 upsertParam4.Value = item.identity.DomainName;
                 upsertParam5.Value = item.singleReaction;
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(DriveReactionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");

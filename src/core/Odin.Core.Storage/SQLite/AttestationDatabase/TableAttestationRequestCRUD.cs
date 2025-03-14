@@ -188,7 +188,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                              "VALUES (@attestationId,@requestEnvelope,@timestamp)"+
                                              "ON CONFLICT (attestationId) DO UPDATE "+
                                              "SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
-                                             "RETURNING rowId;";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -201,12 +201,17 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 upsertParam1.Value = item.attestationId;
                 upsertParam2.Value = item.requestEnvelope;
                 upsertParam3.Value = item.timestamp.milliseconds;
-                var count = await conn.ExecuteNonQueryAsync(upsertCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
-                return count;
+                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
+                   return 1;
+                }
+                return 0;
             }
         }
+
         public virtual async Task<int> UpdateAsync(DatabaseConnection conn, AttestationRequestRecord item)
         {
             using (var updateCommand = conn.db.CreateCommand())

@@ -274,7 +274,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)"+
                                              "ON CONFLICT (identityId,driveId,fileId,remoteIdentityId) DO UPDATE "+
                                              "SET latestTransferStatus = @latestTransferStatus,isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
-                                             "RETURNING rowId;";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -307,10 +307,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam6.Value = item.isInOutbox;
                 upsertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 upsertParam8.Value = item.isReadByRecipient;
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(DriveTransferHistoryRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
