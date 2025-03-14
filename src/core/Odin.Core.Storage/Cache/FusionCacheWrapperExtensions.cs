@@ -16,6 +16,8 @@ public static class FusionCacheWrapperExtensions
         this IServiceCollection services,
         CacheConfiguration cacheConfiguration)
     {
+        services.AddSingleton(cacheConfiguration);
+
         var builder = services.AddFusionCache()
             .WithOptions(options =>
             {
@@ -38,6 +40,7 @@ public static class FusionCacheWrapperExtensions
             })
             .WithSerializer(
                 new FusionCacheNeueccMessagePackSerializer()
+                // new FusionCacheSystemTextJsonSerializer()
             );
 
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)

@@ -241,7 +241,8 @@ namespace Odin.Hosting
             services.AddCoreCacheServices(new CacheConfiguration
             {
                 Level2CacheType = _config.Cache.Level2CacheType,
-                Level2Configuration = _config.Cache.Level2Configuration
+                Level2Configuration = _config.Cache.Level2Configuration,
+                DefaultDuration = TimeSpan.FromSeconds(_config.Cache.DefaultDurationSeconds),
             });
 
             // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
