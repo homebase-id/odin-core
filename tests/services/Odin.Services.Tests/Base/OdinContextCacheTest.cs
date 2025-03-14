@@ -68,7 +68,8 @@ public class OdinContextCacheTest
         services.AddCoreCacheServices(new CacheConfiguration
         {
             Level2CacheType = level2CacheType,
-            Level2Configuration = _redisContainer?.GetConnectionString() ?? ""
+            Level2Configuration = _redisContainer?.GetConnectionString() ?? "",
+            DefaultDuration = TimeSpan.FromMinutes(1),
         });
 
         var builder = new ContainerBuilder();
