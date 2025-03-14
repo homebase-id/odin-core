@@ -36,6 +36,8 @@ public class OdinContextCache(
         //
         // NOTE: we use an r/w lock to ensure that multiple interleaving threads
         // won't race deleting and (re)creating the same cache entry whenever the L2 cache entry is missing.
+        // This will introduce a small bottleneck when different cache keys are being accessed concurrently,
+        // and have to pass through the same lock, but trying to optimize this per-key quickly becomes a mess.
         //
 
         if (config.Level2CacheType != Level2CacheType.None)
