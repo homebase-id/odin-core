@@ -18,6 +18,7 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 
 namespace Odin.Hosting.Tests.AppAPI.Transit.Query
 {
@@ -92,8 +93,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 {
                     IncludeMetadataHeader = true,
                     MaxRecords = 10,
-                    Ordering = Ordering.NewestFirst,
-                    Sorting = Sorting.FileId
+                    Ordering = QueryBatchOrdering.NewestFirst,
+                    Sorting = QueryBatchType.CreatedDate
                 }
             };
 
