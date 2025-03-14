@@ -462,7 +462,6 @@ namespace Odin.Services.Configuration
         {
             public Level2CacheType Level2CacheType { get; init; }
             public string Level2Configuration { get; init; } = "";
-            public int DefaultDurationSeconds { get; init; }
 
             public CacheSection()
             {
@@ -476,7 +475,6 @@ namespace Odin.Services.Configuration
                 {
                     Level2Configuration = config.Required<string>("Cache:Level2Configuration");
                 }
-                DefaultDurationSeconds = config.GetOrDefault("Cache:DefaultDurationSeconds", 300);
             }
         }
     }

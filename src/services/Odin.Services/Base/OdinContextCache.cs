@@ -15,6 +15,7 @@ public class OdinContextCache(
     ITenantLevel1Cache<OdinContextCache> level1Cache,
     ITenantLevel2Cache<OdinContextCache> level2Cache)
 {
+    private static readonly TimeSpan DefaultDuration = TimeSpan.FromMinutes(5);
     private readonly AsyncReaderWriterLock _level2Lock = new();
     private readonly List<string> _cacheTags = [Guid.NewGuid().ToString()];
 
@@ -25,7 +26,7 @@ public class OdinContextCache(
         Func<Task<IOdinContext?>> dotYouContextFactory,
         TimeSpan? expiration = null)
     {
-        var duration = expiration ?? config.DefaultDuration;
+        var duration = expiration ?? DefaultDuration;
         if (duration < TimeSpan.FromSeconds(1))
         {
             throw new OdinSystemException("Cache duration must be at least 1 second.");

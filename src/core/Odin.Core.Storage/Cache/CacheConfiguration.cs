@@ -8,5 +8,4 @@ public class CacheConfiguration
 {
     public Level2CacheType Level2CacheType { get; init; }
     public string? Level2Configuration { get; init; } = "";
-    public TimeSpan DefaultDuration { get; init; }
 }
