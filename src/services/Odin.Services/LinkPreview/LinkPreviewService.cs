@@ -443,8 +443,8 @@ public class LinkPreviewService(
 
     private StringBuilder PrepareHeadBuilder(string title, string description, string siteType)
     {
-        description = description.Substring(0, MaxDescriptionLength);
-        title = title.Substring(0, MaxDescriptionLength);
+        description = Truncate(description, MaxDescriptionLength);
+        title = Truncate(title, MaxDescriptionLength);
 
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
@@ -657,5 +657,20 @@ public class LinkPreviewService(
         }
 
         return url;
+    }
+
+    public static string Truncate(string input, int maxLength)
+    {
+        if (string.IsNullOrEmpty(input) || maxLength <= 0)
+        {
+            return input;
+        }
+
+        if (input.Length <= maxLength)
+        {
+            return input;
+        }
+
+        return input.Substring(0, maxLength);
     }
 }
