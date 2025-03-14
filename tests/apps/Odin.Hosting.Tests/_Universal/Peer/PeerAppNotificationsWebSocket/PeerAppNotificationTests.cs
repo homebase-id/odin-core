@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Util;
@@ -92,32 +93,56 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
              * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
              */
 
+
+
             // Setup
+            _scaffold.Logger.LogDebug("> NewTargetDrive");
             var targetDrive = TargetDrive.NewTargetDrive(SystemDriveConstants.ChannelDriveType);
+            _scaffold.Logger.LogDebug("< NewTargetDrive");
 
+            _scaffold.Logger.LogDebug("> CreateOwnerApiClientRedux(TestIdentities.TomBombadil)");
             var hostIdentity = _scaffold.CreateOwnerApiClientRedux(TestIdentities.TomBombadil); //todo: change to collab identity
+            _scaffold.Logger.LogDebug("< CreateOwnerApiClientRedux(TestIdentities.TomBombadil)");
+
+            _scaffold.Logger.LogDebug("> CreateOwnerApiClientRedux(TestIdentities.Frodo)");
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            _scaffold.Logger.LogDebug("< CreateOwnerApiClientRedux(TestIdentities.Frodo)");
+
+            _scaffold.Logger.LogDebug("> CreateOwnerApiClientRedux(TestIdentities.Samwise)");
             var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+            _scaffold.Logger.LogDebug("< CreateOwnerApiClientRedux(TestIdentities.Samwise)");
 
+            _scaffold.Logger.LogDebug("> PrepareScenario");
             var (frodoAppApi, samAppApi) = await PrepareScenario(hostIdentity, frodo, sam, targetDrive);
+            _scaffold.Logger.LogDebug("< PrepareScenario");
 
+            _scaffold.Logger.LogDebug("> SetupSockets");
             await SetupSockets(hostIdentity, frodoAppApi, samAppApi, [targetDrive]);
+            _scaffold.Logger.LogDebug("< SetupSockets");
 
             // Act
             // Note just keep these numbers low since we run this test in CI
+            _scaffold.Logger.LogDebug("> SendBarrage");
             await SendBarrage(hostIdentity, frodo, sam, targetDrive, maxThreads: 2, iterations: 10);
+            _scaffold.Logger.LogDebug("< SendBarrage");
 
+            _scaffold.Logger.LogDebug("WaitForEmptyOutboxes");
             await WaitForEmptyOutboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(60));
 
+            _scaffold.Logger.LogDebug("WaitForEmptyInboxes");
             await WaitForEmptyInboxes(hostIdentity, frodo, sam, targetDrive, TimeSpan.FromSeconds(90));
 
             // Wait long enough for all notifications to be flushed
+            _scaffold.Logger.LogDebug("wait 10s");
             await Task.Delay(TimeSpan.FromSeconds(10));
 
             if (_filesSentByFrodo.Count != _filesReceivedBySam.Count)
             {
+                _scaffold.Logger.LogDebug("wait 10s more");
                 await Task.Delay(TimeSpan.FromSeconds(10));
             }
+
+            _scaffold.Logger.LogDebug("done");
             
             Console.WriteLine("Parameters:");
 
@@ -136,14 +161,15 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
 
             PerformanceCounter.WriteCounters();
 
-            
             CollectionAssert.AreEquivalent(_filesSentByFrodo, _filesReceivedBySam);
             // CollectionAssert.AreEquivalent(_filesReceivedBySam, _readReceiptsSentBySam,
             //     "mismatch in number of read-receipts send by sam to the files received");
 
             // CollectionAssert.AreEquivalent(_readReceiptsSentBySam, _readReceiptsReceivedByFrodo);
 
+            _scaffold.Logger.LogDebug("> Shutdown");
             await Shutdown(hostIdentity, frodo, sam);
+            _scaffold.Logger.LogDebug("< Shutdown");
         }
 
         private async Task SetupSockets(OwnerApiClientRedux hostIdentity, AppApiClientRedux frodo, AppApiClientRedux sam,
