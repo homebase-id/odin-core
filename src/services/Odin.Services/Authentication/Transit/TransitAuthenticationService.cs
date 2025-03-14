@@ -7,7 +7,6 @@ using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Membership.Connections;
 namespace Odin.Services.Authentication.Transit;
 
@@ -16,10 +15,10 @@ public class TransitAuthenticationService :
     INotificationHandler<ConnectionBlockedNotification>,
     INotificationHandler<ConnectionDeletedNotification>
 {
-    private readonly SharedOdinContextCache<TransitAuthenticationService> _cache;
+    private readonly OdinContextCache _cache;
     private readonly CircleNetworkService _circleNetworkService;
 
-    public TransitAuthenticationService(SharedOdinContextCache<TransitAuthenticationService> cache, CircleNetworkService circleNetworkService)
+    public TransitAuthenticationService(OdinContextCache cache, CircleNetworkService circleNetworkService)
     {
         _cache = cache;
         _circleNetworkService = circleNetworkService;
@@ -62,24 +61,21 @@ public class TransitAuthenticationService :
         return (cc, permissionContext);
     }
 
-    public Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
+    public async Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
     {
         // _cache.EnqueueIdentityForReset(notification.OdinId);
-        _cache.Reset();
-        return Task.CompletedTask;
+        await _cache.ResetAsync();
     }
 
-    public Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
+    public async Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
     {
         // _cache.EnqueueIdentityForReset(notification.OdinId);
-        _cache.Reset();
-        return Task.CompletedTask;
+        await _cache.ResetAsync();
     }
 
-    public Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
+    public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
     {
         // _cache.EnqueueIdentityForReset(notification.OdinId);
-        _cache.Reset();
-        return Task.CompletedTask;
+        await _cache.ResetAsync();
     }
 }

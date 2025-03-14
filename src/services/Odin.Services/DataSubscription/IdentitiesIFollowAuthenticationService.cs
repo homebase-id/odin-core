@@ -11,12 +11,12 @@ namespace Odin.Services.DataSubscription;
 
 public class IdentitiesIFollowAuthenticationService
 {
-    private readonly SharedOdinContextCache<IdentitiesIFollowAuthenticationService> _cache;
+    private readonly OdinContextCache _cache;
     private readonly TenantContext _tenantContext;
     private readonly FollowerService _followerService;
 
     public IdentitiesIFollowAuthenticationService(
-        SharedOdinContextCache<IdentitiesIFollowAuthenticationService> cache,
+        OdinContextCache cache,
         FollowerService followerService,
         TenantContext tenantContext)
     {
