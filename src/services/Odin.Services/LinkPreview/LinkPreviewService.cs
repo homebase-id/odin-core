@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Apps;
@@ -26,6 +27,7 @@ using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
+using Org.BouncyCastle.Ocsp;
 
 namespace Odin.Services.LinkPreview;
 
@@ -527,7 +529,7 @@ public class LinkPreviewService(
         var noScriptContent = PrepareNoscriptBuilder(title, description, siteType);
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString())
             .Replace(NoScriptPlaceholder, noScriptContent.ToString());
-        
+
         return updatedContent;
     }
 
@@ -544,12 +546,12 @@ public class LinkPreviewService(
         b.Append($"<link rel='webfinger' href='{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
         b.Append($"<link rel='did' href='{context.Request.Scheme}://{odinId}/.well-known/did.json'/>\n");
         b.Append("<script type='application/ld+json'>\n");
-        
+
         var options = new JsonSerializerOptions(OdinSystemSerializer.JsonSerializerOptions!)
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
-        
+
         b.Append(OdinSystemSerializer.Serialize(person, options) + "\n");
         b.Append("</script>");
 
