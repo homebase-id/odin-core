@@ -117,7 +117,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO DriveLocalTagIndex (identityId,driveId,fileId,tagId) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@tagId)";
+                                             "VALUES (@identityId,@driveId,@fileId,@tagId)"+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -134,11 +135,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.tagId.ToByteArray();
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -153,7 +156,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO DriveLocalTagIndex (identityId,driveId,fileId,tagId) " +
                                              "VALUES (@identityId,@driveId,@fileId,@tagId) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -170,11 +174,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
                 insertParam4.Value = item.tagId.ToByteArray();
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
@@ -191,7 +197,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@driveId,@fileId,@tagId)"+
                                              "ON CONFLICT (identityId,driveId,fileId,tagId) DO UPDATE "+
                                              "SET  "+
-                                             ";";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -208,10 +214,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam2.Value = item.driveId.ToByteArray();
                 upsertParam3.Value = item.fileId.ToByteArray();
                 upsertParam4.Value = item.tagId.ToByteArray();
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(DriveLocalTagIndexRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");

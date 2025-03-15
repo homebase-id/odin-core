@@ -267,7 +267,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created,@modified)";
+                                             "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created,@modified)"+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -326,12 +327,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam13.Value = now.milliseconds;
                 item.modified = null;
                 insertParam14.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                      item.created = now;
+                     item.rowId = (long)rdr[0];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -347,7 +350,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -406,12 +410,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam13.Value = now.milliseconds;
                 item.modified = null;
                 insertParam14.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                     item.created = now;
+                     item.rowId = (long)rdr[0];
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
@@ -429,7 +435,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId,recipient) DO UPDATE "+
                                              "SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = @modified "+
-                                             "RETURNING created, modified;";
+                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -497,6 +503,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
+                   item.rowId = (long) rdr[2];
                    return 1;
                 }
                 return 0;

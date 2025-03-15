@@ -162,7 +162,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO DriveTransferHistory (identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)";
+                                             "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)"+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -195,11 +196,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam6.Value = item.isInOutbox;
                 insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 insertParam8.Value = item.isReadByRecipient;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -214,7 +217,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO DriveTransferHistory (identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
                                              "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -247,11 +251,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam6.Value = item.isInOutbox;
                 insertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 insertParam8.Value = item.isReadByRecipient;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
@@ -268,7 +274,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)"+
                                              "ON CONFLICT (identityId,driveId,fileId,remoteIdentityId) DO UPDATE "+
                                              "SET latestTransferStatus = @latestTransferStatus,isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
-                                             ";";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -301,10 +307,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam6.Value = item.isInOutbox;
                 upsertParam7.Value = item.latestSuccessfullyDeliveredVersionTag?.ToByteArray() ?? (object)DBNull.Value;
                 upsertParam8.Value = item.isReadByRecipient;
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(DriveTransferHistoryRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");

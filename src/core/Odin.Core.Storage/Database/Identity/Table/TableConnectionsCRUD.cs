@@ -187,7 +187,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
-                                             "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created,@modified)";
+                                             "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created,@modified)"+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -222,13 +223,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam7.Value = now.milliseconds;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                      item.created = now;
+                     item.rowId = (long)rdr[0];
                     _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -240,7 +243,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
                                              "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -275,13 +279,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam7.Value = now.milliseconds;
                 item.modified = null;
                 insertParam8.Value = DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
                     item.created = now;
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
@@ -295,7 +301,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created)"+
                                              "ON CONFLICT (identityId,identity) DO UPDATE "+
                                              "SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = @modified "+
-                                             "RETURNING created, modified;";
+                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -339,6 +345,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
+                   item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                    return 1;
                 }

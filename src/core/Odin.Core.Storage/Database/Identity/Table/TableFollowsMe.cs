@@ -54,6 +54,19 @@ public class TableFollowsMe(
         return await base.InsertAsync(item);
     }
 
+    public new async Task<bool> TryInsertAsync(FollowsMeRecord item)
+    {
+        item.identityId = identityKey;
+        return await base.TryInsertAsync(item);
+    }
+
+    public new async Task<int> UpsertAsync(FollowsMeRecord item)
+    {
+        item.identityId = identityKey;
+        return await base.UpsertAsync(item);
+    }
+
+
 
     /// <summary>
     /// For the given identity, return all drives being followed (and possibly Guid.Empty for everything)
