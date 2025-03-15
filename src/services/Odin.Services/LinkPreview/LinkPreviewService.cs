@@ -14,7 +14,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Apps;
@@ -27,7 +26,6 @@ using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
-using Org.BouncyCastle.Ocsp;
 
 namespace Odin.Services.LinkPreview;
 
