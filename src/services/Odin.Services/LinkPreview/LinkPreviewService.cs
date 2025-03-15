@@ -114,10 +114,11 @@ public class LinkPreviewService(
             var segments = path?.TrimEnd('/').Split('/');
 
             string odinId = context.Request.Host.Host;
+            var person = await GeneratePersonSchema();
 
+            string title = $"{person?.Name ?? odinId} | Posts";
             string description = DefaultDescription;
             string imageUrl = null;
-            string title = null;
 
             if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
             {
@@ -134,11 +135,6 @@ public class LinkPreviewService(
                     return false;
                 }
             }
-
-            var person = await GeneratePersonSchema(imageUrl);
-
-            if (title == null)
-                title = $"{person?.Name ?? odinId} | Posts";
 
             if (string.IsNullOrEmpty(imageUrl))
             {
@@ -446,11 +442,9 @@ public class LinkPreviewService(
 
         StringBuilder b = new StringBuilder(500);
 
-        // Generic data primarily for SEO
         b.Append($"<title>{title}</title>\n");
+        b.Append($"<meta property='description' content='{description}'/>\n");
         b.Append($"<meta name='description' content='{description}'/>\n");
-
-        // Open Graph attributes
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
         b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
@@ -478,9 +472,9 @@ public class LinkPreviewService(
     {
         var context = httpContextAccessor.HttpContext;
         string odinId = context.Request.Host.Host;
+        var person = await GeneratePersonSchema();
 
         var imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
-        var person = await GeneratePersonSchema(imageUrl);
 
         string suffix = DefaultTitle;
         string siteType = "profile";
@@ -529,7 +523,7 @@ public class LinkPreviewService(
         var noScriptContent = PrepareNoscriptBuilder(title, description, siteType);
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString())
             .Replace(NoScriptPlaceholder, noScriptContent.ToString());
-
+        
         return updatedContent;
     }
 
@@ -546,12 +540,12 @@ public class LinkPreviewService(
         b.Append($"<link rel='webfinger' href='{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
         b.Append($"<link rel='did' href='{context.Request.Scheme}://{odinId}/.well-known/did.json'/>\n");
         b.Append("<script type='application/ld+json'>\n");
-
+        
         var options = new JsonSerializerOptions(OdinSystemSerializer.JsonSerializerOptions!)
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
-
+        
         b.Append(OdinSystemSerializer.Serialize(person, options) + "\n");
         b.Append("</script>");
 
@@ -568,7 +562,7 @@ public class LinkPreviewService(
         }.ToString();
     }
 
-    private async Task<PersonSchema> GeneratePersonSchema(string imageUrl)
+    private async Task<PersonSchema> GeneratePersonSchema()
     {
         // read the profile file.
         var (_, fileExists, fileStream) =
@@ -596,7 +590,7 @@ public class LinkPreviewService(
             Description = profile?.Bio,
             BirthDate = null,
             JobTitle = null,
-            Image = imageUrl ?? profile?.Image,
+            Image = profile?.Image,
             SameAs = profile?.SameAs?.Select(s => s.Url).ToList() ?? [],
             Identifier = [$"{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}", $"{context.Request.Scheme}://{odinId}/.well-known/did.json"]
         };
