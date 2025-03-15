@@ -51,6 +51,8 @@ public class LinkPreviewService(
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
+    private const int MaxDescriptionLength = 155;
+
     private const int ChannelDefinitionFileType = 103;
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
@@ -135,7 +137,7 @@ public class LinkPreviewService(
                 }
             }
 
-            var person = await GeneratePersonSchema(imageUrl);
+            var person = await GeneratePersonSchema();
 
             if (title == null)
                 title = $"{person?.Name ?? odinId} | Posts";
@@ -441,6 +443,9 @@ public class LinkPreviewService(
 
     private StringBuilder PrepareHeadBuilder(string title, string description, string siteType)
     {
+        description = Truncate(description, MaxDescriptionLength);
+        title = Truncate(title, MaxDescriptionLength);
+
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
 
@@ -480,7 +485,7 @@ public class LinkPreviewService(
         string odinId = context.Request.Host.Host;
 
         var imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
-        var person = await GeneratePersonSchema(imageUrl);
+        var person = await GeneratePersonSchema();
 
         string suffix = DefaultTitle;
         string siteType = "profile";
@@ -529,7 +534,7 @@ public class LinkPreviewService(
         var noScriptContent = PrepareNoscriptBuilder(title, description, siteType);
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString())
             .Replace(NoScriptPlaceholder, noScriptContent.ToString());
-        
+
         return updatedContent;
     }
 
@@ -546,12 +551,12 @@ public class LinkPreviewService(
         b.Append($"<link rel='webfinger' href='{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}'/>\n");
         b.Append($"<link rel='did' href='{context.Request.Scheme}://{odinId}/.well-known/did.json'/>\n");
         b.Append("<script type='application/ld+json'>\n");
-        
+
         var options = new JsonSerializerOptions(OdinSystemSerializer.JsonSerializerOptions!)
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
-        
+
         b.Append(OdinSystemSerializer.Serialize(person, options) + "\n");
         b.Append("</script>");
 
@@ -568,7 +573,7 @@ public class LinkPreviewService(
         }.ToString();
     }
 
-    private async Task<PersonSchema> GeneratePersonSchema(string imageUrl)
+    private async Task<PersonSchema> GeneratePersonSchema()
     {
         // read the profile file.
         var (_, fileExists, fileStream) =
@@ -596,9 +601,13 @@ public class LinkPreviewService(
             Description = profile?.Bio,
             BirthDate = null,
             JobTitle = null,
-            Image = imageUrl ?? profile?.Image,
+            Image = AppendJpgIfNoExtension(profile?.Image ?? ""),
             SameAs = profile?.SameAs?.Select(s => s.Url).ToList() ?? [],
-            Identifier = [$"{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}", $"{context.Request.Scheme}://{odinId}/.well-known/did.json"]
+            Identifier =
+            [
+                $"{context.Request.Scheme}://{odinId}/.well-known/webfinger?resource=acct:@{odinId}",
+                $"{context.Request.Scheme}://{odinId}/.well-known/did.json"
+            ]
         };
         return person;
     }
@@ -623,5 +632,45 @@ public class LinkPreviewService(
 
         var b = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
         return new Guid(b);
+    }
+
+    //via gpt 
+    private static string AppendJpgIfNoExtension(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri))
+        {
+            return url;
+        }
+
+        string path = uri.AbsolutePath;
+
+        if (string.IsNullOrEmpty(Path.GetExtension(path)))
+        {
+            string newPath = path + ".jpg";
+
+            UriBuilder builder = new UriBuilder(uri)
+            {
+                Path = newPath
+            };
+
+            return builder.Uri.ToString();
+        }
+
+        return url;
+    }
+
+    public static string Truncate(string input, int maxLength)
+    {
+        if (string.IsNullOrEmpty(input) || maxLength <= 0)
+        {
+            return input;
+        }
+
+        if (input.Length <= maxLength)
+        {
+            return input;
+        }
+
+        return input.Substring(0, maxLength);
     }
 }
