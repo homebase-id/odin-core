@@ -324,11 +324,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             string timeField = "created";
             if ((queryType == QueryBatchType.CreatedDate) || (queryType == QueryBatchType.FileId))
-                timeField = "driveMainIndex.created";
+                timeField = "created";
             else if (queryType == QueryBatchType.UserDate)
-                timeField = "driveMainIndex.userDate";
+                timeField = "userDate";
             else if (queryType == QueryBatchType.ModifiedDate)
-                timeField = "COALESCE(driveMainIndex.modified,driveMainIndex.created)"; // TODO FIX THIS
+                timeField = "COALESCE(modified,created)"; // TODO FIX THIS
             else
                 throw new Exception("Invalid sorting value");
 
