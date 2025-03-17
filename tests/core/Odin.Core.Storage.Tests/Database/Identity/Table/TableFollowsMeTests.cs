@@ -74,6 +74,87 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task InsertRowIdTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblFollowsMe = scope.Resolve<TableFollowsMe>();
+
+            var i1 = new OdinId("odin.valhalla.com");
+            var g1 = Guid.NewGuid();
+            var g2 = Guid.NewGuid();
+
+            // This is OK {odin.vahalla.com, driveId}
+            var item = new FollowsMeRecord() { identity = i1, driveId = g1 };
+            var n = await tblFollowsMe.InsertAsync(item);
+            ClassicAssert.That(n == 1);
+            ClassicAssert.That(item.rowId > 0);
+        }
+
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task TryInsertRowIdTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblFollowsMe = scope.Resolve<TableFollowsMe>();
+
+            var i1 = new OdinId("odin.valhalla.com");
+            var g1 = Guid.NewGuid();
+            var g2 = Guid.NewGuid();
+
+            var item = new FollowsMeRecord() { identity = i1, driveId = g1 };
+            var b = await tblFollowsMe.TryInsertAsync(item);
+            ClassicAssert.That(b);
+            ClassicAssert.That(item.rowId > 0);
+
+            var n = item.rowId;
+
+            // Now insert a duplicate
+            b = await tblFollowsMe.TryInsertAsync(item);
+            ClassicAssert.That(b == false);
+            ClassicAssert.That(item.rowId == n); // It shouldn't have changed
+        }
+
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task UpsertRowIdTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblFollowsMe = scope.Resolve<TableFollowsMe>();
+
+            var i1 = new OdinId("odin.valhalla.com");
+            var g1 = Guid.NewGuid();
+            var g2 = Guid.NewGuid();
+
+            // This is OK {odin.vahalla.com, driveId}
+            var item = new FollowsMeRecord() { identity = i1, driveId = g1 };
+            var n = await tblFollowsMe.UpsertAsync(item);
+            ClassicAssert.That(n == 1);
+            ClassicAssert.That(item.rowId > 0);
+
+            item.rowId = -1;
+            n = await tblFollowsMe.UpsertAsync(item);
+            ClassicAssert.That(n == 1);
+            ClassicAssert.That(item.rowId > 0);
+        }
+
+
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
