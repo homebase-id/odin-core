@@ -414,7 +414,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.created = now;
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                     return true;
                 }
                 return false;
@@ -435,7 +435,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,@created)"+
                                              "ON CONFLICT (identityId,driveId,fileId,recipient) DO UPDATE "+
                                              "SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = @modified "+
-                                             "RETURNING created, modified, rowid;";
+                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -498,12 +498,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.rowId = (long) rdr[2];
                    item.created = new UnixTimeUtc(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
+                   item.rowId = (long) rdr[2];
                    return 1;
                 }
                 return 0;

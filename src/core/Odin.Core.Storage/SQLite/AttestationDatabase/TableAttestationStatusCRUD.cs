@@ -183,7 +183,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     item.created = now;
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return true;
                 }
@@ -199,7 +199,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                              "VALUES (@attestationId,@status,@created)"+
                                              "ON CONFLICT (attestationId) DO UPDATE "+
                                              "SET status = @status,modified = @modified "+
-                                             "RETURNING created, modified, rowid;";
+                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -222,12 +222,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.rowId = (long) rdr[2];
                    item.created = new UnixTimeUtc(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
+                   item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                    return 1;
                 }

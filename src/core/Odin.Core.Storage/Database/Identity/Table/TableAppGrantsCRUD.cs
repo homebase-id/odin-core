@@ -143,7 +143,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
-                                             "RETURNING -1;";
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -187,7 +187,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data) " +
                                              "ON CONFLICT DO NOTHING "+
-                                             ";";
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -211,7 +211,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                     return true;
                 }
@@ -232,7 +232,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
                                              "ON CONFLICT (identityId,odinHashId,appId,circleId) DO UPDATE "+
                                              "SET data = @data "+
-                                             ";";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -253,12 +253,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam3.Value = item.appId.ToByteArray();
                 upsertParam4.Value = item.circleId.ToByteArray();
                 upsertParam5.Value = item.data ?? (object)DBNull.Value;
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(AppGrantsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");

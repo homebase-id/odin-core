@@ -283,7 +283,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.created = now;
-                     if (rdr[0] != DBNull.Value) item.rowId = (long)rdr[0];
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                     return true;
                 }
@@ -301,7 +301,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@created)"+
                                              "ON CONFLICT (identityId,identity) DO UPDATE "+
                                              "SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = @modified "+
-                                             "RETURNING created, modified, rowid;";
+                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -340,12 +340,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                    long created = (long) rdr[0];
                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.rowId = (long) rdr[2];
                    item.created = new UnixTimeUtc(created);
                    if (modified != null)
                       item.modified = new UnixTimeUtc((long)modified);
                    else
                       item.modified = null;
+                   item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                    return 1;
                 }
