@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Nito.AsyncEx;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -16,7 +15,6 @@ public class OdinContextCache(
     ITenantLevel2Cache<OdinContextCache> level2Cache)
 {
     private static readonly TimeSpan DefaultDuration = TimeSpan.FromMinutes(5);
-    private readonly AsyncReaderWriterLock _level2Lock = new();
     private readonly List<string> _cacheTags = [Guid.NewGuid().ToString()];
 
     //
@@ -34,41 +32,30 @@ public class OdinContextCache(
 
         var key = token.AsKey().ToString().ToLower();
 
-        //
-        // NOTE: we use an r/w lock to ensure that multiple interleaving threads
-        // won't race deleting and (re)creating the same cache entry whenever the L2 cache entry is missing.
-        // This will introduce a small bottleneck when different cache keys are being accessed concurrently,
-        // and have to pass through the same lock, but trying to optimize this per-key quickly becomes a mess.
-        //
-
+        var isValid = true;
         if (config.Level2CacheType != Level2CacheType.None)
         {
-            var level2Hit = await level2Cache.TryGetAsync<bool>(key);
-            if (!level2Hit.HasValue)
+            isValid = (await level2Cache.TryGetAsync<bool>(key)).GetValueOrDefault();
+        }
+
+        if (isValid)
+        {
+            var value = await level1Cache.TryGetAsync<IOdinContext?>(key);
+            if (value.HasValue)
             {
-                using (await _level2Lock.WriterLockAsync())
-                {
-                    level2Hit = await level2Cache.TryGetAsync<bool>(key);
-                    if (!level2Hit.HasValue)
-                    {
-                        await level1Cache.RemoveAsync(key);
-                        await level2Cache.SetAsync(key, true, duration);
-                    }
-                }
+                return value.Value;
             }
         }
 
-        using (await _level2Lock.ReaderLockAsync())
-        {
-            var result = await level1Cache.GetOrSetAsync(
-                key,
-                _ => dotYouContextFactory(),
-                duration,
-                _cacheTags
-            );
+        var odinContext = await dotYouContextFactory();
+        await level1Cache.SetAsync(key, odinContext, duration, _cacheTags);
 
-            return result;
+        if (config.Level2CacheType != Level2CacheType.None)
+        {
+            await level2Cache.SetAsync(key, true, duration);
         }
+
+        return odinContext;
     }
 
     //
