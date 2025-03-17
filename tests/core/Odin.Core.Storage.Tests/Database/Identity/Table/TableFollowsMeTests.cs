@@ -110,11 +110,17 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var g1 = Guid.NewGuid();
             var g2 = Guid.NewGuid();
 
-            // This is OK {odin.vahalla.com, driveId}
             var item = new FollowsMeRecord() { identity = i1, driveId = g1 };
             var b = await tblFollowsMe.TryInsertAsync(item);
             ClassicAssert.That(b);
             ClassicAssert.That(item.rowId > 0);
+
+            var n = item.rowId;
+
+            // Now insert a duplicate
+            b = await tblFollowsMe.TryInsertAsync(item);
+            ClassicAssert.That(b == false);
+            ClassicAssert.That(item.rowId == n); // It shouldn't have changed
         }
 
 
