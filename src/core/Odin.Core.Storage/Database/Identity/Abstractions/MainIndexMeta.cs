@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             else if (queryType == QueryBatchType.ModifiedDate)
             {
                 tempSelect = ", COALESCE(modified,created) as temphack";
-                timeField = "temphack"; 
+                timeField = "COALESCE(modified,created)"; 
                 // TODO FIX THIS: We need to sort by modified once we changed modified to NOT NULL. 
                 // Had to hack it due to Postgres restriction in DISTINCT and ORDER BY
             }
