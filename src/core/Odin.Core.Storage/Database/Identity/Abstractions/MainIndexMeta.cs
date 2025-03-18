@@ -322,13 +322,20 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 direction = "ASC";
             }
 
-            string timeField = "created";
+            string timeField;
+            string tempSelect = "";
+
             if ((queryType == QueryBatchType.CreatedDate) || (queryType == QueryBatchType.FileId))
                 timeField = "created";
             else if (queryType == QueryBatchType.UserDate)
                 timeField = "userDate";
             else if (queryType == QueryBatchType.ModifiedDate)
-                timeField = "COALESCE(modified,created)"; // TODO FIX THIS
+            {
+                tempSelect = ", COALESCE(modified,created) as temphack";
+                timeField = "temphack"; 
+                // TODO FIX THIS: We need to sort by modified once we changed modified to NOT NULL. 
+                // Had to hack it due to Postgres restriction in DISTINCT and ORDER BY
+            }
             else
                 throw new Exception("Invalid sorting value");
 
@@ -376,7 +383,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {selectOutputFields}{tempSelect} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
 
