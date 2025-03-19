@@ -223,17 +223,17 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // The SQL clock is not necessarily precisely the same as the C# clock. Proven empirically...
 
-            Debug.Assert(rec.modified == null);
-            Debug.Assert(rec.created.AddSeconds(+1) >= cts1);
-            Debug.Assert(rec.created.AddSeconds(-1) <= cts2);
+            ClassicAssert.IsTrue(rec.modified == null);
+            ClassicAssert.IsTrue(rec.created.AddSeconds(+1) >= cts1);
+            ClassicAssert.IsTrue(rec.created.AddSeconds(-1) <= cts2);
 
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
 
             if (md == null)
                 Assert.Fail();
 
-            Debug.Assert(rec.created == md.created);
-            Debug.Assert(rec.modified == md.modified);
+            ClassicAssert.IsTrue(rec.created == md.created);
+            ClassicAssert.IsTrue(rec.modified == md.modified);
 
             ClassicAssert.IsTrue((md.created.AddSeconds(1) >= cts1) && (md.created.AddSeconds(-1) <= cts2));
 

@@ -1421,12 +1421,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
             await Task.Delay(10);
             var c3 = UnixTimeUtc.Now();
-            Debug.Assert(c1.milliseconds < c3.milliseconds);
+            ClassicAssert.IsTrue(c1.milliseconds < c3.milliseconds);
             await Task.Delay(10);
             var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            Debug.Assert(c4.milliseconds > c3.milliseconds);
+            ClassicAssert.IsTrue(c4.milliseconds > c3.milliseconds);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
