@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -44,9 +45,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key1;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 48) throw new Exception("Too long");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
+                    if (value?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {value.Length} (max 48)");
                   _key1 = value;
                }
         }
@@ -56,8 +57,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key1;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
                   _key1 = value;
                }
         }
@@ -68,8 +69,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key2;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 256) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
+                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long key2, was {value.Length} (max 256)");
                   _key2 = value;
                }
         }
@@ -79,7 +80,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key2;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
                   _key2 = value;
                }
         }
@@ -90,8 +91,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key3;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 256) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {value.Length} (min 0)");
+                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long key3, was {value.Length} (max 256)");
                   _key3 = value;
                }
         }
@@ -101,7 +102,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key3;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {value.Length} (min 0)");
                   _key3 = value;
                }
         }
@@ -112,8 +113,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 1048576) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
+                    if (value?.Length > 1048576) throw new OdinDatabaseValidationException($"Too long data, was {value.Length} (max 1048576)");
                   _data = value;
                }
         }
@@ -123,7 +124,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
                   _data = value;
                }
         }
@@ -179,8 +180,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO KeyThreeValue (identityId,key1,key2,key3,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@key3,@data)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@identityId,@key1,@key2,@key3,@data)"+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -204,7 +205,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                     return 1;
                 }
@@ -219,9 +220,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO KeyThreeValue (identityId,key1,key2,key3,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@key3,@data) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@identityId,@key1,@key2,@key3,@data) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -245,7 +246,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                     return true;
                 }
@@ -260,10 +261,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO KeyThreeValue (identityId,key1,key2,key3,data) " +
-                                             "VALUES (@identityId,@key1,@key2,@key3,@data)"+
-                                             "ON CONFLICT (identityId,key1) DO UPDATE "+
-                                             "SET key2 = @key2,key3 = @key3,data = @data "+
-                                             "RETURNING -1,-1,rowId;";
+                                            $"VALUES (@identityId,@key1,@key2,@key3,@data)"+
+                                            "ON CONFLICT (identityId,key1) DO UPDATE "+
+                                            $"SET key2 = @key2,key3 = @key3,data = @data "+
+                                            "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -287,9 +288,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   item.rowId = (long) rdr[2];
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
-                   return 1;
+                    return 1;
                 }
                 return 0;
             }
@@ -302,8 +303,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE KeyThreeValue " +
-                                             "SET key2 = @key2,key3 = @key3,data = @data "+
-                                             "WHERE (identityId = @identityId AND key1 = @key1)";
+                                            $"SET key2 = @key2,key3 = @key3,data = @data "+
+                                            "WHERE (identityId = @identityId AND key1 = @key1) "+
+                                            "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
@@ -324,12 +326,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam3.Value = item.key2 ?? (object)DBNull.Value;
                 updateParam4.Value = item.key3 ?? (object)DBNull.Value;
                 updateParam5.Value = item.data ?? (object)DBNull.Value;
-                var count = await updateCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                    item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -388,9 +392,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key1)
         {
-            if (key1 == null) throw new Exception("Cannot be null");
-            if (key1?.Length < 16) throw new Exception("Too short");
-            if (key1?.Length > 48) throw new Exception("Too long");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -414,8 +418,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<byte[]>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
         {
-            if (key2?.Length < 0) throw new Exception("Too short");
-            if (key2?.Length > 256) throw new Exception("Too long");
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 256) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -466,8 +470,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<byte[]>> GetByKeyThreeAsync(Guid identityId,byte[] key3)
         {
-            if (key3?.Length < 0) throw new Exception("Too short");
-            if (key3?.Length > 256) throw new Exception("Too long");
+            if (key3?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {key3.Length} (min 0)");
+            if (key3?.Length > 256) throw new OdinDatabaseValidationException($"Too long key3, was {key3.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
@@ -518,10 +522,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyThreeValueRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,byte[] key2,byte[] key3)
         {
-            if (key2?.Length < 0) throw new Exception("Too short");
-            if (key2?.Length > 256) throw new Exception("Too long");
-            if (key3?.Length < 0) throw new Exception("Too short");
-            if (key3?.Length > 256) throw new Exception("Too long");
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 256) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 256)");
+            if (key3?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {key3.Length} (min 0)");
+            if (key3?.Length > 256) throw new OdinDatabaseValidationException($"Too long key3, was {key3.Length} (max 256)");
             var result = new List<KeyThreeValueRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -543,10 +547,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<KeyThreeValueRecord>> GetByKeyTwoThreeAsync(Guid identityId,byte[] key2,byte[] key3)
         {
-            if (key2?.Length < 0) throw new Exception("Too short");
-            if (key2?.Length > 256) throw new Exception("Too long");
-            if (key3?.Length < 0) throw new Exception("Too short");
-            if (key3?.Length > 256) throw new Exception("Too long");
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 256) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 256)");
+            if (key3?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {key3.Length} (min 0)");
+            if (key3?.Length > 256) throw new OdinDatabaseValidationException($"Too long key3, was {key3.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
@@ -589,9 +593,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyThreeValueRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,byte[] key1)
         {
-            if (key1 == null) throw new Exception("Cannot be null");
-            if (key1?.Length < 16) throw new Exception("Too short");
-            if (key1?.Length > 48) throw new Exception("Too long");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
             var result = new List<KeyThreeValueRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -615,9 +619,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<KeyThreeValueRecord> GetAsync(Guid identityId,byte[] key1)
         {
-            if (key1 == null) throw new Exception("Cannot be null");
-            if (key1?.Length < 16) throw new Exception("Too short");
-            if (key1?.Length > 48) throw new Exception("Too long");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
             var (hit, cacheObject) = _cache.Get("TableKeyThreeValueCRUD", identityId.ToString()+key1.ToBase64());
             if (hit)
                 return (KeyThreeValueRecord)cacheObject;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -61,9 +62,9 @@ public class GetQueryBatchRequest
     public bool IncludeMetadataHeader { get; set; }
     public bool IncludeTransferHistory { get; set; }
 
-    public Ordering Ordering { get; set; }
+    public QueryBatchOrdering Ordering { get; set; }
 
-    public Sorting Sorting { get; set; }
+    public QueryBatchType Sorting { get; set; }
 
     public QueryBatchRequest ToQueryBatchRequest()
     {

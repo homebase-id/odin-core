@@ -164,9 +164,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var json = OdinSystemSerializer.Serialize(history);
 
-            var modified = UnixTimeUtc.Now();
-            await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json, modified);
-            return (history, modified);
+            var (count, modified) = await _driveMainIndex.UpdateTransferSummaryAsync(driveId, fileId, json);
+
+            // TODO: What if count is zero?
+
+            return (history, new UnixTimeUtc(modified));
         }
 
         public async Task DeleteTransferHistoryAsync(StorageDrive drive, Guid fileId)

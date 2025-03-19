@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -34,9 +35,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _attestationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {value.Length} (max 65535)");
                   _attestationId = value;
                }
         }
@@ -46,8 +47,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _attestationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 0)");
                   _attestationId = value;
                }
         }
@@ -58,9 +59,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _requestEnvelope;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null requestEnvelope");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short requestEnvelope, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long requestEnvelope, was {value.Length} (max 65535)");
                   _requestEnvelope = value;
                }
         }
@@ -70,8 +71,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _requestEnvelope;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null requestEnvelope");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short requestEnvelope, was {value.Length} (min 0)");
                   _requestEnvelope = value;
                }
         }
@@ -124,8 +125,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
-                                             "VALUES (@attestationId,@requestEnvelope,@timestamp)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@attestationId,@requestEnvelope,@timestamp)"+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -141,7 +142,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                     return 1;
                 }
@@ -154,9 +155,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
-                                             "VALUES (@attestationId,@requestEnvelope,@timestamp) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@attestationId,@requestEnvelope,@timestamp) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -172,7 +173,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                     return true;
                 }
@@ -185,10 +186,10 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var upsertCommand = conn.db.CreateCommand())
             {
                 upsertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
-                                             "VALUES (@attestationId,@requestEnvelope,@timestamp)"+
-                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                             "SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
-                                             "RETURNING -1,-1,rowId;";
+                                            $"VALUES (@attestationId,@requestEnvelope,@timestamp)"+
+                                            "ON CONFLICT (attestationId) DO UPDATE "+
+                                            $"SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
+                                            "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -204,9 +205,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   item.rowId = (long) rdr[2];
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
-                   return 1;
+                    return 1;
                 }
                 return 0;
             }
@@ -217,8 +218,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE AttestationRequest " +
-                                             "SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
-                                             "WHERE (attestationId = @attestationId)";
+                                            $"SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
+                                            "WHERE (attestationId = @attestationId) "+
+                                            "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@attestationId";
                 updateCommand.Parameters.Add(updateParam1);
@@ -231,12 +233,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 updateParam1.Value = item.attestationId;
                 updateParam2.Value = item.requestEnvelope;
                 updateParam3.Value = item.timestamp.milliseconds;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
-                if (count > 0)
+                await using var rdr = await conn.ExecuteReaderAsync(updateCommand, System.Data.CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
+                    item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -282,9 +286,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public virtual async Task<int> DeleteAsync(DatabaseConnection conn, string attestationId)
         {
-            if (attestationId == null) throw new Exception("Cannot be null");
-            if (attestationId?.Length < 0) throw new Exception("Too short");
-            if (attestationId?.Length > 65535) throw new Exception("Too long");
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 65535)");
             using (var delete0Command = conn.db.CreateCommand())
             {
                 delete0Command.CommandText = "DELETE FROM AttestationRequest " +
@@ -303,9 +307,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public AttestationRequestRecord ReadRecordFromReader0(DbDataReader rdr,string attestationId)
         {
-            if (attestationId == null) throw new Exception("Cannot be null");
-            if (attestationId?.Length < 0) throw new Exception("Too short");
-            if (attestationId?.Length > 65535) throw new Exception("Too long");
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 65535)");
             var result = new List<AttestationRequestRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -321,9 +325,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public virtual async Task<AttestationRequestRecord> GetAsync(DatabaseConnection conn,string attestationId)
         {
-            if (attestationId == null) throw new Exception("Cannot be null");
-            if (attestationId?.Length < 0) throw new Exception("Too short");
-            if (attestationId?.Length > 65535) throw new Exception("Too long");
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 65535)");
             var (hit, cacheObject) = _cache.Get("TableAttestationRequestCRUD", attestationId);
             if (hit)
                 return (AttestationRequestRecord)cacheObject;
