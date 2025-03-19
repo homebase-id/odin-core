@@ -34,9 +34,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _attestationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null attestationId");
+                    if (value?.Length < 0) throw new Exception($"Too short attestationId, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new Exception($"Too long attestationId, was {value.Length} (max 65535)");
                   _attestationId = value;
                }
         }
@@ -46,8 +46,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _attestationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null attestationId");
+                    if (value?.Length < 0) throw new Exception($"Too short attestationId, was {value.Length} (min 0)");
                   _attestationId = value;
                }
         }
@@ -58,9 +58,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _requestEnvelope;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null requestEnvelope");
+                    if (value?.Length < 0) throw new Exception($"Too short requestEnvelope, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new Exception($"Too long requestEnvelope, was {value.Length} (max 65535)");
                   _requestEnvelope = value;
                }
         }
@@ -70,8 +70,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    return _requestEnvelope;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null requestEnvelope");
+                    if (value?.Length < 0) throw new Exception($"Too short requestEnvelope, was {value.Length} (min 0)");
                   _requestEnvelope = value;
                }
         }
@@ -285,9 +285,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public virtual async Task<int> DeleteAsync(DatabaseConnection conn, string attestationId)
         {
-            if (attestationId == null) throw new Exception("Cannot be null");
-            if (attestationId?.Length < 0) throw new Exception("Too short");
-            if (attestationId?.Length > 65535) throw new Exception("Too long");
+            if (attestationId == null) throw new Exception("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new Exception($"Too short attestationId, was {value.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new Exception($"Too long attestationId, was {value.Length} (max 65535)");
             using (var delete0Command = conn.db.CreateCommand())
             {
                 delete0Command.CommandText = "DELETE FROM AttestationRequest " +
@@ -306,9 +306,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public AttestationRequestRecord ReadRecordFromReader0(DbDataReader rdr,string attestationId)
         {
-            if (attestationId == null) throw new Exception("Cannot be null");
-            if (attestationId?.Length < 0) throw new Exception("Too short");
-            if (attestationId?.Length > 65535) throw new Exception("Too long");
+            if (attestationId == null) throw new Exception("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new Exception($"Too short attestationId, was {value.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new Exception($"Too long attestationId, was {value.Length} (max 65535)");
             var result = new List<AttestationRequestRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -324,9 +324,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
         public virtual async Task<AttestationRequestRecord> GetAsync(DatabaseConnection conn,string attestationId)
         {
-            if (attestationId == null) throw new Exception("Cannot be null");
-            if (attestationId?.Length < 0) throw new Exception("Too short");
-            if (attestationId?.Length > 65535) throw new Exception("Too long");
+            if (attestationId == null) throw new Exception("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new Exception($"Too short attestationId, was {value.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new Exception($"Too long attestationId, was {value.Length} (max 65535)");
             var (hit, cacheObject) = _cache.Get("TableAttestationRequestCRUD", attestationId);
             if (hit)
                 return (AttestationRequestRecord)cacheObject;

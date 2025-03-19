@@ -34,9 +34,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _previousHash;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 64) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null previousHash");
+                    if (value?.Length < 16) throw new Exception($"Too short previousHash, was {value.Length} (min 16)");
+                    if (value?.Length > 64) throw new Exception($"Too long previousHash, was {value.Length} (max 64)");
                   _previousHash = value;
                }
         }
@@ -46,8 +46,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _previousHash;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null previousHash");
+                    if (value?.Length < 16) throw new Exception($"Too short previousHash, was {value.Length} (min 16)");
                   _previousHash = value;
                }
         }
@@ -58,9 +58,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _identity;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 3) throw new Exception("Too short");
-                    if (value?.Length > 256) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null identity");
+                    if (value?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
+                    if (value?.Length > 256) throw new Exception($"Too long identity, was {value.Length} (max 256)");
                   _identity = value;
                }
         }
@@ -70,8 +70,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _identity;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 3) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null identity");
+                    if (value?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
                   _identity = value;
                }
         }
@@ -92,9 +92,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _signedPreviousHash;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 200) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null signedPreviousHash");
+                    if (value?.Length < 16) throw new Exception($"Too short signedPreviousHash, was {value.Length} (min 16)");
+                    if (value?.Length > 200) throw new Exception($"Too long signedPreviousHash, was {value.Length} (max 200)");
                   _signedPreviousHash = value;
                }
         }
@@ -104,8 +104,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _signedPreviousHash;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null signedPreviousHash");
+                    if (value?.Length < 16) throw new Exception($"Too short signedPreviousHash, was {value.Length} (min 16)");
                   _signedPreviousHash = value;
                }
         }
@@ -116,9 +116,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _algorithm;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 1) throw new Exception("Too short");
-                    if (value?.Length > 40) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null algorithm");
+                    if (value?.Length < 1) throw new Exception($"Too short algorithm, was {value.Length} (min 1)");
+                    if (value?.Length > 40) throw new Exception($"Too long algorithm, was {value.Length} (max 40)");
                   _algorithm = value;
                }
         }
@@ -128,8 +128,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _algorithm;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 1) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null algorithm");
+                    if (value?.Length < 1) throw new Exception($"Too short algorithm, was {value.Length} (min 1)");
                   _algorithm = value;
                }
         }
@@ -140,9 +140,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _publicKeyJwkBase64Url;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 600) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null publicKeyJwkBase64Url");
+                    if (value?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {value.Length} (min 16)");
+                    if (value?.Length > 600) throw new Exception($"Too long publicKeyJwkBase64Url, was {value.Length} (max 600)");
                   _publicKeyJwkBase64Url = value;
                }
         }
@@ -152,8 +152,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _publicKeyJwkBase64Url;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null publicKeyJwkBase64Url");
+                    if (value?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {value.Length} (min 16)");
                   _publicKeyJwkBase64Url = value;
                }
         }
@@ -164,9 +164,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _notarySignature;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 200) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null notarySignature");
+                    if (value?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
+                    if (value?.Length > 200) throw new Exception($"Too long notarySignature, was {value.Length} (max 200)");
                   _notarySignature = value;
                }
         }
@@ -176,8 +176,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _notarySignature;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null notarySignature");
+                    if (value?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
                   _notarySignature = value;
                }
         }
@@ -188,9 +188,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _recordHash;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 64) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null recordHash");
+                    if (value?.Length < 16) throw new Exception($"Too short recordHash, was {value.Length} (min 16)");
+                    if (value?.Length > 64) throw new Exception($"Too long recordHash, was {value.Length} (max 64)");
                   _recordHash = value;
                }
         }
@@ -200,8 +200,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    return _recordHash;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null recordHash");
+                    if (value?.Length < 16) throw new Exception($"Too short recordHash, was {value.Length} (min 16)");
                   _recordHash = value;
                }
         }
@@ -508,9 +508,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
         public virtual async Task<int> DeleteAsync(DatabaseConnection conn, byte[] notarySignature)
         {
-            if (notarySignature == null) throw new Exception("Cannot be null");
-            if (notarySignature?.Length < 16) throw new Exception("Too short");
-            if (notarySignature?.Length > 200) throw new Exception("Too long");
+            if (notarySignature == null) throw new Exception("Cannot be null notarySignature");
+            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {value.Length} (max 200)");
             using (var delete0Command = conn.db.CreateCommand())
             {
                 delete0Command.CommandText = "DELETE FROM NotaryChain " +
@@ -529,9 +529,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
         public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr,byte[] notarySignature)
         {
-            if (notarySignature == null) throw new Exception("Cannot be null");
-            if (notarySignature?.Length < 16) throw new Exception("Too short");
-            if (notarySignature?.Length > 200) throw new Exception("Too long");
+            if (notarySignature == null) throw new Exception("Cannot be null notarySignature");
+            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {value.Length} (max 200)");
             var result = new List<NotaryChainRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -558,9 +558,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
         public virtual async Task<NotaryChainRecord> GetAsync(DatabaseConnection conn,byte[] notarySignature)
         {
-            if (notarySignature == null) throw new Exception("Cannot be null");
-            if (notarySignature?.Length < 16) throw new Exception("Too short");
-            if (notarySignature?.Length > 200) throw new Exception("Too long");
+            if (notarySignature == null) throw new Exception("Cannot be null notarySignature");
+            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {value.Length} (max 200)");
             var (hit, cacheObject) = _cache.Get("TableNotaryChainCRUD", notarySignature.ToBase64());
             if (hit)
                 return (NotaryChainRecord)cacheObject;

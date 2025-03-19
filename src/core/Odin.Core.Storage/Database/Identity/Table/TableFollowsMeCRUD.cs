@@ -46,9 +46,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identity;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 3) throw new Exception("Too short");
-                    if (value?.Length > 255) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null identity");
+                    if (value?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
+                    if (value?.Length > 255) throw new Exception($"Too long identity, was {value.Length} (max 255)");
                   _identity = value;
                }
         }
@@ -58,8 +58,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identity;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 3) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null identity");
+                    if (value?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
                   _identity = value;
                }
         }
@@ -364,9 +364,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,string identity,Guid driveId)
         {
-            if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 3) throw new Exception("Too short");
-            if (identity?.Length > 255) throw new Exception("Too long");
+            if (identity == null) throw new Exception("Cannot be null identity");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
+            if (identity?.Length > 255) throw new Exception($"Too long identity, was {value.Length} (max 255)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -394,9 +394,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,string identity)
         {
-            if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 3) throw new Exception("Too short");
-            if (identity?.Length > 255) throw new Exception("Too long");
+            if (identity == null) throw new Exception("Cannot be null identity");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
+            if (identity?.Length > 255) throw new Exception($"Too long identity, was {value.Length} (max 255)");
             var result = new List<FollowsMeRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -414,9 +414,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<FollowsMeRecord>> GetAsync(Guid identityId,string identity)
         {
-            if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 3) throw new Exception("Too short");
-            if (identity?.Length > 255) throw new Exception("Too long");
+            if (identity == null) throw new Exception("Cannot be null identity");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
+            if (identity?.Length > 255) throw new Exception($"Too long identity, was {value.Length} (max 255)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -455,9 +455,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,string identity,Guid driveId)
         {
-            if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 3) throw new Exception("Too short");
-            if (identity?.Length > 255) throw new Exception("Too long");
+            if (identity == null) throw new Exception("Cannot be null identity");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
+            if (identity?.Length > 255) throw new Exception($"Too long identity, was {value.Length} (max 255)");
             var result = new List<FollowsMeRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -475,9 +475,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<FollowsMeRecord> GetAsync(Guid identityId,string identity,Guid driveId)
         {
-            if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 3) throw new Exception("Too short");
-            if (identity?.Length > 255) throw new Exception("Too long");
+            if (identity == null) throw new Exception("Cannot be null identity");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
+            if (identity?.Length > 255) throw new Exception($"Too long identity, was {value.Length} (max 255)");
             var (hit, cacheObject) = _cache.Get("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
             if (hit)
                 return (FollowsMeRecord)cacheObject;

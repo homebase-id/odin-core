@@ -47,9 +47,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
-                    if (value?.Length > 48) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null key");
+                    if (value?.Length < 16) throw new Exception($"Too short key, was {value.Length} (min 16)");
+                    if (value?.Length > 48) throw new Exception($"Too long key, was {value.Length} (max 48)");
                   _key = value;
                }
         }
@@ -59,8 +59,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 16) throw new Exception("Too short");
+                    if (value == null) throw new Exception("Cannot be null key");
+                    if (value?.Length < 16) throw new Exception($"Too short key, was {value.Length} (min 16)");
                   _key = value;
                }
         }
@@ -71,8 +71,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 1048576) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception($"Too short data, was {value.Length} (min 0)");
+                    if (value?.Length > 1048576) throw new Exception($"Too long data, was {value.Length} (max 1048576)");
                   _data = value;
                }
         }
@@ -82,7 +82,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length < 0) throw new Exception($"Too short data, was {value.Length} (min 0)");
                   _data = value;
                }
         }
@@ -306,9 +306,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key)
         {
-            if (key == null) throw new Exception("Cannot be null");
-            if (key?.Length < 16) throw new Exception("Too short");
-            if (key?.Length > 48) throw new Exception("Too long");
+            if (key == null) throw new Exception("Cannot be null key");
+            if (key?.Length < 16) throw new Exception($"Too short key, was {value.Length} (min 16)");
+            if (key?.Length > 48) throw new Exception($"Too long key, was {value.Length} (max 48)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -332,9 +332,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key)
         {
-            if (key == null) throw new Exception("Cannot be null");
-            if (key?.Length < 16) throw new Exception("Too short");
-            if (key?.Length > 48) throw new Exception("Too long");
+            if (key == null) throw new Exception("Cannot be null key");
+            if (key?.Length < 16) throw new Exception($"Too short key, was {value.Length} (min 16)");
+            if (key?.Length > 48) throw new Exception($"Too long key, was {value.Length} (max 48)");
             var result = new List<KeyValueRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -352,9 +352,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<KeyValueRecord> GetAsync(Guid identityId,byte[] key)
         {
-            if (key == null) throw new Exception("Cannot be null");
-            if (key?.Length < 16) throw new Exception("Too short");
-            if (key?.Length > 48) throw new Exception("Too long");
+            if (key == null) throw new Exception("Cannot be null key");
+            if (key?.Length < 16) throw new Exception($"Too short key, was {value.Length} (min 16)");
+            if (key?.Length > 48) throw new Exception($"Too long key, was {value.Length} (max 48)");
             var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", identityId.ToString()+key.ToBase64());
             if (hit)
                 return (KeyValueRecord)cacheObject;
