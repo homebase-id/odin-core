@@ -507,9 +507,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 insertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},NULL)"+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -591,12 +596,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam27 = insertCommand.CreateParameter();
                 insertParam27.ParameterName = "@hdrTmpDriveType";
                 insertCommand.Parameters.Add(insertParam27);
-                var insertParam28 = insertCommand.CreateParameter();
-                insertParam28.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam28);
-                var insertParam29 = insertCommand.CreateParameter();
-                insertParam29.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam29);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
@@ -624,15 +623,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam25.Value = item.hdrFileMetaData;
                 insertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 insertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                var now = UnixTimeUtc.Now();
-                insertParam28.Value = now.milliseconds;
-                item.modified = null;
-                insertParam29.Value = DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                     return 1;
                 }
                 return 0;
@@ -654,10 +655,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 insertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},NULL) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -739,12 +745,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam27 = insertCommand.CreateParameter();
                 insertParam27.ParameterName = "@hdrTmpDriveType";
                 insertCommand.Parameters.Add(insertParam27);
-                var insertParam28 = insertCommand.CreateParameter();
-                insertParam28.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam28);
-                var insertParam29 = insertCommand.CreateParameter();
-                insertParam29.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam29);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.driveId.ToByteArray();
                 insertParam3.Value = item.fileId.ToByteArray();
@@ -772,15 +772,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam25.Value = item.hdrFileMetaData;
                 insertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 insertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                var now = UnixTimeUtc.Now();
-                insertParam28.Value = now.milliseconds;
-                item.modified = null;
-                insertParam29.Value = DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                    item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                     return true;
                 }
                 return false;
@@ -802,11 +804,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,@created)"+
-                                             "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
-                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
-                                             "RETURNING created,modified,rowId;";
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                upsertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                                            $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},NULL)"+
+                                            "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
+                                            $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {sqlNowStr} "+
+                                            "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -888,13 +895,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam27 = upsertCommand.CreateParameter();
                 upsertParam27.ParameterName = "@hdrTmpDriveType";
                 upsertCommand.Parameters.Add(upsertParam27);
-                var upsertParam28 = upsertCommand.CreateParameter();
-                upsertParam28.ParameterName = "@created";
-                upsertCommand.Parameters.Add(upsertParam28);
-                var upsertParam29 = upsertCommand.CreateParameter();
-                upsertParam29.ParameterName = "@modified";
-                upsertCommand.Parameters.Add(upsertParam29);
-                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.driveId.ToByteArray();
                 upsertParam3.Value = item.fileId.ToByteArray();
@@ -922,20 +922,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam25.Value = item.hdrFileMetaData;
                 upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                upsertParam28.Value = now.milliseconds;
-                upsertParam29.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = (long) rdr[0];
-                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtc(created);
-                   if (modified != null)
-                      item.modified = new UnixTimeUtc((long)modified);
-                   else
-                      item.modified = null;
-                   item.rowId = (long) rdr[2];
-                   return 1;
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
                 return 0;
             }
@@ -956,9 +954,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 updateCommand.CommandText = "UPDATE DriveMainIndex " +
-                                             "SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = @modified "+
-                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId)";
+                                            $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {sqlNowStr} "+
+                                            "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId) "+
+                                            "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
@@ -1040,13 +1044,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam27 = updateCommand.CreateParameter();
                 updateParam27.ParameterName = "@hdrTmpDriveType";
                 updateCommand.Parameters.Add(updateParam27);
-                var updateParam28 = updateCommand.CreateParameter();
-                updateParam28.ParameterName = "@created";
-                updateCommand.Parameters.Add(updateParam28);
-                var updateParam29 = updateCommand.CreateParameter();
-                updateParam29.ParameterName = "@modified";
-                updateCommand.Parameters.Add(updateParam29);
-                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.driveId.ToByteArray();
                 updateParam3.Value = item.fileId.ToByteArray();
@@ -1074,14 +1071,20 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam25.Value = item.hdrFileMetaData;
                 updateParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
                 updateParam27.Value = item.hdrTmpDriveType.ToByteArray();
-                updateParam28.Value = now.milliseconds;
-                updateParam29.Value = now.milliseconds;
-                var count = await updateCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                     item.modified = now;
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 

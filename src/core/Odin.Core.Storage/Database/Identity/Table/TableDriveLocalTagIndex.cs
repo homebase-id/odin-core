@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -34,8 +35,14 @@ public class TableDriveLocalTagIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
+        string sqlNowStr;
+        if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+            sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+        else
+            sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+        
         updateCommand.CommandText = $"UPDATE driveMainIndex " +
-                                    $"SET hdrLocalVersionTag=@hdrLocalVersionTag,hdrLocalAppData=@hdrLocalAppData,modified=@modified " +
+                                    $"SET hdrLocalVersionTag=@hdrLocalVersionTag,hdrLocalAppData=@hdrLocalAppData,modified={sqlNowStr} " +
                                     $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
@@ -43,28 +50,24 @@ public class TableDriveLocalTagIndex(
         var sparam3 = updateCommand.CreateParameter();
         var versionTagParam = updateCommand.CreateParameter();
         var contentParam = updateCommand.CreateParameter();
-        var modifiedParam = updateCommand.CreateParameter();
 
         sparam1.ParameterName = "@identityId";
         sparam2.ParameterName = "@driveId";
         sparam3.ParameterName = "@fileId";
         versionTagParam.ParameterName = "@hdrLocalVersionTag";
         contentParam.ParameterName = "@hdrLocalAppData";
-        modifiedParam.ParameterName = "@modified";
 
         updateCommand.Parameters.Add(sparam1);
         updateCommand.Parameters.Add(sparam2);
         updateCommand.Parameters.Add(sparam3);
         updateCommand.Parameters.Add(versionTagParam);
         updateCommand.Parameters.Add(contentParam);
-        updateCommand.Parameters.Add(modifiedParam);
 
         sparam1.Value = identityKey.ToByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         versionTagParam.Value = newVersionTag.ToByteArray();
         contentParam.Value = localMetadataJson;
-        modifiedParam.Value = UnixTimeUtc.Now().milliseconds;
 
         return await updateCommand.ExecuteNonQueryAsync();
     }

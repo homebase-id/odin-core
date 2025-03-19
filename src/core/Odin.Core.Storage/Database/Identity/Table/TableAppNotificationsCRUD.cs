@@ -185,9 +185,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                             "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},NULL)"+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -206,27 +211,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam6 = insertCommand.CreateParameter();
                 insertParam6.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.notificationId.ToByteArray();
                 insertParam3.Value = item.unread;
                 insertParam4.Value = item.senderId ?? (object)DBNull.Value;
                 insertParam5.Value = item.timestamp.milliseconds;
                 insertParam6.Value = item.data ?? (object)DBNull.Value;
-                var now = UnixTimeUtc.Now();
-                insertParam7.Value = now.milliseconds;
-                item.modified = null;
-                insertParam8.Value = DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
                 }
@@ -241,10 +242,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                             "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},NULL) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -263,27 +269,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var insertParam6 = insertCommand.CreateParameter();
                 insertParam6.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.notificationId.ToByteArray();
                 insertParam3.Value = item.unread;
                 insertParam4.Value = item.senderId ?? (object)DBNull.Value;
                 insertParam5.Value = item.timestamp.milliseconds;
                 insertParam6.Value = item.data ?? (object)DBNull.Value;
-                var now = UnixTimeUtc.Now();
-                insertParam7.Value = now.milliseconds;
-                item.modified = null;
-                insertParam8.Value = DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                    item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return true;
                 }
@@ -298,11 +300,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created) " +
-                                             "VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,@created)"+
-                                             "ON CONFLICT (identityId,notificationId) DO UPDATE "+
-                                             "SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = @modified "+
-                                             "RETURNING created,modified,rowId;";
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
+                                            $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},NULL)"+
+                                            "ON CONFLICT (identityId,notificationId) DO UPDATE "+
+                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {sqlNowStr} "+
+                                            "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -321,34 +328,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var upsertParam6 = upsertCommand.CreateParameter();
                 upsertParam6.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam6);
-                var upsertParam7 = upsertCommand.CreateParameter();
-                upsertParam7.ParameterName = "@created";
-                upsertCommand.Parameters.Add(upsertParam7);
-                var upsertParam8 = upsertCommand.CreateParameter();
-                upsertParam8.ParameterName = "@modified";
-                upsertCommand.Parameters.Add(upsertParam8);
-                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.notificationId.ToByteArray();
                 upsertParam3.Value = item.unread;
                 upsertParam4.Value = item.senderId ?? (object)DBNull.Value;
                 upsertParam5.Value = item.timestamp.milliseconds;
                 upsertParam6.Value = item.data ?? (object)DBNull.Value;
-                upsertParam7.Value = now.milliseconds;
-                upsertParam8.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = (long) rdr[0];
-                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtc(created);
-                   if (modified != null)
-                      item.modified = new UnixTimeUtc((long)modified);
-                   else
-                      item.modified = null;
-                   item.rowId = (long) rdr[2];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
-                   return 1;
+                    return 1;
                 }
                 return 0;
             }
@@ -361,9 +359,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 updateCommand.CommandText = "UPDATE AppNotifications " +
-                                             "SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = @modified "+
-                                             "WHERE (identityId = @identityId AND notificationId = @notificationId)";
+                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {sqlNowStr} "+
+                                            "WHERE (identityId = @identityId AND notificationId = @notificationId) "+
+                                            "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
@@ -382,28 +386,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var updateParam6 = updateCommand.CreateParameter();
                 updateParam6.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam6);
-                var updateParam7 = updateCommand.CreateParameter();
-                updateParam7.ParameterName = "@created";
-                updateCommand.Parameters.Add(updateParam7);
-                var updateParam8 = updateCommand.CreateParameter();
-                updateParam8.ParameterName = "@modified";
-                updateCommand.Parameters.Add(updateParam8);
-                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.notificationId.ToByteArray();
                 updateParam3.Value = item.unread;
                 updateParam4.Value = item.senderId ?? (object)DBNull.Value;
                 updateParam5.Value = item.timestamp.milliseconds;
                 updateParam6.Value = item.data ?? (object)DBNull.Value;
-                updateParam7.Value = now.milliseconds;
-                updateParam8.Value = now.milliseconds;
-                var count = await updateCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                     item.modified = now;
-                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 

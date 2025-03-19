@@ -120,32 +120,30 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                             "VALUES (@attestationId,@status,@created,@modified)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@attestationId,@status,{sqlNowStr},NULL)"+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
                 insertParam2.ParameterName = "@status";
                 insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.attestationId;
                 insertParam2.Value = item.status;
-                var now = UnixTimeUtc.Now();
-                insertParam3.Value = now.milliseconds;
-                item.modified = null;
-                insertParam4.Value = DBNull.Value;
                 await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
                 }
@@ -157,33 +155,31 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                             "VALUES (@attestationId,@status,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@attestationId,@status,{sqlNowStr},NULL) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
                 insertParam2.ParameterName = "@status";
                 insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.attestationId;
                 insertParam2.Value = item.status;
-                var now = UnixTimeUtc.Now();
-                insertParam3.Value = now.milliseconds;
-                item.modified = null;
-                insertParam4.Value = DBNull.Value;
                 await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                    item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return true;
                 }
@@ -195,41 +191,34 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var upsertCommand = conn.db.CreateCommand())
             {
-                upsertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created) " +
-                                             "VALUES (@attestationId,@status,@created)"+
-                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                             "SET status = @status,modified = @modified "+
-                                             "RETURNING created,modified,rowId;";
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                upsertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
+                                            $"VALUES (@attestationId,@status,{sqlNowStr},NULL)"+
+                                            "ON CONFLICT (attestationId) DO UPDATE "+
+                                            $"SET status = @status,modified = {sqlNowStr} "+
+                                            "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
                 upsertParam2.ParameterName = "@status";
                 upsertCommand.Parameters.Add(upsertParam2);
-                var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.ParameterName = "@created";
-                upsertCommand.Parameters.Add(upsertParam3);
-                var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.ParameterName = "@modified";
-                upsertCommand.Parameters.Add(upsertParam4);
-                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.attestationId;
                 upsertParam2.Value = item.status;
-                upsertParam3.Value = now.milliseconds;
-                upsertParam4.Value = now.milliseconds;
                 await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = (long) rdr[0];
-                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtc(created);
-                   if (modified != null)
-                      item.modified = new UnixTimeUtc((long)modified);
-                   else
-                      item.modified = null;
-                   item.rowId = (long) rdr[2];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
-                   return 1;
+                    return 1;
                 }
                 return 0;
             }
@@ -239,33 +228,35 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var updateCommand = conn.db.CreateCommand())
             {
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 updateCommand.CommandText = "UPDATE AttestationStatus " +
-                                             "SET status = @status,modified = @modified "+
-                                             "WHERE (attestationId = @attestationId)";
+                                            $"SET status = @status,modified = {sqlNowStr} "+
+                                            "WHERE (attestationId = @attestationId) "+
+                                            "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@attestationId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
                 updateParam2.ParameterName = "@status";
                 updateCommand.Parameters.Add(updateParam2);
-                var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.ParameterName = "@created";
-                updateCommand.Parameters.Add(updateParam3);
-                var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.ParameterName = "@modified";
-                updateCommand.Parameters.Add(updateParam4);
-                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.attestationId;
                 updateParam2.Value = item.status;
-                updateParam3.Value = now.milliseconds;
-                updateParam4.Value = now.milliseconds;
-                var count = await conn.ExecuteNonQueryAsync(updateCommand);
-                if (count > 0)
+                await using var rdr = await conn.ExecuteReaderAsync(updateCommand, System.Data.CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                     item.modified = now;
-                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
