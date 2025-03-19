@@ -134,7 +134,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO KeyValue (identityId,key,data) " +
-                                             "VALUES (@identityId,@key,@data)";
+                                             "VALUES (@identityId,@key,@data)"+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -147,12 +148,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.key;
                 insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
                     _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -164,7 +167,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO KeyValue (identityId,key,data) " +
                                              "VALUES (@identityId,@key,@data) " +
-                                             "ON CONFLICT DO NOTHING";
+                                             "ON CONFLICT DO NOTHING "+
+                                             "RETURNING rowid;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -177,12 +181,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.key;
                 insertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = await insertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                     item.rowId = (long)rdr[0];
                    _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
+                    return true;
                 }
-                return count > 0;
+                return false;
             }
         }
 
@@ -196,7 +202,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "VALUES (@identityId,@key,@data)"+
                                              "ON CONFLICT (identityId,key) DO UPDATE "+
                                              "SET data = @data "+
-                                             ";";
+                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -209,12 +215,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.key;
                 upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                var count = await upsertCommand.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
-                return count;
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
+                {
+                   item.rowId = (long) rdr[2];
+                   _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
+                   return 1;
+                }
+                return 0;
             }
         }
+
         protected virtual async Task<int> UpdateAsync(KeyValueRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
