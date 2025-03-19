@@ -307,8 +307,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public virtual async Task<int> DeleteAsync(DatabaseConnection conn, byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null attestationId");
-            if (attestationId?.Length < 16) throw new Exception($"Too short attestationId, was {value.Length} (min 16)");
-            if (attestationId?.Length > 64) throw new Exception($"Too long attestationId, was {value.Length} (max 64)");
+            if (attestationId?.Length < 16) throw new Exception($"Too short attestationId, was {attestationId.Length} (min 16)");
+            if (attestationId?.Length > 64) throw new Exception($"Too long attestationId, was {attestationId.Length} (max 64)");
             using (var delete0Command = conn.db.CreateCommand())
             {
                 delete0Command.CommandText = "DELETE FROM AttestationStatus " +
@@ -328,8 +328,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public AttestationStatusRecord ReadRecordFromReader0(DbDataReader rdr,byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null attestationId");
-            if (attestationId?.Length < 16) throw new Exception($"Too short attestationId, was {value.Length} (min 16)");
-            if (attestationId?.Length > 64) throw new Exception($"Too long attestationId, was {value.Length} (max 64)");
+            if (attestationId?.Length < 16) throw new Exception($"Too short attestationId, was {attestationId.Length} (min 16)");
+            if (attestationId?.Length > 64) throw new Exception($"Too long attestationId, was {attestationId.Length} (max 64)");
             var result = new List<AttestationStatusRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -347,8 +347,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public virtual async Task<AttestationStatusRecord> GetAsync(DatabaseConnection conn,byte[] attestationId)
         {
             if (attestationId == null) throw new Exception("Cannot be null attestationId");
-            if (attestationId?.Length < 16) throw new Exception($"Too short attestationId, was {value.Length} (min 16)");
-            if (attestationId?.Length > 64) throw new Exception($"Too long attestationId, was {value.Length} (max 64)");
+            if (attestationId?.Length < 16) throw new Exception($"Too short attestationId, was {attestationId.Length} (min 16)");
+            if (attestationId?.Length > 64) throw new Exception($"Too long attestationId, was {attestationId.Length} (max 64)");
             var (hit, cacheObject) = _cache.Get("TableAttestationStatusCRUD", attestationId.ToBase64());
             if (hit)
                 return (AttestationStatusRecord)cacheObject;

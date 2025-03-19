@@ -509,8 +509,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         public virtual async Task<int> DeleteAsync(DatabaseConnection conn, byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null notarySignature");
-            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
-            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {value.Length} (max 200)");
+            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {notarySignature.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {notarySignature.Length} (max 200)");
             using (var delete0Command = conn.db.CreateCommand())
             {
                 delete0Command.CommandText = "DELETE FROM NotaryChain " +
@@ -530,8 +530,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr,byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null notarySignature");
-            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
-            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {value.Length} (max 200)");
+            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {notarySignature.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {notarySignature.Length} (max 200)");
             var result = new List<NotaryChainRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -559,8 +559,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         public virtual async Task<NotaryChainRecord> GetAsync(DatabaseConnection conn,byte[] notarySignature)
         {
             if (notarySignature == null) throw new Exception("Cannot be null notarySignature");
-            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {value.Length} (min 16)");
-            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {value.Length} (max 200)");
+            if (notarySignature?.Length < 16) throw new Exception($"Too short notarySignature, was {notarySignature.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new Exception($"Too long notarySignature, was {notarySignature.Length} (max 200)");
             var (hit, cacheObject) = _cache.Get("TableNotaryChainCRUD", notarySignature.ToBase64());
             if (hit)
                 return (NotaryChainRecord)cacheObject;

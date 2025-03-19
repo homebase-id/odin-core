@@ -465,11 +465,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public virtual async Task<int> DeleteAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null identity");
-            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
-            if (identity?.Length > 256) throw new Exception($"Too long identity, was {value.Length} (max 256)");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 256) throw new Exception($"Too long identity, was {identity.Length} (max 256)");
             if (publicKeyJwkBase64Url == null) throw new Exception("Cannot be null publicKeyJwkBase64Url");
-            if (publicKeyJwkBase64Url?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {value.Length} (min 16)");
-            if (publicKeyJwkBase64Url?.Length > 600) throw new Exception($"Too long publicKeyJwkBase64Url, was {value.Length} (max 600)");
+            if (publicKeyJwkBase64Url?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (min 16)");
+            if (publicKeyJwkBase64Url?.Length > 600) throw new Exception($"Too long publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (max 600)");
             using (var delete0Command = conn.db.CreateCommand())
             {
                 delete0Command.CommandText = "DELETE FROM KeyChain " +
@@ -493,11 +493,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public KeyChainRecord ReadRecordFromReader0(DbDataReader rdr,string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null identity");
-            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
-            if (identity?.Length > 256) throw new Exception($"Too long identity, was {value.Length} (max 256)");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 256) throw new Exception($"Too long identity, was {identity.Length} (max 256)");
             if (publicKeyJwkBase64Url == null) throw new Exception("Cannot be null publicKeyJwkBase64Url");
-            if (publicKeyJwkBase64Url?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {value.Length} (min 16)");
-            if (publicKeyJwkBase64Url?.Length > 600) throw new Exception($"Too long publicKeyJwkBase64Url, was {value.Length} (max 600)");
+            if (publicKeyJwkBase64Url?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (min 16)");
+            if (publicKeyJwkBase64Url?.Length > 600) throw new Exception($"Too long publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (max 600)");
             var result = new List<KeyChainRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -524,11 +524,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public virtual async Task<KeyChainRecord> GetAsync(DatabaseConnection conn,string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new Exception("Cannot be null identity");
-            if (identity?.Length < 3) throw new Exception($"Too short identity, was {value.Length} (min 3)");
-            if (identity?.Length > 256) throw new Exception($"Too long identity, was {value.Length} (max 256)");
+            if (identity?.Length < 3) throw new Exception($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 256) throw new Exception($"Too long identity, was {identity.Length} (max 256)");
             if (publicKeyJwkBase64Url == null) throw new Exception("Cannot be null publicKeyJwkBase64Url");
-            if (publicKeyJwkBase64Url?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {value.Length} (min 16)");
-            if (publicKeyJwkBase64Url?.Length > 600) throw new Exception($"Too long publicKeyJwkBase64Url, was {value.Length} (max 600)");
+            if (publicKeyJwkBase64Url?.Length < 16) throw new Exception($"Too short publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (min 16)");
+            if (publicKeyJwkBase64Url?.Length > 600) throw new Exception($"Too long publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (max 600)");
             var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
             if (hit)
                 return (KeyChainRecord)cacheObject;

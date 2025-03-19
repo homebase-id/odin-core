@@ -396,8 +396,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null singleReaction");
-            if (singleReaction?.Length < 3) throw new Exception($"Too short singleReaction, was {value.Length} (min 3)");
-            if (singleReaction?.Length > 80) throw new Exception($"Too long singleReaction, was {value.Length} (max 80)");
+            if (singleReaction?.Length < 3) throw new Exception($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new Exception($"Too long singleReaction, was {singleReaction.Length} (max 80)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
             {
@@ -432,8 +432,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null singleReaction");
-            if (singleReaction?.Length < 3) throw new Exception($"Too short singleReaction, was {value.Length} (min 3)");
-            if (singleReaction?.Length > 80) throw new Exception($"Too long singleReaction, was {value.Length} (max 80)");
+            if (singleReaction?.Length < 3) throw new Exception($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new Exception($"Too long singleReaction, was {singleReaction.Length} (max 80)");
             var result = new List<DriveReactionsRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -452,8 +452,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null singleReaction");
-            if (singleReaction?.Length < 3) throw new Exception($"Too short singleReaction, was {value.Length} (min 3)");
-            if (singleReaction?.Length > 80) throw new Exception($"Too long singleReaction, was {value.Length} (max 80)");
+            if (singleReaction?.Length < 3) throw new Exception($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new Exception($"Too long singleReaction, was {singleReaction.Length} (max 80)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
