@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -44,9 +45,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key1;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null key1");
-                    if (value?.Length < 16) throw new Exception($"Too short key1, was {value.Length} (min 16)");
-                    if (value?.Length > 48) throw new Exception($"Too long key1, was {value.Length} (max 48)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
+                    if (value?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {value.Length} (max 48)");
                   _key1 = value;
                }
         }
@@ -56,8 +57,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key1;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null key1");
-                    if (value?.Length < 16) throw new Exception($"Too short key1, was {value.Length} (min 16)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
                   _key1 = value;
                }
         }
@@ -68,8 +69,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key2;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short key2, was {value.Length} (min 0)");
-                    if (value?.Length > 128) throw new Exception($"Too long key2, was {value.Length} (max 128)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
+                    if (value?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {value.Length} (max 128)");
                   _key2 = value;
                }
         }
@@ -79,7 +80,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _key2;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short key2, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
                   _key2 = value;
                }
         }
@@ -90,8 +91,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short data, was {value.Length} (min 0)");
-                    if (value?.Length > 1048576) throw new Exception($"Too long data, was {value.Length} (max 1048576)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
+                    if (value?.Length > 1048576) throw new OdinDatabaseValidationException($"Too long data, was {value.Length} (max 1048576)");
                   _data = value;
                }
         }
@@ -101,7 +102,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short data, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
                   _data = value;
                }
         }
@@ -347,9 +348,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key1)
         {
-            if (key1 == null) throw new Exception("Cannot be null key1");
-            if (key1?.Length < 16) throw new Exception($"Too short key1, was {key1.Length} (min 16)");
-            if (key1?.Length > 48) throw new Exception($"Too long key1, was {key1.Length} (max 48)");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -373,8 +374,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key2)
         {
-            if (key2?.Length < 0) throw new Exception($"Too short key2, was {key2.Length} (min 0)");
-            if (key2?.Length > 128) throw new Exception($"Too long key2, was {key2.Length} (max 128)");
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
             var result = new List<KeyTwoValueRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -395,8 +396,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
         {
-            if (key2?.Length < 0) throw new Exception($"Too short key2, was {key2.Length} (min 0)");
-            if (key2?.Length > 128) throw new Exception($"Too long key2, was {key2.Length} (max 128)");
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -435,9 +436,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key1)
         {
-            if (key1 == null) throw new Exception("Cannot be null key1");
-            if (key1?.Length < 16) throw new Exception($"Too short key1, was {key1.Length} (min 16)");
-            if (key1?.Length > 48) throw new Exception($"Too long key1, was {key1.Length} (max 48)");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
             var result = new List<KeyTwoValueRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -458,9 +459,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<KeyTwoValueRecord> GetAsync(Guid identityId,byte[] key1)
         {
-            if (key1 == null) throw new Exception("Cannot be null key1");
-            if (key1?.Length < 16) throw new Exception($"Too short key1, was {key1.Length} (min 16)");
-            if (key1?.Length > 48) throw new Exception($"Too long key1, was {key1.Length} (max 48)");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
             var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64());
             if (hit)
                 return (KeyTwoValueRecord)cacheObject;

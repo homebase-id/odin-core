@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -54,9 +55,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _displayName;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null displayName");
-                    if (value?.Length < 0) throw new Exception($"Too short displayName, was {value.Length} (min 0)");
-                    if (value?.Length > 80) throw new Exception($"Too long displayName, was {value.Length} (max 80)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null displayName");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short displayName, was {value.Length} (min 0)");
+                    if (value?.Length > 80) throw new OdinDatabaseValidationException($"Too long displayName, was {value.Length} (max 80)");
                   _displayName = value;
                }
         }
@@ -66,8 +67,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _displayName;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null displayName");
-                    if (value?.Length < 0) throw new Exception($"Too short displayName, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null displayName");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short displayName, was {value.Length} (min 0)");
                   _displayName = value;
                }
         }
@@ -98,8 +99,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short data, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new Exception($"Too long data, was {value.Length} (max 65535)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long data, was {value.Length} (max 65535)");
                   _data = value;
                }
         }
@@ -109,7 +110,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _data;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short data, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
                   _data = value;
                }
         }

@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -64,9 +65,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _recipient;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null recipient");
-                    if (value?.Length < 0) throw new Exception($"Too short recipient, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new Exception($"Too long recipient, was {value.Length} (max 256)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {value.Length} (min 0)");
+                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {value.Length} (max 256)");
                   _recipient = value;
                }
         }
@@ -76,8 +77,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _recipient;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null recipient");
-                    if (value?.Length < 0) throw new Exception($"Too short recipient, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {value.Length} (min 0)");
                   _recipient = value;
                }
         }
@@ -138,8 +139,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _value;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short value, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new Exception($"Too long value, was {value.Length} (max 65535)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
                   _value = value;
                }
         }
@@ -149,7 +150,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _value;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short value, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
                   _value = value;
                }
         }
@@ -170,8 +171,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _correlationId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new Exception($"Too long correlationId, was {value.Length} (max 64)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
                   _correlationId = value;
                }
         }
@@ -181,7 +182,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _correlationId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
                   _correlationId = value;
                }
         }
@@ -659,9 +660,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
-            if (recipient == null) throw new Exception("Cannot be null recipient");
-            if (recipient?.Length < 0) throw new Exception($"Too short recipient, was {recipient.Length} (min 0)");
-            if (recipient?.Length > 256) throw new Exception($"Too long recipient, was {recipient.Length} (max 256)");
+            if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
+            if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
+            if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -760,9 +761,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
-            if (recipient == null) throw new Exception("Cannot be null recipient");
-            if (recipient?.Length < 0) throw new Exception($"Too short recipient, was {recipient.Length} (min 0)");
-            if (recipient?.Length > 256) throw new Exception($"Too long recipient, was {recipient.Length} (max 256)");
+            if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
+            if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
+            if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
             var result = new List<OutboxRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -791,9 +792,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<OutboxRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
-            if (recipient == null) throw new Exception("Cannot be null recipient");
-            if (recipient?.Length < 0) throw new Exception($"Too short recipient, was {recipient.Length} (min 0)");
-            if (recipient?.Length > 256) throw new Exception($"Too long recipient, was {recipient.Length} (max 256)");
+            if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
+            if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
+            if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {

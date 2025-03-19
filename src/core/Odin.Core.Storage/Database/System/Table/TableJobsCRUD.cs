@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -44,9 +45,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _name;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null name");
-                    if (value?.Length < 0) throw new Exception($"Too short name, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new Exception($"Too long name, was {value.Length} (max 64)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null name");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {value.Length} (min 0)");
+                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long name, was {value.Length} (max 64)");
                   _name = value;
                }
         }
@@ -56,8 +57,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _name;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null name");
-                    if (value?.Length < 0) throw new Exception($"Too short name, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null name");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {value.Length} (min 0)");
                   _name = value;
                }
         }
@@ -168,9 +169,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _correlationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null correlationId");
-                    if (value?.Length < 0) throw new Exception($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new Exception($"Too long correlationId, was {value.Length} (max 64)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
                   _correlationId = value;
                }
         }
@@ -180,8 +181,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _correlationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null correlationId");
-                    if (value?.Length < 0) throw new Exception($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
                   _correlationId = value;
                }
         }
@@ -192,9 +193,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobType;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null jobType");
-                    if (value?.Length < 0) throw new Exception($"Too short jobType, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new Exception($"Too long jobType, was {value.Length} (max 65535)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null jobType");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobType, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobType, was {value.Length} (max 65535)");
                   _jobType = value;
                }
         }
@@ -204,8 +205,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobType;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null jobType");
-                    if (value?.Length < 0) throw new Exception($"Too short jobType, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null jobType");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobType, was {value.Length} (min 0)");
                   _jobType = value;
                }
         }
@@ -216,8 +217,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobData;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short jobData, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new Exception($"Too long jobData, was {value.Length} (max 65535)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobData, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobData, was {value.Length} (max 65535)");
                   _jobData = value;
                }
         }
@@ -227,7 +228,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobData;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short jobData, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobData, was {value.Length} (min 0)");
                   _jobData = value;
                }
         }
@@ -238,8 +239,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobHash;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short jobHash, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new Exception($"Too long jobHash, was {value.Length} (max 65535)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobHash, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobHash, was {value.Length} (max 65535)");
                   _jobHash = value;
                }
         }
@@ -249,7 +250,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobHash;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short jobHash, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobHash, was {value.Length} (min 0)");
                   _jobHash = value;
                }
         }
@@ -260,8 +261,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _lastError;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short lastError, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new Exception($"Too long lastError, was {value.Length} (max 65535)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {value.Length} (max 65535)");
                   _lastError = value;
                }
         }
@@ -271,7 +272,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _lastError;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short lastError, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
                   _lastError = value;
                }
         }

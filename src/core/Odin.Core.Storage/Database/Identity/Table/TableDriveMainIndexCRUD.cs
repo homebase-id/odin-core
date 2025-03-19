@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -154,8 +155,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _senderId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short senderId, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new Exception($"Too long senderId, was {value.Length} (max 256)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {value.Length} (min 0)");
+                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long senderId, was {value.Length} (max 256)");
                   _senderId = value;
                }
         }
@@ -165,7 +166,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _senderId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short senderId, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {value.Length} (min 0)");
                   _senderId = value;
                }
         }
@@ -206,9 +207,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrEncryptedKeyHeader;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrEncryptedKeyHeader");
-                    if (value?.Length < 16) throw new Exception($"Too short hdrEncryptedKeyHeader, was {value.Length} (min 16)");
-                    if (value?.Length > 512) throw new Exception($"Too long hdrEncryptedKeyHeader, was {value.Length} (max 512)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrEncryptedKeyHeader");
+                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short hdrEncryptedKeyHeader, was {value.Length} (min 16)");
+                    if (value?.Length > 512) throw new OdinDatabaseValidationException($"Too long hdrEncryptedKeyHeader, was {value.Length} (max 512)");
                   _hdrEncryptedKeyHeader = value;
                }
         }
@@ -218,8 +219,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrEncryptedKeyHeader;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrEncryptedKeyHeader");
-                    if (value?.Length < 16) throw new Exception($"Too short hdrEncryptedKeyHeader, was {value.Length} (min 16)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrEncryptedKeyHeader");
+                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short hdrEncryptedKeyHeader, was {value.Length} (min 16)");
                   _hdrEncryptedKeyHeader = value;
                }
         }
@@ -240,9 +241,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrAppData;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrAppData");
-                    if (value?.Length < 0) throw new Exception($"Too short hdrAppData, was {value.Length} (min 0)");
-                    if (value?.Length > 21504) throw new Exception($"Too long hdrAppData, was {value.Length} (max 21504)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrAppData");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrAppData, was {value.Length} (min 0)");
+                    if (value?.Length > 21504) throw new OdinDatabaseValidationException($"Too long hdrAppData, was {value.Length} (max 21504)");
                   _hdrAppData = value;
                }
         }
@@ -252,8 +253,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrAppData;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrAppData");
-                    if (value?.Length < 0) throw new Exception($"Too short hdrAppData, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrAppData");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrAppData, was {value.Length} (min 0)");
                   _hdrAppData = value;
                }
         }
@@ -274,8 +275,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrLocalAppData;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short hdrLocalAppData, was {value.Length} (min 0)");
-                    if (value?.Length > 4096) throw new Exception($"Too long hdrLocalAppData, was {value.Length} (max 4096)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrLocalAppData, was {value.Length} (min 0)");
+                    if (value?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrLocalAppData, was {value.Length} (max 4096)");
                   _hdrLocalAppData = value;
                }
         }
@@ -285,7 +286,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrLocalAppData;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short hdrLocalAppData, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrLocalAppData, was {value.Length} (min 0)");
                   _hdrLocalAppData = value;
                }
         }
@@ -296,8 +297,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrReactionSummary;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short hdrReactionSummary, was {value.Length} (min 0)");
-                    if (value?.Length > 4096) throw new Exception($"Too long hdrReactionSummary, was {value.Length} (max 4096)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrReactionSummary, was {value.Length} (min 0)");
+                    if (value?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrReactionSummary, was {value.Length} (max 4096)");
                   _hdrReactionSummary = value;
                }
         }
@@ -307,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrReactionSummary;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short hdrReactionSummary, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrReactionSummary, was {value.Length} (min 0)");
                   _hdrReactionSummary = value;
                }
         }
@@ -318,9 +319,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrServerData;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrServerData");
-                    if (value?.Length < 0) throw new Exception($"Too short hdrServerData, was {value.Length} (min 0)");
-                    if (value?.Length > 16384) throw new Exception($"Too long hdrServerData, was {value.Length} (max 16384)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrServerData");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrServerData, was {value.Length} (min 0)");
+                    if (value?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrServerData, was {value.Length} (max 16384)");
                   _hdrServerData = value;
                }
         }
@@ -330,8 +331,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrServerData;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrServerData");
-                    if (value?.Length < 0) throw new Exception($"Too short hdrServerData, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrServerData");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrServerData, was {value.Length} (min 0)");
                   _hdrServerData = value;
                }
         }
@@ -342,8 +343,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrTransferHistory;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short hdrTransferHistory, was {value.Length} (min 0)");
-                    if (value?.Length > 16384) throw new Exception($"Too long hdrTransferHistory, was {value.Length} (max 16384)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrTransferHistory, was {value.Length} (min 0)");
+                    if (value?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrTransferHistory, was {value.Length} (max 16384)");
                   _hdrTransferHistory = value;
                }
         }
@@ -353,7 +354,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrTransferHistory;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short hdrTransferHistory, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrTransferHistory, was {value.Length} (min 0)");
                   _hdrTransferHistory = value;
                }
         }
@@ -364,9 +365,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrFileMetaData;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrFileMetaData");
-                    if (value?.Length < 0) throw new Exception($"Too short hdrFileMetaData, was {value.Length} (min 0)");
-                    if (value?.Length > 16384) throw new Exception($"Too long hdrFileMetaData, was {value.Length} (max 16384)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {value.Length} (min 0)");
+                    if (value?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {value.Length} (max 16384)");
                   _hdrFileMetaData = value;
                }
         }
@@ -376,8 +377,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _hdrFileMetaData;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null hdrFileMetaData");
-                    if (value?.Length < 0) throw new Exception($"Too short hdrFileMetaData, was {value.Length} (min 0)");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {value.Length} (min 0)");
                   _hdrFileMetaData = value;
                }
         }

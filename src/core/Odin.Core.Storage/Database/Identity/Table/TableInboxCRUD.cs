@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -84,8 +85,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _value;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short value, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new Exception($"Too long value, was {value.Length} (max 65535)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
                   _value = value;
                }
         }
@@ -95,7 +96,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _value;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short value, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
                   _value = value;
                }
         }
@@ -116,8 +117,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _correlationId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new Exception($"Too long correlationId, was {value.Length} (max 64)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
                   _correlationId = value;
                }
         }
@@ -127,7 +128,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _correlationId;
                }
            set {
-                    if (value?.Length < 0) throw new Exception($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
                   _correlationId = value;
                }
         }
