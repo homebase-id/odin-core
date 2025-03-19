@@ -12,8 +12,8 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.PubSub;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
@@ -700,7 +700,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task InitializeOdinContextCache(IdentityRegistration registration)
     {
-        if (_config.PubSub.Type == PubSubType.Redis)
+        if (_config.Cache.Level2CacheType == Level2CacheType.Redis)
         {
             var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
             var multiplexer = scope.Resolve<IConnectionMultiplexer>();
