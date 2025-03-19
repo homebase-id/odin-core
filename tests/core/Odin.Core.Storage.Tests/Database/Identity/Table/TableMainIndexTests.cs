@@ -191,7 +191,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (md != null)
                 Assert.Fail();
 
-            await tblDriveMainIndex.InsertAsync(new DriveMainIndexRecord()
+            var rec = new DriveMainIndexRecord()
             {
                 driveId = driveId,
                 fileId = k1,
@@ -215,16 +215,27 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
-            });
+            };
+
+            await tblDriveMainIndex.InsertAsync(rec);
 
             var cts2 = UnixTimeUtc.Now();
+
+            // The SQL clock is not necessarily precisely the same as the C# clock. Proven empirically...
+
+            Debug.Assert(rec.modified == null);
+            Debug.Assert(rec.created.AddSeconds(+1) >= cts1);
+            Debug.Assert(rec.created.AddSeconds(-1) <= cts2);
 
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
 
             if (md == null)
                 Assert.Fail();
 
-            ClassicAssert.IsTrue((md.created >= cts1) && (md.created <= cts2));
+            Debug.Assert(rec.created == md.created);
+            Debug.Assert(rec.modified == md.modified);
+
+            ClassicAssert.IsTrue((md.created.AddSeconds(1) >= cts1) && (md.created.AddSeconds(-1) <= cts2));
 
             if (md.modified != null)
                 Assert.Fail();
