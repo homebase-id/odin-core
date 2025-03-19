@@ -52,6 +52,7 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
+using StackExchange.Redis;
 
 namespace Odin.Hosting
 {
@@ -238,10 +239,15 @@ namespace Odin.Hosting
 
             services.AddIpRateLimiter(_config.Host.IpRateLimitRequestsPerSecond);
 
+            if (_config.Redis.Enabled)
+            {
+                services.AddSingleton<IConnectionMultiplexer>(_ =>
+                    ConnectionMultiplexer.Connect(_config.Redis.Configuration));
+            }
+
             services.AddCoreCacheServices(new CacheConfiguration
             {
                 Level2CacheType = _config.Cache.Level2CacheType,
-                Level2Configuration = _config.Cache.Level2Configuration,
             });
 
             // We currently don't use asp.net data protection, but we need to configure it to avoid warnings

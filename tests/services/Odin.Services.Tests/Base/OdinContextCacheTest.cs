@@ -16,6 +16,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using StackExchange.Redis;
 using Testcontainers.Redis;
 
 namespace Odin.Services.Tests.Base;
@@ -65,10 +66,15 @@ public class OdinContextCacheTest
             logging.SetMinimumLevel(LogLevel.Debug);
         });
 
+        if (_redisContainer != null)
+        {
+            var redisConfig = _redisContainer?.GetConnectionString() ?? throw new InvalidOperationException();
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfig));
+        }
+
         services.AddCoreCacheServices(new CacheConfiguration
         {
             Level2CacheType = level2CacheType,
-            Level2Configuration = _redisContainer?.GetConnectionString() ?? "",
         });
 
         var builder = new ContainerBuilder();

@@ -11,7 +11,7 @@ namespace Odin.Hosting.Middleware
     /// </summary>
     public class IdentityReadyStateMiddleware(RequestDelegate next)
     {
-        public async Task InvokeAsync(HttpContext context, IOdinContext odinContext, TenantConfigService tenantConfigService)
+        public async Task InvokeAsync(HttpContext context, TenantConfigService tenantConfigService)
         {
             var path = context.Request.Path.Value;
             

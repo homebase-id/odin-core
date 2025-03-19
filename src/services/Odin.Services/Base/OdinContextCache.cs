@@ -1,21 +1,53 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
 using Odin.Services.Authorization.ExchangeGrants;
+using StackExchange.Redis;
 
 namespace Odin.Services.Base;
 
 #nullable enable
 
 public class OdinContextCache(
-    CacheConfiguration config,
-    ITenantLevel1Cache<OdinContextCache> level1Cache,
-    ITenantLevel2Cache<OdinContextCache> level2Cache)
+    ILogger<OdinContextCache> logger,
+    CacheKeyPrefix cacheKeyPrefix,
+    ITenantLevel1Cache<OdinContextCache> level1Cache)
+    : IDisposable
 {
-    private static readonly TimeSpan DefaultDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan DefaultDuration = TimeSpan.FromMinutes(60);
     private readonly List<string> _cacheTags = [Guid.NewGuid().ToString()];
+    private const string InvalidateMessage = "cache_invalidation";
+    private readonly RedisChannel _channel = new(cacheKeyPrefix, RedisChannel.PatternMode.Literal);
+    private ISubscriber? _pubSub;
+
+    //
+
+    internal async Task InitializePubSub(IConnectionMultiplexer redis)
+    {
+        if (_pubSub != null)
+        {
+            return;
+        }
+
+        _pubSub = redis.GetSubscriber();
+        await _pubSub.SubscribeAsync(_channel, async void (channel, message) =>
+        {
+            try
+            {
+                if (message == InvalidateMessage)
+                {
+                    await level1Cache.RemoveByTagAsync(_cacheTags);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "{message}", e.Message);
+            }
+        });
+    }
 
     //
 
@@ -32,42 +64,36 @@ public class OdinContextCache(
 
         var key = token.AsKey().ToString().ToLower();
 
-        var isValid = true;
-        if (config.Level2CacheType != Level2CacheType.None)
-        {
-            isValid = (await level2Cache.TryGetAsync<bool>(key)).GetValueOrDefault();
-        }
+        var result = await level1Cache.GetOrSetAsync(
+            key,
+            _ => dotYouContextFactory(),
+            duration,
+            _cacheTags
+        );
 
-        if (isValid)
-        {
-            var value = await level1Cache.TryGetAsync<IOdinContext?>(key);
-            if (value.HasValue)
-            {
-                return value.Value;
-            }
-        }
-
-        var odinContext = await dotYouContextFactory();
-        await level1Cache.SetAsync(key, odinContext, duration, _cacheTags);
-
-        if (config.Level2CacheType != Level2CacheType.None)
-        {
-            await level2Cache.SetAsync(key, true, duration);
-        }
-
-        return odinContext;
+        return result;
     }
 
     //
 
     public async Task ResetAsync()
     {
-        if (config.Level2CacheType != Level2CacheType.None)
-        {
-            await level2Cache.RemoveByTagAsync(_cacheTags);
-        }
         await level1Cache.RemoveByTagAsync(_cacheTags);
+        if (_pubSub != null)
+        {
+            await _pubSub.PublishAsync(_channel, InvalidateMessage);
+        }
     }
+
+    //
+
+    public void Dispose()
+    {
+        _pubSub?.Unsubscribe(_channel);
+        _pubSub = null;
+    }
+
+    //
 }
 
 

@@ -13,8 +13,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Tasks;
+using Odin.Core.Storage.PubSub;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
@@ -26,7 +25,7 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
-using Odin.Services.Util;
+using StackExchange.Redis;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
@@ -220,7 +219,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         CacheCertificate(registration);
-        await StartBackgroundServices(registration);
+        await InitializeOdinContextCache(registration);
+        if (_config.Job.TenantJobsEnabled)
+        {
+            await StartBackgroundServices(registration);
+        }
 
         return registration.FirstRunToken.GetValueOrDefault();
     }
@@ -479,7 +482,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 await CacheIdentity(registration);
 
                 CacheCertificate(registration);
-
+                await InitializeOdinContextCache(registration);
                 if (_config.Job.TenantJobsEnabled)
                 {
                     await StartBackgroundServices(registration);
@@ -690,6 +693,19 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         else
         {
             _logger.LogWarning("No certificate loaded for {domain} (yet)", registration.PrimaryDomainName);
+        }
+    }
+
+    //
+
+    private async Task InitializeOdinContextCache(IdentityRegistration registration)
+    {
+        if (_config.PubSub.Type == PubSubType.Redis)
+        {
+            var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+            var multiplexer = scope.Resolve<IConnectionMultiplexer>();
+            var odinContextCache = scope.Resolve<OdinContextCache>();
+            await odinContextCache.InitializePubSub(multiplexer);
         }
     }
 

@@ -94,8 +94,6 @@ public static class TenantServices
         cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
 
-        cb.RegisterType<OdinContextCache>().SingleInstance(); // Yes, this is a singleton. It has to be. Cool your jets.
-
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
         cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
@@ -155,6 +153,7 @@ public static class TenantServices
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<OdinContextCache>().SingleInstance();
         cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 
         cb.RegisterType<HomeCachingService>()
