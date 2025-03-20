@@ -8,11 +8,11 @@ public class ThumbnailContent : ThumbnailDescriptor
     public static readonly int MaxTinyThumbLength = 1024;
 
     /// <summary>
-    /// The thumbnail data
+    /// The tiny thumbnail data (1KB or less)
     /// </summary>
     public byte[] Content { get; set; }
 
-    public bool TryValidate()
+    public new bool TryValidate()
     {
         try
         {
@@ -25,7 +25,7 @@ public class ThumbnailContent : ThumbnailDescriptor
         }
     }
 
-    public void Validate()
+    public new void Validate()
     {
         if (Content != null)
         {
