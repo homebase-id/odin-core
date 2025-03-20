@@ -91,6 +91,8 @@ public class PayloadDescriptor
         {
             if (Thumbnails?.Count > MaxThumbnailsCount)
                 throw new OdinClientException($"Too many Thumbnails count {Thumbnails.Count} in PayloadDescriptor max {MaxThumbnailsCount}");
+
+            // Ok this blows my mind - why is there one PreviewThumbnail but a LIST of ThumbnailDescriptors ???
         }
     }
 
