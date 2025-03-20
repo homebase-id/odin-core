@@ -1001,7 +1001,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var metadata = manifest.FileMetadata;
 
-            metadata.AppData.Validate();
+            metadata.AppData?.Validate();
 
             //
             // Validations
