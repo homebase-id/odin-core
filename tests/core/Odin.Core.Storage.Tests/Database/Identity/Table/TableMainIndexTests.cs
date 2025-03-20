@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(m == null);
 
             var s2 = "a new transfer status";
-            await tblDriveMainIndex.UpdateTransferSummaryAsync(driveId, f1, s2, UnixTimeUtc.Now());
+            var (count, modified) = await tblDriveMainIndex.UpdateTransferSummaryAsync(driveId, f1, s2);
             var r2 = await tblDriveMainIndex.GetAsync(driveId, f1);
             var m2 = r2.modified;
             ClassicAssert.IsTrue(r2.hdrTransferHistory == s2);
@@ -191,7 +191,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (md != null)
                 Assert.Fail();
 
-            await tblDriveMainIndex.InsertAsync(new DriveMainIndexRecord()
+            var rec = new DriveMainIndexRecord()
             {
                 driveId = driveId,
                 fileId = k1,
@@ -215,16 +215,27 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
-            });
+            };
+
+            await tblDriveMainIndex.InsertAsync(rec);
 
             var cts2 = UnixTimeUtc.Now();
+
+            // The SQL clock is not necessarily precisely the same as the C# clock. Proven empirically...
+
+            ClassicAssert.IsTrue(rec.modified == null);
+            ClassicAssert.IsTrue(rec.created.AddSeconds(+1) >= cts1);
+            ClassicAssert.IsTrue(rec.created.AddSeconds(-1) <= cts2);
 
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
 
             if (md == null)
                 Assert.Fail();
 
-            ClassicAssert.IsTrue((md.created >= cts1) && (md.created <= cts2));
+            ClassicAssert.IsTrue(rec.created == md.created);
+            ClassicAssert.IsTrue(rec.modified == md.modified);
+
+            ClassicAssert.IsTrue((md.created.AddSeconds(1) >= cts1) && (md.created.AddSeconds(-1) <= cts2));
 
             if (md.modified != null)
                 Assert.Fail();

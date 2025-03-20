@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -117,8 +118,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -138,7 +139,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                     return 1;
                 }
                 return 0;
@@ -155,9 +156,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@aclMemberId) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@identityId,@driveId,@fileId,@aclMemberId) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -177,7 +178,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                     return true;
                 }
                 return false;
@@ -194,10 +195,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) " +
-                                             "VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
-                                             "ON CONFLICT (identityId,driveId,fileId,aclMemberId) DO UPDATE "+
-                                             "SET  "+
-                                             "RETURNING -1,-1,rowId;";
+                                            $"VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
+                                            "ON CONFLICT (identityId,driveId,fileId,aclMemberId) DO UPDATE "+
+                                            $"SET  "+
+                                            "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -217,8 +218,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   item.rowId = (long) rdr[2];
-                   return 1;
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
                 return 0;
             }
@@ -234,8 +235,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE DriveAclIndex " +
-                                             "SET  "+
-                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId)";
+                                            $"SET  "+
+                                            "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId) "+
+                                            "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
@@ -252,11 +254,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam2.Value = item.driveId.ToByteArray();
                 updateParam3.Value = item.fileId.ToByteArray();
                 updateParam4.Value = item.aclMemberId.ToByteArray();
-                var count = await updateCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 

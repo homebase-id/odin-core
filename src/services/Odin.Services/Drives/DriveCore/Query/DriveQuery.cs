@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DnsClient;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -76,7 +77,7 @@ public class DriveQuery(
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 
-        if (options.Ordering == Ordering.Default)
+        if (options.Ordering == QueryBatchOrdering.Default)
         {
             (var results, var moreRows, cursor) = await metaIndex.QueryBatchAutoAsync(
                 drive.Id,
@@ -467,8 +468,8 @@ public class DriveQuery(
             drive.Id,
             noOfItems: options.MaxRecords,
             cursor,
-            createdSort: options.Sorting == Sorting.FileId,
-            newestFirstOrder: options.Ordering == Ordering.NewestFirst,
+            queryType: options.Sorting,
+            sortOrder: options.Ordering,
             fileSystemType: (Int32)fileSystemType,
             requiredSecurityGroup: securityRange,
             globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),

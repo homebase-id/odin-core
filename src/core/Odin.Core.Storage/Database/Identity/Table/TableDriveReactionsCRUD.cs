@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -74,9 +75,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _singleReaction;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 3) throw new Exception("Too short");
-                    if (value?.Length > 80) throw new Exception("Too long");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
+                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {value.Length} (min 3)");
+                    if (value?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {value.Length} (max 80)");
                   _singleReaction = value;
                }
         }
@@ -86,8 +87,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _singleReaction;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 3) throw new Exception("Too short");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
+                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {value.Length} (min 3)");
                   _singleReaction = value;
                }
         }
@@ -141,8 +142,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -166,7 +167,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                     return 1;
                 }
                 return 0;
@@ -182,9 +183,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@identityId,@driveId,@postId,@identity,@singleReaction) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -208,7 +209,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.rowId = (long)rdr[0];
+                    item.rowId = (long) rdr[2];
                     return true;
                 }
                 return false;
@@ -224,10 +225,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
-                                             "VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
-                                             "ON CONFLICT (identityId,driveId,postId,identity,singleReaction) DO UPDATE "+
-                                             "SET  "+
-                                             "RETURNING -1,-1,rowId;";
+                                            $"VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
+                                            "ON CONFLICT (identityId,driveId,postId,identity,singleReaction) DO UPDATE "+
+                                            $"SET  "+
+                                            "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -251,8 +252,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   item.rowId = (long) rdr[2];
-                   return 1;
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
                 return 0;
             }
@@ -267,8 +268,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE DriveReactions " +
-                                             "SET  "+
-                                             "WHERE (identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction)";
+                                            $"SET  "+
+                                            "WHERE (identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction) "+
+                                            "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
@@ -289,11 +291,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam3.Value = item.postId.ToByteArray();
                 updateParam4.Value = item.identity.DomainName;
                 updateParam5.Value = item.singleReaction;
-                var count = await updateCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
@@ -392,9 +396,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
-            if (singleReaction == null) throw new Exception("Cannot be null");
-            if (singleReaction?.Length < 3) throw new Exception("Too short");
-            if (singleReaction?.Length > 80) throw new Exception("Too long");
+            if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
+            if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
             {
@@ -428,9 +432,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
-            if (singleReaction == null) throw new Exception("Cannot be null");
-            if (singleReaction?.Length < 3) throw new Exception("Too short");
-            if (singleReaction?.Length > 80) throw new Exception("Too long");
+            if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
+            if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
             var result = new List<DriveReactionsRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -448,9 +452,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
-            if (singleReaction == null) throw new Exception("Cannot be null");
-            if (singleReaction?.Length < 3) throw new Exception("Too short");
-            if (singleReaction?.Length > 80) throw new Exception("Too long");
+            if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
+            if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {

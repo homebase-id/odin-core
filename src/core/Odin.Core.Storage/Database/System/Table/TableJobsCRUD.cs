@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -44,9 +45,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _name;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 64) throw new Exception("Too long");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null name");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {value.Length} (min 0)");
+                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long name, was {value.Length} (max 64)");
                   _name = value;
                }
         }
@@ -56,8 +57,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _name;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null name");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {value.Length} (min 0)");
                   _name = value;
                }
         }
@@ -168,9 +169,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _correlationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 64) throw new Exception("Too long");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
                   _correlationId = value;
                }
         }
@@ -180,8 +181,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _correlationId;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
                   _correlationId = value;
                }
         }
@@ -192,9 +193,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobType;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null jobType");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobType, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobType, was {value.Length} (max 65535)");
                   _jobType = value;
                }
         }
@@ -204,8 +205,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobType;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null jobType");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobType, was {value.Length} (min 0)");
                   _jobType = value;
                }
         }
@@ -216,8 +217,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobData;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobData, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobData, was {value.Length} (max 65535)");
                   _jobData = value;
                }
         }
@@ -227,7 +228,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobData;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobData, was {value.Length} (min 0)");
                   _jobData = value;
                }
         }
@@ -238,8 +239,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobHash;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobHash, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobHash, was {value.Length} (max 65535)");
                   _jobHash = value;
                }
         }
@@ -249,7 +250,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _jobHash;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobHash, was {value.Length} (min 0)");
                   _jobHash = value;
                }
         }
@@ -260,8 +261,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _lastError;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {value.Length} (max 65535)");
                   _lastError = value;
                }
         }
@@ -271,7 +272,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _lastError;
                }
            set {
-                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
                   _lastError = value;
                }
         }
@@ -358,9 +359,14 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                             "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified)"+
-                                             "RETURNING rowid;";
+                                             $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},NULL)"+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@id";
                 insertCommand.Parameters.Add(insertParam1);
@@ -412,12 +418,6 @@ namespace Odin.Core.Storage.Database.System.Table
                 var insertParam17 = insertCommand.CreateParameter();
                 insertParam17.ParameterName = "@lastError";
                 insertCommand.Parameters.Add(insertParam17);
-                var insertParam18 = insertCommand.CreateParameter();
-                insertParam18.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam18);
-                var insertParam19 = insertCommand.CreateParameter();
-                insertParam19.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam19);
                 insertParam1.Value = item.id.ToByteArray();
                 insertParam2.Value = item.name;
                 insertParam3.Value = item.state;
@@ -435,15 +435,17 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam15.Value = item.jobData ?? (object)DBNull.Value;
                 insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 insertParam17.Value = item.lastError ?? (object)DBNull.Value;
-                var now = UnixTimeUtc.Now();
-                insertParam18.Value = now.milliseconds;
-                item.modified = null;
-                insertParam19.Value = DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                     item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                     return 1;
                 }
                 return 0;
@@ -456,10 +458,15 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                             "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created,@modified) " +
-                                             "ON CONFLICT DO NOTHING "+
-                                             "RETURNING rowid;";
+                                            $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},NULL) " +
+                                            "ON CONFLICT DO NOTHING "+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@id";
                 insertCommand.Parameters.Add(insertParam1);
@@ -511,12 +518,6 @@ namespace Odin.Core.Storage.Database.System.Table
                 var insertParam17 = insertCommand.CreateParameter();
                 insertParam17.ParameterName = "@lastError";
                 insertCommand.Parameters.Add(insertParam17);
-                var insertParam18 = insertCommand.CreateParameter();
-                insertParam18.ParameterName = "@created";
-                insertCommand.Parameters.Add(insertParam18);
-                var insertParam19 = insertCommand.CreateParameter();
-                insertParam19.ParameterName = "@modified";
-                insertCommand.Parameters.Add(insertParam19);
                 insertParam1.Value = item.id.ToByteArray();
                 insertParam2.Value = item.name;
                 insertParam3.Value = item.state;
@@ -534,15 +535,17 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam15.Value = item.jobData ?? (object)DBNull.Value;
                 insertParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 insertParam17.Value = item.lastError ?? (object)DBNull.Value;
-                var now = UnixTimeUtc.Now();
-                insertParam18.Value = now.milliseconds;
-                item.modified = null;
-                insertParam19.Value = DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                    item.created = now;
-                     item.rowId = (long)rdr[0];
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
                     return true;
                 }
                 return false;
@@ -555,11 +558,16 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created) " +
-                                             "VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@created)"+
-                                             "ON CONFLICT (id) DO UPDATE "+
-                                             "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
-                                             "RETURNING created,modified,rowId;";
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                upsertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
+                                            $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},NULL)"+
+                                            "ON CONFLICT (id) DO UPDATE "+
+                                            $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = {sqlNowStr} "+
+                                            "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@id";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -611,13 +619,6 @@ namespace Odin.Core.Storage.Database.System.Table
                 var upsertParam17 = upsertCommand.CreateParameter();
                 upsertParam17.ParameterName = "@lastError";
                 upsertCommand.Parameters.Add(upsertParam17);
-                var upsertParam18 = upsertCommand.CreateParameter();
-                upsertParam18.ParameterName = "@created";
-                upsertCommand.Parameters.Add(upsertParam18);
-                var upsertParam19 = upsertCommand.CreateParameter();
-                upsertParam19.ParameterName = "@modified";
-                upsertCommand.Parameters.Add(upsertParam19);
-                var now = UnixTimeUtc.Now();
                 upsertParam1.Value = item.id.ToByteArray();
                 upsertParam2.Value = item.name;
                 upsertParam3.Value = item.state;
@@ -635,20 +636,18 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertParam15.Value = item.jobData ?? (object)DBNull.Value;
                 upsertParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 upsertParam17.Value = item.lastError ?? (object)DBNull.Value;
-                upsertParam18.Value = now.milliseconds;
-                upsertParam19.Value = now.milliseconds;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
-                   long created = (long) rdr[0];
-                   long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
-                   item.created = new UnixTimeUtc(created);
-                   if (modified != null)
-                      item.modified = new UnixTimeUtc((long)modified);
-                   else
-                      item.modified = null;
-                   item.rowId = (long) rdr[2];
-                   return 1;
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
                 return 0;
             }
@@ -660,9 +659,15 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
+                string sqlNowStr;
+                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+                else
+                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 updateCommand.CommandText = "UPDATE Jobs " +
-                                             "SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = @modified "+
-                                             "WHERE (id = @id)";
+                                            $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = {sqlNowStr} "+
+                                            "WHERE (id = @id) "+
+                                            "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@id";
                 updateCommand.Parameters.Add(updateParam1);
@@ -714,13 +719,6 @@ namespace Odin.Core.Storage.Database.System.Table
                 var updateParam17 = updateCommand.CreateParameter();
                 updateParam17.ParameterName = "@lastError";
                 updateCommand.Parameters.Add(updateParam17);
-                var updateParam18 = updateCommand.CreateParameter();
-                updateParam18.ParameterName = "@created";
-                updateCommand.Parameters.Add(updateParam18);
-                var updateParam19 = updateCommand.CreateParameter();
-                updateParam19.ParameterName = "@modified";
-                updateCommand.Parameters.Add(updateParam19);
-                var now = UnixTimeUtc.Now();
                 updateParam1.Value = item.id.ToByteArray();
                 updateParam2.Value = item.name;
                 updateParam3.Value = item.state;
@@ -738,14 +736,20 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateParam15.Value = item.jobData ?? (object)DBNull.Value;
                 updateParam16.Value = item.jobHash ?? (object)DBNull.Value;
                 updateParam17.Value = item.lastError ?? (object)DBNull.Value;
-                updateParam18.Value = now.milliseconds;
-                updateParam19.Value = now.milliseconds;
-                var count = await updateCommand.ExecuteNonQueryAsync();
-                if (count > 0)
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                if (await rdr.ReadAsync())
                 {
-                     item.modified = now;
+                    long created = (long) rdr[0];
+                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    item.created = new UnixTimeUtc(created);
+                    if (modified != null)
+                        item.modified = new UnixTimeUtc((long)modified);
+                    else
+                        item.modified = null;
+                    item.rowId = (long) rdr[2];
+                    return 1;
                 }
-                return count;
+                return 0;
             }
         }
 
