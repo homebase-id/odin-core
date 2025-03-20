@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -47,10 +48,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public void Validate()
         {
             if (Tags?.Count > MaxTagCount)
-                throw new ArgumentException($"Too many Tags count {Tags.Count} in AppFileMetaData max {MaxTagCount}");
+                throw new OdinClientException($"Too many Tags count {Tags.Count} in AppFileMetaData max {MaxTagCount}");
 
             if (Content?.Length > MaxAppDataContentLength) 
-                throw new ArgumentException($"Content length {Content.Length} in AppFileMetaData max {MaxAppDataContentLength}");
+                throw new OdinClientException($"Content length {Content.Length} in AppFileMetaData max {MaxAppDataContentLength}");
 
             PreviewThumbnail?.Validate();
         }

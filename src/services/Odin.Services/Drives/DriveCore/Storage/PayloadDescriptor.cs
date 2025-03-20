@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
@@ -11,6 +12,10 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// </summary>
 public class PayloadDescriptor
 {
+    public static readonly int MaxDescriptorContentLength = 500;
+    public static readonly int MaxThumbnailsCount = 2;
+
+
     public PayloadDescriptor()
     {
         this.Thumbnails = new List<ThumbnailDescriptor>();
@@ -61,4 +66,32 @@ public class PayloadDescriptor
         var hasValidKey = DriveFileUtility.IsValidPayloadKey(Key);
         return hasValidKey && hasValidContentType;
     }
+
+    public bool TryValidate()
+    {
+        try
+        {
+            Validate();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public void Validate()
+    {
+        if (DescriptorContent?.Length > MaxDescriptorContentLength)
+            throw new OdinClientException($"Too long DescriptorContent length {DescriptorContent.Length} in PayloadDescriptor max {MaxDescriptorContentLength}");
+
+        PreviewThumbnail?.Validate();
+
+        if (Thumbnails != null)
+        {
+            if (Thumbnails?.Count > MaxThumbnailsCount)
+                throw new OdinClientException($"Too many Thumbnails count {Thumbnails.Count} in PayloadDescriptor max {MaxThumbnailsCount}");
+        }
+    }
+
 }
