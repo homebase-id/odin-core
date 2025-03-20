@@ -1,7 +1,9 @@
 using System;
+using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.NeueccMessagePack;
@@ -16,6 +18,8 @@ public static class FusionCacheWrapperExtensions
         this IServiceCollection services,
         CacheConfiguration cacheConfiguration)
     {
+        services.AddSingleton(cacheConfiguration);
+
         var builder = services.AddFusionCache()
             .WithOptions(options =>
             {
@@ -38,22 +42,28 @@ public static class FusionCacheWrapperExtensions
             })
             .WithSerializer(
                 new FusionCacheNeueccMessagePackSerializer()
+                // new FusionCacheSystemTextJsonSerializer()
             );
 
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)
         {
-            ArgumentException.ThrowIfNullOrEmpty(
-                cacheConfiguration.Level2Configuration,
-                nameof(cacheConfiguration.Level2Configuration));
-
             builder
-                .WithDistributedCache(
-                    new RedisCache(new RedisCacheOptions { Configuration = cacheConfiguration.Level2Configuration })
-                )
-                .WithBackplane(
-                    new RedisBackplane(new RedisBackplaneOptions
-                        { Configuration = cacheConfiguration.Level2Configuration })
-                );
+                .WithDistributedCache(sp =>
+                {
+                    var multiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
+                    return new RedisCache(new RedisCacheOptions
+                    {
+                        ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer)
+                    });
+                })
+                .WithBackplane(sp =>
+                {
+                    var multiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
+                    return new RedisBackplane(new RedisBackplaneOptions
+                    {
+                        ConnectionMultiplexerFactory = () => Task.FromResult(multiplexer)
+                    });
+                });
         }
 
         return services;

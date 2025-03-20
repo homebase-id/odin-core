@@ -11,7 +11,7 @@ namespace Odin.Hosting.Middleware
 {
     public class VersionUpgradeMiddleware(RequestDelegate next)
     {
-        public async Task InvokeAsync(HttpContext context, IOdinContext odinContext, VersionUpgradeScheduler scheduler, VersionUpgradeService upgradeService)
+        public async Task InvokeAsync(HttpContext context, VersionUpgradeScheduler scheduler, VersionUpgradeService upgradeService)
         {
             var path = context.Request.Path.Value;
             

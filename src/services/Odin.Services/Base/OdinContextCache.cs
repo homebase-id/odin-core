@@ -1,73 +1,99 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
-using LazyCache;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Primitives;
-using Odin.Core.Identity;
+using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
+using Odin.Core.Storage.Cache;
 using Odin.Services.Authorization.ExchangeGrants;
+using StackExchange.Redis;
 
 namespace Odin.Services.Base;
 
-public class OdinContextCache
-{
-    private readonly int _ttlSeconds;
-    private readonly IAppCache _dotYouContextCache;
-    private readonly CancellationTokenSource _expiryTokenSource = new();
+#nullable enable
 
-    public OdinContextCache(int ttlSeconds = 60)
+public class OdinContextCache(
+    ILogger<OdinContextCache> logger,
+    CacheKeyPrefix cacheKeyPrefix,
+    ITenantLevel1Cache<OdinContextCache> level1Cache)
+    : IDisposable
+{
+    private static readonly TimeSpan DefaultDuration = TimeSpan.FromMinutes(60);
+    private readonly List<string> _cacheTags = [Guid.NewGuid().ToString()];
+    private const string InvalidateMessage = "cache_invalidation";
+    private readonly RedisChannel _channel = new(cacheKeyPrefix, RedisChannel.PatternMode.Literal);
+    private ISubscriber? _pubSub;
+
+    //
+
+    internal async Task InitializePubSub(IConnectionMultiplexer redis)
     {
-        this._ttlSeconds = ttlSeconds;
-        _dotYouContextCache = new CachingService();
+        if (_pubSub != null)
+        {
+            return;
+        }
+
+        _pubSub = redis.GetSubscriber();
+        await _pubSub.SubscribeAsync(_channel, async void (channel, message) =>
+        {
+            try
+            {
+                if (message == InvalidateMessage)
+                {
+                    await level1Cache.RemoveByTagAsync(_cacheTags);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "{message}", e.Message);
+            }
+        });
     }
 
-    public async Task<IOdinContext> GetOrAddContextAsync(ClientAuthenticationToken token, Func<Task<IOdinContext>> dotYouContextFactory)
+    //
+
+    public async Task<IOdinContext?> GetOrAddContextAsync(
+        ClientAuthenticationToken token,
+        Func<Task<IOdinContext?>> dotYouContextFactory,
+        TimeSpan? expiration = null)
     {
-        var key = token.AsKey().ToString().ToLower();
-        var policy = new MemoryCacheEntryOptions()
+        var duration = expiration ?? DefaultDuration;
+        if (duration < TimeSpan.FromSeconds(1))
         {
-            SlidingExpiration = TimeSpan.FromSeconds(_ttlSeconds)
-        };
+            throw new OdinSystemException("Cache duration must be at least 1 second.");
+        }
 
-        policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
-        var result = await _dotYouContextCache.GetOrAddAsync<IOdinContext>(key, dotYouContextFactory, policy);
+        var key = token.AsKey().ToString().ToLower();
 
-        //TODO: Need some locking on _identitiesRequiringReset
-        // var rebuildContext = _identitiesRequiringReset.Contains(result.Caller.OdinId);
-        // if (rebuildContext)
-        // {
-        //     _dotYouContextCache.Remove(key);
-        //     result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
-        //     _identitiesRequiringReset.Remove(result.Caller.OdinId);
-        //     
-        // }
+        var result = await level1Cache.GetOrSetAsync(
+            key,
+            _ => dotYouContextFactory(),
+            duration,
+            _cacheTags
+        );
 
         return result;
     }
 
-    /// <summary>
-    /// Fully empties the Cache
-    /// </summary>
-    public void Reset()
+    //
+
+    public async Task ResetAsync()
     {
-        //from: https://github.com/alastairtree/LazyCache/wiki/API-documentation-(v-2.x)#empty-the-entire-cache
-        _expiryTokenSource.Cancel();
+        await level1Cache.RemoveByTagAsync(_cacheTags);
+        if (_pubSub != null)
+        {
+            await _pubSub.PublishAsync(_channel, InvalidateMessage);
+        }
     }
 
-    public void EnqueueIdentityForReset(OdinId identity)
-    {
-        //TODO: need to find a way to do this per identity instead all items
-        //todo: locking
-        // if (!_identitiesRequiringReset.Contains(identity))
-        // {
-        //     _identitiesRequiringReset.Add(identity);
-        // }
+    //
 
-        this.Reset();
+    public void Dispose()
+    {
+        _pubSub?.Unsubscribe(_channel);
+        _pubSub = null;
     }
+
+    //
 }
 
-// SEB:TODO fusion cache L1 or L2 ?
-public class SharedOdinContextCache<TRegisteredService>(int ttlSeconds = 60) : OdinContextCache(ttlSeconds);
 
