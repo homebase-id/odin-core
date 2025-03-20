@@ -1,3 +1,4 @@
+using Odin.Core.Exceptions;
 using System;
 using System.Collections.Generic;
 
@@ -39,9 +40,9 @@ public class LocalAppMetadata
     public void Validate()
     {
         if (Tags?.Count > MaxTagCount)
-            throw new ArgumentException($"Too many Tags count {Tags.Count} in LocalAppMetaData max {MaxTagCount}");
+            throw new OdinClientException($"Too many Tags count {Tags.Count} in LocalAppMetaData max {MaxTagCount}");
 
         if (Content?.Length > MaxLocalAppDataContentLength)
-            throw new ArgumentException($"Content length {Content.Length} in AppFileMetaData max {MaxLocalAppDataContentLength}");
+            throw new OdinClientException($"Content length {Content.Length} in AppFileMetaData max {MaxLocalAppDataContentLength}");
     }
 }
