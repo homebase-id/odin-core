@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Storage.Cache;
+using StackExchange.Redis;
 using Testcontainers.Redis;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -58,10 +59,15 @@ public class LevelXCacheTests
             logging.SetMinimumLevel(LogLevel.Debug);
         });
 
+        if (_redisContainer != null)
+        {
+            var redisConfig = _redisContainer?.GetConnectionString() ?? throw new InvalidOperationException();
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfig));
+        }
+
         services.AddCoreCacheServices(new CacheConfiguration
         {
             Level2CacheType = level2CacheType,
-            Level2Configuration = _redisContainer?.GetConnectionString() ?? ""
         });
 
         var builder = new ContainerBuilder();
