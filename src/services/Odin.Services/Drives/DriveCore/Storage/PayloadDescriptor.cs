@@ -12,8 +12,8 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// </summary>
 public class PayloadDescriptor
 {
-    public static readonly int MaxDescriptorContentLength = 500;
-    public static readonly int MaxThumbnailsCount = 2;
+    public static readonly int MaxDescriptorContentLength = 1024;
+    public static readonly int MaxThumbnailsCount = 5;
 
 
     public PayloadDescriptor()
@@ -92,7 +92,8 @@ public class PayloadDescriptor
             if (Thumbnails?.Count > MaxThumbnailsCount)
                 throw new OdinClientException($"Too many Thumbnails count {Thumbnails.Count} in PayloadDescriptor max {MaxThumbnailsCount}");
 
-            // Ok this blows my mind - why is there one PreviewThumbnail but a LIST of ThumbnailDescriptors ???
+            foreach (var thumbnail in Thumbnails)
+                thumbnail.Validate();
         }
     }
 
