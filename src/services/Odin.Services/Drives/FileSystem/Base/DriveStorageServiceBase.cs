@@ -1000,8 +1000,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
 
             var metadata = manifest.FileMetadata;
-            DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
-            DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
+
+            metadata.AppData.Validate();
 
             //
             // Validations
@@ -1175,7 +1175,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            DriveFileUtility.AssertValidLocalAppContentLength(newContent);
+            // DriveFileUtility.AssertValidLocalAppContentLength(newContent); REPLACED WITH mergedMetadata.Validate();
 
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
@@ -1202,6 +1202,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
             };
 
+            mergedMetadata.Validate();
+
             await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
@@ -1225,8 +1227,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
-            DriveFileUtility.AssertValidAppContentLength(header.FileMetadata.AppData?.Content ?? "");
-            DriveFileUtility.AssertValidPreviewThumbnail(header.FileMetadata.AppData?.PreviewThumbnail);
+
+            header.FileMetadata.AppData?.Validate();
             
             if (!keepSameVersionTag)
             {

@@ -415,7 +415,6 @@ public abstract class FileSystemUpdateWriterBase
             }
         }
 
-        DriveFileUtility.AssertValidAppContentLength(metadata.AppData?.Content ?? "");
-        DriveFileUtility.AssertValidPreviewThumbnail(metadata.AppData?.PreviewThumbnail);
+        metadata.AppData?.Validate();
     }
 }

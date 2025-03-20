@@ -8,6 +8,9 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// </summary>
 public class LocalAppMetadata
 {
+    public static readonly int MaxTagCount = 50;
+    public static readonly int MaxLocalAppDataContentLength = 4 * 1024;
+
     public Guid VersionTag { get; set; }
 
     /// <summary>
@@ -18,4 +21,27 @@ public class LocalAppMetadata
     public string Content { get; init; }
 
     public List<Guid> Tags { get; init; }
+
+
+    public bool TryValidate()
+    {
+        try
+        {
+            Validate();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public void Validate()
+    {
+        if (Tags?.Count > MaxTagCount)
+            throw new ArgumentException($"Too many Tags count {Tags.Count} in LocalAppMetaData max {MaxTagCount}");
+
+        if (Content?.Length > MaxLocalAppDataContentLength)
+            throw new ArgumentException($"Content length {Content.Length} in AppFileMetaData max {MaxLocalAppDataContentLength}");
+    }
 }

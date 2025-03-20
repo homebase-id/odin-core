@@ -9,6 +9,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class AppFileMetaData : IAppFileMetaData
     {
+        public static readonly int MaxTagCount = 50;
+        public static readonly int MaxAppDataContentLength = 10 * 1024;
+
         public Guid? UniqueId { get; set; }
 
         public List<Guid> Tags { get; set; }
@@ -26,5 +29,30 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public ThumbnailContent PreviewThumbnail { get; set; }
 
         public int ArchivalStatus { get; set; }
+
+
+        public bool TryValidate()
+        {
+            try
+            {
+                Validate();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void Validate()
+        {
+            if (Tags?.Count > MaxTagCount)
+                throw new ArgumentException($"Too many Tags count {Tags.Count} in AppFileMetaData max {MaxTagCount}");
+
+            if (Content?.Length > MaxAppDataContentLength) 
+                throw new ArgumentException($"Content length {Content.Length} in AppFileMetaData max {MaxAppDataContentLength}");
+
+            PreviewThumbnail.Validate();
+        }
     }
 }

@@ -86,7 +86,7 @@ public class DirectDriveSizeValidationTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        uploadedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', DriveFileUtility.MaxAppDataContentLength + 1).ToArray());
+        uploadedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());
         await callerContext.Initialize(ownerApiClient);
 
         // Act
@@ -116,7 +116,7 @@ public class DirectDriveSizeValidationTests
             PixelWidth = 100,
             PixelHeight = 100,
             ContentType = "image/png",
-            Content = Enumerable.Repeat((byte)'A', DriveFileUtility.MaxTinyThumbLength + 1).ToArray()
+            Content = Enumerable.Repeat((byte)'A', ThumbnailContent.MaxTinyThumbLength + 1).ToArray()
         };
         
         await callerContext.Initialize(ownerApiClient);
@@ -162,7 +162,7 @@ public class DirectDriveSizeValidationTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         
         var updatedMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
-        updatedMetadata.AppData.Content = new string(Enumerable.Repeat('A', DriveFileUtility.MaxAppDataContentLength + 1).ToArray());;
+        updatedMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());;
         updatedMetadata.VersionTag = uploadedFile1.FileMetadata.VersionTag;
         updatedMetadata.IsEncrypted = true;
 
@@ -264,7 +264,7 @@ public class DirectDriveSizeValidationTests
         var callerDriveClient = new UniversalDriveApiClient(originalAuthor, callerContext.GetFactory());
 
         var updatedFileMetadata = uploadedFileMetadata;
-        updatedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', DriveFileUtility.MaxAppDataContentLength + 1).ToArray());
+        updatedFileMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());
         updatedFileMetadata.AppData.DataType = 222;
 
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition1();
