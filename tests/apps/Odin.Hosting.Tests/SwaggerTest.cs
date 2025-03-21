@@ -34,9 +34,9 @@ public class SwaggerTest
     [TearDown]
     public void TearDown()
     {
+        _scaffold.DumpLogEventsToConsole();
         _scaffold.AssertLogEvents();
     }
-
 
     [Test]
     public async Task TestSwaggerIsUp()

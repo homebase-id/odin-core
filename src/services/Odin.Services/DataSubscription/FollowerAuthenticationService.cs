@@ -15,11 +15,11 @@ namespace Odin.Services.DataSubscription;
 public class FollowerAuthenticationService
 {
     private readonly FollowerService _followerService;
-    private readonly SharedOdinContextCache<FollowerAuthenticationService> _cache;
+    private readonly OdinContextCache _cache;
 
     public FollowerAuthenticationService(
         FollowerService followerService,
-        SharedOdinContextCache<FollowerAuthenticationService> cache)
+        OdinContextCache cache)
     {
         _followerService = followerService;
         _cache = cache;

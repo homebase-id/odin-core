@@ -34,6 +34,8 @@ namespace Odin.Services.Configuration
 
         public PushNotificationSection PushNotification { get; init; }
         public DatabaseSection Database { get; init; }
+
+        public RedisSection Redis { get; init; }
         public CacheSection Cache { get; init; }
 
         public OdinConfiguration()
@@ -61,6 +63,7 @@ namespace Odin.Services.Configuration
             CertificateRenewal = new CertificateRenewalSection(config);
             PushNotification = new PushNotificationSection(config);
             Database = new DatabaseSection(config);
+            Redis = new RedisSection(config);
             Cache = new CacheSection(config);
         }
 
@@ -458,10 +461,31 @@ namespace Odin.Services.Configuration
 
         //
 
+        public class RedisSection
+        {
+            public bool Enabled { get; init; }
+            public string Configuration { get; init; } = "";
+
+            public RedisSection()
+            {
+                // Mockable support
+            }
+
+            public RedisSection(IConfiguration config)
+            {
+                Enabled = config.GetOrDefault("Redis:Enabled", false);
+                if (Enabled)
+                {
+                    Configuration = config.Required<string>("Redis:Configuration");
+                }
+            }
+        }
+
+        //
+
         public class CacheSection
         {
             public Level2CacheType Level2CacheType { get; init; }
-            public string Level2Configuration { get; init; } = "";
 
             public CacheSection()
             {
@@ -471,11 +495,10 @@ namespace Odin.Services.Configuration
             public CacheSection(IConfiguration config)
             {
                 Level2CacheType = config.GetOrDefault("Cache:Level2CacheType", Level2CacheType.None);
-                if (Level2CacheType != Level2CacheType.None)
-                {
-                    Level2Configuration = config.Required<string>("Cache:Level2Configuration");
-                }
             }
         }
+
+        //
+
     }
 }

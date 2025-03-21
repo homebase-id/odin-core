@@ -54,7 +54,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly TableKeyValue _tblKeyValue;
 
         private readonly IIdentityRegistry _identityRegistry;
-        private readonly SharedOdinContextCache<OwnerAuthenticationService> _cache;
+        private readonly OdinContextCache _cache;
         private readonly ILogger<OwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
         private readonly TenantContext _tenantContext;
@@ -72,7 +72,7 @@ namespace Odin.Services.Authentication.Owner
             IIdentityRegistry identityRegistry,
             OdinConfiguration configuration,
             TableKeyValue tblKeyValue,
-            SharedOdinContextCache<OwnerAuthenticationService> cache)
+            OdinContextCache cache)
         {
             _logger = logger;
             _secretService = secretService;
@@ -316,16 +316,14 @@ namespace Odin.Services.Authentication.Owner
             }
         }
 
-        public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
             //reset cache so the drive is reached on the next request
             if (notification.IsNewDrive)
             {
                 _logger.LogDebug("New drive created [{0}]; Purging cache ", notification.Drive.TargetDriveInfo);
-                _cache.Reset();
+                await _cache.ResetAsync();
             }
-
-            return Task.CompletedTask;
         }
 
         public async Task<bool> UpdateOdinContextAsync(ClientAuthenticationToken token, OdinClientContext clientContext,

@@ -161,8 +161,9 @@ namespace Odin.Hosting.Tests
                 .WithImage("redis:latest")
                 .Build();
             RedisContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("Redis__Enabled", "true");
+            Environment.SetEnvironmentVariable("Redis__Configuration", RedisContainer.GetConnectionString());
             Environment.SetEnvironmentVariable("Cache__Level2CacheType", "redis");
-            Environment.SetEnvironmentVariable("Cache__Level2Configuration", RedisContainer.GetConnectionString());
 #endif
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
