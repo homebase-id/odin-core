@@ -52,7 +52,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (Content?.Length > MaxAppDataContentLength) 
                 throw new ArgumentException($"Content length {Content.Length} in AppFileMetaData max {MaxAppDataContentLength}");
 
-            PreviewThumbnail.Validate();
+            PreviewThumbnail?.Validate();
         }
     }
 }
