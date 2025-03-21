@@ -263,7 +263,7 @@ public class ScopedConnectionFactory<T>(
     //
 
     // SEB:NOTE
-    // This method is used to detect parallelism, i.e. if the same instance of this claass is used in multiple threads.
+    // This method is used to detect parallelism, i.e. if the same instance of this class is used in multiple threads.
     // We used to have locking all around this class, but while that might save you when (mis)using the class across
     // different threads or parallel tasks, it would not alert you to the fact that you are doing something wrong.
     // Since we already know we're not thread-safe, we might as well make it explicit and throw an exception instead
@@ -559,10 +559,6 @@ public class ScopedConnectionFactory<T>(
     //
     // CommandWrapper
     // A wrapper around a DbCommand that ensures that the command is disposed correctly.
-    // All non-trivial access to the underlying DbCommand is synchronized. This is necessary because DbConnection is
-    // not thread-safe and the DbConnection may be shared between multiple threads when running parallel tasks
-    // and having "forgotten" to create a new scope foreach parallel task (or thread). Since DbCommand directly
-    // accesses the DbConnection, we make sure it is synchronized.
     //
     public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
     {
