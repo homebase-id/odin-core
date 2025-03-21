@@ -79,6 +79,7 @@ namespace Odin.Hosting
             //   (e.g.: FileSystemIdentityRegistry.RegisterDotYouHttpClient())
             // This is not possible with the baked in HttpClientFactory.
             //
+            //
             // IHttpClientFactory rules when creating a HttpClient:
             // - It is HttpClientHandler instance that is managed by HttpClientFactory, not the HttpClient instance.
             // - The HttpClientHandler instance, which is explictly or implicitly attached to a HttpClient instance,
