@@ -10,7 +10,6 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
-using Odin.Core.Storage.Exceptions;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -367,7 +366,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
                     if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {value.Length} (min 0)");
-                    if (value?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {value.Length} (max 16384)");
+                    if (value?.Length > 186000) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {value.Length} (max 186000)");
                   _hdrFileMetaData = value;
                }
         }
