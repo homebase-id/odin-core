@@ -54,5 +54,25 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             return header;
         }
+
+        public bool TryValidate()
+        {
+            try
+            {
+                Validate();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void Validate()
+        {
+            FileMetadata?.Validate();
+
+            // TODO possibly validate the ServerMetadata and EncryptedKeyHeader here
+        }
     }
 }

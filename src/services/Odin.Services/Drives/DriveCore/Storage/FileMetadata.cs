@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Time;
+using Odin.Core.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -19,6 +21,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class FileMetadata
     {
+        public static readonly int MaxPayloadsCount = 25;
+
         public FileMetadata()
         {
             this.File = new InternalDriveFileId()
@@ -89,5 +93,37 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             return Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
         }
+
+        public bool TryValidate()
+        {
+            try
+            {
+                Validate();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void Validate()
+        {
+            ReactionPreview?.Validate();
+            if (SenderOdinId != null)
+                AsciiDomainNameValidator.AssertValidDomain(SenderOdinId); // Because senderOdinId is a string and not an OdinId...
+            AppData?.Validate();
+            LocalAppData?.Validate();
+
+            if (Payloads != null)
+            {
+                if (Payloads?.Count > MaxPayloadsCount)
+                    throw new OdinClientException($"Too many Payloads count {Payloads.Count} in FileMetadata max {MaxPayloadsCount}");
+
+                foreach (var payload in Payloads)
+                    payload.Validate();
+            }
+        }
+
     }
 }
