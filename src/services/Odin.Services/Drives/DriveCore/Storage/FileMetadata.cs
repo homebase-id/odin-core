@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
@@ -92,6 +93,30 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public PayloadDescriptor GetPayloadDescriptor(string key)
         {
             return Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
+        }
+
+
+        public string SerializeWithoutSomeFields()
+        {
+            // TODO: this is a hack to clean up FileMetadata before writing to db.
+            // We should have separate classes for DB model and API model
+            var v1 = this.AppData;
+            var v2 = this.ReactionPreview;
+            var v3 = this.VersionTag;
+
+            this.AppData = null;
+            this.ReactionPreview = null;
+            this.VersionTag = null;
+            // TODO: It still doesn't make sense to MS why we're not NULLing out .LocalAppData ??
+            // This means it gets serialized into the hdrFileMetaData field (which it shouldn't 
+            // because it's part of the LocalAppData field in the DB
+            var serialized = OdinSystemSerializer.Serialize(this);
+
+            this.AppData = v1;
+            this.ReactionPreview = v2;
+            this.VersionTag = v3;
+
+            return serialized;
         }
 
         public bool TryValidate()

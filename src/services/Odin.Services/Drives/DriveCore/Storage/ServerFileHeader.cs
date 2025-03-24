@@ -1,6 +1,9 @@
-﻿using Odin.Core.Serialization;
+﻿using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Peer.Encryption;
+using System;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -54,6 +57,61 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             return header;
         }
+
+
+        public DriveMainIndexRecord ToDriveMainIndexRecord(StorageDrive drive)
+        {
+            var fileMetadata = this.FileMetadata;
+            var serverMetadata = this.ServerMetadata;
+            var encryptedKeyHeader = this.EncryptedKeyHeader;
+            int securityGroup = (int)serverMetadata.AccessControlList.RequiredSecurityGroup;
+
+            var record = new DriveMainIndexRecord
+            {
+                identityId = default, // Assuming default is appropriate; clarify if needed
+                driveId = drive.Id,
+                fileId = fileMetadata.File.FileId,
+                globalTransitId = fileMetadata.GlobalTransitId,
+                uniqueId = fileMetadata.AppData.UniqueId,
+                groupId = fileMetadata.AppData.GroupId,
+                senderId = fileMetadata.SenderOdinId,
+                fileType = fileMetadata.AppData.FileType,
+                dataType = fileMetadata.AppData.DataType,
+                archivalStatus = fileMetadata.AppData.ArchivalStatus,
+                historyStatus = 0, // Hardcoded as in original code
+                userDate = fileMetadata.AppData.UserDate ?? UnixTimeUtc.ZeroTime,
+                requiredSecurityGroup = securityGroup,
+                fileState = (int)fileMetadata.FileState,
+                fileSystemType = (int)serverMetadata.FileSystemType,
+                byteCount = serverMetadata.FileByteCount,
+                hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(this.EncryptedKeyHeader),
+                hdrVersionTag = fileMetadata.VersionTag.GetValueOrDefault(),
+                hdrAppData = OdinSystemSerializer.Serialize(fileMetadata.AppData),
+
+                // local data is updated by a specific method
+                // hdrLocalVersionTag =  ...
+                // hdrLocalAppData = ...
+
+                //this is updated by the SaveReactionSummary method
+                // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
+                // this is handled by the SaveTransferHistory method
+                // hdrTransferStatus = OdinSystemSerializer.Serialize(header.ServerMetadata.TransferHistory),
+
+                hdrTmpDriveAlias = drive.TargetDriveInfo.Alias,
+                hdrTmpDriveType = drive.TargetDriveInfo.Type                // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
+            };
+
+            record.hdrFileMetaData = this.FileMetadata.SerializeWithoutSomeFields();
+            record.hdrServerData = this.ServerMetadata.SerializeWithoutSomeFields();
+
+            if (record.driveId == Guid.Empty || record.fileId == Guid.Empty)
+            {
+                throw new OdinSystemException("DriveId and FileId must be a non-empty GUID");
+            }
+
+            return record;
+        }
+
 
         public bool TryValidate()
         {
