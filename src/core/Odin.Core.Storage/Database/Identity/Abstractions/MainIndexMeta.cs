@@ -30,7 +30,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
     public class MainIndexMeta(
         ScopedIdentityConnectionFactory scopedConnectionFactory,
-        IdentityKey identityKey,
+        OdinIdentity odinIdentity,
         TableDriveAclIndex driveAclIndex,
         TableDriveTagIndex driveTagIndex,
         TableDriveLocalTagIndex driveLocalTagIndex,
@@ -80,7 +80,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
-            driveMainIndexRecord.identityId = identityKey;
+            driveMainIndexRecord.identityId = odinIdentity;
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -106,7 +106,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
-            driveMainIndexRecord.identityId = identityKey;
+            driveMainIndexRecord.identityId = odinIdentity;
 
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -140,7 +140,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         {
             var leftJoin = "";
 
-            listWhere.Add($"driveMainIndex.identityId = {identityKey.BytesToSql(_databaseType)}");
+            listWhere.Add($"driveMainIndex.identityId = {odinIdentity.BytesToSql(_databaseType)}");
             listWhere.Add($"driveMainIndex.driveid = {driveId.BytesToSql(_databaseType)}");
             listWhere.Add($"(fileSystemType = {fileSystemType})");
             listWhere.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");

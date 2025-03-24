@@ -11,23 +11,23 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableAppNotifications(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableAppNotificationsCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     public async Task<AppNotificationsRecord> GetAsync(Guid notificationId)
     {
-        return await base.GetAsync(identityKey, notificationId);
+        return await base.GetAsync(odinIdentity, notificationId);
     }
 
     public new async Task<int> InsertAsync(AppNotificationsRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
     public new async Task<int> UpdateAsync(AppNotificationsRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.UpdateAsync(item);
     }
 
@@ -35,13 +35,13 @@ public class TableAppNotifications(
     {
         var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, cursor?.Time, cursor?.rowId);
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, odinIdentity, cursor?.Time, cursor?.rowId);
 
         return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }
 
     public async Task<int> DeleteAsync(Guid notificationId)
     {
-        return await base.DeleteAsync(identityKey, notificationId);
+        return await base.DeleteAsync(odinIdentity, notificationId);
     }
 }

@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
@@ -70,7 +70,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
@@ -181,7 +181,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
@@ -230,7 +230,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
@@ -266,7 +266,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var v1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -321,7 +321,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var v1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -369,7 +369,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
@@ -412,7 +412,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var v1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -481,7 +481,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblInbox = scope.Resolve<TableInbox>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var f1 = SequentialGuid.CreateGuid();
             var v1 = SequentialGuid.CreateGuid().ToByteArray();

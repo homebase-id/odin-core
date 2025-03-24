@@ -44,7 +44,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblAppGrants = scope.Resolve<TableAppGrants>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var c1 = SequentialGuid.CreateGuid();
             var d1 = Guid.NewGuid().ToByteArray();

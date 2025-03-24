@@ -28,7 +28,7 @@ public class DatabaseConnectionTests : IocTestBase
         var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
         var tblKeyValue = scope.Resolve<TableKeyValue>();
-        var identityKey = scope.Resolve<IdentityKey>();
+        var identityKey = scope.Resolve<OdinIdentity>();
 
         var k1 = Guid.NewGuid().ToByteArray();
         var k2 = Guid.NewGuid().ToByteArray();
@@ -146,7 +146,7 @@ public class DatabaseConnectionTests : IocTestBase
     {
         await using var scope = Services.BeginLifetimeScope();
         var tblKeyValue = scope.Resolve<TableKeyValue>();
-        var identityKey = scope.Resolve<IdentityKey>();
+        var identityKey = scope.Resolve<OdinIdentity>();
 
         long[] timers = new long[iterations];
         var sw = new Stopwatch();

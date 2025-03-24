@@ -11,7 +11,7 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableDriveTransferHistory(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory: scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
@@ -76,7 +76,7 @@ public class TableDriveTransferHistory(
         updateCommand.CommandText = sql.ToString();
 
         // Add required WHERE clause parameters
-        parameters["@identityId"] = identityKey.ToByteArray();
+        parameters["@identityId"] = odinIdentity.IdAsByteArray();
         parameters["@driveId"] = driveId.ToByteArray();
         parameters["@fileId"] = fileId.ToByteArray();
         parameters["@remoteIdentityId"] = recipient.DomainName;
@@ -104,18 +104,18 @@ public class TableDriveTransferHistory(
 
     public async Task<List<DriveTransferHistoryRecord>> GetAsync(Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(identityKey, driveId, fileId);
+        return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
 
     public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {
-        return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
+        return await base.DeleteAllRowsAsync(odinIdentity, driveId, fileId);
     }
 
     public new async Task<int> InsertAsync(DriveTransferHistoryRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
@@ -123,7 +123,7 @@ public class TableDriveTransferHistory(
     {
         var item = new DriveTransferHistoryRecord
         {
-            identityId = identityKey,
+            identityId = odinIdentity,
             driveId = driveId,
             fileId = fileId,
             remoteIdentityId = recipient,

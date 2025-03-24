@@ -3,6 +3,7 @@ using System.IO;
 using Autofac;
 using MediatR;
 using Odin.Core.Cache;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
@@ -87,6 +88,8 @@ public static class TenantServices
         //
         // Absolutely do not create singletons that depend on OdinContext or any database related classes.
         //
+
+        cb.RegisterInstance(new OdinIdentity(registration.Id, registration.PrimaryDomainName)).SingleInstance();
 
         cb.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
         cb.RegisterGeneric(typeof(SharedConcurrentDictionary<,,>)).SingleInstance();

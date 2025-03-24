@@ -10,27 +10,27 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableCircle(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableCircleCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     public async Task<CircleRecord> GetAsync(Guid circleId)
     {
-        return await base.GetAsync(identityKey, circleId);
+        return await base.GetAsync(odinIdentity, circleId);
     }
 
     public new async Task<int> InsertAsync(CircleRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
     public async Task<int> DeleteAsync(Guid circleId)
     {
-        return await base.DeleteAsync(identityKey, circleId);
+        return await base.DeleteAsync(odinIdentity, circleId);
     }
 
     public async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid? inCursor)
     {
-        return await PagingByCircleIdAsync(count, identityKey, inCursor);
+        return await PagingByCircleIdAsync(count, odinIdentity, inCursor);
     }
 }

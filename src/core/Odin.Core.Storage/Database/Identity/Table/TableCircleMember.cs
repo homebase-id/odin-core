@@ -11,32 +11,32 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableCircleMember(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableCircleMemberCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
     public async Task<int> DeleteAsync(Guid circleId, Guid memberId)
     {
-        return await base.DeleteAsync(identityKey, circleId, memberId);
+        return await base.DeleteAsync(odinIdentity, circleId, memberId);
     }
 
     public new async Task<int> InsertAsync(CircleMemberRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
     public new async Task<int> UpsertAsync(CircleMemberRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
     public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId)
     {
         // The services code doesn't handle null, so I've made this override
-        var r = await base.GetCircleMembersAsync(identityKey, circleId) ?? [];
+        var r = await base.GetCircleMembersAsync(odinIdentity, circleId) ?? [];
         return r;
     }
 
@@ -49,7 +49,7 @@ public class TableCircleMember(
     public async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId)
     {
         // The services code doesn't handle null, so I've made this override
-        var r = await base.GetMemberCirclesAndDataAsync(identityKey, memberId) ?? [];
+        var r = await base.GetMemberCirclesAndDataAsync(odinIdentity, memberId) ?? [];
         return r;
     }
 
@@ -68,7 +68,7 @@ public class TableCircleMember(
 
         foreach (var circleMember in circleMemberRecordList)
         {
-            circleMember.identityId = identityKey;
+            circleMember.identityId = odinIdentity;
             await base.UpsertAsync(circleMember);
         }
 
@@ -90,7 +90,7 @@ public class TableCircleMember(
         await using var tx = await cn.BeginStackedTransactionAsync();
 
         foreach (var member in members)
-            await base.DeleteAsync(identityKey, circleId, member);
+            await base.DeleteAsync(odinIdentity, circleId, member);
 
         tx.Commit();
     }
@@ -111,10 +111,10 @@ public class TableCircleMember(
 
         foreach (var member in members)
         {
-            var circles = await base.GetMemberCirclesAndDataAsync(identityKey, member);
+            var circles = await base.GetMemberCirclesAndDataAsync(odinIdentity, member);
 
             foreach (var circle in circles)
-                await base.DeleteAsync(identityKey, circle.circleId, member);
+                await base.DeleteAsync(odinIdentity, circle.circleId, member);
         }
 
         tx.Commit();

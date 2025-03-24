@@ -19,6 +19,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
     // The singleton registered types below are verified to not have any (problematic) non-singleton dependencies
     private readonly Dictionary<Type, string> _manualCheckSingletonWhitelist = new()
     {
+        {typeof(Odin.Core.Identity.OdinIdentity), "56922cad"},
         {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
         {typeof(Odin.Core.Storage.CacheHelper), "b6b4e9b2"},
         {typeof(Odin.Core.Storage.Database.DatabaseCounters), "e6f1c919"},
@@ -38,7 +39,6 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Logging.Hostname.StickyHostname), "3b8b6d5d"},
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationContext), "5a40f4fa"},
         {typeof(Odin.Services.Certificate.CertificateServiceFactory), "8a3e1c27"},
-        {typeof(IdentityKey), "cfcb55a8"},
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "d78f7501"},

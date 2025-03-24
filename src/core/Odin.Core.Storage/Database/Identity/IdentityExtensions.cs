@@ -56,9 +56,6 @@ public static class IdentityExtensions
 
     private static ContainerBuilder RegisterIdentityDatabase(this ContainerBuilder cb, Guid identityId)
     {
-        // IdentityKey
-        cb.RegisterInstance(new IdentityKey(identityId)).SingleInstance();
-
         // Database
         cb.RegisterType<IdentityDatabase>().InstancePerDependency();
 

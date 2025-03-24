@@ -12,7 +12,7 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableDriveLocalTagIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableDriveLocalTagIndexCRUD(cache, scopedConnectionFactory: scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
@@ -64,7 +64,7 @@ public class TableDriveLocalTagIndex(
         updateCommand.Parameters.Add(versionTagParam);
         updateCommand.Parameters.Add(contentParam);
 
-        sparam1.Value = identityKey.ToByteArray();
+        sparam1.Value = odinIdentity.IdAsByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         versionTagParam.Value = newVersionTag.ToByteArray();
@@ -75,23 +75,23 @@ public class TableDriveLocalTagIndex(
 
     public new async Task<DriveLocalTagIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid tagId)
     {
-        return await base.GetAsync(identityKey, driveId, fileId, tagId);
+        return await base.GetAsync(odinIdentity, driveId, fileId, tagId);
     }
 
     public async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(identityKey, driveId, fileId);
+        return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
     public new async Task<int> InsertAsync(DriveLocalTagIndexRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
     public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {
-        return await base.DeleteAllRowsAsync(identityKey, driveId, fileId);
+        return await base.DeleteAllRowsAsync(odinIdentity, driveId, fileId);
     }
 
     public async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
@@ -102,7 +102,7 @@ public class TableDriveLocalTagIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        var item = new DriveLocalTagIndexRecord() { identityId = identityKey, driveId = driveId, fileId = fileId };
+        var item = new DriveLocalTagIndexRecord() { identityId = odinIdentity, driveId = driveId, fileId = fileId };
 
         foreach (var tagId in tagIdList)
         {
@@ -123,7 +123,7 @@ public class TableDriveLocalTagIndex(
 
         foreach (var tagId in tagIdList)
         {
-            await base.DeleteAsync(identityKey, driveId, fileId, tagId);
+            await base.DeleteAsync(odinIdentity, driveId, fileId, tagId);
         }
 
         tx.Commit();
