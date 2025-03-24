@@ -35,6 +35,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 ServerMetadata = OdinSystemSerializer.Deserialize<ServerMetadata>(serverMetadata)
             };
 
+            header.FileMetadata.AppData = new AppFileMetaData() {Content = ":-)" };
+            header.FileMetadata.ReactionPreview = new ReactionSummary() { TotalCommentCount = 7 };
+            header.FileMetadata.VersionTag = Guid.NewGuid();
+
+            var fileMetadata2 =  header.FileMetadata.SerializeWithoutSomeFields();
+
+            header.ServerMetadata.TransferHistory = new RecipientTransferHistory();
+            var serverMetadata2 = header.ServerMetadata.SerializeWithoutSomeFields();
+
+            ClassicAssert.IsTrue(fileMetadata2 == fileMetadata);
+            ClassicAssert.IsTrue(serverMetadata == serverMetadata2);
+
             await Task.Delay(0);
         }
     }
