@@ -9,8 +9,7 @@ using Autofac.Core;
 using Autofac.Core.Activators.Reflection;
 using Autofac.Core.Lifetime;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Authentication.Transit;
-using Odin.Services.DataSubscription;
+using Odin.Core.Identity;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting._dev;
@@ -39,10 +38,10 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Logging.Hostname.StickyHostname), "3b8b6d5d"},
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationContext), "5a40f4fa"},
         {typeof(Odin.Services.Certificate.CertificateServiceFactory), "8a3e1c27"},
-        {typeof(Odin.Core.Storage.Database.Identity.Abstractions.IdentityKey), "cfcb55a8"},
+        {typeof(IdentityKey), "cfcb55a8"},
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
-        {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "80cf458d"},
+        {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "d78f7501"},
         {typeof(Odin.Services.Registry.IIdentityRegistry), "5b004123"},
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},

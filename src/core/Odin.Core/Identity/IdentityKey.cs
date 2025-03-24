@@ -1,7 +1,6 @@
 using System;
-using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Database.Identity.Abstractions;
+namespace Odin.Core.Identity;
 
 public class IdentityKey(Guid id)
 {
@@ -15,10 +14,5 @@ public class IdentityKey(Guid id)
     public byte[] ToByteArray()
     {
         return Id.ToByteArray();
-    }
-
-    public string BytesToSql(DatabaseType databaseType)
-    {
-        return ToByteArray().ToSql(databaseType);
     }
 }
