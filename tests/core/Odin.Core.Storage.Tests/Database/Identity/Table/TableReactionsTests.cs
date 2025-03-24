@@ -27,7 +27,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
@@ -77,7 +77,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
@@ -104,7 +104,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
@@ -128,7 +128,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
@@ -162,7 +162,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
@@ -225,7 +225,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
@@ -259,7 +259,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
@@ -293,7 +293,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await RegisterServicesAsync(databaseType);
             await using var scope = Services.BeginLifetimeScope();
             var tblDriveReactions = scope.Resolve<TableDriveReactions>();
-            var identityKey = scope.Resolve<IdentityKey>();
+            var identityKey = scope.Resolve<OdinIdentity>();
 
             var driveId = Guid.NewGuid();
 
