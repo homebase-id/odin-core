@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     public class OwnerPeerSecurityContextController : PeerSecurityContextControllerBase
     {
         public OwnerPeerSecurityContextController(
-            PeerDriveQueryService peerDriveQueryService):base(peerDriveQueryService)
+            PeerDriveOutgoingQueryService peerDriveOutgoingQueryService):base(peerDriveOutgoingQueryService)
         {
         }
     }

@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// <summary>
     /// Routes requests from the owner app to a target identity
     /// </summary>
-    public abstract class PeerQueryControllerBase(PeerDriveQueryService peerDriveQueryService) : OdinControllerBase
+    public abstract class PeerQueryControllerBase(PeerDriveOutgoingQueryService peerDriveOutgoingQueryService) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
         [HttpPost("batchcollection")]
@@ -29,7 +29,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             
-            var result = await peerDriveQueryService.GetBatchCollectionAsync(id, request, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
+            var result = await peerDriveOutgoingQueryService.GetBatchCollectionAsync(id, request, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
             return result;
         }
 
@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             
-            var result = await peerDriveQueryService.GetModifiedAsync(id, request, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
+            var result = await peerDriveOutgoingQueryService.GetModifiedAsync(id, request, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
             return QueryModifiedResponse.FromResult(result);
         }
 
@@ -54,7 +54,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             
-            var batch = await peerDriveQueryService.GetBatchAsync(id, request, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
+            var batch = await peerDriveOutgoingQueryService.GetBatchAsync(id, request, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             AssertIsValidOdinId(request.OdinId, out var id);
             
             SharedSecretEncryptedFileHeader result =
-                await peerDriveQueryService.GetFileHeaderAsync(id, request.File, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
+                await peerDriveOutgoingQueryService.GetFileHeaderAsync(id, request.File, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
             if (null == result)
             {
@@ -115,7 +115,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         {
             AssertIsValidOdinId(request.OdinId, out var id);
             
-            var (encryptedKeyHeader, isEncrypted, payloadStream) = await peerDriveQueryService.GetPayloadStreamAsync(id,
+            var (encryptedKeyHeader, isEncrypted, payloadStream) = await peerDriveOutgoingQueryService.GetPayloadStreamAsync(id,
                 request.File, request.Key, request.Chunk, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
             return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
@@ -162,7 +162,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             AssertIsValidOdinId(request.OdinId, out var id);
             
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
-                await peerDriveQueryService.GetThumbnailAsync(id, request.File, request.Width, request.Height,
+                await peerDriveOutgoingQueryService.GetThumbnailAsync(id, request.File, request.Width, request.Height,
                     request.PayloadKey,
                     GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
@@ -200,7 +200,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
             
-            var drives = await peerDriveQueryService.GetDrivesByTypeAsync((OdinId)request.OdinId, request.DriveType, GetHttpFileSystemResolver().GetFileSystemType(),
+            var drives = await peerDriveOutgoingQueryService.GetDrivesByTypeAsync((OdinId)request.OdinId, request.DriveType, GetHttpFileSystemResolver().GetFileSystemType(),
                 WebOdinContext);
             var clientDriveData = drives.Select(drive => new ClientDriveData()
                 {
@@ -234,7 +234,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             };
 
             
-            var result = await peerDriveQueryService.GetFileHeaderByGlobalTransitIdAsync(id, file, fst, WebOdinContext);
+            var result = await peerDriveOutgoingQueryService.GetFileHeaderByGlobalTransitIdAsync(id, file, fst, WebOdinContext);
 
             if (result == null)
             {
@@ -267,7 +267,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             
             var (encryptedKeyHeader, isEncrypted, payloadStream) =
-                await peerDriveQueryService.GetPayloadByGlobalTransitIdAsync(id, file, key, chunk, fst, WebOdinContext);
+                await peerDriveOutgoingQueryService.GetPayloadByGlobalTransitIdAsync(id, file, key, chunk, fst, WebOdinContext);
 
             return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
@@ -298,7 +298,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
-                await peerDriveQueryService.GetThumbnailByGlobalTransitIdAsync(id, file, payloadKey, width, height, directMatchOnly, fst, WebOdinContext);
+                await peerDriveOutgoingQueryService.GetThumbnailByGlobalTransitIdAsync(id, file, payloadKey, width, height, directMatchOnly, fst, WebOdinContext);
 
             return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
@@ -324,7 +324,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             };
 
             
-            var result = await peerDriveQueryService.GetFileHeaderByUniqueIdAsync(id, file, fst, WebOdinContext);
+            var result = await peerDriveOutgoingQueryService.GetFileHeaderByUniqueIdAsync(id, file, fst, WebOdinContext);
 
             if (result == null)
             {

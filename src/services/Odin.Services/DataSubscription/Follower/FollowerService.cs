@@ -24,8 +24,8 @@ using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Query;
+using Odin.Services.Peer.Outgoing.Drive.Query;
 using Refit;
-using PeerDriveQueryService = Odin.Services.Peer.Outgoing.Drive.Query.PeerDriveQueryService;
 
 namespace Odin.Services.DataSubscription.Follower
 {
@@ -39,7 +39,7 @@ namespace Odin.Services.DataSubscription.Follower
         private readonly TenantContext _tenantContext;
 
         private readonly StandardFileSystem _standardFileSystem;
-        private readonly PeerDriveQueryService _peerDriveQueryService;
+        private readonly PeerDriveOutgoingQueryService _peerDriveOutgoingQueryService;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly IdentityDatabase _db;
 
@@ -51,7 +51,7 @@ namespace Odin.Services.DataSubscription.Follower
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,
-            StandardFileSystem standardFileSystem, PeerDriveQueryService peerDriveQueryService,
+            StandardFileSystem standardFileSystem, PeerDriveOutgoingQueryService peerDriveOutgoingQueryService,
             CircleNetworkService circleNetworkService,
             IdentityDatabase db)
         {
@@ -61,7 +61,7 @@ namespace Odin.Services.DataSubscription.Follower
             _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _tenantContext = tenantContext;
             _standardFileSystem = standardFileSystem;
-            _peerDriveQueryService = peerDriveQueryService;
+            _peerDriveOutgoingQueryService = peerDriveOutgoingQueryService;
             _circleNetworkService = circleNetworkService;
             _db = db;
         }
@@ -415,7 +415,7 @@ namespace Odin.Services.DataSubscription.Follower
                 );
             }
 
-            var collection = await _peerDriveQueryService.GetBatchCollectionAsync(odinId, request, FileSystemType.Standard, odinContext);
+            var collection = await _peerDriveOutgoingQueryService.GetBatchCollectionAsync(odinId, request, FileSystemType.Standard, odinContext);
 
             var patchedContext = sharedSecret == null
                 ? odinContext
@@ -518,7 +518,7 @@ namespace Odin.Services.DataSubscription.Follower
             FollowerDefinition definition)
         {
             var channelDrives =
-                await _peerDriveQueryService.GetDrivesByTypeAsync(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext);
+                await _peerDriveOutgoingQueryService.GetDrivesByTypeAsync(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext);
 
             if (null == channelDrives)
             {

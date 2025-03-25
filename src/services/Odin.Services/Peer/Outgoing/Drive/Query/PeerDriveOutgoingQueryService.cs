@@ -30,8 +30,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query;
 /// <summary>
 /// Executes query functionality on connected identity hosts
 /// </summary>
-public class PeerDriveQueryService(
-    ILogger<PeerDriveQueryService> logger,
+public class PeerDriveOutgoingQueryService(
+    ILogger<PeerDriveOutgoingQueryService> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration)
@@ -538,7 +538,9 @@ public class PeerDriveQueryService(
 
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
-            throw new OdinSystemException($"Unhandled peer error response: {response.StatusCode}");
+            var contentIsNull = response.Content == null ? "yes" : "no";
+            throw new OdinSystemException(
+                $"Unhandled peer error response: {response.StatusCode}.  Content content is null: {contentIsNull}");
         }
     }
 
