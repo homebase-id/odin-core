@@ -40,7 +40,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
-        TransitInboxBoxStorage transitInboxBoxStorage
+        TransitInboxBoxStorage transitInboxBoxStorage,
+        UploadTempStorageManager uploadTempStorageManager,
+        InboxTempStorageManager inboxTempStorageManager,
+        DriveFileReaderWriter driveFileReaderWriter
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
@@ -361,6 +364,26 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         private async Task<PeerResponseCode> RouteToInboxAsync(IncomingTransferStateItem stateItem, IOdinContext odinContext)
         {
+            //
+            // Move file from "temp/upload" to "temp/inbox"
+            //
+
+            var drive = await driveManager.GetDriveAsync(stateItem.TempFile.DriveId);
+            var srcDir = uploadTempStorageManager.DriveCompleteTempPath(drive);
+            var dstDir = inboxTempStorageManager.DriveCompleteTempPath(drive);
+            var fileMask = uploadTempStorageManager.FileNameWithoutExtension(drive, stateItem.TempFile.FileId) + "*";
+
+            var srcFiles = Directory.GetFiles(srcDir, fileMask);
+            foreach (var srcfile in srcFiles)
+            {
+                var destFile = Path.Combine(dstDir, Path.GetFileName(srcfile));
+                driveFileReaderWriter.MoveFile(srcfile, destFile);
+            }
+
+            //
+            // Update database
+            //
+
             var item = new TransferInboxItem()
             {
                 Id = Guid.NewGuid(),
@@ -377,11 +400,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
-
             await transitInboxBoxStorage.AddAsync(item);
+
+            //
+            // Publish notification
+            //
+
             await mediator.Publish(new InboxItemReceivedNotification()
             {
-                TargetDrive = (await driveManager.GetDriveAsync(item.DriveId)).TargetDriveInfo,
+                TargetDrive = drive.TargetDriveInfo,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.FileSystemType,
                 OdinContext = odinContext,

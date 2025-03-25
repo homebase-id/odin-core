@@ -50,6 +50,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly CircleNetworkService _circleNetworkService;
         private readonly OdinConfiguration _odinConfiguration;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
+        private readonly UploadTempStorageManager _uploadTempStorageManager;
+        private readonly InboxTempStorageManager _inboxTempStorageManager;
+        private readonly DriveFileReaderWriter _driveFileReaderWriter;
         private readonly DriveManager _driveManager;
 
         private readonly FileSystemResolver _fileSystemResolver;
@@ -59,7 +62,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly IMediator _mediator;
 
         /// <summary />
-        public PeerIncomingDriveUploadController(DriveManager driveManager,
+        public PeerIncomingDriveUploadController(
+            DriveManager driveManager,
             IMediator mediator, 
             FileSystemResolver fileSystemResolver,
             PushNotificationService pushNotificationService,
@@ -68,7 +72,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             IOdinHttpClientFactory odinHttpClientFactory,
             CircleNetworkService circleNetworkService,
             OdinConfiguration odinConfiguration,
-            TransitInboxBoxStorage transitInboxBoxStorage)
+            TransitInboxBoxStorage transitInboxBoxStorage,
+            UploadTempStorageManager uploadTempStorageManager,
+            InboxTempStorageManager inboxTempStorageManager,
+            DriveFileReaderWriter driveFileReaderWriter)
         {
             _driveManager = driveManager;
             
@@ -81,6 +88,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _circleNetworkService = circleNetworkService;
             _odinConfiguration = odinConfiguration;
             _transitInboxBoxStorage = transitInboxBoxStorage;
+            _uploadTempStorageManager = uploadTempStorageManager;
+            _inboxTempStorageManager = inboxTempStorageManager;
+            _driveFileReaderWriter = driveFileReaderWriter;
         }
 
         /// <summary />
@@ -416,7 +426,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _circleNetworkService,
                 _fileSystemResolver,
                 _odinConfiguration,
-                _transitInboxBoxStorage);
+                _transitInboxBoxStorage,
+                _uploadTempStorageManager,
+                _inboxTempStorageManager,
+                _driveFileReaderWriter);
         }
     }
 }

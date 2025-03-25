@@ -21,9 +21,9 @@ namespace Odin.Services.Drives.FileSystem.Standard
             IDriveAclAuthorizationService driveAclAuthorizationService,
             DriveManager driveManager,
             LongTermStorageManager longTermStorageManager,
-            TempStorageManager tempStorageManager,
+            UploadTempStorageManager uploadStorageManager,
             IdentityDatabase db) :
-            base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager, tempStorageManager, db)
+            base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager, uploadStorageManager, db)
         {
         }
 

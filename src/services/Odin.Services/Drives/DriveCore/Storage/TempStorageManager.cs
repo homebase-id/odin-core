@@ -4,110 +4,156 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Drives.FileSystem.Base;
 
-namespace Odin.Services.Drives.DriveCore.Storage
+namespace Odin.Services.Drives.DriveCore.Storage;
+
+#nullable enable
+
+public enum TempStorageType
 {
+    Upload,
+    Inbox
+}
+
+/// <summary>
+/// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
+/// </summary>
+public abstract class AbstractTempStorageManager(
+    ILogger logger,
+    DriveFileReaderWriter driveFileReaderWriter,
+    string subPath) // eg. "upload", "inbox"
+{
+    private const char PartsSeparator = '~';
+
+    // public StorageDrive Drive { get; }
+
     /// <summary>
-    /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
+    /// Gets a stream of data for the specified file
     /// </summary>
-    public class TempStorageManager(DriveFileReaderWriter driveFileReaderWriter, ILogger<TempStorageManager> logger)
+    public async Task<byte[]?> GetAllFileBytes(StorageDrive drive, Guid fileId, string extension)
     {
-        // public StorageDrive Drive { get; }
+        var path = GetTempFilenameAndPath(drive, fileId, extension);
+        logger.LogDebug("Getting temp file bytes for [{path}]", path);
+        var bytes = await driveFileReaderWriter.GetAllFileBytesAsync(path);
+        return bytes;
+    }
 
-        /// <summary>
-        /// Gets a stream of data for the specified file
-        /// </summary>
-        public async Task<byte[]> GetAllFileBytes(StorageDrive drive, Guid fileId, string extension)
+    /// <summary>
+    /// Writes a stream for a given file and part to the configured provider.
+    /// </summary>
+    public async Task<uint> WriteStream(StorageDrive drive, Guid fileId, string extension, Stream stream)
+    {
+        var filePath = GetTempFilenameAndPath(drive, fileId, extension);
+
+        logger.LogDebug("Writing temp file: {filePath}", filePath);
+        var bytesWritten = await driveFileReaderWriter.WriteStreamAsync(filePath, stream);
+        if (bytesWritten == 0)
         {
-            string path = GetTempFilenameAndPath(drive, fileId, extension);
-            logger.LogDebug("Getting temp file bytes for [{path}]", path);
-            var bytes = await driveFileReaderWriter.GetAllFileBytes(path);
-            return bytes;
+            // Sanity #1
+            logger.LogDebug("I didn't write anything to {filePath}", filePath);
+        }
+        else if (!File.Exists(filePath))
+        {
+            // Sanity #2
+            logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
         }
 
-        /// <summary>
-        /// Writes a stream for a given file and part to the configured provider.
-        /// </summary>
-        public async Task<uint> WriteStream(StorageDrive drive, Guid fileId, string extension, Stream stream)
-        {
-            string filePath = GetTempFilenameAndPath(drive, fileId, extension, true);
-            logger.LogDebug("Writing temp file: {filePath}", filePath);
-            var bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
-            if (bytesWritten == 0)
-            {
-                // Sanity #1
-                logger.LogDebug("I didn't write anything to {filePath}", filePath);
-            }
-            else if (!File.Exists(filePath))
-            {
-                // Sanity #2
-                logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
-            }
+        return bytesWritten;
+    }
 
-            return bytesWritten;
+    /// <summary>
+    /// Deletes all files matching <param name="fileId"></param> regardless of extension
+    /// </summary>
+    /// <param name="drive"></param>
+    /// <param name="fileId"></param>
+    // SEB:TODO delete this
+    public Task EnsureDeleted(StorageDrive drive, Guid fileId)
+    {
+        var dir = "xxx";
+        logger.LogDebug("no-op: delete on temp files called yet we've removed this. path {filePath}", dir);
+        return Task.CompletedTask;
+    }
+
+    public void CleanUp(StorageDrive drive, Guid fileId)
+    {
+        var searchPath = drive.GetTempStoragePath();
+
+        if (!Directory.Exists(searchPath))
+        {
+            return;
         }
 
-        /// <summary>
-        /// Deletes all files matching <param name="fileId"></param> regardless of extension
-        /// </summary>
-        /// <param name="drive"></param>
-        /// <param name="fileId"></param>
-        public async Task EnsureDeleted(StorageDrive drive, Guid fileId)
+        var fileMask = FileNameWithoutExtension(drive, fileId) + "*";
+
+        var files = Directory.GetFiles(searchPath, fileMask);
+
+        foreach (var file in files)
         {
-            // var dir = new DirectoryInfo(GetFileDirectory(fileId));
-            var dir = GetFileDirectory(drive, fileId);
-            // logger.LogDebug("Delete temp files in dir: {filePath}", dir);
-            // await driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern: GetFilename(fileId, "*"));
-            
-            await Task.CompletedTask;
-            logger.LogDebug("no-op: delete on temp files called yet we've removed this. path {filePath}", dir);
-        }
-
-        /// <summary>
-        /// Gets the physical path of the specified file
-        /// </summary>
-        public Task<string> GetPath(StorageDrive drive, Guid fileId, string extension)
-        {
-            string filePath = GetTempFilenameAndPath(drive, fileId, extension);
-            return Task.FromResult(filePath);
-        }
-
-        private string GetFileDirectory(StorageDrive drive, Guid fileId, bool ensureExists = false)
-        {
-            string path = drive.GetTempStoragePath();
-
-            //07e5070f-173b-473b-ff03-ffec2aa1b7b8
-            //The positions in the time guid are hex values as follows
-            //from new DateTimeOffset(2021, 7, 21, 23, 59, 59, TimeSpan.Zero);
-            //07e5=year,07=month,0f=day,17=hour,3b=minute
-
-            var parts = fileId.ToString().Split("-");
-            var yearMonthDay = parts[0];
-            var year = yearMonthDay.Substring(0, 4);
-            var month = yearMonthDay.Substring(4, 2);
-            var day = yearMonthDay.Substring(6, 2);
-            var hourMinute = parts[1];
-            var hour = hourMinute[..2];
-
-            string dir = Path.Combine(path, year, month, day, hour);
-
-            if (ensureExists)
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            return dir;
-        }
-
-        private string GetFilename(Guid fileId, string extension)
-        {
-            string file = DriveFileUtility.GetFileIdForStorage(fileId);
-            return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
-        }
-
-        private string GetTempFilenameAndPath(StorageDrive drive, Guid fileId, string extension, bool ensureExists = false)
-        {
-            string dir = GetFileDirectory(drive, fileId, ensureExists);
-            return Path.Combine(dir, GetFilename(fileId, extension));
+            File.Delete(file);
         }
     }
+
+    public string FileNameWithoutExtension(StorageDrive drive, Guid fileId)
+    {
+        // tenant-id (guid)                 drive id (guid)                  file id (guid)
+        // 069bc32232514be5a9fdbfa7294002e2~0374b698e6794eadb25502e1b31c6e02~000c4819c0b0ea008c07feb329de6fd2.dflt_key-113126827408162816-139x300.thumb
+
+        return
+            drive.OwnerTenantId.ToString("N") +
+            PartsSeparator +
+            drive.Id.ToString("N") +
+            PartsSeparator +
+            DriveFileUtility.GetFileIdForStorage(fileId);
+    }
+
+    public string FilePathWithoutExtension(StorageDrive drive, Guid fileId)
+    {
+        return Path.Combine(drive.GetTempStoragePath(), subPath, FileNameWithoutExtension(drive, fileId));
+    }
+
+    public string DriveCompleteTempPath(StorageDrive drive)
+    {
+        return Path.Combine(drive.GetTempStoragePath(), subPath);
+    }
+
+    /// <summary>
+    /// Gets the physical path of the specified file
+    /// </summary>
+    public string GetPath(StorageDrive drive, Guid fileId, string extension)
+    {
+        var filePath = GetTempFilenameAndPath(drive, fileId, extension);
+        return filePath;
+    }
+
+    private string GetFilename(StorageDrive drive, Guid fileId, string extension)
+    {
+        var file = FileNameWithoutExtension(drive, fileId);
+        return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
+    }
+
+    private string GetTempFilenameAndPath(StorageDrive drive, Guid fileId, string extension)
+    {
+        var dir = drive.GetTempStoragePath();
+        return Path.Combine(dir, subPath, GetFilename(drive, fileId, extension));
+    }
 }
+
+//
+
+public class UploadTempStorageManager(
+    ILogger<UploadTempStorageManager> logger,
+    DriveFileReaderWriter driveFileReaderWriter)
+    : AbstractTempStorageManager(logger, driveFileReaderWriter, UploadDir)
+{
+    public const string UploadDir = "upload";
+}
+
+//
+
+public class InboxTempStorageManager(
+    ILogger<InboxTempStorageManager> logger,
+    DriveFileReaderWriter driveFileReaderWriter)
+    : AbstractTempStorageManager(logger, driveFileReaderWriter, InboxDir)
+{
+    public const string InboxDir = "inbox";
+}
+
