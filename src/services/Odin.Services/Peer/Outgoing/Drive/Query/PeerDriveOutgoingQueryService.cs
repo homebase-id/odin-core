@@ -347,12 +347,17 @@ public class PeerDriveOutgoingQueryService(
 
     public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
         GetPayloadByGlobalTransitIdAsync(OdinId odinId,
-            GlobalTransitIdFileIdentifier file, string key,
+            GlobalTransitIdFileIdentifier file, string payloadKey,
             FileChunk chunk, FileSystemType fileSystemType, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
 
         var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
+
+        logger.LogDebug("GetPayloadByGlobalTransitIdAsync - Calling on identity: {odinId} for payloadKey: {pk} gtid:{gtid}", odinId,
+            payloadKey,
+            file.GlobalTransitId);
+
         try
         {
             ApiResponse<HttpContent> response = null;
@@ -365,12 +370,20 @@ public class PeerDriveOutgoingQueryService(
                     response = await httpClient.GetPayloadStreamByGlobalTransitId(new GetPayloadByGlobalTransitIdRequest()
                     {
                         File = file,
-                        Key = key,
+                        Key = payloadKey,
                         Chunk = chunk
                     });
                 });
 
-            return await HandlePayloadResponseAsync(odinId, icr, key, response, odinContext);
+            logger.LogDebug("GetPayloadByGlobalTransitIdAsync - Analyzing Response with status code: {rc}", response.StatusCode);
+            var (encryptedKeyHeader, payloadIsEncrypted, payloadStream) =
+                await HandlePayloadResponseAsync(odinId, icr, payloadKey, response, odinContext);
+
+            logger.LogDebug("Payload is encrypted: {pke}, payloadStream is null {isnull}",
+                payloadIsEncrypted,
+                payloadStream?.Stream == null ? "yes": "no");
+            
+            return (encryptedKeyHeader, payloadIsEncrypted, payloadStream);
         }
         catch (TryRetryException t)
         {
@@ -628,6 +641,8 @@ public class PeerDriveOutgoingQueryService(
         }
 
         await HandleInvalidResponseAsync(odinId, response, odinContext);
+
+        logger.LogDebug("Reading decrypted content type for payload with key: {pk} from identity: {odinId}", payloadKey, odinId);
 
         var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
         var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());

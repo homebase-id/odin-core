@@ -254,6 +254,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (null == record)
             {
+                _logger.LogDebug("GetFileByGlobalTransitId returned null for gtid {globalTransitId}", globalTransitId);
                 return null;
             }
 

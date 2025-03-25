@@ -264,7 +264,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
             };
 
             var chunk = GetChunk(chunkStart, chunkLength);
-
             
             var (encryptedKeyHeader, isEncrypted, payloadStream) =
                 await peerDriveOutgoingQueryService.GetPayloadByGlobalTransitIdAsync(id, file, key, chunk, fst, WebOdinContext);

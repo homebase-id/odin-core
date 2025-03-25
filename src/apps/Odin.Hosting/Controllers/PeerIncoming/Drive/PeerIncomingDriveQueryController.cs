@@ -261,16 +261,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private async Task<SharedSecretEncryptedFileHeader> LookupFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file)
         {
-            
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
-            {
-                Alias = file.TargetDrive.Alias,
-                Type = file.TargetDrive.Type
-            });
+            var driveId = WebOdinContext.PermissionsContext.GetDriveId(file.TargetDrive);
+            WebOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
 
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-
-            WebOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
             var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, WebOdinContext, excludePreviewThumbnail: false);
             return result;
         }
