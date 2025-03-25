@@ -2,6 +2,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
@@ -13,52 +14,52 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableDriveMainIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
     public async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
     {
-        return await base.GetByUniqueIdAsync(identityKey, driveId, uniqueId);
+        return await base.GetByUniqueIdAsync(odinIdentity, driveId, uniqueId);
     }
 
     public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId)
     {
-        return await base.GetByGlobalTransitIdAsync(identityKey, driveId, globalTransitId);
+        return await base.GetByGlobalTransitIdAsync(odinIdentity, driveId, globalTransitId);
     }
 
     public async Task<DriveMainIndexRecord> GetAsync(Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(identityKey, driveId, fileId);
+        return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
     public new async Task<int> InsertAsync(DriveMainIndexRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
     public async Task<int> DeleteAsync(Guid driveId, Guid fileId)
     {
-        return await base.DeleteAsync(identityKey, driveId, fileId);
+        return await base.DeleteAsync(odinIdentity, driveId, fileId);
     }
 
     public new async Task<int> UpdateAsync(DriveMainIndexRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.UpdateAsync(item);
     }
 
     public new async Task<int> UpsertAsync(DriveMainIndexRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
     public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
-        return base.ReadRecordFromReader2(rdr, identityKey.Id, driveId);
+        return base.ReadRecordFromReader2(rdr, odinIdentity.Id, driveId);
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
@@ -248,7 +249,7 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam3);
         updateCommand.Parameters.Add(sparam4);
 
-        sparam1.Value = identityKey.ToByteArray();
+        sparam1.Value = odinIdentity.IdAsByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = reactionSummary;
@@ -285,7 +286,7 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam3);
         updateCommand.Parameters.Add(sparam4);
 
-        sparam1.Value = identityKey.ToByteArray();
+        sparam1.Value = odinIdentity.IdAsByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
@@ -324,7 +325,7 @@ public class TableDriveMainIndex(
         sizeCommand.Parameters.Add(sparam2);
 
         sparam1.Value = driveId.ToByteArray();
-        sparam2.Value = identityKey.ToByteArray();
+        sparam2.Value = odinIdentity.IdAsByteArray();
 
         using (var rdr = await sizeCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -372,7 +373,7 @@ public class TableDriveMainIndex(
 
         tparam1.Value = fileId.ToByteArray();
         tparam3.Value = driveId.ToByteArray();
-        tparam4.Value = identityKey.ToByteArray();
+        tparam4.Value = odinIdentity.IdAsByteArray();
 
         using (var rdr = await touchCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {

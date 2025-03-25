@@ -11,45 +11,45 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableConnections(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableConnectionsCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     public async Task<ConnectionsRecord> GetAsync(OdinId identity)
     {
-        return await base.GetAsync(identityKey, identity);
+        return await base.GetAsync(odinIdentity, identity);
     }
 
     public new async Task<int> InsertAsync(ConnectionsRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
     public new async Task<int> UpsertAsync(ConnectionsRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
     public new async Task<int> UpdateAsync(ConnectionsRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.UpdateAsync(item);
     }
 
     public async Task<int> DeleteAsync(OdinId identity)
     {
-        return await base.DeleteAsync(identityKey, identity);
+        return await base.DeleteAsync(odinIdentity, identity);
     }
 
     public async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, string inCursor)
     {
-        return await base.PagingByIdentityAsync(count, identityKey, inCursor);
+        return await base.PagingByIdentityAsync(count, odinIdentity, inCursor);
     }
 
     public async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(int count, Int32 status, string inCursor)
     {
-        return await base.PagingByIdentityAsync(count, identityKey, status, inCursor);
+        return await base.PagingByIdentityAsync(count, odinIdentity, status, inCursor);
     }
 
 
@@ -57,7 +57,7 @@ public class TableConnections(
     {
         var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, status, cursor?.Time, cursor?.rowId);
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, odinIdentity, status, cursor?.Time, cursor?.rowId);
 
         return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }
@@ -66,7 +66,7 @@ public class TableConnections(
     {
         var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
 
-        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, identityKey, cursor?.Time, cursor?.rowId);
+        var (r, tsc, ri) = await base.PagingByCreatedAsync(count, odinIdentity, cursor?.Time, cursor?.rowId);
 
         return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }

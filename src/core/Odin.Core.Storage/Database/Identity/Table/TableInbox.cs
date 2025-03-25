@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
+using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -12,7 +13,7 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableInbox(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey,
+    OdinIdentity odinIdentity,
     ICorrelationContext correlationContext)
     : TableInboxCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
@@ -20,12 +21,12 @@ public class TableInbox(
 
     public async Task<InboxRecord> GetAsync(Guid fileId)
     {
-        return await base.GetAsync(identityKey, fileId);
+        return await base.GetAsync(odinIdentity, fileId);
     }
 
     public new async Task<int> InsertAsync(InboxRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
 
         if (item.timeStamp.milliseconds == 0)
             item.timeStamp = UnixTimeUtc.Now();
@@ -36,7 +37,7 @@ public class TableInbox(
 
     public new async Task<int> UpsertAsync(InboxRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
 
         if (item.timeStamp.milliseconds == 0)
             item.timeStamp = UnixTimeUtc.Now();
@@ -83,7 +84,7 @@ public class TableInbox(
         param1.Value = SequentialGuid.CreateGuid().ToByteArray();
         param2.Value = count;
         param3.Value = boxId.ToByteArray();
-        param4.Value = identityKey.ToByteArray();
+        param4.Value = odinIdentity.IdAsByteArray();
 
         var result = new List<InboxRecord>();
 
@@ -119,7 +120,7 @@ public class TableInbox(
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
-        param1.Value = identityKey.ToByteArray();
+        param1.Value = odinIdentity.IdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -186,7 +187,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = boxId.ToByteArray();
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -253,7 +254,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = popstamp.ToByteArray();
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -279,7 +280,7 @@ public class TableInbox(
         cmd.Parameters.Add(param3);
 
         param1.Value = popstamp.ToByteArray();
-        param3.Value = identityKey.ToByteArray();
+        param3.Value = odinIdentity.IdAsByteArray();
 
         foreach (var id in listFileId)
         {
@@ -312,7 +313,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = popstamp.ToByteArray();
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -343,7 +344,7 @@ public class TableInbox(
         cmd.Parameters.Add(param3);
 
         param1.Value = popstamp.ToByteArray();
-        param3.Value = identityKey.ToByteArray();
+        param3.Value = odinIdentity.IdAsByteArray();
 
         // I'd rather not do a TEXT statement, this seems safer but slower.
         foreach (var id in listFileId)
@@ -378,7 +379,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMilliseconds
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }

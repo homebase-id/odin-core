@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -13,7 +14,7 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableOutbox(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey,
+    OdinIdentity odinIdentity,
     ICorrelationContext correlationContext)
     : TableOutboxCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
@@ -21,17 +22,17 @@ public class TableOutbox(
 
     public async Task<List<OutboxRecord>> GetAsync(Guid driveId, Guid fileId)
     {
-        return await base.GetAsync(identityKey, driveId, fileId);
+        return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
     public async Task<OutboxRecord> GetAsync(Guid driveId, Guid fileId, string recipient)
     {
-        return await base.GetAsync(identityKey, driveId, fileId, recipient);
+        return await base.GetAsync(odinIdentity, driveId, fileId, recipient);
     }
 
     public new async Task<int> InsertAsync(OutboxRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         item.checkOutCount = 0;
         if (item.nextRunTime.milliseconds == 0)
             item.nextRunTime = UnixTimeUtc.Now();
@@ -49,7 +50,7 @@ public class TableOutbox(
         if (ByteArrayUtil.muidcmp(item.fileId, item.dependencyFileId) == 0)
             throw new Exception("You're not allowed to make an item dependent on itself as it would deadlock the item.");
 
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         if (item.nextRunTime.milliseconds == 0)
             item.nextRunTime = UnixTimeUtc.Now();
 
@@ -107,7 +108,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param3);
 
         param1.Value = SequentialGuid.CreateGuid().ToByteArray();
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
         param3.Value = UnixTimeUtc.Now().milliseconds;
 
         var result = new List<OutboxRecord>();
@@ -179,7 +180,7 @@ public class TableOutbox(
             cmd.Parameters.Add(param2);
         }
 
-        param1.Value = identityKey.ToByteArray();
+        param1.Value = odinIdentity.IdAsByteArray();
         if (driveId != null)
             param2.Value = driveId?.ToByteArray();
 
@@ -222,7 +223,7 @@ public class TableOutbox(
 
         param1.Value = checkOutStamp.ToByteArray();
         param2.Value = nextRunTime.milliseconds;
-        param3.Value = identityKey.ToByteArray();
+        param3.Value = odinIdentity.IdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -250,7 +251,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = checkOutStamp.ToByteArray();
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -282,7 +283,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = SequentialGuid.CreateGuid(pastThreshold).ToByteArray(); // UnixTimeMiliseconds
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -307,7 +308,7 @@ public class TableOutbox(
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
-        param1.Value = identityKey.ToByteArray();
+        param1.Value = odinIdentity.IdAsByteArray();
 
         int totalCount = 0;
         int poppedCount = 0;
@@ -358,7 +359,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = driveId.ToByteArray();
-        param2.Value = identityKey.ToByteArray();
+        param2.Value = odinIdentity.IdAsByteArray();
 
         int totalCount = 0;
         int poppedCount = 0;

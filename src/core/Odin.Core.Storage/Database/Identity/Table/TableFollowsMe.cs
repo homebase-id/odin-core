@@ -16,7 +16,7 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 public class TableFollowsMe(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    IdentityKey identityKey)
+    OdinIdentity odinIdentity)
     : TableFollowsMeCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     public const int GuidSize = 16; // Precisely 16 bytes for the ID key
@@ -24,7 +24,7 @@ public class TableFollowsMe(
 
     public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
     {
-        return await base.DeleteAsync(identityKey, identity.DomainName, driveId);
+        return await base.DeleteAsync(odinIdentity, identity.DomainName, driveId);
     }
 
     public async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
@@ -38,7 +38,7 @@ public class TableFollowsMe(
 
         foreach (var item in items)
         {
-            item.identityId = identityKey;
+            item.identityId = odinIdentity;
             recordsInserted += await base.InsertAsync(item);
         }
 
@@ -50,19 +50,19 @@ public class TableFollowsMe(
 
     public new async Task<int> InsertAsync(FollowsMeRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
     public new async Task<bool> TryInsertAsync(FollowsMeRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.TryInsertAsync(item);
     }
 
     public new async Task<int> UpsertAsync(FollowsMeRecord item)
     {
-        item.identityId = identityKey;
+        item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
@@ -76,7 +76,7 @@ public class TableFollowsMe(
     /// <exception cref="Exception"></exception>
     public async Task<List<FollowsMeRecord>> GetAsync(OdinId identity)
     {
-        var r = await base.GetAsync(identityKey, identity.DomainName) ?? [];
+        var r = await base.GetAsync(odinIdentity, identity.DomainName) ?? [];
         return r;
     }
 
@@ -84,7 +84,7 @@ public class TableFollowsMe(
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
-        var records = await base.GetAsync(identityKey, identity.DomainName);
+        var records = await base.GetAsync(odinIdentity, identity.DomainName);
         if (records == null)
         {
             return 0;
@@ -95,7 +95,7 @@ public class TableFollowsMe(
         var n = 0;
         foreach (var record in records)
         {
-            n += await base.DeleteAsync(identityKey, identity.DomainName, record.driveId);
+            n += await base.DeleteAsync(odinIdentity, identity.DomainName, record.driveId);
         }
 
         tx.Commit();
@@ -106,15 +106,15 @@ public class TableFollowsMe(
     // Returns # records inserted (1 or 0)
     public async Task<int> DeleteAndAddFollowerAsync(FollowsMeRecord record)
     {
-        record.identityId = identityKey;
+        record.identityId = odinIdentity;
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        var followerList = await base.GetAsync(identityKey, record.identity);
+        var followerList = await base.GetAsync(odinIdentity, record.identity);
         foreach (var follower in followerList)
         {
-            await base.DeleteAsync(identityKey, follower.identity, follower.driveId);
+            await base.DeleteAsync(odinIdentity, follower.identity, follower.driveId);
         }
         var n = await base.InsertAsync(record);
 
@@ -159,7 +159,7 @@ public class TableFollowsMe(
 
         param1.Value = inCursor;
         param2.Value = count + 1;
-        param3.Value = identityKey.ToByteArray();
+        param3.Value = odinIdentity.IdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -233,7 +233,7 @@ public class TableFollowsMe(
         param1.Value = driveId.ToByteArray();
         param2.Value = inCursor;
         param3.Value = count + 1;
-        param4.Value = identityKey.ToByteArray();
+        param4.Value = odinIdentity.IdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
