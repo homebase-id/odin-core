@@ -31,17 +31,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public RecipientTransferHistory TransferHistory { get; set; }
 
-        public string SerializeWithoutSomeFields()
+        public ServerMetadataDto ToServerMetadataDto()
         {
-
-            // TODO: this is a hack to clean up ServerMetaData before writing to db.
-            // We should have separate classes for DB model and API model
-            var v1 = this.TransferHistory;
-            this.TransferHistory = null;
-            var serialized = OdinSystemSerializer.Serialize(this);
-            this.TransferHistory = v1;
-
-            return serialized;
+            return new ServerMetadataDto() {
+                AccessControlList = this.AccessControlList,
+                FileSystemType = this.FileSystemType,
+                FileByteCount = this.FileByteCount,
+                OriginalRecipientCount = this.OriginalRecipientCount,
+                AllowDistribution = this.AllowDistribution,
+            };
         }
     }
 }

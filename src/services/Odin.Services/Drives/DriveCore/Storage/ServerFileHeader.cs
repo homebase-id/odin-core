@@ -31,29 +31,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var header = new ServerFileHeader
             {
-                EncryptedKeyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(record.hdrEncryptedKeyHeader),
-                FileMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(record.hdrFileMetaData),
-                ServerMetadata = OdinSystemSerializer.Deserialize<ServerMetadata>(record.hdrServerData)
+                EncryptedKeyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(record.hdrEncryptedKeyHeader)
             };
 
-            //Now overwrite with column specific values
-            header.FileMetadata.VersionTag = record.hdrVersionTag;
-            header.FileMetadata.AppData = OdinSystemSerializer.Deserialize<AppFileMetaData>(record.hdrAppData);
-            header.FileMetadata.ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
-                ? null
-                : OdinSystemSerializer.Deserialize<ReactionSummary>(record.hdrReactionSummary);
-            header.ServerMetadata.TransferHistory = string.IsNullOrEmpty(record.hdrTransferHistory)
-                ? null
-                : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferHistory);
+            // Set the ServerMetadata
+            var serverMetadataDto = OdinSystemSerializer.Deserialize<ServerMetadataDto>(record.hdrServerData);
+            header.ServerMetadata = serverMetadataDto.ToServerMetadata(record);
 
-            header.FileMetadata.LocalAppData = string.IsNullOrEmpty(record.hdrLocalAppData)
-                ? null
-                : OdinSystemSerializer.Deserialize<LocalAppMetadata>(record.hdrLocalAppData);
-
-            if (null != header.FileMetadata.LocalAppData)
-            {
-                header.FileMetadata.LocalAppData.VersionTag = record.hdrLocalVersionTag.GetValueOrDefault();
-            }
+            // Set the FileMetadata
+            var fileMetadataDto = OdinSystemSerializer.Deserialize<FileMetadataDto>(record.hdrFileMetaData);
+            header.FileMetadata = fileMetadataDto.ToFileMetadata(record);
 
             return header;
         }
@@ -101,8 +88,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 hdrTmpDriveType = drive.TargetDriveInfo.Type                // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
             };
 
-            record.hdrFileMetaData = this.FileMetadata.SerializeWithoutSomeFields();
-            record.hdrServerData = this.ServerMetadata.SerializeWithoutSomeFields();
+            record.hdrFileMetaData = OdinSystemSerializer.Serialize(this.FileMetadata.ToFileMetadataDto());
+            record.hdrServerData = OdinSystemSerializer.Serialize(this.ServerMetadata.ToServerMetadataDto());
 
             if (record.driveId == Guid.Empty || record.fileId == Guid.Empty)
             {

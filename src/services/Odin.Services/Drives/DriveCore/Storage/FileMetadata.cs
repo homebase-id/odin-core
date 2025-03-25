@@ -96,27 +96,29 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
 
-        public string SerializeWithoutSomeFields()
+        public FileMetadataDto ToFileMetadataDto()
         {
-            // TODO: this is a hack to clean up FileMetadata before writing to db.
-            // We should have separate classes for DB model and API model
-            var v1 = this.AppData;
-            var v2 = this.ReactionPreview;
-            var v3 = this.VersionTag;
+            var metadata = new FileMetadataDto()
+            {
+                ReferencedFile = ReferencedFile,
+                File = File,
+                GlobalTransitId = GlobalTransitId,
+                FileState = FileState,
+                Created = Created,
+                Updated = Updated,
+                TransitCreated = TransitCreated,
+                TransitUpdated = TransitUpdated,
+                // ReactionPreview = ReactionPreview,
+                IsEncrypted = IsEncrypted,
+                SenderOdinId = SenderOdinId,
+                OriginalAuthor = OriginalAuthor,
+                // AppData = AppData,
+                LocalAppData = LocalAppData,
+                Payloads = Payloads,
+                // VersionTag = VersionTag,
+            };
 
-            this.AppData = null;
-            this.ReactionPreview = null;
-            this.VersionTag = null;
-            // TODO: It still doesn't make sense to MS why we're not NULLing out .LocalAppData ??
-            // This means it gets serialized into the hdrFileMetaData field (which it shouldn't 
-            // because it's part of the LocalAppData field in the DB
-            var serialized = OdinSystemSerializer.Serialize(this);
-
-            this.AppData = v1;
-            this.ReactionPreview = v2;
-            this.VersionTag = v3;
-
-            return serialized;
+            return metadata;
         }
 
         public bool TryValidate()
