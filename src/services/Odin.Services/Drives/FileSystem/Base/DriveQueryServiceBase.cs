@@ -258,6 +258,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
+            _logger.LogDebug("GetFileByGlobalTransitId returned fileId {fileId} for gtid {globalTransitId}", record.fileId,
+                globalTransitId);
+
             var options = new ResultOptions()
             {
                 MaxRecords = 10,
@@ -266,8 +269,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 IncludeTransferHistory = includeTransferHistory
             };
 
-            var headers = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext,
-                forceIncludeServerMetadata);
+            var headers = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext, forceIncludeServerMetadata);
+
+            _logger.LogDebug("GetFileByGlobalTransitId ");
+
             return headers.SingleOrDefault();
         }
 
@@ -312,7 +317,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     continue;
                 }
 
-                // TODD - this function ALSO loads the header from disk. It needs to use 'record' instead.
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(serverFileHeader, odinContext);
                 if (!hasPermissionToFile)
                 {
@@ -332,6 +336,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                     var isEncrypted = serverFileHeader.FileMetadata.IsEncrypted;
                     var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(file.DriveId, out _);
+
+                    _logger.LogDebug("Caller [{odinid}] has storage key: {hasStorageKey} ", odinContext.Caller.OdinId,
+                        hasStorageKey ? "yes" : "no");
 
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
                     var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
@@ -386,7 +393,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     else
                     {
                         var drive = await DriveManager.GetDriveAsync(file.DriveId);
-
+                        
                         // Allow anon will let the user get the file so only log
                         // if this is not the case as it means we have a problem
                         if (!drive.AllowAnonymousReads)
