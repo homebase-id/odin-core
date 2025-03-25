@@ -115,6 +115,12 @@ public class PeerDriveOutgoingQueryService(
                 CancellationToken.None,
                 async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
 
+            if (queryBatchResponse.Content == null)
+            {
+                logger.LogError("QueryBatch to identity {identity} returned empty response with status code:{sc}. info: {info}", odinId,
+                    queryBatchResponse.StatusCode, request.QueryParams.ToLogInfo());
+            }
+
             await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
 
             var batch = queryBatchResponse.Content;
@@ -536,11 +542,14 @@ public class PeerDriveOutgoingQueryService(
             throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
         }
 
-        if (!response.IsSuccessStatusCode || response.Content == null)
+        if (response.Content == null && response.StatusCode != HttpStatusCode.NoContent)
         {
-            var contentIsNull = response.Content == null ? "yes" : "no";
-            throw new OdinSystemException(
-                $"Unhandled peer error response: {response.StatusCode}.  Content content is null: {contentIsNull}");
+            throw new OdinSystemException($"Peer response returned with unexpected empty content: {response.StatusCode}");
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new OdinSystemException($"Unhandled peer error response: {response.StatusCode}.");
         }
     }
 
@@ -591,12 +600,30 @@ public class PeerDriveOutgoingQueryService(
 
     private async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
         HandlePayloadResponseAsync(
-            OdinId odinId, IdentityConnectionRegistration icr, string key, ApiResponse<HttpContent> response, IOdinContext odinContext)
+            OdinId odinId, IdentityConnectionRegistration icr, string payloadKey, ApiResponse<HttpContent> response,
+            IOdinContext odinContext)
     {
         var permissionContext = odinContext.PermissionsContext;
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
+            return (null, default, null);
+        }
+
+        if (response.StatusCode == HttpStatusCode.NoContent)
+        {
+            logger.LogError("Remote server returned Status code No content(204) for payload key {pk}. remote identity: {odinId}",
+                payloadKey,
+                odinId);
+            return (null, default, null);
+        }
+
+        // Payload reported missing even though it is defined
+        if (response.StatusCode == HttpStatusCode.Gone)
+        {
+            logger.LogError("Remote server returned Status code Gone(410) for payload key {pk}. remote identity: {odinId}",
+                payloadKey,
+                odinId);
             return (null, default, null);
         }
 
@@ -607,7 +634,7 @@ public class PeerDriveOutgoingQueryService(
 
         if (!DriveFileUtility.TryParseLastModifiedHeader(response.ContentHeaders, out var lastModified))
         {
-            logger.LogInformation($"Could not parse last modified for payload (key:{key})");
+            logger.LogInformation($"Could not parse last modified for payload (key:{payloadKey})");
         }
 
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
@@ -628,7 +655,8 @@ public class PeerDriveOutgoingQueryService(
         var contentLength = response.Content?.Headers.ContentLength ?? throw new OdinSystemException("Missing Content-Length header");
 
         var stream = await response.Content!.ReadAsStreamAsync();
-        var payloadStream = new PayloadStream(key, decryptedContentType, contentLength, lastModified.GetValueOrDefault(UnixTimeUtc.Now()),
+        var payloadStream = new PayloadStream(payloadKey, decryptedContentType, contentLength,
+            lastModified.GetValueOrDefault(UnixTimeUtc.Now()),
             stream);
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
