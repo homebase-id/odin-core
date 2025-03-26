@@ -238,6 +238,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             try
             {
                 fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
+                _logger.LogDebug("File size: {size} bytes", fileStream.Length);
             }
             catch (IOException io)
             {
