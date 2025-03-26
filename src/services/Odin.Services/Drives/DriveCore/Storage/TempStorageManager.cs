@@ -21,6 +21,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string path = GetTempFilenameAndPath(drive, fileId, extension);
             logger.LogDebug("Getting temp file bytes for [{path}]", path);
             var bytes = await driveFileReaderWriter.GetAllFileBytes(path);
+            logger.LogDebug("Got {count} bytes from {path}", bytes.Length, path);
             return bytes;
         }
 
@@ -42,6 +43,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 // Sanity #2
                 logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
             }
+            logger.LogDebug("Wrote {count} bytes to {filePath}", bytesWritten, filePath);
 
             return bytesWritten;
         }
