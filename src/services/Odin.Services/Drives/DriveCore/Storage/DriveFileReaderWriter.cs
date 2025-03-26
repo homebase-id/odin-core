@@ -17,7 +17,7 @@ public sealed class DriveFileReaderWriter(
     OdinConfiguration odinConfiguration,
     ILogger<DriveFileReaderWriter> logger)
 {
-    public async Task WriteString(string filePath, string data)
+    public async Task WriteStringAsync(string filePath, string data)
     {
         try
         {
@@ -44,7 +44,7 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public async Task WriteAllBytes(string filePath, byte[] bytes)
+    public async Task WriteAllBytesAsync(string filePath, byte[] bytes)
     {
         try
         {
@@ -71,7 +71,7 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public async Task<uint> WriteStream(string filePath, Stream stream, bool byPassInternalFileLocking = false)
+    public async Task<uint> WriteStreamAsync(string filePath, Stream stream, bool byPassInternalFileLocking = false)
     {
         uint bytesWritten = 0;
 
@@ -108,7 +108,7 @@ public sealed class DriveFileReaderWriter(
         return bytesWritten;
     }
 
-    public async Task<byte[]> GetAllFileBytes(string filePath, bool byPassInternalFileLocking = false)
+    public async Task<byte[]> GetAllFileBytesAsync(string filePath, bool byPassInternalFileLocking = false)
     {
         byte[] bytes = null;
 
@@ -144,7 +144,7 @@ public sealed class DriveFileReaderWriter(
         return bytes;
     }
 
-    public Task MoveFile(string sourceFilePath, string destinationFilePath)
+    public void MoveFile(string sourceFilePath, string destinationFilePath)
     {
         try
         {
@@ -175,14 +175,12 @@ public sealed class DriveFileReaderWriter(
             throw new OdinSystemException(
                 $"Error during file move operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
-    public Task<Stream> OpenStreamForReading(string filePath)
+    public Stream OpenStreamForReading(string filePath)
     {
         Stream fileStream = Stream.Null;
 
@@ -210,32 +208,28 @@ public sealed class DriveFileReaderWriter(
             throw e.InnerException!;
         }
 
-        return Task.FromResult(fileStream);
+        return fileStream;
     }
 
     private async Task<uint> WriteStreamInternalAsync(string filePath, Stream stream)
     {
-        int chunkSize = odinConfiguration.Host.FileWriteChunkSizeInBytes;
+        var chunkSize = odinConfiguration.Host.FileWriteChunkSizeInBytes;
         var buffer = new byte[chunkSize];
 
-        uint bytesWritten;
-        using (var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+        await using var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        int bytesRead;
+        do
         {
-            int bytesRead;
-            do
-            {
-                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                await output.WriteAsync(buffer, 0, bytesRead);
-            } while (bytesRead > 0);
+            bytesRead = await stream.ReadAsync(buffer);
+            await output.WriteAsync(buffer.AsMemory(0, bytesRead));
+        } while (bytesRead > 0);
 
-            bytesWritten = (uint)output.Length;
-            output.Close();
-        }
+        var bytesWritten = (uint)output.Length;
 
         return bytesWritten;
     }
 
-    public Task DeleteFileAsync(string path)
+    public void DeleteFile(string path)
     {
         try
         {
@@ -261,34 +255,32 @@ public sealed class DriveFileReaderWriter(
         {
             throw e.InnerException!;
         }
-
-        return Task.CompletedTask;
     }
 
-    public async Task DeleteFilesAsync(string[] paths)
+    public void DeleteFiles(string[] paths)
     {
         foreach (var path in paths)
         {
-            await DeleteFileAsync(path);
+            DeleteFile(path);
         }
     }
 
-    public Task<bool> FileExists(string filePath)
+    public bool FileExists(string filePath)
     {
-        return Task.FromResult(File.Exists(filePath));
+        return File.Exists(filePath);
     }
 
-    public Task<bool> DirectoryExists(string dir)
+    public bool DirectoryExists(string dir)
     {
-        return Task.FromResult(Directory.Exists(dir));
+        return Directory.Exists(dir);
     }
 
-    public async Task DeleteFilesInDirectoryAsync(string dir, string searchPattern)
+    public void DeleteFilesInDirectory(string dir, string searchPattern)
     {
         if (Directory.Exists(dir))
         {
             var files = Directory.GetFiles(dir, searchPattern);
-            await DeleteFilesAsync(files);
+            DeleteFiles(files);
         }
     }
 

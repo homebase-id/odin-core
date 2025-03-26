@@ -175,7 +175,7 @@ public class StaticFileContentService
         await OdinSystemSerializer.Serialize(ms, sectionOutputList, sectionOutputList.GetType());
         string finalTargetPath = Path.Combine(targetFolder, filename);
         ms.Seek(0L, SeekOrigin.Begin);
-        var bytesWritten = _driveFileReaderWriter.WriteStream(finalTargetPath, ms);
+        var bytesWritten = _driveFileReaderWriter.WriteStreamAsync(finalTargetPath, ms);
 
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
@@ -194,7 +194,7 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         var imageBytes = Convert.FromBase64String(image64);
-        await _driveFileReaderWriter.WriteAllBytes(finalTargetPath, imageBytes);
+        await _driveFileReaderWriter.WriteAllBytesAsync(finalTargetPath, imageBytes);
 
         var config = new StaticFileConfiguration()
         {
@@ -214,7 +214,7 @@ public class StaticFileContentService
         string targetFolder = EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        await _driveFileReaderWriter.WriteString(finalTargetPath, json);
+        await _driveFileReaderWriter.WriteStringAsync(finalTargetPath, json);
 
         var config = new StaticFileConfiguration()
         {
@@ -253,7 +253,7 @@ public class StaticFileContentService
             }
         }
 
-        var fileStream = await _driveFileReaderWriter.OpenStreamForReading(targetFile);
+        var fileStream = _driveFileReaderWriter.OpenStreamForReading(targetFile);
         return (config, fileExists: true, fileStream);
     }
 
