@@ -211,10 +211,9 @@ public class LinkPreviewService(
             {
                 // if there is a default payload, then all content is there;
                 logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
-                var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-                var reader = new StreamReader(payloadStream.Stream);
+                using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
+                using var reader = new StreamReader(payloadStream.Stream);
                 json = await reader.ReadToEndAsync(cancellationToken);
-                reader.Close();
             }
 
             content = OdinSystemSerializer.Deserialize<PostContent>(json);
@@ -585,7 +584,6 @@ public class LinkPreviewService(
         {
             using var reader = new StreamReader(fileStream);
             var data = await reader.ReadToEndAsync();
-            reader.Close();
             profile = OdinSystemSerializer.Deserialize<FrontEndProfile>(data);
         }
 

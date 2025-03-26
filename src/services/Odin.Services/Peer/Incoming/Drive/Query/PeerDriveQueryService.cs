@@ -80,6 +80,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
             string encryptedKeyHeader64 = encryptedKeyHeaderForPayload.ToBase64();
 
+            // NOTE: caller takes ownership of ps and is responsible for disposing
             var ps = await fileSystem.Storage.GetPayloadStreamAsync(file, key, chunk, odinContext);
 
             return (encryptedKeyHeader64, header.FileMetadata.IsEncrypted, payloadDescriptor, ps);
