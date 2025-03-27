@@ -20,13 +20,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
-            
+
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             //
             // Update the system circles to see new drive grants
             //
-            logger.LogDebug("Creating new circles; renaming existing ones");
+            logger.LogDebug("rebuilding system circles");
             await circleDefinitionService.EnsureSystemCirclesExistAsync();
 
             //
@@ -43,17 +43,23 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
             {
                 if (null == confirmedCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
                 {
+                    logger.LogError("Failed {cn} is missing drive grant {dg}", confirmedCircle.Name, dg.PermissionedDrive);
                     throw new OdinSystemException($"Validation failed.  Confirmed circle missing drive grant {dg.PermissionedDrive}");
                 }
+                
+                logger.LogDebug("Validated {cn} has drive grant {dg}", confirmedCircle.Name, dg.PermissionedDrive);
             }
-            
+
             var autoCircle = await circleDefinitionService.GetCircleAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition.Id);
             foreach (var dg in SystemCircleConstants.AutoConnectionsSystemCircleDefinition.DriveGrants)
             {
                 if (null == autoCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
                 {
+                    logger.LogError("Failed {cn} is missing drive grant {dg}", autoCircle.Name, dg.PermissionedDrive);
                     throw new OdinSystemException($"Validation failed.  Auto-Connect circle missing drive grant {dg.PermissionedDrive}");
                 }
+                logger.LogDebug("Validated {cn} has drive grant {dg}", autoCircle.Name, dg.PermissionedDrive);
+
             }
         }
     }

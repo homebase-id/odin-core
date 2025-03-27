@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -14,7 +14,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)
     /// </summary>
-    public class TransitInboxBoxStorage(TableInbox tableInbox)
+    public class TransitInboxBoxStorage(TableInbox tableInbox, ILogger<TransitInboxBoxStorage> logger)
     {
         public async Task AddAsync(TransferInboxItem item)
         {
@@ -62,19 +62,29 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
             PerformanceCounter.IncrementCounter("Inbox Item Checkout");
 
-            var items = records.Select(r =>
+            List<TransferInboxItem> items = new List<TransferInboxItem>();
+
+            foreach (var r in records)
             {
-                var item = OdinSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
+                var json = r.value.ToStringFromUtf8Bytes();
+                try
+                {
+                    var item = OdinSystemSerializer.Deserialize<TransferInboxItem>(json);
 
-                item.Priority = r.priority;
-                item.AddedTimestamp = r.timeStamp;
-                item.DriveId = r.boxId;
-                item.FileId = r.fileId;
-                item.Marker = r.popStamp.GetValueOrDefault();
-                item.CorrelationId = r.correlationId;
+                    item.Priority = r.priority;
+                    item.AddedTimestamp = r.timeStamp;
+                    item.DriveId = r.boxId;
+                    item.FileId = r.fileId;
+                    item.Marker = r.popStamp.GetValueOrDefault();
+                    item.CorrelationId = r.correlationId;
 
-                return item;
-            }).ToList();
+                    items.Add(item);
+                }
+                catch (System.Text.Json.JsonException e)
+                {
+                    logger.LogError(e, "Failed deserializing inbox item. json[{json}]", json);
+                }
+            }
 
             return items;
         }
@@ -82,7 +92,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public async Task MarkCompleteAsync(InternalDriveFileId file, Guid marker)
         {
             await tableInbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
-            
+
             PerformanceCounter.IncrementCounter("Inbox Mark Complete");
         }
 
