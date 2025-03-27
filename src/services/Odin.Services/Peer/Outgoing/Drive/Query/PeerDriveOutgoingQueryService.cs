@@ -117,8 +117,8 @@ public class PeerDriveOutgoingQueryService(
 
             if (queryBatchResponse.Content == null)
             {
-                logger.LogError("QueryBatch to identity {identity} returned empty response with status code:{sc}. info: {info}", odinId,
-                    queryBatchResponse.StatusCode, request.QueryParams.ToLogInfo());
+                logger.LogError("QueryBatch to identity {identity} returned empty response with status code:{sc}", odinId,
+                    queryBatchResponse.StatusCode);
             }
 
             await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
