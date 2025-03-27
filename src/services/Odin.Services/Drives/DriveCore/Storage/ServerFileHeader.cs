@@ -56,7 +56,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var record = new DriveMainIndexRecord
             {
                 identityId = default, // Assuming default is appropriate; clarify if needed
-                driveId = drive.Id,
+                driveId = drive.Id, // Why doesn't this come from fileMetadata.File.DriveId
                 fileId = fileMetadata.File.FileId,
                 globalTransitId = fileMetadata.GlobalTransitId,
                 uniqueId = fileMetadata.AppData.UniqueId,
