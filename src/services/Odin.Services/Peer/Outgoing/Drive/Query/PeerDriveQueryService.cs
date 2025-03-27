@@ -109,6 +109,7 @@ public class PeerDriveQueryService(
         {
             ApiResponse<QueryBatchResponse> queryBatchResponse = null;
 
+            //TODO - Seb: add in logging to determine delays
             await TryRetry.WithDelayAsync(
                 odinConfiguration.Host.PeerOperationMaxAttempts,
                 odinConfiguration.Host.PeerOperationDelayMs,
