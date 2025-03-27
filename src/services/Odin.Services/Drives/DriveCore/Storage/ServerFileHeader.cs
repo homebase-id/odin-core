@@ -36,11 +36,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             // Set the ServerMetadata
             var serverMetadataDto = OdinSystemSerializer.Deserialize<ServerMetadataDto>(record.hdrServerData);
-            header.ServerMetadata = serverMetadataDto.ToServerMetadata(record);
+            header.ServerMetadata = new ServerMetadata(serverMetadataDto, record);
 
             // Set the FileMetadata
             var fileMetadataDto = OdinSystemSerializer.Deserialize<FileMetadataDto>(record.hdrFileMetaData);
-            header.FileMetadata = fileMetadataDto.ToFileMetadata(record);
+            header.FileMetadata = new FileMetadata(fileMetadataDto, record);
 
             return header;
         }
@@ -88,8 +88,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 hdrTmpDriveType = drive.TargetDriveInfo.Type                // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
             };
 
-            record.hdrFileMetaData = OdinSystemSerializer.Serialize(this.FileMetadata.ToFileMetadataDto());
-            record.hdrServerData = OdinSystemSerializer.Serialize(this.ServerMetadata.ToServerMetadataDto());
+            record.hdrFileMetaData = OdinSystemSerializer.Serialize(new FileMetadataDto(this.FileMetadata));
+            record.hdrServerData = OdinSystemSerializer.Serialize(new ServerMetadataDto(this.ServerMetadata));
 
             if (record.driveId == Guid.Empty || record.fileId == Guid.Empty)
             {
