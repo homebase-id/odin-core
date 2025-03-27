@@ -59,7 +59,7 @@ public class VersionUpgradeJob(
 
     public override string? CreateJobHash()
     {
-        var text = JobType + Data.Tenant;
+        var text = JobType + Data.Tenant + "xx";
         return SHA256.HashData(text.ToUtf8ByteArray()).ToBase64();
     }
 
