@@ -46,7 +46,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
 
-        public DriveMainIndexRecord ToDriveMainIndexRecord(StorageDrive drive)
+        public DriveMainIndexRecord ToDriveMainIndexRecord(TargetDrive targetDrive)
         {
             var fileMetadata = this.FileMetadata;
             var serverMetadata = this.ServerMetadata;
@@ -56,7 +56,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var record = new DriveMainIndexRecord
             {
                 identityId = default, // Assuming default is appropriate; clarify if needed
-                driveId = drive.Id, // Why doesn't this come from fileMetadata.File.DriveId
+                driveId = fileMetadata.File.DriveId,
                 fileId = fileMetadata.File.FileId,
                 globalTransitId = fileMetadata.GlobalTransitId,
                 uniqueId = fileMetadata.AppData.UniqueId,
@@ -84,8 +84,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 // this is handled by the SaveTransferHistory method
                 // hdrTransferStatus = OdinSystemSerializer.Serialize(header.ServerMetadata.TransferHistory),
 
-                hdrTmpDriveAlias = drive.TargetDriveInfo.Alias,
-                hdrTmpDriveType = drive.TargetDriveInfo.Type                // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
+                // hdrTmpDriveAlias = drive.TargetDriveInfo.Alias,
+                // hdrTmpDriveType = drive.TargetDriveInfo.Type                // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
+
+                hdrTmpDriveAlias = targetDrive.Alias,
+                hdrTmpDriveType = targetDrive.Type // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
             };
 
             record.hdrFileMetaData = OdinSystemSerializer.Serialize(new FileMetadataDto(this.FileMetadata));

@@ -63,7 +63,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var fm = ServerFileHeader.FromDriveMainIndexRecord(driveMainRecord);
             var sd = new StorageDrive("", "", new StorageDriveBase() { AllowAnonymousReads = true, Id = Guid.Parse("edee9397-a3d4-4981-b2cc-cdc685144b7b"), TargetDriveInfo = new TargetDrive() { Alias = new Core.GuidId(), Type = new Core.GuidId() } });
-            var dr = fm.ToDriveMainIndexRecord(sd);
+            var dr = fm.ToDriveMainIndexRecord(sd.TargetDriveInfo);
 
             var s2 = OdinSystemSerializer.Serialize<DriveMainIndexRecord>(dr);
 
