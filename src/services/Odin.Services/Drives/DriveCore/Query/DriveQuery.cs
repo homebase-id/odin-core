@@ -151,7 +151,7 @@ public class DriveQuery(
     {
         var fileMetadata = header.FileMetadata;
 
-        var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive);
+        var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive.TargetDriveInfo);
 
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
