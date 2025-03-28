@@ -4,6 +4,7 @@ using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
@@ -90,12 +91,56 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Guid? VersionTag { get; set; }
 
+
+        // The record is needed to fill in specific colums from the record that are not in the Dto,
+        // i.e. the columns that are commented out above
+        public FileMetadata(FileMetadataDto fileMetadataDto, DriveMainIndexRecord record)
+        {
+            // TODO: Check if more colums should be commented out 
+
+            ReferencedFile = fileMetadataDto.ReferencedFile;
+            File = fileMetadataDto.File;
+            GlobalTransitId = fileMetadataDto.GlobalTransitId;
+            FileState = fileMetadataDto.FileState;
+            Created = fileMetadataDto.Created;
+            Updated = fileMetadataDto.Updated;
+            TransitCreated = fileMetadataDto.TransitCreated;
+            TransitUpdated = fileMetadataDto.TransitUpdated;
+            // ReactionPreview = ReactionPreview,
+            IsEncrypted = fileMetadataDto.IsEncrypted;
+            SenderOdinId = fileMetadataDto.SenderOdinId;
+            OriginalAuthor = fileMetadataDto.OriginalAuthor;
+            // AppData = AppData,
+            LocalAppData = fileMetadataDto.LocalAppData;
+            Payloads = fileMetadataDto.Payloads;
+            // VersionTag = VersionTag,
+
+            // Now fill in FileMetadata with column specific values from the record
+            // TODO: Add more records here, e.g. the FileId, GlobalTransitId, etc. all record.Fields
+            // that are part of the FileMetadata
+            //
+            VersionTag = record.hdrVersionTag;
+            AppData = OdinSystemSerializer.Deserialize<AppFileMetaData>(record.hdrAppData);
+            ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
+                ? null
+                : OdinSystemSerializer.Deserialize<ReactionSummary>(record.hdrReactionSummary);
+
+            LocalAppData = string.IsNullOrEmpty(record.hdrLocalAppData)
+                ? null
+                : OdinSystemSerializer.Deserialize<LocalAppMetadata>(record.hdrLocalAppData);
+
+            if (LocalAppData != null)
+            {
+                LocalAppData.VersionTag = record.hdrLocalVersionTag.GetValueOrDefault();
+            }
+        }
+
         public PayloadDescriptor GetPayloadDescriptor(string key)
         {
             return Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
         }
 
-
+/*
         public FileMetadataDto ToFileMetadataDto()
         {
             var metadata = new FileMetadataDto()
@@ -120,7 +165,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             return metadata;
         }
-
+*/
         public bool TryValidate()
         {
             try

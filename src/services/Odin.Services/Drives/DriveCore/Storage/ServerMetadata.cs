@@ -1,6 +1,7 @@
 ﻿using System;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -31,15 +32,23 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public RecipientTransferHistory TransferHistory { get; set; }
 
-        public ServerMetadataDto ToServerMetadataDto()
+        public ServerMetadata()
         {
-            return new ServerMetadataDto() {
-                AccessControlList = this.AccessControlList,
-                FileSystemType = this.FileSystemType,
-                FileByteCount = this.FileByteCount,
-                OriginalRecipientCount = this.OriginalRecipientCount,
-                AllowDistribution = this.AllowDistribution,
-            };
+        }
+
+        // The record is needed to fill in specific colums from the record that are not in the Dto,
+        // i.e. the columns that are commented out above
+        public ServerMetadata(ServerMetadataDto serverMetadataDto, DriveMainIndexRecord record)
+        {
+            AccessControlList = serverMetadataDto.AccessControlList;
+            AllowDistribution = serverMetadataDto.AllowDistribution;
+            FileSystemType = serverMetadataDto.FileSystemType;
+            FileByteCount = serverMetadataDto.FileByteCount;
+            OriginalRecipientCount = serverMetadataDto.OriginalRecipientCount;
+
+            TransferHistory = string.IsNullOrEmpty(record.hdrTransferHistory)
+                ? null
+                : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferHistory);
         }
     }
 }
