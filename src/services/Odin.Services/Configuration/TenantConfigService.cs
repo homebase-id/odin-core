@@ -82,6 +82,7 @@ public class TenantConfigService
         };
 
         await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, TenantVersionInfo.Key, newVersion);
+        await ConfigStorage.DeleteAsync(_identityDatabase.KeyValue, FailedUpgradeVersionInfo.Key);
 
         return newVersion;
     }

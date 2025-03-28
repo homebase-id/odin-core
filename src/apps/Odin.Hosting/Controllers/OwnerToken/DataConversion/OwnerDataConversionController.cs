@@ -24,6 +24,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
         public async Task<IActionResult> ForceVersionReset([FromQuery] int version)
         {
             await configService.ForceVersionNumberAsync(version);
+            
             return Ok();
         }
     }
