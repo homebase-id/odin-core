@@ -47,7 +47,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
-
+        private const TempStorageType _tempStorageType = TempStorageType.Inbox;
+        
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public async Task InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet,
@@ -67,13 +68,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task AcceptMetadata(string fileExtension, Stream data, IOdinContext odinContext)
         {
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, _tempStorageType);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, _tempStorageType);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
@@ -88,7 +89,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
 
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, _tempStorageType);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
@@ -207,7 +208,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-                
+
                 await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
@@ -313,7 +314,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            PeerFileWriter writer = new PeerFileWriter(logger, FileSystemResolver, driveManager);
+            PeerFileWriter writer = new PeerFileWriter(logger, FileSystemResolver, driveManager, _tempStorageType);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader =
                 DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader, odinContext);

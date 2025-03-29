@@ -35,6 +35,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private EncryptedRecipientFileUpdateInstructionSet _updateInstructionSet;
         private InternalDriveFileId _tempFile;
 
+        private const  TempStorageType _tempStorageType = TempStorageType.Inbox;
+
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public async Task InitializeIncomingTransfer(EncryptedRecipientFileUpdateInstructionSet transferInstructionSet, IOdinContext odinContext)
@@ -52,13 +54,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         public async Task AcceptMetadata(string fileExtension, Stream data, IOdinContext odinContext)
         {
-            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext, _tempStorageType);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
-            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext, _tempStorageType);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data, IOdinContext odinContext)
@@ -72,7 +74,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
 
-            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext, _tempStorageType);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
@@ -147,7 +149,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
+            PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager, _tempStorageType);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
 
