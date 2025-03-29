@@ -632,11 +632,18 @@ namespace Odin.Services.Membership.Connections
 
         public async Task RevokeConnectionAsync(OdinId odinId, IOdinContext odinContext)
         {
-            await circleNetworkStorage.DeleteAsync(odinId);
-            await mediator.Publish(new ConnectionDeletedNotification()
+            await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:DeleteAsync", async () =>
             {
-                OdinId = odinId,
-                OdinContext = odinContext,
+                await circleNetworkStorage.DeleteAsync(odinId);
+            });
+
+            await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:Publish", async () =>
+            {
+                await mediator.Publish(new ConnectionDeletedNotification()
+                {
+                    OdinId = odinId,
+                    OdinContext = odinContext,
+                });
             });
         }
 

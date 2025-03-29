@@ -109,16 +109,22 @@ public class PeerDriveQueryService(
         {
             ApiResponse<QueryBatchResponse> queryBatchResponse = null;
 
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.PeerOperationMaxAttempts,
-                odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
+            await Benchmark.MillisecondsAsync(logger, "QueryBatch", async () =>
+            {
+                await TryRetry.WithDelayAsync(
+                    odinConfiguration.Host.PeerOperationMaxAttempts,
+                    odinConfiguration.Host.PeerOperationDelayMs,
+                    CancellationToken.None,
+                    async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
+            });
 
-            await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
+            await Benchmark.MillisecondsAsync(logger, "HandleInvalidResponseAsync", async () =>
+            {
+                await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
+            });
 
             var batch = queryBatchResponse.Content;
-            return new QueryBatchResult()
+            return new QueryBatchResult
             {
                 QueryTime = batch.QueryTime,
                 SearchResults = TransformSharedSecret(batch.SearchResults, icr, odinContext),
@@ -634,7 +640,7 @@ public class PeerDriveQueryService(
     private void HandleTryRetryException(TryRetryException ex)
     {
         var e = ex.InnerException;
-        if (e is TaskCanceledException || e is HttpRequestException || e is OperationCanceledException)
+        if (e is HttpRequestException or OperationCanceledException)
         {
             throw new OdinClientException("Failed while calling remote identity", e);
         }
