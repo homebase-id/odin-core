@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 
@@ -16,13 +17,13 @@ public class ClientFileMetadata
 
     public Guid? GlobalTransitId { get; set; }
 
-    public Int64 Created { get; set; }
+    public UnixTimeUtc Created { get; set; }
 
-    public Int64 Updated { get; set; }
+    public UnixTimeUtc Updated { get; set; }
 
-    public Int64 TransitCreated { get; set; }
+    public UnixTimeUtc TransitCreated { get; set; }
 
-    public Int64 TransitUpdated { get; set; }
+    public UnixTimeUtc TransitUpdated { get; set; }
 
     /// <summary>
     /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all

@@ -42,13 +42,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             AccessControlList = serverMetadataDto.AccessControlList;
             AllowDistribution = serverMetadataDto.AllowDistribution;
-            FileSystemType = serverMetadataDto.FileSystemType;
+            // FileSystemType = serverMetadataDto.FileSystemType;
             FileByteCount = serverMetadataDto.FileByteCount;
             OriginalRecipientCount = serverMetadataDto.OriginalRecipientCount;
 
             TransferHistory = string.IsNullOrEmpty(record.hdrTransferHistory)
                 ? null
                 : OdinSystemSerializer.Deserialize<RecipientTransferHistory>(record.hdrTransferHistory);
+
+            FileSystemType = (FileSystemType) record.fileSystemType;
         }
     }
 }

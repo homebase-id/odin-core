@@ -85,12 +85,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 // hdrTransferStatus = OdinSystemSerializer.Serialize(header.ServerMetadata.TransferHistory),
 
                 // hdrTmpDriveAlias = drive.TargetDriveInfo.Alias,
-                // hdrTmpDriveType = drive.TargetDriveInfo.Type                // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
+                // hdrTmpDriveType = drive.TargetDriveInfo.Type
 
                 hdrTmpDriveAlias = targetDrive.Alias,
-                hdrTmpDriveType = targetDrive.Type // Populate fields using drive, metadata, serverMetadata, encryptedKeyHeader
+                hdrTmpDriveType = targetDrive.Type
             };
 
+            // The DTOs basically removes the fields (above) that are already in the 'record'
+            // so that we don't save the same data twice
             record.hdrFileMetaData = OdinSystemSerializer.Serialize(new FileMetadataDto(this.FileMetadata));
             record.hdrServerData = OdinSystemSerializer.Serialize(new ServerMetadataDto(this.ServerMetadata));
 

@@ -14,7 +14,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public bool AllowDistribution { get; init; }
 
-        public FileSystemType FileSystemType { get; init; }
+        // public FileSystemType FileSystemType { get; init; }
 
         public Int64 FileByteCount { get; init; }
 
@@ -27,7 +27,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public ServerMetadataDto(ServerMetadata serverMetadata)
         {
             AccessControlList = serverMetadata.AccessControlList;
-            FileSystemType = serverMetadata.FileSystemType;
+            // FileSystemType = serverMetadata.FileSystemType;
             FileByteCount = serverMetadata.FileByteCount;
             OriginalRecipientCount = serverMetadata.OriginalRecipientCount;
             AllowDistribution = serverMetadata.AllowDistribution;

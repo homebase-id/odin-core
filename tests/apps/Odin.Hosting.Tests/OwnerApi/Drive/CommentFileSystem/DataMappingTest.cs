@@ -10,67 +10,108 @@ using Odin.Services.Peer.Encryption;
 using System;
 using Org.BouncyCastle.Asn1.Crmf;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
+using Odin.Core.Identity;
+using Odin.Services.Authorization.Acl;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 {
     public class DataMappingTest
     {
+
         [Test]
-        public async Task DeserializationTest()
+        public async Task DriveMainIndexRecordFillTest()
         {
-            string fileMetadata =
-                """
-                {"referencedFile":null,"file":{"driveId":"a3b7c39f-10a1-4ce7-be15-d2a5f7e63235","fileId":"2b875c19-306d-e900-da21-477d35a2a2cb"},"globalTransitId":"6e5ff502-d7c7-44fd-b07d-5a73ff1e1135","fileState":"active","created":1742824716023,"updated":1742824716024,"transitCreated":0,"transitUpdated":0,"isEncrypted":true,"senderOdinId":"merry.dotyou.cloud","originalAuthor":"merry.dotyou.cloud","localAppData":null,"payloads":[{"iv":"v4nJUFUS97csusV4f6K+8w==","key":"test_key_1","contentType":"text/plain","bytesWritten":32,"lastModified":1742824716013,"descriptorContent":null,"previewThumbnail":{"content":"aVZCT1J3MEtHZ29BQUFBTlNVaEVVZ0FBQU9FQUFBRGhDQU1BQUFBSmJTSklBQUFBTTFCTVZFWC8vLy8vL3dBQUFBQ1dBQUQvc0xDZEFBRC9nSUQvdUxqL2hvYU1BQUQvczdQL2ZIeWtBQUQvd01EL2pJei91N3VDQUFDLzZmeVVBQUFCcDBsRVFWUjRuTzNheTFLRE1CaUEwVnFrRjYzVzkzOWFOeDA3MDBoTVFpQ3BuRzlMSWYrWkxESU0zZTBrU1pMeTI4K3I5ZmdKRVJMMkh5RmgveEUrbXpBYzhXVmUzWmtKQ1FrSkNRbTNKNnp1NmM1TVNFaElTRWk0WWVHYW5wVHFVd25YanBDUXNIMkVoSVR0SXlRa2JCOGg0WWFFSVd3ZlZHdldTQXRTQ1FrSkNRa0pDWC83U2hHNVZBWkxXVFN5QkNFaElTRWhJV0d4TUFKYlFWaTJSQjZWa0pDUWtKQ1FNRTBZL3JpNk1Hc0pRa0pDUWtKQ3dtSmhlSCtrTEdIV2t3a0pDUWtKQ1FuWEVmWWZJV0gvRVJMMkh5RmgrS0ExSXlRa0pGdytRa0xDUDU1NEdhdDBtVWxkVURnT1ZSb0pDUWtKQ1FrRFVOdnpNSVU2VDVpMFl5bkNRaGdoSVNFaElTRWhJU0VoSVNFaDRiTEM4NjJoRjJHRVdpUThmeHludWg1T0QzMnVBYXN1UEw1TzlmWitlT2hFU0VoSVNQaC9oRDlmdVdPeVcxOHB3bDdPdzV6TnZCLzBrOEM3TUxaMS9Rb2pNa0pDUWtMQ2JRbW4vK0EyVEwvNGhtL0FzWU4rUVdGSURlY0lMNVVWOFN3SUl5UWtKQ1FrSkN3MWw5WFlRMGhJU0VoSVNKaFdPR0pXcmNkUGlKQ3cvd2dKKzQvdytZV1NKRW1TSkVtU0pFbVNKS20wYjc4V3NjM3YzRjloQUFBQUFFbEZUa1N1UW1DQw==","pixelWidth":100,"pixelHeight":100,"contentType":"image/png","bytesWritten":0},"thumbnails":[{"pixelWidth":200,"pixelHeight":200,"contentType":"image/png","bytesWritten":6528}],"uid":114217760586989568},{"iv":"G0EUNmUZawN1NasdJJ1X1Q==","key":"test_key_2","contentType":"text/plain","bytesWritten":48,"lastModified":1742824716013,"descriptorContent":null,"previewThumbnail":{"content":"aVZCT1J3MEtHZ29BQUFBTlNVaEVVZ0FBQU9FQUFBRGhDQU1BQUFBSmJTSklBQUFBTTFCTVZFWC8vLy8vL3dBQUFBQ1dBQUQvc0xDZEFBRC9nSUQvdUxqL2hvYU1BQUQvczdQL2ZIeWtBQUQvd01EL2pJei91N3VDQUFDLzZmeVVBQUFCcDBsRVFWUjRuTzNheTFLRE1CaUEwVnFrRjYzVzkzOWFOeDA3MDBoTVFpQ3BuRzlMSWYrWkxESU0zZTBrU1pMeTI4K3I5ZmdKRVJMMkh5RmgveEUrbXpBYzhXVmUzWmtKQ1FrSkNRbTNKNnp1NmM1TVNFaElTRWk0WWVHYW5wVHFVd25YanBDUXNIMkVoSVR0SXlRa2JCOGg0WWFFSVd3ZlZHdldTQXRTQ1FrSkNRa0pDWC83U2hHNVZBWkxXVFN5QkNFaElTRWhJV0d4TUFKYlFWaTJSQjZWa0pDUWtKQ1FNRTBZL3JpNk1Hc0pRa0pDUWtKQ3dtSmhlSCtrTEdIV2t3a0pDUWtKQ1FuWEVmWWZJV0gvRVJMMkh5RmgrS0ExSXlRa0pGdytRa0xDUDU1NEdhdDBtVWxkVURnT1ZSb0pDUWtKQ1FrRFVOdnpNSVU2VDVpMFl5bkNRaGdoSVNFaElTRWhJU0VoSVNFaDRiTEM4NjJoRjJHRVdpUThmeHludWg1T0QzMnVBYXN1UEw1TzlmWitlT2hFU0VoSVNQaC9oRDlmdVdPeVcxOHB3bDdPdzV6TnZCLzBrOEM3TUxaMS9Rb2pNa0pDUWtMQ2JRbW4vK0EyVEwvNGhtL0FzWU4rUVdGSURlY0lMNVVWOFN3SUl5UWtKQ1FrSkN3MWw5WFlRMGhJU0VoSVNKaFdPR0pXcmNkUGlKQ3cvd2dKKzQvdytZV1NKRW1TSkVtU0pFbVNKS20wYjc4V3NjM3YzRjloQUFBQUFFbEZUa1N1UW1DQw==","pixelWidth":100,"pixelHeight":100,"contentType":"image/png","bytesWritten":0},"thumbnails":[{"pixelWidth":400,"pixelHeight":400,"contentType":"image/png","bytesWritten":20352}],"uid":114217760586989569}]}
-                """;
+            var uniqueId = Guid.NewGuid();
+            var groupId = Guid.NewGuid();
+            var localTag = Guid.NewGuid();
+            var userDate = new UnixTimeUtc(26);
 
-            string serverMetadata =
-                """
-                {"accessControlList":{"requiredSecurityGroup":"connected","circleIdList":["42278063-3a2c-403c-b579-cade72de0d0f"],"odinIdList":null},"allowDistribution":true,"fileSystemType":"standard","fileByteCount":30850,"originalRecipientCount":1}
-                """;
-
-            var header = new ServerFileHeader
+            var driveMainRecord = new DriveMainIndexRecord()
             {
-                // EncryptedKeyHeader = OdinSystemSerializer.Deserialize<EncryptedKeyHeader>(record.hdrEncryptedKeyHeader),
-                FileMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(fileMetadata),
-                ServerMetadata = OdinSystemSerializer.Deserialize<ServerMetadata>(serverMetadata)
+                archivalStatus = 7,
+                byteCount = 42,
+                created = new UnixTimeUtc(9),
+                dataType = 10,
+                driveId = Guid.NewGuid(),
+                fileId = Guid.NewGuid(),
+                fileState = 11,
+                fileSystemType = 12,
+                fileType = 13,
+                globalTransitId = Guid.NewGuid(),
+                groupId = groupId,
+                hdrAppData = OdinSystemSerializer.Serialize(new AppFileMetaData() { ArchivalStatus = 7, DataType = 10, FileType = 13, GroupId = groupId, UniqueId = uniqueId, UserDate = userDate }),
+                hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(new EncryptedKeyHeader() { Type = EncryptionType.Aes, EncryptionVersion = 1, EncryptedAesKey = Guid.NewGuid().ToByteArray(), Iv = Guid.NewGuid().ToByteArray() }),
+                hdrFileMetaData = OdinSystemSerializer.Serialize(new FileMetadataDto() { IsEncrypted = true, OriginalAuthor = new OdinId("frodo.baggins.me"), Payloads = null, ReferencedFile = null, TransitCreated = new UnixTimeUtc(7), TransitUpdated = new UnixTimeUtc(0) }),
+                hdrLocalAppData = OdinSystemSerializer.Serialize(new LocalAppMetadata() { Content = "hello", VersionTag = localTag }),
+                hdrLocalVersionTag = localTag,
+                hdrReactionSummary = OdinSystemSerializer.Serialize(new ReactionSummary() { TotalCommentCount = 69}),
+                hdrServerData = OdinSystemSerializer.Serialize(new ServerMetadataDto() { AccessControlList = new Services.Authorization.Acl.AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous }, AllowDistribution = false, FileByteCount = 42, OriginalRecipientCount = 69 }),
+                hdrTmpDriveAlias = Guid.NewGuid(),
+                hdrTmpDriveType = Guid.NewGuid(),
+                hdrTransferHistory = OdinSystemSerializer.Serialize(new TransferHistorySummary() { TotalDelivered = 7 }),
+                hdrVersionTag = Guid.NewGuid(),
+                historyStatus = 21,
+                identityId = Guid.NewGuid(),
+                modified = new UnixTimeUtc(22),
+                requiredSecurityGroup = 111,
+                rowId = 24,
+                senderId = "frodo.25",
+                uniqueId = uniqueId,
+                userDate = userDate
             };
 
-            // Check FileMetadata is still working
-            header.FileMetadata.AppData = new AppFileMetaData() {Content = ":-)" };
-            header.FileMetadata.ReactionPreview = new ReactionSummary() { TotalCommentCount = 7 };
-            header.FileMetadata.VersionTag = Guid.NewGuid();
-            var fileMetadata2 = OdinSystemSerializer.Serialize(new FileMetadataDto(header.FileMetadata));
-            ClassicAssert.IsTrue(fileMetadata2.Trim() == fileMetadata.Trim());
+            var sfh = ServerFileHeader.FromDriveMainIndexRecord(driveMainRecord);
 
-            // Check ServerMetadata is still working
-            header.ServerMetadata.TransferHistory = new RecipientTransferHistory();
-            var serverMetadata2 = OdinSystemSerializer.Serialize(new ServerMetadataDto(header.ServerMetadata));
-            ClassicAssert.IsTrue(serverMetadata.Trim() == serverMetadata2.Trim());
+            // Ensure that the fields we only read in from the DB are in fact there
+            ClassicAssert.IsTrue(sfh.FileMetadata.Created.milliseconds == 9);
+            ClassicAssert.IsTrue(sfh.FileMetadata.Updated.milliseconds == 22);
+            ClassicAssert.IsTrue(sfh.FileMetadata.LocalAppData != null);
+            ClassicAssert.IsTrue(sfh.FileMetadata.LocalAppData.VersionTag != Guid.Empty);
+            ClassicAssert.IsTrue(sfh.FileMetadata.ReactionPreview != null);
+            ClassicAssert.IsTrue(sfh.ServerMetadata.TransferHistory != null);
 
-            await Task.Delay(0);
-        }
+            var targetDrive = new TargetDrive() { Alias = driveMainRecord.hdrTmpDriveAlias, Type = driveMainRecord.hdrTmpDriveType };
+            var dmr2 = sfh.ToDriveMainIndexRecord(targetDrive);
 
-        // Fails on purpose right now
-        [Test]
-        public async Task RoundTripTest()
-        {
-            string driveMainRecordStr =
-                """
-                {"rowId":0,"identityId":"00000000-0000-0000-0000-000000000000","driveId":"edee9397-a3d4-4981-b2cc-cdc685144b7b","fileId":"4b3a5d19-50a7-3f00-2118-c63f69b54765","globalTransitId":"3909cd7f-8ef2-46a1-9ba8-35cf4ec9ceb5","fileState":1,"requiredSecurityGroup":777,"fileSystemType":128,"userDate":0,"fileType":100,"dataType":7779,"archivalStatus":0,"historyStatus":0,"senderId":"merry.dotyou.cloud","groupId":null,"uniqueId":null,"byteCount":30855,"hdrEncryptedKeyHeader":"{\u0022encryptionVersion\u0022:1,\u0022type\u0022:\u0022aes\u0022,\u0022iv\u0022:\u0022p2T6n7/I2nLd9QgNY9KKFg==\u0022,\u0022encryptedAesKey\u0022:\u00226iKPRIxhVUHD47s5KbxV7ZonKAvr\u002BElI0QXnc6cMz9T5DemVNA2jHdTfscslIiRL\u0022}","hdrVersionTag":"4b3a5d19-c0a9-ff00-edef-70799b813b37","hdrAppData":"{\u0022uniqueId\u0022:null,\u0022tags\u0022:null,\u0022fileType\u0022:100,\u0022dataType\u0022:7779,\u0022groupId\u0022:null,\u0022userDate\u0022:null,\u0022content\u0022:\u0022GRGX9t3ZClYxNZO9EhNNgMHh21a/NFK5wB9K\\u002BxfnGZs=\u0022,\u0022previewThumbnail\u0022:null,\u0022archivalStatus\u0022:0}","hdrLocalVersionTag":null,"hdrLocalAppData":null,"hdrReactionSummary":null,"hdrServerData":"{\u0022accessControlList\u0022:{\u0022requiredSecurityGroup\u0022:\u0022connected\u0022,\u0022circleIdList\u0022:[\u002290f3f364-2eac-48bd-ad9c-86a0a91f671f\u0022],\u0022odinIdList\u0022:null},\u0022allowDistribution\u0022:true,\u0022fileSystemType\u0022:\u0022standard\u0022,\u0022fileByteCount\u0022:30855,\u0022originalRecipientCount\u0022:1}","hdrTransferHistory":null,"hdrFileMetaData":"{\u0022referencedFile\u0022:null,\u0022file\u0022:{\u0022driveId\u0022:\u0022edee9397-a3d4-4981-b2cc-cdc685144b7b\u0022,\u0022fileId\u0022:\u00224b3a5d19-50a7-3f00-2118-c63f69b54765\u0022},\u0022globalTransitId\u0022:\u00223909cd7f-8ef2-46a1-9ba8-35cf4ec9ceb5\u0022,\u0022fileState\u0022:\u0022active\u0022,\u0022created\u0022:1743012543132,\u0022updated\u0022:1743012543132,\u0022transitCreated\u0022:0,\u0022transitUpdated\u0022:0,\u0022isEncrypted\u0022:true,\u0022senderOdinId\u0022:\u0022merry.dotyou.cloud\u0022,\u0022originalAuthor\u0022:\u0022merry.dotyou.cloud\u0022,\u0022localAppData\u0022:null,\u0022payloads\u0022:[{\u0022iv\u0022:\u0022zGEZK8LVn1nU1SDQsnh7SA==\u0022,\u0022key\u0022:\u0022test_key_1\u0022,\u0022contentType\u0022:\u0022text/plain\u0022,\u0022bytesWritten\u0022:32,\u0022lastModified\u0022:1743012543121,\u0022descriptorContent\u0022:null,\u0022previewThumbnail\u0022:{\u0022content\u0022:\u0022aVZCT1J3MEtHZ29BQUFBTlNVaEVVZ0FBQU9FQUFBRGhDQU1BQUFBSmJTSklBQUFBTTFCTVZFWC8vLy8vL3dBQUFBQ1dBQUQvc0xDZEFBRC9nSUQvdUxqL2hvYU1BQUQvczdQL2ZIeWtBQUQvd01EL2pJei91N3VDQUFDLzZmeVVBQUFCcDBsRVFWUjRuTzNheTFLRE1CaUEwVnFrRjYzVzkzOWFOeDA3MDBoTVFpQ3BuRzlMSWYrWkxESU0zZTBrU1pMeTI4K3I5ZmdKRVJMMkh5RmgveEUrbXpBYzhXVmUzWmtKQ1FrSkNRbTNKNnp1NmM1TVNFaElTRWk0WWVHYW5wVHFVd25YanBDUXNIMkVoSVR0SXlRa2JCOGg0WWFFSVd3ZlZHdldTQXRTQ1FrSkNRa0pDWC83U2hHNVZBWkxXVFN5QkNFaElTRWhJV0d4TUFKYlFWaTJSQjZWa0pDUWtKQ1FNRTBZL3JpNk1Hc0pRa0pDUWtKQ3dtSmhlSCtrTEdIV2t3a0pDUWtKQ1FuWEVmWWZJV0gvRVJMMkh5RmgrS0ExSXlRa0pGdytRa0xDUDU1NEdhdDBtVWxkVURnT1ZSb0pDUWtKQ1FrRFVOdnpNSVU2VDVpMFl5bkNRaGdoSVNFaElTRWhJU0VoSVNFaDRiTEM4NjJoRjJHRVdpUThmeHludWg1T0QzMnVBYXN1UEw1TzlmWitlT2hFU0VoSVNQaC9oRDlmdVdPeVcxOHB3bDdPdzV6TnZCLzBrOEM3TUxaMS9Rb2pNa0pDUWtMQ2JRbW4vK0EyVEwvNGhtL0FzWU4rUVdGSURlY0lMNVVWOFN3SUl5UWtKQ1FrSkN3MWw5WFlRMGhJU0VoSVNKaFdPR0pXcmNkUGlKQ3cvd2dKKzQvdytZV1NKRW1TSkVtU0pFbVNKS20wYjc4V3NjM3YzRjloQUFBQUFFbEZUa1N1UW1DQw==\u0022,\u0022pixelWidth\u0022:100,\u0022pixelHeight\u0022:100,\u0022contentType\u0022:\u0022image/png\u0022,\u0022bytesWritten\u0022:0},\u0022thumbnails\u0022:[{\u0022pixelWidth\u0022:200,\u0022pixelHeight\u0022:200,\u0022contentType\u0022:\u0022image/png\u0022,\u0022bytesWritten\u0022:6528}],\u0022uid\u0022:114230070024142848},{\u0022iv\u0022:\u0022KxYO2O8BMGBE8j2mo6MF3w==\u0022,\u0022key\u0022:\u0022test_key_2\u0022,\u0022contentType\u0022:\u0022text/plain\u0022,\u0022bytesWritten\u0022:48,\u0022lastModified\u0022:1743012543121,\u0022descriptorContent\u0022:null,\u0022previewThumbnail\u0022:{\u0022content\u0022:\u0022aVZCT1J3MEtHZ29BQUFBTlNVaEVVZ0FBQU9FQUFBRGhDQU1BQUFBSmJTSklBQUFBTTFCTVZFWC8vLy8vL3dBQUFBQ1dBQUQvc0xDZEFBRC9nSUQvdUxqL2hvYU1BQUQvczdQL2ZIeWtBQUQvd01EL2pJei91N3VDQUFDLzZmeVVBQUFCcDBsRVFWUjRuTzNheTFLRE1CaUEwVnFrRjYzVzkzOWFOeDA3MDBoTVFpQ3BuRzlMSWYrWkxESU0zZTBrU1pMeTI4K3I5ZmdKRVJMMkh5RmgveEUrbXpBYzhXVmUzWmtKQ1FrSkNRbTNKNnp1NmM1TVNFaElTRWk0WWVHYW5wVHFVd25YanBDUXNIMkVoSVR0SXlRa2JCOGg0WWFFSVd3ZlZHdldTQXRTQ1FrSkNRa0pDWC83U2hHNVZBWkxXVFN5QkNFaElTRWhJV0d4TUFKYlFWaTJSQjZWa0pDUWtKQ1FNRTBZL3JpNk1Hc0pRa0pDUWtKQ3dtSmhlSCtrTEdIV2t3a0pDUWtKQ1FuWEVmWWZJV0gvRVJMMkh5RmgrS0ExSXlRa0pGdytRa0xDUDU1NEdhdDBtVWxkVURnT1ZSb0pDUWtKQ1FrRFVOdnpNSVU2VDVpMFl5bkNRaGdoSVNFaElTRWhJU0VoSVNFaDRiTEM4NjJoRjJHRVdpUThmeHludWg1T0QzMnVBYXN1UEw1TzlmWitlT2hFU0VoSVNQaC9oRDlmdVdPeVcxOHB3bDdPdzV6TnZCLzBrOEM3TUxaMS9Rb2pNa0pDUWtMQ2JRbW4vK0EyVEwvNGhtL0FzWU4rUVdGSURlY0lMNVVWOFN3SUl5UWtKQ1FrSkN3MWw5WFlRMGhJU0VoSVNKaFdPR0pXcmNkUGlKQ3cvd2dKKzQvdytZV1NKRW1TSkVtU0pFbVNKS20wYjc4V3NjM3YzRjloQUFBQUFFbEZUa1N1UW1DQw==\u0022,\u0022pixelWidth\u0022:100,\u0022pixelHeight\u0022:100,\u0022contentType\u0022:\u0022image/png\u0022,\u0022bytesWritten\u0022:0},\u0022thumbnails\u0022:[{\u0022pixelWidth\u0022:400,\u0022pixelHeight\u0022:400,\u0022contentType\u0022:\u0022image/png\u0022,\u0022bytesWritten\u0022:20352}],\u0022uid\u0022:114230070024142849}]}","hdrTmpDriveAlias":"00000000-0000-0000-0000-000000000000","hdrTmpDriveType":"00000000-0000-0000-0000-000000000000","created":0,"modified":null}
-                """;
-
-            var driveMainRecord = OdinSystemSerializer.Deserialize<DriveMainIndexRecord>(driveMainRecordStr);
-
-            var fm = ServerFileHeader.FromDriveMainIndexRecord(driveMainRecord);
-            var sd = new StorageDrive("", "", new StorageDriveBase() { AllowAnonymousReads = true, Id = Guid.Parse("edee9397-a3d4-4981-b2cc-cdc685144b7b"), TargetDriveInfo = new TargetDrive() { Alias = new Core.GuidId(), Type = new Core.GuidId() } });
-            var dr = fm.ToDriveMainIndexRecord(sd.TargetDriveInfo);
-
-            var s2 = OdinSystemSerializer.Serialize<DriveMainIndexRecord>(dr);
-
-            // Ok, I can't wrap my head around why in ServerFileHeader.FromDriveMainIndexRecord() we'd NOT copy over the localAppData field?
-
-            ClassicAssert.IsTrue(s2.Trim() == driveMainRecordStr.Trim());
-            // ClassicAssert.IsTrue(dr.Equals(driveMainRecord));
+            ClassicAssert.IsTrue(driveMainRecord.archivalStatus == dmr2.archivalStatus);
+            ClassicAssert.IsTrue(driveMainRecord.byteCount == dmr2.byteCount);
+            ClassicAssert.IsTrue(dmr2.created == UnixTimeUtc.ZeroTime); // created doesn't get copied
+            ClassicAssert.IsTrue(driveMainRecord.dataType == dmr2.dataType);
+            ClassicAssert.IsTrue(driveMainRecord.driveId == dmr2.driveId);
+            ClassicAssert.IsTrue(driveMainRecord.fileId == dmr2.fileId);
+            ClassicAssert.IsTrue(driveMainRecord.fileState == dmr2.fileState);
+            ClassicAssert.IsTrue(driveMainRecord.fileSystemType == dmr2.fileSystemType);
+            ClassicAssert.IsTrue(driveMainRecord.fileType == dmr2.fileType);
+            ClassicAssert.IsTrue(driveMainRecord.globalTransitId == dmr2.globalTransitId);
+            ClassicAssert.IsTrue(driveMainRecord.groupId == dmr2.groupId);
+            ClassicAssert.IsTrue(driveMainRecord.hdrAppData == dmr2.hdrAppData);
+            ClassicAssert.IsTrue(driveMainRecord.hdrEncryptedKeyHeader == dmr2.hdrEncryptedKeyHeader);
+            ClassicAssert.IsTrue(driveMainRecord.hdrFileMetaData == dmr2.hdrFileMetaData);
+            ClassicAssert.IsTrue(driveMainRecord.hdrLocalAppData != null);
+            ClassicAssert.IsTrue(dmr2.hdrLocalAppData == null); // We don't copy localAppData
+            ClassicAssert.IsTrue(driveMainRecord.hdrLocalVersionTag != null);
+            ClassicAssert.IsTrue(dmr2.hdrLocalVersionTag == null); // We don't copy localAppData.VersionTag
+            ClassicAssert.IsTrue(driveMainRecord.hdrReactionSummary != null);
+            ClassicAssert.IsTrue(dmr2.hdrReactionSummary == null); // We don't copy the reaction summary
+            ClassicAssert.IsTrue(driveMainRecord.hdrServerData == dmr2.hdrServerData);
+            ClassicAssert.IsTrue(driveMainRecord.hdrTmpDriveAlias == dmr2.hdrTmpDriveAlias);
+            ClassicAssert.IsTrue(driveMainRecord.hdrTmpDriveType == dmr2.hdrTmpDriveType);
+            ClassicAssert.IsTrue(driveMainRecord.hdrTransferHistory != null);
+            ClassicAssert.IsTrue(dmr2.hdrTransferHistory == null); // We don't copy the transfer history
+            ClassicAssert.IsTrue(driveMainRecord.hdrVersionTag == dmr2.hdrVersionTag);
+            ClassicAssert.IsTrue(driveMainRecord.historyStatus == 21);
+            ClassicAssert.IsTrue(dmr2.historyStatus == 0); // Hardcoded to 0
+            ClassicAssert.IsTrue(driveMainRecord.identityId != Guid.Empty);
+            ClassicAssert.IsTrue(dmr2.identityId == Guid.Empty); // Doesn't get copied back
+            ClassicAssert.IsTrue(driveMainRecord.modified != null);
+            ClassicAssert.IsTrue(dmr2.modified == null);
+            ClassicAssert.IsTrue(driveMainRecord.requiredSecurityGroup == dmr2.requiredSecurityGroup);
+            ClassicAssert.IsTrue(driveMainRecord.rowId != 0);
+            ClassicAssert.IsTrue(dmr2.rowId == 0); // We don't copy in the rowId
+            ClassicAssert.IsTrue(driveMainRecord.senderId == dmr2.senderId);
+            ClassicAssert.IsTrue(driveMainRecord.uniqueId == dmr2.uniqueId);
+            ClassicAssert.IsTrue(driveMainRecord.userDate == dmr2.userDate);
 
             await Task.Delay(0);
         }
