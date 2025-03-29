@@ -151,6 +151,8 @@ public class DriveQuery(
     {
         var fileMetadata = header.FileMetadata;
 
+        //sanity in case something higher up didnt set the drive properly for any crazy reason
+        header.FileMetadata.File = header.FileMetadata.File with { DriveId = drive.Id };
         var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive.TargetDriveInfo);
 
         var acl = new List<Guid>();
