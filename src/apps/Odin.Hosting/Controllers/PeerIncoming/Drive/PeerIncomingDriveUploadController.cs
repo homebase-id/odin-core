@@ -422,10 +422,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _circleNetworkService,
                 _fileSystemResolver,
                 _odinConfiguration,
-                _transitInboxBoxStorage,
-                _uploadTempStorageManager,
-                _inboxTempStorageManager,
-                _driveFileReaderWriter);
+                _transitInboxBoxStorage);
         }
     }
 }

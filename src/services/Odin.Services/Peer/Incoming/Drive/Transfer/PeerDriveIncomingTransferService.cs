@@ -41,10 +41,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
-        TransitInboxBoxStorage transitInboxBoxStorage,
-        UploadTempStorageManager uploadTempStorageManager,
-        InboxTempStorageManager inboxTempStorageManager,
-        DriveFileReaderWriter driveFileReaderWriter
+        TransitInboxBoxStorage transitInboxBoxStorage
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
@@ -74,12 +71,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 _tempStorageType);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(metadata)));
-            await AcceptMetadata("metadata", metadataStream, odinContext);
-        }
-
-        public async Task AcceptMetadata(string fileExtension, Stream data, IOdinContext odinContext)
-        {
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext, _tempStorageType);
+            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, "metadata", metadataStream, odinContext, _tempStorageType);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
@@ -314,8 +306,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
         {
-            //HACK: if it's not a connected token
-            if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
+            if (!await CanDirectWriteFile(stateItem, metadata, odinContext))
             {
                 return false;
             }
@@ -373,21 +364,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         private async Task<PeerResponseCode> RouteToInboxAsync(IncomingTransferStateItem stateItem, IOdinContext odinContext)
         {
-            //
-            // Move file from "temp/upload" to "temp/inbox"
-            //
-
+           
             var drive = await driveManager.GetDriveAsync(stateItem.TempFile.DriveId);
-            var srcDir = uploadTempStorageManager.DriveCompleteTempPath(drive);
-            var dstDir = inboxTempStorageManager.DriveCompleteTempPath(drive);
-            var fileMask = uploadTempStorageManager.FileNameWithoutExtension(drive, stateItem.TempFile.FileId) + "*";
-
-            var srcFiles = Directory.GetFiles(srcDir, fileMask);
-            foreach (var srcfile in srcFiles)
-            {
-                var destFile = Path.Combine(dstDir, Path.GetFileName(srcfile));
-                driveFileReaderWriter.MoveFile(srcfile, destFile);
-            }
 
             //
             // Update database
@@ -409,6 +387,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
+            
             await transitInboxBoxStorage.AddAsync(item);
 
             //
@@ -471,6 +450,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<bool> CanDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
         {
+            await Task.CompletedTask;
+            
             //HACK: if it's not a connected token
             if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
             {
@@ -481,12 +462,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 return true;
             }
-
-            if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
-            {
-                return false;
-            }
-
+            
             //S1100
             if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.DriveId, out _))
             {
