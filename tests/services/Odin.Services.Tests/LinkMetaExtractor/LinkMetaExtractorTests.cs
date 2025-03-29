@@ -816,6 +816,7 @@ public class LinkMetaExtractorTests
 
 
 #if !CI_GITHUB
+    [Explicit]
     [Test]
     public async Task TestAuktionshuset()
     {

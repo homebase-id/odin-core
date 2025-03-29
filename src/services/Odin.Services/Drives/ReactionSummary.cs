@@ -1,4 +1,5 @@
 using Odin.Core.Exceptions;
+using Odin.Core.Time;
 using Odin.Core.Util;
 using System;
 using System.Collections.Generic;
@@ -100,8 +101,8 @@ public class CommentPreview
     public string Content { get; set; }
 
     public List<ReactionContentPreview> Reactions { get; set; } = new();
-    public long Created { get; set; }
-    public long Updated { get; set; }
+    public UnixTimeUtc Created { get; set; }
+    public UnixTimeUtc Updated { get; set; }
     public bool IsEncrypted { get; set; }
 
     public bool TryValidate()

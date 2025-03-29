@@ -25,7 +25,6 @@ public static class OdinTestAssertions
         ClassicAssert.IsNotNull(fileHeader.ServerMetadata.AccessControlList);
         ClassicAssert.IsTrue(fileHeader.ServerMetadata.AccessControlList.RequiredSecurityGroup == expectedSecurityGroupType);
         ClassicAssert.IsTrue(fileHeader.FileMetadata.Updated > 0);
-        ClassicAssert.IsTrue(fileHeader.FileMetadata.Created == default);
         ClassicAssert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderOdinId));
         ClassicAssert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.OriginalAuthor));
         ClassicAssert.IsTrue(fileHeader.FileMetadata.IsEncrypted == default);
@@ -39,5 +38,6 @@ public static class OdinTestAssertions
         ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.PreviewThumbnail == default);
         ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.UserDate == default);
         ClassicAssert.IsTrue(fileHeader.FileMetadata.AppData.Tags == default);
+        // ClassicAssert.IsTrue(fileHeader.FileMetadata.Created == default);  --> the DTOs now ensure the Created and Updated properties are populated from the DB
     }
 }

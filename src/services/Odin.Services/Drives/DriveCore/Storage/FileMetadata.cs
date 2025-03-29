@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
@@ -55,13 +57,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public FileState FileState { get; set; }
 
-        public Int64 Created { get; set; }
+        public UnixTimeUtc Created { get; set; }
 
-        public Int64 Updated { get; set; }
+        public UnixTimeUtc Updated { get; set; }
 
-        public Int64 TransitCreated { get; set; }
+        public UnixTimeUtc TransitCreated { get; set; }
 
-        public Int64 TransitUpdated { get; set; }
+        public UnixTimeUtc TransitUpdated { get; set; }
 
         public ReactionSummary ReactionPreview { get; set; }
 
@@ -88,6 +90,62 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public List<PayloadDescriptor> Payloads { get; set; }
 
         public Guid? VersionTag { get; set; }
+
+
+        // The record is needed to fill in specific colums from the record that are not in the Dto,
+        // i.e. the columns that are commented out above
+        public FileMetadata(FileMetadataDto fileMetadataDto, DriveMainIndexRecord record)
+        {
+            // First fill in the data from the DTO object
+            //
+            ReferencedFile = fileMetadataDto.ReferencedFile;
+            // File = fileMetadataDto.File;
+            // GlobalTransitId = fileMetadataDto.GlobalTransitId;
+            // FileState = fileMetadataDto.FileState;
+            // Created = fileMetadataDto.Created;
+            // Updated = fileMetadataDto.Updated;
+            TransitCreated = fileMetadataDto.TransitCreated;
+            TransitUpdated = fileMetadataDto.TransitUpdated;
+            // ReactionPreview = ReactionPreview,
+            IsEncrypted = fileMetadataDto.IsEncrypted;
+            // SenderOdinId = fileMetadataDto.SenderOdinId;
+            OriginalAuthor = fileMetadataDto.OriginalAuthor;
+            // AppData = AppData,
+            // LocalAppData = fileMetadataDto.LocalAppData;
+            Payloads = fileMetadataDto.Payloads;
+            // VersionTag = VersionTag,
+
+            // SANITY CHECK:
+            // There are SIX fields in the DTO.
+            // There are SIXTEEN properties in the FileMetaData
+            // There must be TEN assignments below
+
+            // Now fill in FileMetadata with column specific values from the record
+            //
+            
+            File = new InternalDriveFileId() { FileId = record.fileId, DriveId = record.driveId };
+            GlobalTransitId = record.globalTransitId;
+            FileState = (FileState)record.fileState;
+            Created = record.created;
+            Updated = record.modified == null ? UnixTimeUtc.ZeroTime : record.modified.Value; // Todd says NULL means zero
+            // But I would prefer if it was nullable - except of course if we change it so that it's always set
+
+            ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
+                ? null
+                : OdinSystemSerializer.Deserialize<ReactionSummary>(record.hdrReactionSummary);
+            SenderOdinId = record.senderId;
+            AppData = OdinSystemSerializer.Deserialize<AppFileMetaData>(record.hdrAppData);
+            LocalAppData = string.IsNullOrEmpty(record.hdrLocalAppData)
+                ? null
+                : OdinSystemSerializer.Deserialize<LocalAppMetadata>(record.hdrLocalAppData);
+
+            if (LocalAppData != null)
+            {
+                LocalAppData.VersionTag = record.hdrLocalVersionTag.GetValueOrDefault();
+            }
+
+            VersionTag = record.hdrVersionTag;
+        }
 
         public PayloadDescriptor GetPayloadDescriptor(string key)
         {
