@@ -188,7 +188,7 @@ public sealed class DriveFileReaderWriter(
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
-    public Task<Stream> OpenStreamForReadingAsync(string filePath)
+    public Stream OpenStreamForReading(string filePath)
     {
         Stream fileStream = Stream.Null;
 
@@ -216,7 +216,7 @@ public sealed class DriveFileReaderWriter(
             throw e.InnerException!;
         }
 
-        return Task.FromResult(fileStream);
+        return fileStream;
     }
 
     private async Task<uint> WriteStreamInternalAsync(string filePath, Stream stream)
@@ -226,19 +226,15 @@ public sealed class DriveFileReaderWriter(
         var chunkSize = odinConfiguration.Host.FileWriteChunkSizeInBytes;
         var buffer = new byte[chunkSize];
 
-        uint bytesWritten;
-        using (var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+        await using var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        int bytesRead;
+        do
         {
-            int bytesRead;
-            do
-            {
-                bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                await output.WriteAsync(buffer, 0, bytesRead);
-            } while (bytesRead > 0);
+            bytesRead = await stream.ReadAsync(buffer);
+            await output.WriteAsync(buffer.AsMemory(0, bytesRead));
+        } while (bytesRead > 0);
 
-            bytesWritten = (uint)output.Length;
-            output.Close();
-        }
+        var bytesWritten = (uint)output.Length;
 
         return bytesWritten;
     }
@@ -289,7 +285,7 @@ public sealed class DriveFileReaderWriter(
         return Directory.Exists(dir);
     }
 
-    public void DeleteFilesInDirectoryAsync(string dir, string searchPattern)
+    public void DeleteFilesInDirectory(string dir, string searchPattern)
     {
         if (Directory.Exists(dir))
         {

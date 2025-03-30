@@ -132,27 +132,13 @@ public class StaticFileContentService
                             continue;
                         }
 
-                        var ps = await _fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
-                        try
+                        using var ps = await _fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
+                        payloads.Add(new PayloadStaticFileResponse()
                         {
-                            payloads.Add(new PayloadStaticFileResponse()
-                            {
-                                Key = ps.Key,
-                                ContentType = ps.ContentType,
-                                Data = ps.Stream.ToByteArray().ToBase64()
-                            });
-                        }
-                        finally
-                        {
-                            // TODO: PayloadStream should probably have some sort of dtor or
-                            // know if it needs to dispose if the stream it is holding on to
-                            if (ps.Stream != null)
-                            {
-                                await ps.Stream.DisposeAsync();
-                            }
-
-                            ps = null;
-                        }
+                            Key = ps.Key,
+                            ContentType = ps.ContentType,
+                            Data = ps.Stream.ToByteArray().ToBase64()
+                        });
                     }
                 }
 
@@ -253,7 +239,7 @@ public class StaticFileContentService
             }
         }
 
-        var fileStream = await _driveFileReaderWriter.OpenStreamForReadingAsync(targetFile);
+        var fileStream = _driveFileReaderWriter.OpenStreamForReading(targetFile);
         return (config, fileExists: true, fileStream);
     }
 

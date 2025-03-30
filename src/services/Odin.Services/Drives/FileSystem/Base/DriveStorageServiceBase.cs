@@ -258,7 +258,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 try
                 {
-                    var s = await longTermStorageManager.GetThumbnailStream(drive, file.FileId, width, height, payloadKey, payloadUid);
+                    var s = longTermStorageManager.GetThumbnailStream(drive, file.FileId, width, height, payloadKey, payloadUid);
                     return (s, directMatchingThumb);
                 }
                 catch (OdinFileHeaderHasCorruptPayloadException)
@@ -290,7 +290,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
-                var stream = await longTermStorageManager.GetThumbnailStream(
+                var stream = longTermStorageManager.GetThumbnailStream(
                     drive,
                     file.FileId,
                     nextSizeUp.PixelWidth,
@@ -480,7 +480,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            await longTermStorageManager.HardDelete(drive, file.FileId);
+            await longTermStorageManager.HardDeleteAsync(drive, file.FileId);
 
             if (await ShouldRaiseDriveEventAsync(file))
             {
@@ -596,7 +596,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool metadataSaysThisFileHasPayloads = newMetadata.Payloads?.Any() ?? false;
 
             var tempStorageManager = GetTempStorageManager(tempStorageType);
-
             longTermStorageManager.DeleteMissingPayloads(drive, newMetadata.File.FileId, newMetadata.Payloads);
 
             if (metadataSaysThisFileHasPayloads && !ignorePayload.GetValueOrDefault(false))

@@ -29,14 +29,15 @@ public abstract class AbstractTempStorageManager(
     /// <summary>
     /// Gets a stream of data for the specified file
     /// </summary>
-    public async Task<byte[]?> GetAllFileBytes(StorageDrive drive, Guid fileId, string extension)
+    public async Task<byte[]> GetAllFileBytes(StorageDrive drive, Guid fileId, string extension)
     {
-        var path = GetTempFilenameAndPath(drive, fileId, extension);
+        string path = GetTempFilenameAndPath(drive, fileId, extension);
         logger.LogDebug("Getting temp file bytes for [{path}]", path);
         var bytes = await driveFileReaderWriter.GetAllFileBytesAsync(path);
+        logger.LogDebug("Got {count} bytes from {path}", bytes.Length, path);
         return bytes;
     }
-
+  
     /// <summary>
     /// Writes a stream for a given file and part to the configured provider.
     /// </summary>
@@ -48,8 +49,22 @@ public abstract class AbstractTempStorageManager(
         var bytesWritten = await driveFileReaderWriter.WriteStreamAsync(filePath, stream);
         if (bytesWritten == 0)
         {
-            // Sanity #1
-            logger.LogDebug("I didn't write anything to {filePath}", filePath);
+            string filePath = GetTempFilenameAndPath(drive, fileId, extension, true);
+            logger.LogDebug("Writing temp file: {filePath}", filePath);
+            var bytesWritten = await driveFileReaderWriter.WriteStreamAsync(filePath, stream);
+            if (bytesWritten == 0)
+            {
+                // Sanity #1
+                logger.LogDebug("I didn't write anything to {filePath}", filePath);
+            }
+            else if (!File.Exists(filePath))
+            {
+                // Sanity #2
+                logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
+            }
+            logger.LogDebug("Wrote {count} bytes to {filePath}", bytesWritten, filePath);
+
+            return bytesWritten;
         }
         else if (!File.Exists(filePath))
         {
@@ -73,7 +88,15 @@ public abstract class AbstractTempStorageManager(
         return Task.CompletedTask;
     }
 
-    public void CleanUp(StorageDrive drive, Guid fileId)
+    /// <summary>
+    /// Gets the physical path of the specified file
+    /// </summary>
+    public string GetPath(StorageDrive drive, Guid fileId, string extension)
+    {
+        return GetTempFilenameAndPath(drive, fileId, extension);
+    }
+  
+   public void CleanUp(StorageDrive drive, Guid fileId)
     {
         var searchPath = drive.GetTempStoragePath();
 
