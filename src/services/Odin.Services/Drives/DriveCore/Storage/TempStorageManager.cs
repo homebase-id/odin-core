@@ -35,7 +35,7 @@ public abstract class AbstractTempStorageManager(
         logger.LogDebug("Getting temp file bytes for [{path}]", path);
         var bytes = await driveFileReaderWriter.GetAllFileBytesAsync(path);
         logger.LogDebug("Got {count} bytes from {path}", bytes?.Length, path);
-        return bytes;
+        return bytes!;
     }
 
     /// <summary>
@@ -59,19 +59,6 @@ public abstract class AbstractTempStorageManager(
         }
 
         return bytesWritten;
-    }
-
-    /// <summary>
-    /// Deletes all files matching <param name="fileId"></param> regardless of extension
-    /// </summary>
-    /// <param name="drive"></param>
-    /// <param name="fileId"></param>
-    // SEB:TODO delete this
-    public Task EnsureDeleted(StorageDrive drive, Guid fileId)
-    {
-        var dir = "xxx";
-        logger.LogDebug("no-op: delete on temp files called yet we've removed this. path {filePath}", dir);
-        return Task.CompletedTask;
     }
 
     /// <summary>
