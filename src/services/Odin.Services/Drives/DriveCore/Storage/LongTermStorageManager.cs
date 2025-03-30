@@ -375,6 +375,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 DeleteAllThumbnails(drive, fileId);
                 DeleteAllPayloadFiles(drive, fileId);
             });
+
             await _driveQuery.HardDeleteFileHeaderAsync(drive, GetInternalFile(drive, fileId));
         }
 

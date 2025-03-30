@@ -9,6 +9,8 @@ using Odin.Services.Configuration;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
+#nullable enable
+
 /// <summary>
 /// Handles read/write access to drive files to ensure correct
 /// locking as well as apply system config for how files are written.
@@ -19,6 +21,7 @@ public sealed class DriveFileReaderWriter(
 {
     public async Task WriteStringAsync(string filePath, string data)
     {
+        CreateDirectory(Path.GetDirectoryName(filePath));
         try
         {
             await TryRetry.WithDelayAsync(
@@ -46,6 +49,7 @@ public sealed class DriveFileReaderWriter(
 
     public async Task WriteAllBytesAsync(string filePath, byte[] bytes)
     {
+        CreateDirectory(Path.GetDirectoryName(filePath));
         try
         {
             await TryRetry.WithDelayAsync(
@@ -56,6 +60,7 @@ public sealed class DriveFileReaderWriter(
                 {
                     try
                     {
+                        CreateDirectory(Path.GetDirectoryName(filePath));
                         await File.WriteAllBytesAsync(filePath, bytes);
                     }
                     catch (Exception e)
@@ -71,8 +76,9 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public async Task<uint> WriteStreamAsync(string filePath, Stream stream, bool byPassInternalFileLocking = false)
+    public async Task<uint> WriteStreamAsync(string filePath, Stream stream)
     {
+        CreateDirectory(Path.GetDirectoryName(filePath));
         uint bytesWritten = 0;
 
         try
@@ -108,9 +114,10 @@ public sealed class DriveFileReaderWriter(
         return bytesWritten;
     }
 
-    public async Task<byte[]> GetAllFileBytesAsync(string filePath, bool byPassInternalFileLocking = false)
+    public async Task<byte[]?> GetAllFileBytesAsync(string filePath, bool byPassInternalFileLocking = false)
     {
-        byte[] bytes = null;
+        CreateDirectory(Path.GetDirectoryName(filePath));
+        byte[]? bytes = null;
 
         try
         {
@@ -146,6 +153,7 @@ public sealed class DriveFileReaderWriter(
 
     public void MoveFile(string sourceFilePath, string destinationFilePath)
     {
+        CreateDirectory(Path.GetDirectoryName(destinationFilePath));
         try
         {
             TryRetry.WithDelay(
@@ -213,6 +221,8 @@ public sealed class DriveFileReaderWriter(
 
     private async Task<uint> WriteStreamInternalAsync(string filePath, Stream stream)
     {
+        CreateDirectory(Path.GetDirectoryName(filePath));
+        
         var chunkSize = odinConfiguration.Host.FileWriteChunkSizeInBytes;
         var buffer = new byte[chunkSize];
 
@@ -246,7 +256,7 @@ public sealed class DriveFileReaderWriter(
                     }
                     catch (Exception e)
                     {
-                        logger.LogDebug(e, "DeleteFileAsync (TryRetry) {message}", e.Message);
+                        logger.LogDebug(e, "DeleteFile (TryRetry) {message}", e.Message);
                         throw;
                     }
                 });
@@ -289,9 +299,12 @@ public sealed class DriveFileReaderWriter(
         return Directory.GetFiles(dir!, searchPattern);
     }
 
-    public void CreateDirectory(string dir)
+    public void CreateDirectory(string? dir)
     {
-        Directory.CreateDirectory(dir);
-        logger.LogDebug("Created Directory [{dir}]", dir);
+        if (dir != null && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+            logger.LogDebug("Created Directory [{dir}]", dir);
+        }
     }
 }

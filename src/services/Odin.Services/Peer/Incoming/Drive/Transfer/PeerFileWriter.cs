@@ -27,7 +27,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
+    public class PeerFileWriter(
+        ILogger logger,
+        FileSystemResolver fileSystemResolver,
+        DriveManager driveManager,
+        TempStorageType tempStorageType)
     {
         public async Task HandleFile(InternalDriveFileId tempFile,
             IDriveFileSystem fs,
@@ -44,7 +48,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
             {
                 var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(tempFile,
-                    MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
+                    MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext, tempStorageType);
 
                 if (bytes == null)
                 {
@@ -164,7 +168,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 logger.LogDebug("MarkFileAsRead -> Attempted to mark a deleted file as read");
             }
-            
+
             var update = new UpdateTransferHistoryData()
             {
                 IsReadByRecipient = true,
@@ -227,7 +231,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var ms = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter WriteNewFile", async () =>
             {
                 metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
-                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext);
+                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext,
+                    tempStorageType: tempStorageType);
             });
 
             logger.LogDebug("Handle file->CommitNewFile: {ms} ms", ms);
@@ -243,7 +248,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 //one is written any time you save a header)
                 metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext);
+                await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext,
+                    tempStorageType: tempStorageType);
             });
         }
 

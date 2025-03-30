@@ -12,6 +12,7 @@ using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
@@ -94,7 +95,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             correlationContext.Id = inboxItem.CorrelationId ?? FallbackCorrelationId;
             logger.LogDebug("Begin processing Inbox item");
 
-            PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
+            PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager, TempStorageType.Inbox);
 
             // await db.CreateCommitUnitOfWorkAsync(async () =>
             // {
@@ -290,7 +291,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task HandleUpdateFileAsync(TransferInboxItem inboxItem, IOdinContext odinContext)
         {
-            var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
+            var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager, TempStorageType.Inbox);
             var tempFile = new InternalDriveFileId()
             {
                 FileId = inboxItem.FileId,

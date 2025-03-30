@@ -22,7 +22,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// <summary>
     /// Handles the process of updating an existing long-term file based on an incoming temporary file
     /// </summary>
-    public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
+    public class PeerFileUpdateWriter(
+        ILogger logger,
+        FileSystemResolver fileSystemResolver,
+        DriveManager driveManager,
+        TempStorageType tempStorageType)
     {
         public async Task UpsertFileAsync(InternalDriveFileId tempFile,
             KeyHeader decryptedKeyHeader,
@@ -67,7 +71,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                             serverMetadata,
                             ignorePayload: false,
                             odinContext,
-                            keepSameVersionTag: true);
+                            keepSameVersionTag: true,
+                            tempStorageType);
                     });
 
                 return;
@@ -100,7 +105,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext);
+                await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext, tempStorageType);
             });
         }
 
@@ -113,7 +118,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
             {
                 var bytes = await fs.Storage.GetAllFileBytesFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(),
-                    odinContext);
+                    odinContext, tempStorageType);
 
                 if (bytes == null)
                 {

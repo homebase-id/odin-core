@@ -547,7 +547,7 @@ namespace Odin.Hosting
 
                 // Sanity ping cache
                 var cache = services.GetRequiredService<IGlobalLevel2Cache>();
-                cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
+                cache.Set("ping", "pong", TimeSpan.FromSeconds(10));
                 var pong = cache.TryGet<string>("ping");
                 if (pong != "pong")
                 {
