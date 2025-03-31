@@ -74,6 +74,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(this.EncryptedKeyHeader),
                 hdrVersionTag = fileMetadata.VersionTag.GetValueOrDefault(),
                 hdrAppData = OdinSystemSerializer.Serialize(fileMetadata.AppData),
+                created = fileMetadata.Created, // It will be ignored & overwritten by the DB layer
+                modified = fileMetadata.Updated, // It will be ignored & overwritten by the DB layer
 
                 // local data is updated by a specific method
                 // hdrLocalVersionTag =  ...
