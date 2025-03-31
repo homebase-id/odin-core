@@ -24,7 +24,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// </summary>
     public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
     {
-        public async Task UpsertFileAsync(InternalDriveFileId tempFile,
+        public async Task UpsertFileAsync(TempFile tempFile,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
@@ -105,7 +105,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         }
 
         private async Task<FileMetadata> LoadMetadataFromTemp(
-            InternalDriveFileId tempFile,
+            TempFile tempFile,
             IDriveFileSystem fs,
             IOdinContext odinContext)
         {
@@ -118,8 +118,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 if (bytes == null)
                 {
                     // this is bad error.
-                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId,
-                        tempFile.DriveId);
+                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.File.FileId,
+                        tempFile.File.DriveId);
                     throw new OdinFileWriteException("Missing temp file while processing inbox");
                 }
 
@@ -128,8 +128,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 incomingMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
                 if (null == incomingMetadata)
                 {
-                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId,
-                        tempFile.DriveId);
+                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.File.FileId,
+                        tempFile.File.DriveId);
                     throw new OdinFileWriteException("Metadata could not be deserialized");
                 }
             });
@@ -144,7 +144,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return incomingMetadata;
         }
 
-        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(InternalDriveFileId tempFile,
+        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(TempFile tempFile,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             FileSystemType fileSystemType,
             FileMetadata metadata,
@@ -157,7 +157,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDriveAsync(tempFile.DriveId);
+            var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage

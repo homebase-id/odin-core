@@ -94,5 +94,14 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         {
             return Payloads.Where(p => p.HasIv()).ToList();
         }
+
+        public TempFile GetTempFile()
+        {
+            return  new TempFile()
+            {
+                File = TempMetadataFile,
+                StorageType = TempStorageType.Upload
+            };
+        }
     }
 }

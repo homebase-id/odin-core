@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -51,11 +50,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         /// <summary />
         public PeerIncomingDriveUpdateController(DriveManager driveManager,
-             IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
+            IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
             ILoggerFactory loggerFactory, TransitInboxBoxStorage transitInboxBoxStorage)
         {
             _driveManager = driveManager;
-            
+
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
             _pushNotificationService = pushNotificationService;
@@ -89,12 +88,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
             //End Optimizations
 
-            _fileUpdateService = GetPerimeterService(_fileSystem);
-            await _fileUpdateService.InitializeIncomingTransfer(updateInstructionSet, WebOdinContext);
-
             //
 
-            var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync());
+            var metadata = await Initialize(updateInstructionSet, reader);
 
             //
 
@@ -115,6 +111,20 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext);
+        }
+
+        private async Task<FileMetadata> Initialize(
+            EncryptedRecipientFileUpdateInstructionSet updateInstructionSet, MultipartReader reader)
+        {
+            var metadataSection = await reader.ReadNextSectionAsync();
+            AssertIsPart(metadataSection, MultipartHostTransferParts.Metadata);
+            var json = await new StreamReader(metadataSection!.Body).ReadToEndAsync();
+            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+            
+            _fileUpdateService = GetPerimeterService(_fileSystem);
+            await _fileUpdateService.InitializeIncomingTransfer(updateInstructionSet, metadata, WebOdinContext);
+
+            return metadata;
         }
 
         private Task AssertIsValidCaller()
@@ -173,18 +183,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return transferInstructionSet;
         }
 
-        private async Task<FileMetadata> ProcessMetadataSection(MultipartSection section)
-        {
-            AssertIsPart(section, MultipartHostTransferParts.Metadata);
-
-            //HACK: need to optimize this 
-            var json = await new StreamReader(section.Body).ReadToEndAsync();
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
-            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await _fileUpdateService.AcceptMetadata("metadata", metadataStream, WebOdinContext);
-            return metadata;
-        }
-
         private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata)
         {
             AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
@@ -230,9 +228,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private void AssertIsPayloadPart(MultipartSection section, out FileMultipartSection fileSection, out string payloadKey)
         {
             var expectedPart = MultipartHostTransferParts.Payload;
-            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
+                part != expectedPart)
             {
-                throw new OdinClientException($"Payloads have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidPayloadNameOrKey);
+                throw new OdinClientException($"Payloads have name of {Enum.GetName(expectedPart)}",
+                    OdinClientErrorCode.InvalidPayloadNameOrKey);
             }
 
             fileSection = section.AsFileSection();
@@ -244,9 +244,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             out string thumbnailUploadKey)
         {
             var expectedPart = MultipartHostTransferParts.Thumbnail;
-            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
+                part != expectedPart)
             {
-                throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);
+                throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}",
+                    OdinClientErrorCode.InvalidThumnbnailName);
             }
 
             fileSection = section.AsFileSection();
@@ -269,7 +271,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private void AssertIsPart(MultipartSection section, MultipartHostTransferParts expectedPart)
         {
-            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
+            if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
+                part != expectedPart)
             {
                 throw new OdinClientException($"Part must be {Enum.GetName(expectedPart)}");
             }
@@ -317,7 +320,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
             }
 
-            throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
+            throw new OdinClientException("Invalid file system type or could not parse instruction set",
+                OdinClientErrorCode.InvalidFileSystemType);
         }
 
         private PeerDriveIncomingFileUpdateService GetPerimeterService(IDriveFileSystem fileSystem)
