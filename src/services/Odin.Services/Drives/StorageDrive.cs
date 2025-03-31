@@ -123,7 +123,7 @@ namespace Odin.Services.Drives
                     return Path.Combine(_tempDataRootPath, "inbox-files");
 
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(storageType), storageType, null);
+                    throw new OdinSystemException($"Unknown storage type:[{storageType}]");
             }
         }
 
