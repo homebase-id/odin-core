@@ -167,6 +167,8 @@ public abstract class OutboxWorkerBase(
                 string contentType = "application/unknown";
 
                 //TODO: consider what happens if the payload has been delete from disk
+
+                // NOTE: caller takes ownership of the stream inside 'p' and is responsible for disposing
                 var p = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, odinContext);
                 var payloadStream = p.Stream;
                 payloadStreams.Add(payloadStream);

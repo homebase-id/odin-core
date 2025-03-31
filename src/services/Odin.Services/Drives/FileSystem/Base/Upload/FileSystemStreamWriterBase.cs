@@ -205,10 +205,13 @@ public abstract class FileSystemStreamWriterBase
         _logger.LogDebug("Entering FinalizeUploadAsync");
 
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
+        _logger.LogDebug("FinalizeUploadAsync check-point A");
 
         await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata);
+        _logger.LogDebug("FinalizeUploadAsync check-point B");
 
         await this.ValidateUnpackedData(Package, keyHeader, metadata, serverMetadata, odinContext);
+        _logger.LogDebug("FinalizeUploadAsync check-point C");
 
         if (Package.IsUpdateOperation)
         {
@@ -218,6 +221,7 @@ public abstract class FileSystemStreamWriterBase
                 throw new OdinClientException("OverwriteFileId is specified but file does not exist",
                     OdinClientErrorCode.CannotOverwriteNonExistentFile);
             }
+            _logger.LogDebug("FinalizeUploadAsync check-point D");
 
             if (metadata.VersionTag == null)
             {
@@ -229,12 +233,15 @@ public abstract class FileSystemStreamWriterBase
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
+                _logger.LogDebug("FinalizeUploadAsync check-point E");
 
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
                     var existingFile =
                         await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
+                    _logger.LogDebug("FinalizeUploadAsync check-point F");
+
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
                         throw new OdinClientException(
@@ -245,6 +252,7 @@ public abstract class FileSystemStreamWriterBase
             }
 
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
+            _logger.LogDebug("FinalizeUploadAsync check-point G");
         }
         else
         {
@@ -254,6 +262,8 @@ public abstract class FileSystemStreamWriterBase
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFile =
                     await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
+                _logger.LogDebug("FinalizeUploadAsync check-point H");
+
                 if (null != existingFile && existingFile.FileState != FileState.Deleted)
                 {
                     throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
@@ -262,16 +272,21 @@ public abstract class FileSystemStreamWriterBase
             }
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
+            _logger.LogDebug("FinalizeUploadAsync check-point I");
         }
 
         Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext);
+        _logger.LogDebug("FinalizeUploadAsync check-point J");
 
-        var uploadResult = new UploadResult()
+        var drive = await _driveManager.GetDriveAsync(Package.InternalFile.DriveId);
+        _logger.LogDebug("FinalizeUploadAsync check-point K");
+
+        var uploadResult = new UploadResult
         {
             NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
-            File = new ExternalFileIdentifier()
+            File = new ExternalFileIdentifier
             {
-                TargetDrive = (await _driveManager.GetDriveAsync(Package.InternalFile.DriveId)).TargetDriveInfo,
+                TargetDrive = drive.TargetDriveInfo,
                 FileId = Package.InternalFile.FileId
             },
             GlobalTransitId = metadata.GlobalTransitId,

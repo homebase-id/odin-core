@@ -12,6 +12,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
@@ -187,126 +188,150 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await _driveQuery.SaveReactionSummary(drive, fileId, null);
         }
 
-        public async Task DeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height,
+        public void DeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height,
             int width)
         {
-            string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
-            string dir = GetFilePath(drive, fileId, FilePart.Thumb);
-            string path = Path.Combine(dir, fileName);
-
-            await _driveFileReaderWriter.DeleteFileAsync(path);
-        }
-
-        public async Task DeletePayloadFile(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
-        {
-            string path = GetPayloadFilePath(drive, fileId, descriptor);
-            await _driveFileReaderWriter.DeleteFileAsync(path);
-        }
-
-        public async Task DeleteAllPayloadFiles(StorageDrive drive, Guid fileId)
-        {
-            var searchPattern = this.GetFilename(fileId, "-*", FilePart.Payload);
-            string dir = GetFilePath(drive, fileId, FilePart.Payload);
-            await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern);
-        }
-
-        public async Task<Int64> GetPayloadDiskUsage(StorageDrive drive, Guid fileId)
-        {
-            string payloadFilePath = GetPayloadPath(drive, fileId);
-            if (!await _driveFileReaderWriter.DirectoryExists(payloadFilePath))
+            Benchmark.Milliseconds(_logger, "DeleteThumbnailFile", () =>
             {
-                return 0;
-            }
+                var fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
+                var dir = GetFilePath(drive, fileId, FilePart.Thumb);
+                var path = Path.Combine(dir, fileName);
 
-            Int64 usage = 0;
-            var filePaths = _driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
-            foreach (var filePath in filePaths)
+                _driveFileReaderWriter.DeleteFile(path);
+            });
+        }
+
+        public void DeletePayloadFile(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
+        {
+            Benchmark.Milliseconds(_logger, "DeletePayloadFile", () =>
             {
-                var info = new FileInfo(filePath);
-                usage += info.Length;
-            }
+                var path = GetPayloadFilePath(drive, fileId, descriptor);
+                _driveFileReaderWriter.DeleteFile(path);
+            });
+        }
 
-            return usage;
+        public void DeleteAllPayloadFiles(StorageDrive drive, Guid fileId)
+        {
+            Benchmark.Milliseconds(_logger, "DeleteAllPayloadFiles", () =>
+            {
+                var searchPattern = this.GetFilename(fileId, "-*", FilePart.Payload);
+                var dir = GetFilePath(drive, fileId, FilePart.Payload);
+                _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+            });
+        }
+
+        public long GetPayloadDiskUsage(StorageDrive drive, Guid fileId)
+        {
+            var result = Benchmark.Milliseconds(_logger, "GetPayloadDiskUsage", () =>
+            {
+                var payloadFilePath = GetPayloadPath(drive, fileId);
+                if (!_driveFileReaderWriter.DirectoryExists(payloadFilePath))
+                {
+                    return 0;
+                }
+
+                var usage = 0L;
+                var filePaths = _driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
+                foreach (var filePath in filePaths)
+                {
+                    var info = new FileInfo(filePath);
+                    usage += info.Length;
+                }
+
+                return usage;
+            });
+            return result;
         }
 
         public async Task<Stream> GetPayloadStream(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
         {
-            var path = GetPayloadFilePath(drive, fileId, descriptor);
-            _logger.LogDebug("Get Chunked Stream called on file [{path}]", path);
+            var result = await Benchmark.MillisecondsAsync(_logger, "GetPayloadStream", async () => await Execute());
+            return result;
 
-            Stream fileStream;
-            try
+            async Task<Stream> Execute()
             {
-                fileStream = await _driveFileReaderWriter.OpenStreamForReading(path);
-            }
-            catch (IOException io)
-            {
-                if (io is FileNotFoundException || io is DirectoryNotFoundException)
-                {
-                    throw new OdinFileHeaderHasCorruptPayloadException(
-                        $"Missing payload file [path:{path}] for key {descriptor.Key} with uid: {descriptor.Uid.uniqueTime}");
-                }
+                var path = GetPayloadFilePath(drive, fileId, descriptor);
+                _logger.LogDebug("Get Chunked Stream called on file [{path}]", path);
 
-                throw;
-            }
-
-            if (null != chunk)
-            {
+                Stream fileStream;
                 try
                 {
-                    var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
-                    if (chunk.Start > fileStream.Length)
-                    {
-                        throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
-                    }
-
-                    fileStream.Position = chunk.Start;
-                    var bytesRead = fileStream.Read(buffer);
-
-                    //resize if length requested was too large (happens if we hit the end of the stream)
-                    if (bytesRead < buffer.Length)
-                    {
-                        Array.Resize(ref buffer, bytesRead);
-                    }
-
-                    // return Task.FromResult((Stream)new MemoryStream(buffer, false));
-                    return new MemoryStream(buffer, false);
+                    fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
+                    _logger.LogDebug("File size: {size} bytes", fileStream.Length);
                 }
-                finally
+                catch (IOException io)
                 {
-                    await fileStream.DisposeAsync();
-                }
-            }
+                    if (io is FileNotFoundException || io is DirectoryNotFoundException)
+                    {
+                        throw new OdinFileHeaderHasCorruptPayloadException(
+                            $"Missing payload file [path:{path}] for key {descriptor.Key} with uid: {descriptor.Uid.uniqueTime}");
+                    }
 
-            return fileStream;
+                    throw;
+                }
+
+                if (null != chunk)
+                {
+                    try
+                    {
+                        var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
+                        if (chunk.Start > fileStream.Length)
+                        {
+                            throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
+                        }
+
+                        fileStream.Position = chunk.Start;
+                        var bytesRead = fileStream.Read(buffer);
+
+                        //resize if length requested was too large (happens if we hit the end of the stream)
+                        if (bytesRead < buffer.Length)
+                        {
+                            Array.Resize(ref buffer, bytesRead);
+                        }
+
+                        // return Task.FromResult((Stream)new MemoryStream(buffer, false));
+                        return new MemoryStream(buffer, false);
+                    }
+                    finally
+                    {
+                        await fileStream.DisposeAsync();
+                    }
+                }
+
+                return fileStream;
+            }
         }
 
 
         /// <summary>
         /// Gets a read stream of the thumbnail
         /// </summary>
-        public async Task<Stream> GetThumbnailStream(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
+        public Stream GetThumbnailStream(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
             UnixTimeUtcUnique payloadUid)
         {
-            string fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
-            string dir = GetFilePath(drive, fileId, FilePart.Thumb);
-            string path = Path.Combine(dir, fileName);
+            var result = Benchmark.Milliseconds(_logger, "GetThumbnailStream", () =>
+            {
+                var fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
+                var dir = GetFilePath(drive, fileId, FilePart.Thumb);
+                var path = Path.Combine(dir, fileName);
 
-            try
-            {
-                var fileStream = await _driveFileReaderWriter.OpenStreamForReading(path);
-                return fileStream;
-            }
-            catch (IOException io)
-            {
-                if (io is FileNotFoundException || io is DirectoryNotFoundException)
+                try
                 {
-                    throw new OdinFileHeaderHasCorruptPayloadException(
-                        $"Missing thumbnail file [path:{path}] for key {payloadKey} with uid: {payloadUid.uniqueTime}");
+                    var fileStream = _driveFileReaderWriter.OpenStreamForReading(path);
+                    return fileStream;
                 }
+                catch (IOException io)
+                {
+                    if (io is FileNotFoundException || io is DirectoryNotFoundException)
+                    {
+                        throw new OdinFileHeaderHasCorruptPayloadException(
+                            $"Missing thumbnail file [path:{path}] for key {payloadKey} with uid: {payloadUid.uniqueTime}");
+                    }
 
-                throw;
-            }
+                    throw;
+                }
+            });
+            return result;
         }
 
         public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)
@@ -327,7 +352,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
 
         /// <summary>
-        /// Checks if the header file exists on disk.  Does not check the validity of the header
+        /// Checks if the header file exists in db.  Does not check the validity of the header
         /// </summary>
         public async Task<bool> HeaderFileExists(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
         {
@@ -343,61 +368,74 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes all traces of a file and deletes its record from the index
         /// </summary>
-        public async Task HardDelete(StorageDrive drive, Guid fileId)
+        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId)
         {
-            await DeleteAllThumbnails(drive, fileId);
-            await DeleteAllPayloadFiles(drive, fileId);
+            Benchmark.Milliseconds(_logger, "HardDeleteAsync", () =>
+            {
+                DeleteAllThumbnails(drive, fileId);
+                DeleteAllPayloadFiles(drive, fileId);
+            });
             await _driveQuery.HardDeleteFileHeaderAsync(drive, GetInternalFile(drive, fileId));
         }
 
         /// <summary>
         /// Removes the contents of the meta file while permanently deletes the payload and thumbnails.  Retains some fields of the metafile and updates the index accordingly
         /// </summary>
-        /// <param name="fileId"></param>
-        public async Task DeleteAttachments(StorageDrive drive, Guid fileId)
+        public void DeleteAttachments(StorageDrive drive, Guid fileId)
         {
-            await DeleteAllThumbnails(drive, fileId);
-            await DeleteAllPayloadFiles(drive, fileId);
+            Benchmark.Milliseconds(_logger, "DeleteAttachments", () =>
+            {
+                DeleteAllThumbnails(drive, fileId);
+                DeleteAllPayloadFiles(drive, fileId);
+            });
         }
 
         /// <summary>
         /// Moves the specified <param name="sourceFile"></param> to long term storage.  Returns the storage UID used in the filename
         /// </summary>
-        public async Task MovePayloadToLongTerm(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
+        public void MovePayloadToLongTerm(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
-            if (!File.Exists(sourceFile))
+            Benchmark.Milliseconds(_logger, "MovePayloadToLongTerm", () =>
             {
-                throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
-            }
+                if (!File.Exists(sourceFile))
+                {
+                    throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
+                }
 
-            var destinationFile = GetPayloadFilePath(drive, targetFileId, descriptor, ensureExists: true);
-            await _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
-            _logger.LogDebug("Payload: moved {sourceFile} to {destinationFile}", sourceFile, destinationFile);
+                var destinationFile = GetPayloadFilePath(drive, targetFileId, descriptor, ensureExists: true);
+                _driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
+                _logger.LogDebug("Payload: moved {sourceFile} to {destinationFile}", sourceFile, destinationFile);
+            });
         }
 
-        public async Task MoveThumbnailToLongTermAsync(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
+        public void MoveThumbnailToLongTerm(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
-            if (!File.Exists(sourceThumbnailFilePath))
+            Benchmark.Milliseconds(_logger, "MoveThumbnailToLongTerm", () =>
             {
-                throw new OdinSystemException($"Thumbnail: source file does not exist: {sourceThumbnailFilePath}");
-            }
+                if (!File.Exists(sourceThumbnailFilePath))
+                {
+                    throw new OdinSystemException($"Thumbnail: source file does not exist: {sourceThumbnailFilePath}");
+                }
 
-            var payloadKey = payloadDescriptor.Key;
+                var payloadKey = payloadDescriptor.Key;
 
-            DriveFileUtility.AssertValidPayloadKey(payloadKey);
-            var destinationFile = GetThumbnailPath(drive, targetFileId, thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight,
-                payloadKey,
-                payloadDescriptor.Uid);
+                DriveFileUtility.AssertValidPayloadKey(payloadKey);
+                var destinationFile = GetThumbnailPath(drive, targetFileId, thumbnailDescriptor.PixelWidth,
+                    thumbnailDescriptor.PixelHeight,
+                    payloadKey,
+                    payloadDescriptor.Uid);
 
-            string dir = Path.GetDirectoryName(destinationFile) ?? throw new OdinSystemException("Destination folder was null");
-            _logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
-            _driveFileReaderWriter.CreateDirectory(dir);
+                var dir = Path.GetDirectoryName(destinationFile) ??
+                          throw new OdinSystemException("Destination folder was null");
+                _logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
+                _driveFileReaderWriter.CreateDirectory(dir);
 
-            await _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
-            _logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
-                sourceThumbnailFilePath, destinationFile);
+                _driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
+                _logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
+                    sourceThumbnailFilePath, destinationFile);
+            });
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
@@ -409,64 +447,70 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes any payloads that are not in the provided list
         /// </summary>
-        public async Task DeleteMissingPayloadsAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> payloadsToKeep)
+        public void DeleteMissingPayloads(StorageDrive drive, Guid fileId, List<PayloadDescriptor> payloadsToKeep)
         {
-            //get all payloads in the path
-            var payloadFileDirectory = GetPayloadPath(drive, fileId);
-
-            if (await _driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
+            Benchmark.Milliseconds(_logger, "DeleteMissingPayloads", () =>
             {
-                var searchPattern = string.Format(DriveFileUtility.PayloadExtensionSpecifier, "*");
+                //get all payloads in the path
+                var payloadFileDirectory = GetPayloadPath(drive, fileId);
 
-                var files = _driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
-                foreach (var payloadFilePath in files)
+                if (_driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
                 {
-                    // get the payload key from the filepath
-                    // Given a payload key of "test001
-                    // Filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-test001"
-                    var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
-                    var payloadKeyOnDisk = filename.Split(DriveFileUtility.PayloadDelimiter)[1];
+                    var searchPattern = string.Format(DriveFileUtility.PayloadExtensionSpecifier, "*");
 
-                    var keepPayload = payloadsToKeep.Exists(p => p.Key == payloadKeyOnDisk);
-                    if (!keepPayload)
+                    var files = _driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
+                    foreach (var payloadFilePath in files)
                     {
-                        await _driveFileReaderWriter.DeleteFileAsync(payloadFilePath);
+                        // get the payload key from the filepath
+                        // Given a payload key of "test001
+                        // Filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-test001"
+                        var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
+                        var payloadKeyOnDisk = filename.Split(DriveFileUtility.PayloadDelimiter)[1];
+
+                        var keepPayload = payloadsToKeep.Exists(p => p.Key == payloadKeyOnDisk);
+                        if (!keepPayload)
+                        {
+                            _driveFileReaderWriter.DeleteFile(payloadFilePath);
+                        }
                     }
                 }
-            }
+            });
         }
 
         /// <summary>
         /// Removes all thumbnails on disk which are not in the provided list.
         /// </summary>
-        public async Task DeleteMissingThumbnailFilesAsync(StorageDrive drive, Guid fileId,
+        public void DeleteMissingThumbnailFiles(StorageDrive drive, Guid fileId,
             IEnumerable<ThumbnailDescriptor> thumbnailsToKeep)
         {
-            var list = thumbnailsToKeep?.ToList() ?? [];
-
-            var dir = GetFilePath(drive, fileId, FilePart.Thumb);
-
-            if (await _driveFileReaderWriter.DirectoryExists(dir))
+            Benchmark.Milliseconds(_logger, "DeleteMissingThumbnailFiles", () =>
             {
-                var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
-                var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
+                var list = thumbnailsToKeep?.ToList() ?? [];
 
-                var files = _driveFileReaderWriter.GetFilesInDirectory(dir, seekPath);
-                foreach (var thumbnailFilePath in files)
+                var dir = GetFilePath(drive, fileId, FilePart.Thumb);
+
+                if (_driveFileReaderWriter.DirectoryExists(dir))
                 {
-                    // filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-300x300"
-                    var filename = Path.GetFileNameWithoutExtension(thumbnailFilePath);
-                    var sizeParts = filename.Split(ThumbnailDelimiter)[1].Split(ThumbnailSizeDelimiter);
-                    var width = int.Parse(sizeParts[0]);
-                    var height = int.Parse(sizeParts[1]);
+                    var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
+                    var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
 
-                    var keepThumbnail = list.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
-                    if (!keepThumbnail)
+                    var files = _driveFileReaderWriter.GetFilesInDirectory(dir, seekPath);
+                    foreach (var thumbnailFilePath in files)
                     {
-                        await _driveFileReaderWriter.DeleteFileAsync(thumbnailFilePath);
+                        // filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-300x300"
+                        var filename = Path.GetFileNameWithoutExtension(thumbnailFilePath);
+                        var sizeParts = filename.Split(ThumbnailDelimiter)[1].Split(ThumbnailSizeDelimiter);
+                        var width = int.Parse(sizeParts[0]);
+                        var height = int.Parse(sizeParts[1]);
+
+                        var keepThumbnail = list.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
+                        if (!keepThumbnail)
+                        {
+                            _driveFileReaderWriter.DeleteFile(thumbnailFilePath);
+                        }
                     }
                 }
-            }
+            });
         }
 
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
@@ -507,7 +551,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             if (ensureExists)
             {
-                _driveFileReaderWriter.CreateDirectory(dir);
+                Benchmark.Milliseconds(_logger, "GetFilePath/CreateDirectory", () =>
+                    _driveFileReaderWriter.CreateDirectory(dir));
             }
 
             return dir;
@@ -537,12 +582,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return Path.Combine(GetPayloadPath(drive, fileId, ensureExists), $"{payloadFileName}");
         }
 
-        private async Task DeleteAllThumbnails(StorageDrive drive, Guid fileId)
+        private void DeleteAllThumbnails(StorageDrive drive, Guid fileId)
         {
-            var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
-            var searchPattern = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
-            string dir = GetFilePath(drive, fileId, FilePart.Thumb);
-            await _driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern);
+            Benchmark.Milliseconds(_logger, "DeleteAllThumbnails", () =>
+            {
+                var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
+                var searchPattern = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
+                var dir = GetFilePath(drive, fileId, FilePart.Thumb);
+                _driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+            });
         }
 
         private InternalDriveFileId GetInternalFile(StorageDrive drive, Guid fileId)

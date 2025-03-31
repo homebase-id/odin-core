@@ -20,7 +20,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             string path = GetTempFilenameAndPath(drive, fileId, extension);
             logger.LogDebug("Getting temp file bytes for [{path}]", path);
-            var bytes = await driveFileReaderWriter.GetAllFileBytes(path);
+            var bytes = await driveFileReaderWriter.GetAllFileBytesAsync(path);
+            logger.LogDebug("Got {count} bytes from {path}", bytes.Length, path);
             return bytes;
         }
 
@@ -31,7 +32,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             string filePath = GetTempFilenameAndPath(drive, fileId, extension, true);
             logger.LogDebug("Writing temp file: {filePath}", filePath);
-            var bytesWritten = await driveFileReaderWriter.WriteStream(filePath, stream);
+            var bytesWritten = await driveFileReaderWriter.WriteStreamAsync(filePath, stream);
             if (bytesWritten == 0)
             {
                 // Sanity #1
@@ -42,6 +43,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 // Sanity #2
                 logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
             }
+            logger.LogDebug("Wrote {count} bytes to {filePath}", bytesWritten, filePath);
 
             return bytesWritten;
         }
@@ -65,10 +67,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Gets the physical path of the specified file
         /// </summary>
-        public Task<string> GetPath(StorageDrive drive, Guid fileId, string extension)
+        public string GetPath(StorageDrive drive, Guid fileId, string extension)
         {
-            string filePath = GetTempFilenameAndPath(drive, fileId, extension);
-            return Task.FromResult(filePath);
+            return GetTempFilenameAndPath(drive, fileId, extension);
         }
 
         private string GetFileDirectory(StorageDrive drive, Guid fileId, bool ensureExists = false)
