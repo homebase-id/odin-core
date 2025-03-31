@@ -53,7 +53,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
-            var canDirectWrite = await CanDirectWriteFile(driveId, metadata, odinContext);
+            var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
             var file = new TempFile()
@@ -61,7 +61,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 File = await fileSystem.Storage.CreateInternalFileId(driveId),
                 StorageType = canDirectWrite ? TempStorageType.Upload : TempStorageType.Inbox
             };
-            
+
             _transferState = new IncomingTransferStateItem(file, transferInstructionSet);
 
 
@@ -211,7 +211,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
 
                 header.AssertOriginalSender(odinContext.Caller.OdinId.GetValueOrDefault());
-                
+
                 await fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
@@ -306,7 +306,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(stateItem.TempFile.File.DriveId, metadata, odinContext))
+            if (!await CanDirectWriteFile(stateItem.TempFile.File.DriveId, metadata, stateItem.TransferInstructionSet, odinContext))
             {
                 return false;
             }
@@ -436,10 +436,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 
-        private async Task<bool> CanDirectWriteFile(Guid driveId, FileMetadata metadata, IOdinContext odinContext)
+        private async Task<bool> CanDirectWriteFile(Guid driveId, FileMetadata metadata,
+            EncryptedRecipientTransferInstructionSet transferInstructionSet, IOdinContext odinContext)
         {
             await Task.CompletedTask;
-            
+
             //HACK: if it's not a connected token
             if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
             {
@@ -450,11 +451,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 return true;
             }
-            
+
             //S1100
             if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(driveId, out _))
             {
                 return true;
+            }
+
+            //S2210 - comments cannot fall back to inbox
+            if (transferInstructionSet.FileSystemType == FileSystemType.Comment)
+            {
+                throw new OdinSecurityException("Sender cannot write the comment");
             }
 
             return false;

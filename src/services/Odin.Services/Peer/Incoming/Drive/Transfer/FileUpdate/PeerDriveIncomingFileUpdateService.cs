@@ -43,23 +43,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.Request.File.TargetDrive);
-            var canDirectWrite = await CanDirectWriteFile(metadata, odinContext);
-            
+            var canDirectWrite = await CanDirectWriteFile(metadata, transferInstructionSet, odinContext);
+
             // Notice here: we always create a new fileId when receiving a new file.
             _tempFile = new TempFile()
             {
                 File = await fileSystem.Storage.CreateInternalFileId(driveId),
                 StorageType = canDirectWrite ? TempStorageType.Upload : TempStorageType.Inbox
             };
-            
+
             _updateInstructionSet = transferInstructionSet;
 
-            
+
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
             await fileSystem.Storage.WriteTempStream(_tempFile, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream,
                 odinContext);
-            
+
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(metadata)));
             await fileSystem.Storage.WriteTempStream(_tempFile, "metadata", metadataStream, odinContext);
         }
@@ -147,7 +147,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(metadata, odinContext))
+            if (!await CanDirectWriteFile(metadata, _updateInstructionSet, odinContext))
             {
                 return false;
             }
@@ -232,7 +232,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return PeerResponseCode.AcceptedIntoInbox;
         }
 
-        private async Task<bool> CanDirectWriteFile(FileMetadata metadata, IOdinContext odinContext)
+        private async Task<bool> CanDirectWriteFile(FileMetadata metadata,
+            EncryptedRecipientFileUpdateInstructionSet transferInstructionSet, IOdinContext odinContext)
         {
             //HACK: if it's not a connected token
             if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
@@ -250,7 +251,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             {
                 return true;
             }
-            
+
+            //S2210 - comments cannot fall back to inbox
+            if (transferInstructionSet.FileSystemType == FileSystemType.Comment)
+            {
+                throw new OdinSecurityException("Sender cannot write the comment");
+            }
+
             await Task.CompletedTask;
             return false;
         }
