@@ -20,46 +20,53 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.SQLite.Migrations.Helpers;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 
 //
 // MIGRATION steps
 //
-//  0) Change to directory /identity-host
-//  1) Make sure container is stopped: docker compose down
-//  2) Make sure container is gone: docker container prune
-//  3) Build and deploy docker image with migration code - DO NOT START IT
-//  4a) Change to directory /identity-host/data/
-//  4b) Backup the system: sudo zip -r system-backup.zip system
-//  5a) Change to directory /identity-host/data/tenants
-//  5b) Backup the registrations: sudo zip -r registrations-backup.zip registrations
-//  6) Change to directory /identity-host
-//  7) Edit the docker-compose.yml file, add the correct command line param to start the migration
-//  8) Start the docker image: docker compose up
-//  9) Wait for the migration to finish
-// 10) Make sure docker container is gone: docker container prune
-// 11) Redeploy the docker image (this will overwrite the compose changes from above) - START IT
-// 12) Run some smoke tests
-// 13) Check the logs for errors
-// 14) Change to directory /identity-host/data/tenants/registrations
-// 15) clean up: sudo find . -type f -name 'oldidentity.*' -delete
-// 16) clean up: sudo rm registrations-backup.zip
+//  - Change to directory /identity-host
+//  - Make sure container is stopped: docker compose down && docker container prune -f
+//  - Build and deploy docker image with migration code - DO NOT START IT
+//  - Change to directory /identity-host/data/
+//  - Backup the system: sudo zip -r backup-system.zip system
+//  - Change to directory /identity-host/data/tenants
+//  - Backup the registrations: sudo zip -r backup-registrations.zip registrations
+//  - Change to directory /identity-host
+//  - Edit the docker-compose.yml file:
+//    - Add the correct command line param to start the migration
+//    - Disable start-always if enabled
+//  - Start the docker image: docker compose up
+//  - Wait for the migration to finish
+//  - Make sure docker container is gone: docker container prune -f
+//  - Redeploy the docker image (this will overwrite the compose changes from above) - START IT
+//  - Run some smoke tests
+//  - Check the logs for errors
+//  - Change to directory /identity-host/data/
+//  - Clean up: sudo rm backup-system.zip
+//  - Change to directory /identity-host/data/tenants/registrations
+//  - Clean up: sudo find . -type f -name 'oldidentity.*' -delete
+//  - Clean up: sudo rm backup-registrations.zip
 //
-// PANIC steps
+// ROLLBACK steps
 //
-//  0) Change to directory /identity-host
-//  1) Make sure container is stopped: docker compose down
-//  2) Make sure container is gone: docker container prune
-//  3a) Change to directory /identity-host/data/
-//  3b) Remove system: sudo rm -rf system
-//  3c) Restore system: sudo unzip system-backup.zip
-//  4a) Change to directory /identity-host/data/tenants
-//  4b) Remove registrations: sudo rm -rf registrations
-//  4c) Restore registrations: sudo unzip registrations-backup.zip
-//  6) Redeploy the docker image (this will overwrite the compose changes) - START IT
+//  - Change to directory /identity-host
+//  - Make sure container is stopped: docker compose down && docker container prune -f
+//  - Change to directory /identity-host/data/
+//  - Remove system: sudo rm -rf system
+//  - Restore system: sudo unzip backup-system.zip
+//  - Change to directory /identity-host/data/tenants
+//  - Remove registrations: sudo rm -rf registrations
+//  - Restore registrations: sudo unzip backup-registrations.zip
+//  - Redeploy the docker image (this will overwrite the compose changes) - START IT
+//  - Change to directory /identity-host/data/
+//  - Clean up: sudo rm backup-system.zip
+//  - Change to directory /identity-host/data/tenants/registrations
+//  - Clean up: sudo find . -type f -name 'oldidentity.*' -delete
+//  - Clean up: sudo rm backup-registrations.zip
 //
-
 
 // Local test:
 //   mkdir $HOME/tmp/create-rowid

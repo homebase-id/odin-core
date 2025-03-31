@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.Factory.Sqlite;
+using Odin.Core.Storage.SQLite.Migrations.Helpers;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 

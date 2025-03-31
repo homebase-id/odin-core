@@ -3,9 +3,11 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.Factory.Sqlite;
+using Odin.Core.Storage.SQLite.Migrations.Helpers;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 
+#if false
 public static class CreateCorrelationIdOnInboxAndOutbox
 {
     // tenantDataRootPath in PROD: /identity-host/data/tenants
@@ -67,3 +69,4 @@ public static class CreateCorrelationIdOnInboxAndOutbox
         }
     }
 }
+#endif
