@@ -226,12 +226,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             return bytes;
         }
 
-        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile file, string extension,
+        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
             IOdinContext odinContext)
         {
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            return await tempStorageManager.GetAllFileBytes(drive, file.FileId, extension);
+            await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
+            var drive = await DriveManager.GetDriveAsync(tempFile.File.DriveId);
+            return await tempStorageManager.GetAllFileBytes(drive, tempFile.FileId, extension);
         }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
@@ -499,10 +499,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             ServerMetadata serverMetadata,
             bool? ignorePayload, IOdinContext odinContext, bool keepSameVersionTag = false)
         {
-            await AssertCanWriteToDrive(sourceTempFile.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(sourceTempFile.DriveId);
+            await AssertCanWriteToDrive(sourceTempFile.File.DriveId, odinContext);
+            var drive = await DriveManager.GetDriveAsync(sourceTempFile.File.DriveId);
 
-            metadata.File = sourceTempFile;
+            var targetFile = sourceTempFile.File;
+            metadata.File = targetFile; // this is a new file so we can use the same fileId from the temp file
+            
             serverMetadata.FileSystemType = GetFileSystemType();
 
             //HACK: To the transit system sending the file header and not the payload or thumbnails (via SendContents)
@@ -518,29 +520,29 @@ namespace Odin.Services.Drives.FileSystem.Base
                     //Note: it's just as performant to directly get the file length as it is to perform File.Exists
                     var payloadExtension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key, descriptor.Uid);
                     var sourceFile = tempStorageManager.GetPath(drive, sourceTempFile.FileId, payloadExtension);
-                    longTermStorageManager.MovePayloadToLongTerm(drive, sourceTempFile.FileId, descriptor, sourceFile);
+                    longTermStorageManager.MovePayloadToLongTerm(drive, sourceTempFile.File.FileId, descriptor, sourceFile);
 
                     foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                     {
                         var extension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                             thumb.PixelHeight);
                         var sourceThumbnail = tempStorageManager.GetPath(drive, sourceTempFile.FileId, extension);
-                        longTermStorageManager.MoveThumbnailToLongTerm(drive, sourceTempFile.FileId, sourceThumbnail, descriptor,
+                        longTermStorageManager.MoveThumbnailToLongTerm(drive, sourceTempFile.File.FileId, sourceThumbnail, descriptor,
                             thumb);
                     }
                 }
             }
 
             //TODO: calculate payload checksum, put on file metadata
-            var serverHeader = await CreateServerHeaderInternal(sourceTempFile, keyHeader, metadata, serverMetadata, odinContext);
+            var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, metadata, serverMetadata, odinContext);
 
-            await WriteNewFileHeader(sourceTempFile, serverHeader, odinContext, keepSameVersionTag: keepSameVersionTag);
+            await WriteNewFileHeader(targetFile, serverHeader, odinContext, keepSameVersionTag: keepSameVersionTag);
 
-            if (await ShouldRaiseDriveEventAsync(sourceTempFile))
+            if (await ShouldRaiseDriveEventAsync(sourceTempFile.File))
             {
                 await mediator.Publish(new DriveFileAddedNotification
                 {
-                    File = sourceTempFile,
+                    File = sourceTempFile.File,
                     ServerFileHeader = serverHeader,
                     OdinContext = odinContext,
                 });
@@ -619,7 +621,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var serverHeader = new ServerFileHeader()
             {
-                EncryptedKeyHeader = await this.EncryptKeyHeader(tempSourceFile.DriveId, keyHeader, odinContext),
+                EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext),
                 FileMetadata = newMetadata,
                 ServerMetadata = serverMetadata
             };
@@ -768,7 +770,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
             AssertValidFileSystemType(header.ServerMetadata);
 
-            var (updatedHistory, modifiedTime) = await longTermStorageManager.InitiateTransferHistoryAsync(drive.Id, file.FileId, recipient);
+            var (updatedHistory, modifiedTime) =
+                await longTermStorageManager.InitiateTransferHistoryAsync(drive.Id, file.FileId, recipient);
 
             // note: I'm just avoiding re-reading the file.
             header.ServerMetadata.TransferHistory = updatedHistory;
@@ -786,7 +789,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 });
             }
         }
-        
+
         public async Task UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext)
         {
@@ -810,7 +813,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 updateData.IsInOutbox,
                 updateData.IsReadByRecipient);
 
-            var (updatedHistory, modifiedTime) = await longTermStorageManager.SaveTransferHistoryAsync(drive.Id, file.FileId, recipient, updateData);
+            var (updatedHistory, modifiedTime) =
+                await longTermStorageManager.SaveTransferHistoryAsync(drive.Id, file.FileId, recipient, updateData);
 
             // note: I'm just avoiding re-reading the file.
             header.ServerMetadata.TransferHistory = updatedHistory;
@@ -989,13 +993,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
-          
+
             if (existingHeader.FileMetadata.IsEncrypted)
             {
                 var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
                 var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-                
-                if(!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
+
+                if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
                 {
                     throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
                                                   "invalidate one or more payloads.  Re-upload the entire file if you wish " +
@@ -1007,7 +1011,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
                 }
             }
-            
+
             //
             // For the payloads, we have two sources and one set of operations
             // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
@@ -1205,7 +1209,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // other operations will have occured, so these checks also exist in the upload validation
 
             header.FileMetadata.AppData?.Validate();
-            
+
             if (!keepSameVersionTag)
             {
                 header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();

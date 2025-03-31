@@ -54,7 +54,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     protected override async Task ProcessNewFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
         IOdinContext odinContext)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
@@ -74,7 +74,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            await FileSystem.Storage.OverwriteFile(tempSourceFile: package.InternalFile,
+            await FileSystem.Storage.OverwriteFile(
+                tempSourceFile: package.InternalFile.AsTempFileUpload(),
                 targetFile: package.InternalFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,

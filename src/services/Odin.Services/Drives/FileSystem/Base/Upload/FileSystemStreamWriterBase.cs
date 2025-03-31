@@ -105,7 +105,7 @@ public abstract class FileSystemStreamWriterBase
     public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
     {
         // await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext);
+        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), data, odinContext);
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
@@ -124,7 +124,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
 
         if (bytesWritten <= 0)
         {
@@ -175,7 +175,7 @@ public abstract class FileSystemStreamWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
 
         if (bytesWritten <= 0)
         {
@@ -344,7 +344,7 @@ public abstract class FileSystemStreamWriterBase
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
         var metadataBytes =
-            await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(),
+            await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(),
                 odinContext);
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());

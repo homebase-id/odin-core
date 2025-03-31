@@ -6,17 +6,6 @@ using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
-    public enum TempStorageType
-    {
-        Upload = 1,
-        Inbox = 2
-    }
-
-    public struct TempFile
-    {
-        public InternalDriveFileId File { get; set; }
-        public TempStorageType StorageType { get; set; }
-    }
 
     /// <summary>
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.

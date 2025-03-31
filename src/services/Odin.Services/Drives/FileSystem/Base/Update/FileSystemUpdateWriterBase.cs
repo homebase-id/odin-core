@@ -102,7 +102,8 @@ public abstract class FileSystemUpdateWriterBase
 
     public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
     {
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext);
+        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile.AsTempFileUpload(), 
+            MultipartUploadParts.Metadata.ToString(), data, odinContext);
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
@@ -122,7 +123,8 @@ public abstract class FileSystemUpdateWriterBase
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile
+            .AsTempFileUpload(), extension, data, odinContext);
 
         if (bytesWritten > 0)
         {
@@ -168,7 +170,7 @@ public abstract class FileSystemUpdateWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extenstion, data, odinContext);
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -229,7 +231,7 @@ public abstract class FileSystemUpdateWriterBase
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
             
-            await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
+            await FileSystem.Storage.CommitNewFile(Package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false, odinContext);
 
             var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext);
             
@@ -272,7 +274,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatchAsync(sourceTempFile: package.InternalFile, package.InternalFile, manifest, odinContext);
+        await FileSystem.Storage.UpdateBatchAsync(sourceTempFile: package.InternalFile.AsTempFileUpload(), package.InternalFile, manifest, odinContext);
     }
 
     /// <summary>
@@ -288,7 +290,7 @@ public abstract class FileSystemUpdateWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile,
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile.AsTempFileUpload(),
             MultipartUploadParts.Metadata.ToString(),
             odinContext);
 

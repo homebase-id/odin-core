@@ -2,6 +2,7 @@
 
 using System;
 
+
 namespace Odin.Services.Drives
 {
     /// <summary>
@@ -22,6 +23,15 @@ namespace Odin.Services.Drives
         public bool IsValid()
         {
             return DriveId != Guid.Empty && FileId != Guid.Empty;
+        }
+        
+        public TempFile AsTempFileUpload()
+        {
+            return new TempFile()
+            {
+                File = this,
+                StorageType = TempStorageType.Upload
+            };
         }
         
         public static bool operator ==(InternalDriveFileId d1, InternalDriveFileId d2)
