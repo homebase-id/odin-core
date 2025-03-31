@@ -149,9 +149,11 @@ public class DriveQuery(
 
     public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header)
     {
-        var metadata = header.FileMetadata;
+        var fileMetadata = header.FileMetadata;
 
-        int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
+        //sanity in case something higher up didnt set the drive properly for any crazy reason
+        header.FileMetadata.File = header.FileMetadata.File with { DriveId = drive.Id };
+        var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive.TargetDriveInfo);
 
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
@@ -160,69 +162,7 @@ public class DriveQuery(
         );
         acl.AddRange(ids.ToList());
 
-        var tags = metadata.AppData.Tags?.ToList();
-
-        // TODO: this is a hack to clean up FileMetadata before writing to db.
-        // We should have separate classes for DB model and API model
-        var strippedFileMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.FileMetadata);
-        strippedFileMetadata.AppData = null;
-        strippedFileMetadata.ReactionPreview = null;
-        strippedFileMetadata.VersionTag = null;
-
-        // TODO: this is a hack to clean up ServerMetaData before writing to db.
-        // We should have separate classes for DB model and API model
-        var strippedServerMetadata = OdinSystemSerializer.SlowDeepCloneObject(header.ServerMetadata);
-        strippedServerMetadata.TransferHistory = null;
-
-        var driveMainIndexRecord = new DriveMainIndexRecord
-        {
-            identityId = default,
-            driveId = drive.Id,
-            fileId = metadata.File.FileId,
-            globalTransitId = metadata.GlobalTransitId,
-            uniqueId = metadata.AppData.UniqueId,
-            groupId = metadata.AppData.GroupId,
-
-            senderId = metadata.SenderOdinId,
-
-            fileType = metadata.AppData.FileType,
-            dataType = metadata.AppData.DataType,
-
-            archivalStatus = metadata.AppData.ArchivalStatus,
-            historyStatus = 0,
-            userDate = metadata.AppData.UserDate ?? UnixTimeUtc.ZeroTime,
-            requiredSecurityGroup = securityGroup,
-
-            fileState = (int)metadata.FileState,
-            fileSystemType = (int)header.ServerMetadata.FileSystemType,
-            byteCount = header.ServerMetadata.FileByteCount,
-
-            hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(header.EncryptedKeyHeader),
-
-            hdrFileMetaData = OdinSystemSerializer.Serialize(strippedFileMetadata),
-
-            hdrVersionTag = header.FileMetadata.VersionTag.GetValueOrDefault(),
-            hdrAppData = OdinSystemSerializer.Serialize(metadata.AppData),
-
-            hdrServerData = OdinSystemSerializer.Serialize(strippedServerMetadata),
-
-            // local data is updated by a specific method
-            // hdrLocalVersionTag =  ...
-            // hdrLocalAppData = ...
-
-            //this is updated by the SaveReactionSummary method
-            // hdrReactionSummary = OdinSystemSerializer.Serialize(header.FileMetadata.ReactionPreview),
-            // this is handled by the SaveTransferHistory method
-            // hdrTransferStatus = OdinSystemSerializer.Serialize(header.ServerMetadata.TransferHistory),
-
-            hdrTmpDriveAlias = drive.TargetDriveInfo.Alias,
-            hdrTmpDriveType = drive.TargetDriveInfo.Type,
-        };
-
-        if (driveMainIndexRecord.driveId == Guid.Empty || driveMainIndexRecord.fileId == Guid.Empty)
-        {
-            throw new OdinSystemException("DriveId and FileId must be a non-empty GUID");
-        }
+        var tags = fileMetadata.AppData.Tags?.ToList();
 
         try
         {
@@ -234,11 +174,11 @@ public class DriveQuery(
             DriveMainIndexRecord ru = null;
             DriveMainIndexRecord rt = null;
 
-            rf = await tblDriveMainIndex.GetAsync(drive.Id, metadata.File.FileId);
-            if (metadata.AppData.UniqueId.HasValue)
-                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, metadata.AppData.UniqueId);
-            if (metadata.GlobalTransitId.HasValue)
-                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, metadata.GlobalTransitId);
+            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
+            if (fileMetadata.AppData.UniqueId.HasValue)
+                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId);
+            if (fileMetadata.GlobalTransitId.HasValue)
+                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId);
 
             string s = "";
             DriveMainIndexRecord r = null;
@@ -267,15 +207,15 @@ public class DriveQuery(
             logger.LogDebug(
                 "IsUniqueConstraintViolation (found: [{index}]) - UniqueId:{uid}.  GlobalTransitId:{gtid}.  DriveId:{driveId}.   FileState {fileState}.   FileSystemType {fileSystemType}.  FileId {fileId}.  DriveName {driveName}",
                 s,
-                GuidOneOrTwo(metadata.AppData.UniqueId, r?.uniqueId),
-                GuidOneOrTwo(metadata.GlobalTransitId, r?.globalTransitId),
+                GuidOneOrTwo(fileMetadata.AppData.UniqueId, r?.uniqueId),
+                GuidOneOrTwo(fileMetadata.GlobalTransitId, r?.globalTransitId),
                 GuidOneOrTwo(drive.Id, r?.driveId),
-                IntOneOrTwo((int)metadata.FileState, r?.fileState ?? -1),
+                IntOneOrTwo((int)fileMetadata.FileState, r?.fileState ?? -1),
                 IntOneOrTwo((int)header.ServerMetadata.FileSystemType, r?.fileSystemType ?? -1),
-                GuidOneOrTwo(metadata.File.FileId, r.fileId),
+                GuidOneOrTwo(fileMetadata.File.FileId, r.fileId),
                 drive.Name);
 
-            throw new OdinClientException($"UniqueId [{metadata.AppData.UniqueId}] not unique.",
+            throw new OdinClientException($"UniqueId [{fileMetadata.AppData.UniqueId}] not unique.",
                 OdinClientErrorCode.ExistingFileWithUniqueId);
         }
     }
