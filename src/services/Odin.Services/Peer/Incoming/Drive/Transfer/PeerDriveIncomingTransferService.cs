@@ -53,8 +53,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
-
-            var canDirectWrite = await CanDirectWriteFile(_transferState, metadata, odinContext);
+            var canDirectWrite = await CanDirectWriteFile(driveId, metadata, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
             var file = new TempFile()
@@ -64,6 +63,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
             
             _transferState = new IncomingTransferStateItem(file, transferInstructionSet);
+
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
@@ -306,7 +306,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(stateItem, metadata, odinContext))
+            if (!await CanDirectWriteFile(stateItem.TempFile.File.DriveId, metadata, odinContext))
             {
                 return false;
             }
@@ -436,7 +436,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 
-        private async Task<bool> CanDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
+        private async Task<bool> CanDirectWriteFile(Guid driveId, FileMetadata metadata, IOdinContext odinContext)
         {
             await Task.CompletedTask;
             
@@ -452,7 +452,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             
             //S1100
-            if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.File.DriveId, out _))
+            if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(driveId, out _))
             {
                 return true;
             }
