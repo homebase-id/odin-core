@@ -112,15 +112,25 @@ namespace Odin.Services.Drives
             return Path.Combine(_longTermPayloadPath, "files");
         }
 
-        public string GetTempStoragePath()
+        public string GetTempStoragePath(TempStorageType storageType)
         {
-            return Path.Combine(_tempDataRootPath, "files");
+            switch (storageType)
+            {
+                case TempStorageType.Upload:
+                    return Path.Combine(_tempDataRootPath, "files");
+
+                case TempStorageType.Inbox:
+                    return Path.Combine(_tempDataRootPath, "inbox-files");
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(storageType), storageType, null);
+            }
         }
 
         public void EnsureDirectories()
         {
-            Directory.CreateDirectory(this.GetTempStoragePath());
-            // Directory.CreateDirectory(this.GetPayloadStoragePath());
+            Directory.CreateDirectory(this.GetTempStoragePath(TempStorageType.Upload));
+            Directory.CreateDirectory(this.GetTempStoragePath(TempStorageType.Inbox));
         }
 
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
