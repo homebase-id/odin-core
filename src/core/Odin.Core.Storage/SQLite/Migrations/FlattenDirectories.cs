@@ -1,15 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
-using Odin.Core;
-using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.Factory.Sqlite;
-using Odin.Core.Storage.SQLite.Migrations.Helpers;
 
-
+namespace Odin.Core.Storage.SQLite.Migrations;
 
 // Local test:
 //
@@ -57,7 +50,6 @@ using Odin.Core.Storage.SQLite.Migrations.Helpers;
     │   │   ├── tenant_id~drive_id~file_id(optional extension etc)
     │   │   ├── tenant_id~drive_id~file_id(optional extension etc)
  */
-
 
 public static class FlattenDirectories
 {
@@ -143,4 +135,3 @@ public static class FlattenDirectories
 
 
 }
-

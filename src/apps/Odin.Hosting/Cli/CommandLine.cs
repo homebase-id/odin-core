@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using Odin.Core.Configuration;
+using Odin.Core.Storage.SQLite.Migrations;
 
 namespace Odin.Hosting.Cli;
 
