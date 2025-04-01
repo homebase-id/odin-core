@@ -272,7 +272,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatchAsync(sourceTempFile: package.InternalFile, package.InternalFile, manifest, odinContext);
+        await FileSystem.Storage.UpdateBatchAsync(originFile: package.InternalFile, package.InternalFile, manifest, odinContext);
     }
 
     /// <summary>
