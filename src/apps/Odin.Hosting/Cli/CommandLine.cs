@@ -165,6 +165,13 @@ public static class CommandLine
         //     return (true, 0);
         // }
 
+        if (args.Length == 3 && args[0] == "--flatten-directories")
+        {
+            FlattenDirectories.Execute(args[1], args[2] != "commit");
+            return (true, 0);
+        }
+
+
         return (false, 0);
     }
 }
