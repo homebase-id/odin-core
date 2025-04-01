@@ -93,7 +93,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             OdinId recipient)
         {
             _logger.LogDebug("InitiateTransferHistoryAsync for file: {f} on drive: {d}", fileId, driveId);
-            
+
             await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
             var added = await _tableDriveTransferHistory.TryAddInitialRecordAsync(driveId, fileId, recipient);
             if (!added)
@@ -128,7 +128,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             _logger.LogDebug("Begin Transaction for SaveTransferHistoryAsync file: {f}, driveId {d}. UpdateData: {u}", fileId, driveId,
                 updateData.ToDebug());
-            
+
             await using var tx = await _scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
 
             await _tableDriveTransferHistory.UpdateTransferHistoryRecordAsync(driveId, fileId, recipient,
@@ -140,7 +140,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var (history, modified) = await UpdateTransferHistorySummary(driveId, fileId);
 
             tx.Commit();
-            
+
             _logger.LogDebug("End Transaction for SaveTransferHistoryAsync file: {f}, driveId {d}", fileId, driveId);
 
             return (history, modified);
@@ -243,6 +243,23 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return result;
         }
 
+        public bool PayloadExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
+        {
+            var path = GetPayloadFilePath(drive, fileId, descriptor);
+            return _driveFileReaderWriter.FileExists(path);
+        }
+
+        public bool ThumbnailExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, 
+            ThumbnailDescriptor thumbnailDescriptor)
+        {
+            var path = GetThumbnailPath(drive, fileId, thumbnailDescriptor.PixelWidth,
+                thumbnailDescriptor.PixelHeight,
+                descriptor.Key,
+                descriptor.Uid);
+
+            return _driveFileReaderWriter.FileExists(path);
+        }
+
         public async Task<Stream> GetPayloadStream(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
         {
             var result = await Benchmark.MillisecondsAsync(_logger, "GetPayloadStream", async () => await Execute());
@@ -277,7 +294,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                         var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
                         if (chunk.Start > fileStream.Length)
                         {
-                            throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
+                            throw new OdinClientException("Chunk start position is greater than length",
+                                OdinClientErrorCode.InvalidChunkStart);
                         }
 
                         fileStream.Position = chunk.Start;

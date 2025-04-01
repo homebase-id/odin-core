@@ -520,9 +520,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 ProcessPayloads(originFile: targetFile, targetFile: targetFile, newMetadata.Payloads, drive);
             }
-
+            
             var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
-
             await WriteNewFileHeader(targetFile, serverHeader, odinContext, keepSameVersionTag: keepSameVersionTag);
 
             //clean up temp storage
@@ -590,7 +589,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 ProcessPayloads(tempFile, targetFile, newMetadata.Payloads, drive);
             }
-
+            
             var serverHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader, odinContext),
@@ -1155,6 +1154,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)
         {
+            await AssertPayloadsExistOnFileSystem(header.FileMetadata);
+
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
@@ -1363,9 +1364,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         private void ProcessPayloads(InternalDriveFileId originFile, InternalDriveFileId targetFile,
-            List<PayloadDescriptor> payloadsDescriptors, StorageDrive drive)
+            List<PayloadDescriptor> descriptors, StorageDrive drive)
         {
-            foreach (var descriptor in payloadsDescriptors)
+            foreach (var descriptor in descriptors)
             {
                 ProcessPayloadDescriptor(originFile, targetFile, drive, descriptor);
             }
@@ -1386,6 +1387,29 @@ namespace Odin.Services.Drives.FileSystem.Base
                     DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
                 var sourceThumbnail = tempStorageManager.GetPath(drive, originFile.FileId, thumbExt);
                 longTermStorageManager.MoveThumbnailToLongTerm(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+            }
+        }
+
+        private async Task AssertPayloadsExistOnFileSystem(FileMetadata metadata)
+        {
+            var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
+            var fileId = metadata.File.FileId;
+            foreach (var payloadDescriptor in metadata.Payloads ?? [])
+            {
+                bool payloadExists = longTermStorageManager.PayloadExistsOnDisk(drive, fileId, payloadDescriptor);
+                if (!payloadExists)
+                {
+                    throw new OdinFileHeaderHasCorruptPayloadException("");
+                }
+
+                foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
+                {
+                    var thumbExists = longTermStorageManager.ThumbnailExistsOnDisk(drive, fileId, payloadDescriptor, thumbnailDescriptor);
+                    if (!thumbExists)
+                    {
+                        throw new OdinFileHeaderHasCorruptPayloadException("");
+                    }
+                }
             }
         }
     }
