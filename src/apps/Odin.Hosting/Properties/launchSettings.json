@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": "--flatten-directories /Users/seb/tmp/example/data dryrun"
+      "commandLineArgs": "--flatten-directories /Users/seb/tmp/example/data commit"
     }
   }
 }

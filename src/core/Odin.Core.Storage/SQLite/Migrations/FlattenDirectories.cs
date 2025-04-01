@@ -62,15 +62,34 @@ public static class FlattenDirectories
         var tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "tenants", "payloads", "shard1"));
         foreach (var tenantDir in tenantDirs)
         {
-            WalkPayloadTenantDir(tenantDir);
+            WalkTenantPayloadDir(tenantDir);
         }
+
+        tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "tenants", "temp"));
+        foreach (var tenantDir in tenantDirs)
+        {
+            WalkTenantTempDir(tenantDir, Path.Combine(dataRootPath, "tenants", "temp"));
+            Console.WriteLine($"  Deleting {tenantDir}");
+            if (!_dryRun)
+            {
+                Directory.Delete(tenantDir, true);
+            }
+
+        }
+
     }
 
     //
 
-    private static void WalkPayloadTenantDir(string tenantDir)
+    private static void WalkTenantPayloadDir(string tenantDir)
     {
         Console.WriteLine($"{tenantDir}");
+
+        if (!Directory.Exists(Path.Combine(tenantDir, "drives")))
+        {
+            return;
+        }
+
         var drives = Directory.GetDirectories(Path.Combine(tenantDir, "drives"));
         foreach (var drive in drives)
         {
@@ -81,7 +100,7 @@ public static class FlattenDirectories
             foreach (var fourCharDir in fourCharDirs)
             {
                 Console.WriteLine($"  Entering{fourCharDir}");
-                FlattenTree(fourCharDir, Path.Combine(drive, "files"));
+                FlattenPayloadTree(fourCharDir, Path.Combine(drive, "files"));
 
                 Console.WriteLine($"  Deleting {fourCharDir}");
                 if (!_dryRun)
@@ -94,12 +113,12 @@ public static class FlattenDirectories
 
     //
 
-    private static void FlattenTree(string src, string dst)
+    private static void FlattenPayloadTree(string src, string dst)
     {
         var dirs = Directory.GetDirectories(src);
         foreach (var dir in dirs)
         {
-            FlattenTree(dir, dst);
+            FlattenPayloadTree(dir, dst);
         }
 
         var files = Directory.GetFiles(src);
@@ -132,6 +151,59 @@ public static class FlattenDirectories
     }
 
     //
+
+    private static void WalkTenantTempDir(string tenantDir, string dst)
+    {
+        Console.WriteLine($"{tenantDir}");
+
+        if (!Directory.Exists(Path.Combine(tenantDir, "drives")))
+        {
+            return;
+        }
+
+        var tenant = Path.GetFileName(tenantDir);
+
+        var driveDirs = Directory.GetDirectories(Path.Combine(tenantDir, "drives"));
+        foreach (var driveDir in driveDirs)
+        {
+            Console.WriteLine($" {driveDir}");
+            var drive = Path.GetFileName(driveDir);
+
+            var fourCharDirs = Directory.GetDirectories(Path.Combine(driveDir, "files"))
+                .Where(x => Path.GetFileName(x).Length == 4);
+            foreach (var fourCharDir in fourCharDirs)
+            {
+                Console.WriteLine($"  Entering{fourCharDir}");
+                FlattenTempTree(fourCharDir, dst, tenant, drive);
+            }
+        }
+    }
+
+    private static void FlattenTempTree(string src, string dst, string tenant, string drive)
+    {
+        var dirs = Directory.GetDirectories(src);
+        foreach (var dir in dirs)
+        {
+            FlattenTempTree(dir, dst, tenant, drive);
+        }
+
+        var files = Directory.GetFiles(src);
+        foreach (var file in files)
+        {
+            var fileName = Path.GetFileName(file);
+
+            var target = Path.Combine(dst, tenant + "~" + drive + "~" + fileName);
+            Console.WriteLine($"  Moving {file} to {target}");
+            if (!_dryRun)
+            {
+                if (!File.Exists(target))
+                {
+                    File.Move(file, target);
+                }
+            }
+        }
+    }
+
 
 
 }
