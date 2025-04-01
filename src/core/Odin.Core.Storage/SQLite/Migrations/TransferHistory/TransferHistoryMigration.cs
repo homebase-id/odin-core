@@ -9,6 +9,7 @@ using Microsoft.Data.Sqlite;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Factory.Sqlite;
+using Odin.Core.Storage.SQLite.Migrations.Helpers;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.SQLite.Migrations.TransferHistory;
