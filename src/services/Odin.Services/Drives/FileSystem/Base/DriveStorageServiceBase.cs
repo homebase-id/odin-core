@@ -141,7 +141,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-            metadata.Created = existingHeader.FileMetadata.Created;
+            // metadata.Created = existingHeader.FileMetadata.Created;
             metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
             metadata.FileState = existingHeader.FileMetadata.FileState;
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
@@ -188,7 +188,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             //TODO: need to encrypt the metadata parts
             metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
-            metadata.Created = header.FileMetadata.Created != 0 ? header.FileMetadata.Created : UnixTimeUtc.Now().milliseconds;
+            // metadata.Created = header.FileMetadata.Created != 0 ? header.FileMetadata.Created : UnixTimeUtc.Now().milliseconds;
             metadata.FileState = FileState.Active;
 
             await WriteFileHeaderInternal(header, keepSameVersionTag: keepSameVersionTag);
@@ -581,7 +581,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
-            newMetadata.Created = existingServerHeader.FileMetadata.Created;
+            // newMetadata.Created = existingServerHeader.FileMetadata.Created;
 
             //Only overwrite the globalTransitId if one is already set; otherwise let a file update set the ID (useful for mail-app drafts)
             if (existingServerHeader.FileMetadata.GlobalTransitId != null)
@@ -786,14 +786,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Get and validate the header
             //
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-            AssertValidFileSystemType(header.ServerMetadata);
 
             var (updatedHistory, modifiedTime) = await longTermStorageManager.InitiateTransferHistoryAsync(drive.Id, file.FileId, recipient);
 
+            // There seems to be no reason why we can't just read the header after the update
+            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            AssertValidFileSystemType(header.ServerMetadata);
+
             // note: I'm just avoiding re-reading the file.
-            header.ServerMetadata.TransferHistory = updatedHistory;
-            header.FileMetadata.Updated = modifiedTime.milliseconds;
+            // header.ServerMetadata.TransferHistory = updatedHistory;
+            // header.FileMetadata.Updated = modifiedTime.milliseconds;
 
             if (await ShouldRaiseDriveEventAsync(file))
             {
@@ -819,8 +821,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Get and validate the header
             //
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-            AssertValidFileSystemType(header.ServerMetadata);
 
             _logger.LogDebug(
                 "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
@@ -833,9 +833,13 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var (updatedHistory, modifiedTime) = await longTermStorageManager.SaveTransferHistoryAsync(drive.Id, file.FileId, recipient, updateData);
 
+            // There seems to be no reason why we can't just read the header after the update
+            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+            AssertValidFileSystemType(header.ServerMetadata);
+
             // note: I'm just avoiding re-reading the file.
-            header.ServerMetadata.TransferHistory = updatedHistory;
-            header.FileMetadata.Updated = modifiedTime.milliseconds;
+            // header.ServerMetadata.TransferHistory = updatedHistory;
+            // header.FileMetadata.Updated = modifiedTime.milliseconds;
 
             if (await ShouldRaiseDriveEventAsync(file))
             {
@@ -1235,7 +1239,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
             }
 
-            header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
+            // header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
             var json = OdinSystemSerializer.Serialize(header);
             var jsonBytes = Encoding.UTF8.GetBytes(json);
@@ -1376,7 +1380,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var targetFile = existingServerHeader.FileMetadata.File;
             newMetadata.File = targetFile;
-            newMetadata.Created = existingServerHeader.FileMetadata.Created;
+            // newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;

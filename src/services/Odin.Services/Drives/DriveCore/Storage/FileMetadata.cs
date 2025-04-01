@@ -57,9 +57,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public FileState FileState { get; set; }
 
-        public UnixTimeUtc Created { get; set; }
+        public UnixTimeUtc Created { get; init; }
 
-        public UnixTimeUtc Updated { get; set; }
+        public UnixTimeUtc Updated { get; init; }
 
         public UnixTimeUtc TransitCreated { get; set; }
 
