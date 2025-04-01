@@ -246,10 +246,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public bool PayloadExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
         {
             var path = GetPayloadFilePath(drive, fileId, descriptor);
-            return _driveFileReaderWriter.FileExists(path);
+            var exists = _driveFileReaderWriter.FileExists(path);
+            return exists;
         }
 
-        public bool ThumbnailExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, 
+        public bool ThumbnailExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
             var path = GetThumbnailPath(drive, fileId, thumbnailDescriptor.PixelWidth,
@@ -509,10 +510,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 if (_driveFileReaderWriter.DirectoryExists(dir))
                 {
+                    // {fileId}-{payload_key}-{payload_uid}-{thumbnail_width}x{thumbnail_height}.thumb
+                    // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb
+
                     var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
                     var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
 
                     var files = _driveFileReaderWriter.GetFilesInDirectory(dir, seekPath);
+                    _logger.LogDebug("Deleting thumbnails: Found {count} for file({fileId}) with path-pattern ({pattern})",
+                        files.Length,
+                        fileId,
+                        seekPath);
+
                     foreach (var thumbnailFilePath in files)
                     {
                         // filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-300x300"

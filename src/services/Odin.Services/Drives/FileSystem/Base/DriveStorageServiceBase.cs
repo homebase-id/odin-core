@@ -520,7 +520,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 ProcessPayloads(originFile: targetFile, targetFile: targetFile, newMetadata.Payloads, drive);
             }
-            
+
             var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
             await WriteNewFileHeader(targetFile, serverHeader, odinContext, keepSameVersionTag: keepSameVersionTag);
 
@@ -589,7 +589,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 ProcessPayloads(tempFile, targetFile, newMetadata.Payloads, drive);
             }
-            
+
             var serverHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader, odinContext),
@@ -1155,6 +1155,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)
         {
             await AssertPayloadsExistOnFileSystem(header.FileMetadata);
+            await DeleteExtraPayloadsAndThumbnails(header.FileMetadata);
 
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
@@ -1383,8 +1384,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             longTermStorageManager.DeleteMissingThumbnailFiles(drive, targetFile.FileId, thumbs);
             foreach (var thumb in thumbs)
             {
-                var thumbExt =
-                    DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
+                var thumbExt = DriveFileUtility.GetThumbnailFileExtension(
+                    descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
+                
                 var sourceThumbnail = tempStorageManager.GetPath(drive, originFile.FileId, thumbExt);
                 longTermStorageManager.MoveThumbnailToLongTerm(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
             }
@@ -1393,13 +1395,22 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task AssertPayloadsExistOnFileSystem(FileMetadata metadata)
         {
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
+
+            // special exception *eye roll*.  really need to root this feed thing out of the core
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                return;
+            }
+            
             var fileId = metadata.File.FileId;
             foreach (var payloadDescriptor in metadata.Payloads ?? [])
             {
                 bool payloadExists = longTermStorageManager.PayloadExistsOnDisk(drive, fileId, payloadDescriptor);
                 if (!payloadExists)
                 {
-                    throw new OdinFileHeaderHasCorruptPayloadException("");
+                    throw new OdinFileHeaderHasCorruptPayloadException(
+                        $"File metadata ({metadata.File.ToString()}) defines payload [key:{payloadDescriptor.Key} " +
+                        $"uid:{payloadDescriptor.Uid}] but the payload-file does not exist on disk.]");
                 }
 
                 foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
@@ -1407,10 +1418,27 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var thumbExists = longTermStorageManager.ThumbnailExistsOnDisk(drive, fileId, payloadDescriptor, thumbnailDescriptor);
                     if (!thumbExists)
                     {
-                        throw new OdinFileHeaderHasCorruptPayloadException("");
+                        throw new OdinFileHeaderHasCorruptPayloadException(
+                            $"File metadata [{metadata.File.ToString()}] defines payload [key:{payloadDescriptor.Key} " +
+                            $"uid:{payloadDescriptor.Uid}] with thumbnail " +
+                            $"[size={thumbnailDescriptor.PixelWidth}x{thumbnailDescriptor.PixelHeight}] but the thumbnail-file" +
+                            $" does not exist on disk.]");
                     }
                 }
             }
+        }
+
+        private async Task DeleteExtraPayloadsAndThumbnails(FileMetadata metadata)
+        {
+            var fileId = metadata.File.FileId;
+            var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
+
+            foreach (var payloadDescriptor in metadata.Payloads ?? [])
+            {
+                longTermStorageManager.DeleteMissingThumbnailFiles(drive, fileId, payloadDescriptor.Thumbnails);
+            }
+
+            longTermStorageManager.DeleteMissingPayloads(drive, fileId, metadata.Payloads);
         }
     }
 }
