@@ -56,6 +56,33 @@ public static class SystemCircleConstants
                     Drive = SystemDriveConstants.FeedDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.PublicPostsChannelDrive,
+                    Permission = DrivePermission.Read
+                }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.HomePageConfigDrive,
+                    Permission = DrivePermission.Read
+                }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.ProfileDrive,
+                    Permission = DrivePermission.Read
+                }
             }
         ],
         Permissions = new PermissionSet()
@@ -95,6 +122,33 @@ public static class SystemCircleConstants
                 {
                     Drive = SystemDriveConstants.FeedDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
+                }
+            },
+            
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.PublicPostsChannelDrive,
+                    Permission = DrivePermission.Read
+                }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.HomePageConfigDrive,
+                    Permission = DrivePermission.Read
+                }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.ProfileDrive,
+                    Permission = DrivePermission.Read
                 }
             }
         ],
