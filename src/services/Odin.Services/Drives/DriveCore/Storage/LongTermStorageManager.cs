@@ -15,6 +15,7 @@ using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Management;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -27,6 +28,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         private readonly DriveQuery _driveQuery;
         private readonly ScopedIdentityTransactionFactory _scopedIdentityTransactionFactory;
         private readonly TableDriveTransferHistory _tableDriveTransferHistory;
+        private readonly DriveManager _driveManager;
         private readonly TableDriveMainIndex _driveMainIndex;
 
         private const string ThumbnailDelimiter = "_";
@@ -39,6 +41,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             DriveQuery driveQuery,
             ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
             TableDriveTransferHistory tableDriveTransferHistory,
+            DriveManager driveManager,
             TableDriveMainIndex driveMainIndex)
         {
             _logger = logger;
@@ -46,6 +49,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             _driveQuery = driveQuery;
             _scopedIdentityTransactionFactory = scopedIdentityTransactionFactory;
             _tableDriveTransferHistory = tableDriveTransferHistory;
+            _driveManager = driveManager;
             _driveMainIndex = driveMainIndex;
         }
 
@@ -538,6 +542,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     }
                 }
             });
+        }
+
+        public async Task DeleteUnassociatedTargetFiles(InternalDriveFileId targetFile)
+        {
+            try
+            {
+                var drive = await _driveManager.GetDriveAsync(targetFile.DriveId);
+                DeleteMissingPayloads(drive, targetFile.FileId, []);
+                DeleteMissingThumbnailFiles(drive, targetFile.FileId, []);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Failed deleting unassociated target files {file}", targetFile);
+            }
         }
 
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
