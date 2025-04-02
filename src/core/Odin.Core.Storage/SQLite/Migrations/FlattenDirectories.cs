@@ -4,21 +4,29 @@ using System.Linq;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 
-// Local test:
+// Local
 //
 //   mkdir -p $HOME/tmp/example/data/tenants/{registrations,payloads/shard1,temp}
 //   rsync -rvz yagni.dk:/identity-host/data/tenants/temp $HOME/tmp/example/data/tenants
 //
-//   rsync -rvz yagni.dk:/identity-host/data/tenants/payloads $HOME/tmp/example/data/tenants/payloads
-//   yagni: rsync -rvz yagni.dk:/identity-host/data/tenants/payloads/shard1/e689b15f-33b6-4032-b987-4f7018401554 $HOME/tmp/example/data/tenants/payloads/shard1
+//   rsync -rvzt yagni.dk:/identity-host/data/tenants/payloads $HOME/tmp/example/data/tenants/payloads
+//   yagni: rsync -rvzt yagni.dk:/identity-host/data/tenants/payloads/shard1/e689b15f-33b6-4032-b987-4f7018401554 $HOME/tmp/example/data/tenants/payloads/shard1
+
+// DEV
 // run params:
-//   --flatten-directories $HOME/tmp/example/data
+// temp:
+//   --flatten-temp $HOME/tmp/example/data < commit | dry-run >
+// payloads:
+//   --flatten-payloads $HOME/tmp/example/data < commit | dry-run >
+
 
 // PROD:
-//
 // run params:
-//   --flatten-directories /identity-host/data
-
+// temp:
+//   --flatten-temp /identity-host/data < commit | dry-run >
+// payloads:
+//   --flatten-payloads /identity-host/data < commit | dry-run >
+//
 
 // Structure PAYLOADS:
 /*
@@ -38,7 +46,17 @@ namespace Odin.Core.Storage.SQLite.Migrations;
  */
 
 // Structure TEMP:
-/*
+/* Flattening with current structure, no upload vs inbox
+  /identity-host/data/tenants/
+    ├── temp
+    │   ├── e689b15f-33b6-4032-b987-4f7018401554 <-- tenantId
+    │   │   ├── drive_id~file_id(optional extension etc)
+    │   │   ├── drive_id~file_id(optional extension etc)
+    │   │   ├── drive_id~file_id(optional extension etc)
+ */
+
+// Structure TEMP:
+/* Alternative structure for TEMP:
   /identity-host/data/tenants/
     ├── temp
     │   ├── upload
@@ -51,11 +69,135 @@ namespace Odin.Core.Storage.SQLite.Migrations;
     │   │   ├── tenant_id~drive_id~file_id(optional extension etc)
  */
 
+/* Alternative structure for TEMP:
+  /identity-host/data/tenants/
+    ├── registrations
+    │   ├── e689b15f-33b6-4032-b987-4f7018401554 <-- tenantId
+    │   │   ├── temp
+    │   │   │   ├── drive_id~file_id(optional extension etc)
+    │   │   │   ├── drive_id~file_id(optional extension etc)
+    │   │   │   ├── drive_id~file_id(optional extension etc)
+    │   │   ├── inbox
+    │   │   │   ├── drive_id~file_id(optional extension etc)
+    │   │   │   ├── drive_id~file_id(optional extension etc)
+    │   │   │   ├── drive_id~file_id(optional extension etc)
+*/
+
 public static class FlattenDirectories
 {
     private static bool _dryRun = true;
 
-    public static void Execute(string dataRootPath, bool dryRun)
+    // public static void Execute(string dataRootPath, bool dryRun)
+    // {
+    //     _dryRun = dryRun;
+    //
+    //     var tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "tenants", "payloads", "shard1"));
+    //     foreach (var tenantDir in tenantDirs)
+    //     {
+    //         WalkTenantPayloadDir(tenantDir);
+    //     }
+    //
+    //     tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "tenants", "temp"));
+    //     foreach (var tenantDir in tenantDirs)
+    //     {
+    //         WalkTenantTempDir(tenantDir, Path.Combine(dataRootPath, "tenants", "temp"));
+    //         Console.WriteLine($"  Deleting {tenantDir}");
+    //         if (!_dryRun)
+    //         {
+    //             Directory.Delete(tenantDir, true);
+    //         }
+    //
+    //     }
+    // }
+
+    //
+
+    #region Flatten temp
+
+    public static void FlattenTemp(string dataRootPath, bool dryRun)
+    {
+        _dryRun = dryRun;
+
+        var tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "tenants", "temp"));
+        foreach (var tenantDir in tenantDirs)
+        {
+            WalkTenantTempDir(tenantDir, Path.Combine(dataRootPath, "tenants", "temp", Path.GetFileName(tenantDir)));
+        }
+    }
+
+    //
+
+    private static void WalkTenantTempDir(string tenantDir, string dst)
+    {
+        Console.WriteLine($"{tenantDir}");
+
+        if (!Directory.Exists(Path.Combine(tenantDir, "drives")))
+        {
+            return;
+        }
+
+        var driveDirs = Directory.GetDirectories(Path.Combine(tenantDir, "drives"));
+        foreach (var driveDir in driveDirs)
+        {
+            Console.WriteLine($" {driveDir}");
+            var drive = Path.GetFileName(driveDir);
+
+            var fourCharDirs = Directory.GetDirectories(Path.Combine(driveDir, "files"))
+                .Where(x => Path.GetFileName(x).Length == 4);
+            foreach (var fourCharDir in fourCharDirs)
+            {
+                Console.WriteLine($"  Entering{fourCharDir}");
+                FlattenTempTree(fourCharDir, dst, drive);
+            }
+        }
+
+        Console.WriteLine($"  Deleting {Path.Combine(tenantDir, "drives")}");
+        if (!_dryRun)
+        {
+            Directory.Delete(Path.Combine(tenantDir, "drives"), true);
+        }
+    }
+
+    //
+
+    private static void FlattenTempTree(string src, string dst, string drive)
+    {
+        var dirs = Directory.GetDirectories(src);
+        foreach (var dir in dirs)
+        {
+            FlattenTempTree(dir, dst, drive);
+        }
+
+        var files = Directory.GetFiles(src);
+        foreach (var file in files)
+        {
+            var fileName = Path.GetFileName(file);
+
+            var target = Path.Combine(dst, drive + "~" + fileName);
+            Console.WriteLine($"  Moving {file} to {target}");
+            if (!_dryRun)
+            {
+                if (!File.Exists(target))
+                {
+                    var creationTime = File.GetCreationTime(file);
+                    var lastAccessTime = File.GetLastAccessTime(file);
+                    var lastWriteTime = File.GetLastWriteTime(file);
+
+                    File.Move(file, target);
+
+                    File.SetCreationTime(target, creationTime);
+                    File.SetLastAccessTime(target, lastAccessTime);
+                    File.SetLastWriteTime(target, lastWriteTime);
+                }
+            }
+        }
+    }
+
+    #endregion
+
+    #region Flatten payloads
+
+    public static void FlattenPayloads(string dataRootPath, bool dryRun)
     {
         _dryRun = dryRun;
 
@@ -64,19 +206,6 @@ public static class FlattenDirectories
         {
             WalkTenantPayloadDir(tenantDir);
         }
-
-        tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "tenants", "temp"));
-        foreach (var tenantDir in tenantDirs)
-        {
-            WalkTenantTempDir(tenantDir, Path.Combine(dataRootPath, "tenants", "temp"));
-            Console.WriteLine($"  Deleting {tenantDir}");
-            if (!_dryRun)
-            {
-                Directory.Delete(tenantDir, true);
-            }
-
-        }
-
     }
 
     //
@@ -144,66 +273,20 @@ public static class FlattenDirectories
             {
                 if (!File.Exists(target))
                 {
+                    var creationTime = File.GetCreationTime(file);
+                    var lastAccessTime = File.GetLastAccessTime(file);
+                    var lastWriteTime = File.GetLastWriteTime(file);
+
                     File.Move(file, target);
+
+                    File.SetCreationTime(target, creationTime);
+                    File.SetLastAccessTime(target, lastAccessTime);
+                    File.SetLastWriteTime(target, lastWriteTime);
                 }
             }
         }
     }
 
-    //
-
-    private static void WalkTenantTempDir(string tenantDir, string dst)
-    {
-        Console.WriteLine($"{tenantDir}");
-
-        if (!Directory.Exists(Path.Combine(tenantDir, "drives")))
-        {
-            return;
-        }
-
-        var tenant = Path.GetFileName(tenantDir);
-
-        var driveDirs = Directory.GetDirectories(Path.Combine(tenantDir, "drives"));
-        foreach (var driveDir in driveDirs)
-        {
-            Console.WriteLine($" {driveDir}");
-            var drive = Path.GetFileName(driveDir);
-
-            var fourCharDirs = Directory.GetDirectories(Path.Combine(driveDir, "files"))
-                .Where(x => Path.GetFileName(x).Length == 4);
-            foreach (var fourCharDir in fourCharDirs)
-            {
-                Console.WriteLine($"  Entering{fourCharDir}");
-                FlattenTempTree(fourCharDir, dst, tenant, drive);
-            }
-        }
-    }
-
-    private static void FlattenTempTree(string src, string dst, string tenant, string drive)
-    {
-        var dirs = Directory.GetDirectories(src);
-        foreach (var dir in dirs)
-        {
-            FlattenTempTree(dir, dst, tenant, drive);
-        }
-
-        var files = Directory.GetFiles(src);
-        foreach (var file in files)
-        {
-            var fileName = Path.GetFileName(file);
-
-            var target = Path.Combine(dst, tenant + "~" + drive + "~" + fileName);
-            Console.WriteLine($"  Moving {file} to {target}");
-            if (!_dryRun)
-            {
-                if (!File.Exists(target))
-                {
-                    File.Move(file, target);
-                }
-            }
-        }
-    }
-
-
+    #endregion
 
 }
