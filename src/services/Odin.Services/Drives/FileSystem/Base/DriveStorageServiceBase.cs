@@ -153,7 +153,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //clean up temp storage
             await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
 
-            //HACKed in for Feed drive
+            //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
             {
                 if (await ShouldRaiseDriveEventAsync(targetFile))
@@ -196,7 +196,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //clean up temp storage
             await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
 
-            //HACKed in for Feed drive
+            //HACKed in for Feed drive -> should become data subscription
             if (raiseEvent)
             {
                 if (await ShouldRaiseDriveEventAsync(targetFile))
@@ -776,15 +776,14 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task InitiateTransferHistoryAsync(InternalDriveFileId file, OdinId recipient, IOdinContext odinContext)
         {
-            ServerFileHeader header = null;
-
             await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
 
             //
             // Get and validate the header
             //
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
+
+            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
             AssertValidFileSystemType(header.ServerMetadata);
 
             var (updatedHistory, modifiedTime) = await longTermStorageManager.InitiateTransferHistoryAsync(drive.Id, file.FileId, recipient);
@@ -1373,7 +1372,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var targetFile = existingServerHeader.FileMetadata.File;
             newMetadata.File = targetFile;
-            // newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created, existingServerHeader.FileMetadata.Updated);
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
@@ -1406,12 +1404,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingServerHeader.ServerMetadata = newServerMetadata;
             if (newVersionTag == null)
             {
-                await WriteFileHeaderInternal(existingServerHeader);
+                await WriteFileHeaderInternal(existingServerHeader); // Sets header.FileMetadata.Created/Updated
             }
             else
             {
                 existingServerHeader.FileMetadata.VersionTag = newVersionTag.Value;
-                await WriteFileHeaderInternal(existingServerHeader, keepSameVersionTag: true);
+                await WriteFileHeaderInternal(existingServerHeader, keepSameVersionTag: true); // Sets header.FileMetadata.Created/Updated
             }
         }
 
