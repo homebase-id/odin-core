@@ -19,12 +19,14 @@ public class EstablishConnectionOptions
 
 public class DeviceSocket
 {
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
     private readonly AsyncLock _lock = new();
 
     public Guid Key { get; init; }
     public System.Net.WebSockets.WebSocket? Socket { get; init; }
     public IOdinContext? DeviceOdinContext { get; set; }
     public List<Guid> Drives { get; set; } = [];
+    public TimeSpan Timeout { get; init; } = DefaultTimeout;
 
     //
 
@@ -49,19 +51,23 @@ public class DeviceSocket
 
     //
 
-    private async Task InternalSendAsync(string message, CancellationToken token)
+    private async Task InternalSendAsync(string message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(Socket);
         ArgumentNullException.ThrowIfNull(message);
 
-        using (await _lock.LockAsync(token))
+        using var timeoutCts = new CancellationTokenSource(Timeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        var linkedToken = linkedCts.Token;
+
+        using (await _lock.LockAsync(linkedToken))
         {
             var jsonBytes = message.ToUtf8ByteArray();
             await Socket.SendAsync(
                 buffer: new ArraySegment<byte>(jsonBytes, 0, jsonBytes.Length),
                 messageType: WebSocketMessageType.Text,
                 messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
-                cancellationToken: token);
+                cancellationToken: linkedToken);
         }
     }
 
