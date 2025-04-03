@@ -57,9 +57,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public FileState FileState { get; set; }
 
-        public UnixTimeUtc Created { get; set; }
+        private UnixTimeUtc _created;
+        public UnixTimeUtc Created { get => _created; init => _created = value; }
 
-        public UnixTimeUtc Updated { get; set; }
+        private UnixTimeUtc _updated;
+        public UnixTimeUtc Updated { get => _updated; init => _updated = value; }
 
         public UnixTimeUtc TransitCreated { get; set; }
 
@@ -91,6 +93,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Guid? VersionTag { get; set; }
 
+
+        public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
+        {
+            _created = databaseCreated;
+
+            if (databaseModified != null)
+                _updated = databaseModified.Value;
+            else
+                _updated = UnixTimeUtc.ZeroTime;
+        }
 
         // The record is needed to fill in specific colums from the record that are not in the Dto,
         // i.e. the columns that are commented out above

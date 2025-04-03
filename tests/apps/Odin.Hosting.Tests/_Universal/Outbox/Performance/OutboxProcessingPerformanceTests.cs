@@ -34,8 +34,8 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
         private const int NotificationBatchSize = 10;
         private const int NotificationWaitTime = 30;
 
-        private readonly ReadReceiptSocketHandler _frodoSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
-        private readonly ReadReceiptSocketHandler _samSocketHandler = new(ProcessInboxBatchSize, NotificationBatchSize, NotificationWaitTime);
+        private readonly ReadReceiptSocketHandler _frodoSocketHandler = new(ProcessInboxBatchSize);
+        private readonly ReadReceiptSocketHandler _samSocketHandler = new(ProcessInboxBatchSize);
 
         [OneTimeSetUp]
         public void OneTimeSetUp()

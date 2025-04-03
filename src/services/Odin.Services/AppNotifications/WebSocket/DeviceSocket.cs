@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Nito.AsyncEx;
 using Odin.Core;
-using Odin.Core.Exceptions;
-using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
@@ -17,139 +15,62 @@ namespace Odin.Services.AppNotifications.WebSocket;
 public class EstablishConnectionOptions
 {
     public List<TargetDrive> Drives { get; set; } = new();
-
-    /// <summary>
-    /// Number of events to send in a given push
-    /// </summary>
-    public int BatchSize { get; init; }
-
-    /// <summary>
-    /// Milliseconds to wait between pushes
-    /// </summary>
-    public int WaitTimeMs { get; init; }
-
 }
 
 public class DeviceSocket
 {
-    private CancellationTokenSource _cancelTimeoutToken = null!;
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+    private readonly AsyncLock _lock = new();
 
-    // private readonly Queue<Tuple<Guid, string>> _messageQueue = new();
-    private readonly OrderedDictionary _messageQueue = new();
-    private DateTime _lastSentTime = DateTime.MinValue;
-    private readonly object _lock = new object();
-
-    public Guid Key { get; set; }
-    public System.Net.WebSockets.WebSocket? Socket { get; set; }
+    public Guid Key { get; init; }
+    public System.Net.WebSockets.WebSocket? Socket { get; init; }
     public IOdinContext? DeviceOdinContext { get; set; }
-
-    /// <summary>
-    /// List of drives to which this device socket is subscribed
-    /// </summary>
     public List<Guid> Drives { get; set; } = [];
+    public TimeSpan Timeout { get; init; } = DefaultTimeout;
 
-    /// <summary>
-    /// Number of events to send in a given push
-    /// </summary>
-    public int BatchSize { get; set; }
+    //
 
-    /// <summary>
-    /// Milliseconds interval to push the batch even if it's not reached the batchsize
-    /// </summary>
-    public TimeSpan ForcePushInterval { get; set; }
-
-    private bool LongTimeNoSee()
+    public async Task SendMessageAsync(string json, CancellationToken cancellationToken = default)
     {
-        var v = (DateTime.UtcNow - _lastSentTime).TotalMilliseconds >= this.ForcePushInterval.TotalMilliseconds;
-        return v;
+        await InternalSendAsync(json, cancellationToken);
     }
 
-    public async Task EnqueueMessage(string json, Guid? groupId = null, CancellationToken? cancellationToken = null)
+    //
+
+    public Task FireAndForgetAsync(string json, CancellationToken cancellationToken = default)
     {
-        if (null == Socket)
+        // Fire and forget, so NO await here:
+        InternalSendAsync(json, cancellationToken).ContinueWith(_ =>
         {
-            throw new OdinSystemException("Socket is null during EnqueueMessage");
-        }
+            // Not much we can do here, nom-nom
+        }, TaskContinuationOptions.OnlyOnFaulted);
 
-        lock (_lock)
-        {
-            _messageQueue[groupId.GetValueOrDefault(Guid.NewGuid())] = json;
-        }
-
-        if (LongTimeNoSee())
-        {
-            await ProcessBatch(cancellationToken.GetValueOrDefault(CancellationToken.None));
-            PerformanceCounter.IncrementCounter("App Notification Process Batch(reason:LongTimeNoSee)");
-            ResetTimeout();
-        }
-
-        if (_messageQueue.Count >= BatchSize)
-        {
-            await ProcessBatch(cancellationToken.GetValueOrDefault(CancellationToken.None));
-            PerformanceCounter.IncrementCounter("App Notification Process Batch(reason: batch full)");
-            ResetTimeout();
-        }
-        else if (_messageQueue.Count == 1)
-        {
-            await StartTimeout(cancellationToken.GetValueOrDefault(CancellationToken.None));
-        }
+        return Task.CompletedTask;
     }
 
-    private async Task ProcessBatch(CancellationToken cancellationToken)
+    //
+
+    private async Task InternalSendAsync(string message, CancellationToken cancellationToken)
     {
-        if (null == Socket)
-        {
-            return;
-        }
+        ArgumentNullException.ThrowIfNull(Socket);
+        ArgumentNullException.ThrowIfNull(message);
 
-        string[] valuesArray;
-        lock (_lock)
-        {
-            valuesArray = new string[_messageQueue.Values.Count];
-            if (_messageQueue?.Values?.Count > 0)
-            {
-                _messageQueue.Values.CopyTo(valuesArray, 0);
-                _messageQueue.Clear();
-            }
-        }
+        using var timeoutCts = new CancellationTokenSource(Timeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        var linkedToken = linkedCts.Token;
 
-        foreach (var message in valuesArray)
+        using (await _lock.LockAsync(linkedToken))
         {
             var jsonBytes = message.ToUtf8ByteArray();
             await Socket.SendAsync(
-                buffer: new ArraySegment<byte>(jsonBytes, 0, message.Length),
+                buffer: new ArraySegment<byte>(jsonBytes, 0, jsonBytes.Length),
                 messageType: WebSocketMessageType.Text,
                 messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
-                cancellationToken: cancellationToken);
-        }
-
-        PerformanceCounter.IncrementCounter("AppNotification Batch Sent");
-
-        _lastSentTime = DateTime.UtcNow;
-    }
-
-    private async Task StartTimeout(CancellationToken cancellationToken)
-    {
-        _cancelTimeoutToken = new CancellationTokenSource();
-        try
-        {
-            await Task.Delay(ForcePushInterval, _cancelTimeoutToken.Token);
-            if (_messageQueue.Count > 0 && LongTimeNoSee())
-            {
-                PerformanceCounter.IncrementCounter("App Notification Process Batch(reason: Timeout)");
-                await ProcessBatch(cancellationToken);
-            }
-        }
-        catch (TaskCanceledException)
-        {
-            //gulp
+                cancellationToken: linkedToken);
         }
     }
 
-    private void ResetTimeout()
-    {
-        _cancelTimeoutToken?.Cancel();
-    }
+    //
 
     private static WebSocketMessageFlags GetMessageFlags(bool endOfMessage, bool compressMessage)
     {
@@ -167,4 +88,6 @@ public class DeviceSocket
 
         return flags;
     }
+
+    //
 }
