@@ -48,6 +48,6 @@ public class AppPermissionKeysOnly(TestPermissionKeyList keys) : IApiClientConte
 
     public override string ToString()
     {
-        return nameof(AppWriteOnlyAccessToDrive);
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }

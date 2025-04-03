@@ -61,6 +61,6 @@ public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission perm
 
     public override string ToString()
     {
-        return nameof(AppWriteOnlyAccessToDrive);
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }

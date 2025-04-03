@@ -58,6 +58,6 @@ public class GuestAccess(string odinId, List<DriveGrantRequest> driveGrants, Lis
     
     public override string ToString()
     {
-        return MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }

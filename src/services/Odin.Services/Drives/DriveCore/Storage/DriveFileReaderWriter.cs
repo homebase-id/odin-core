@@ -175,6 +175,17 @@ public sealed class DriveFileReaderWriter(
             throw new OdinSystemException(
                 $"Error during file move operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
         }
+        
+        if (File.Exists(sourceFilePath))
+        {
+            DeleteFile(sourceFilePath);
+            
+            if (File.Exists(sourceFilePath))
+            {
+                throw new OdinSystemException(
+                    $"Error during file move operation.  FileMove reported success but source file is still on disk [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
+            }
+        }
     }
 
     /// <summary>

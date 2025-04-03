@@ -23,7 +23,6 @@ public static class DriveFileUtility
     public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
     public const string PayloadDelimiter = "-";
     public const string FileNameSectionDelimiter = "-";
-    public const string PayloadExtensionSpecifier = PayloadDelimiter + "{0}.payload";
     public const string TransitThumbnailKeyDelimiter = "|";
 
     // public const int MaxAppDataContentLength = 10 * 1024; MOVED TO AppMetaData.MaxAppDataContentLength
@@ -260,19 +259,34 @@ public static class DriveFileUtility
 
     public static string GetPayloadFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
+        return GetPayloadFileExtension(payloadKey, payloadUid.ToString());
+    }
+
+    public static string GetPayloadFileExtension(string payloadKey, string payloadUid)
+    {
         var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
         return $"{bn}.payload";
     }
 
-    public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
+    public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, string width, string height)
     {
         var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
         return $"{bn}{FileNameSectionDelimiter}{width}x{height}.thumb";
     }
+    
+    public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
+    {
+        return GetThumbnailFileExtension(payloadKey, payloadUid, width.ToString(), height.ToString());
+    }
 
     private static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
-        var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
+        return CreateBasePayloadFileName(payloadKey, payloadUid.uniqueTime.ToString());
+    }
+
+    private static string CreateBasePayloadFileName(string payloadKey, string uid)
+    {
+        var parts = new[] { payloadKey, uid };
         return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
     }
 

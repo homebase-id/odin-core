@@ -67,6 +67,6 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
 
     public override string ToString()
     {
-        return nameof(AppWriteOnlyAccessToDrive);
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }
