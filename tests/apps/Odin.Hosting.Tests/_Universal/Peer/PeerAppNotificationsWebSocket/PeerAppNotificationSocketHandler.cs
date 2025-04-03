@@ -11,7 +11,7 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket;
 
-public class PeerAppNotificationSocketHandler(int notificationBatchSize, int notificationWaitTime)
+public class PeerAppNotificationSocketHandler()
 {
     private readonly PeerTestAppWebSocketListener _socketListener = new();
     public event EventHandler<(TargetDrive targetDrive, SharedSecretEncryptedFileHeader header)> FileAdded;
@@ -26,8 +26,6 @@ public class PeerAppNotificationSocketHandler(int notificationBatchSize, int not
         await _socketListener.ConnectAsync(hostIdentity, token, new EstablishConnectionOptions()
         {
             Drives = targetDrives,
-            BatchSize = notificationBatchSize,
-            WaitTimeMs = notificationWaitTime
         });
     }
 

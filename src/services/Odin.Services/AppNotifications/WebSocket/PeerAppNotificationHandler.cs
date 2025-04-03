@@ -279,7 +279,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 };
 
                 var json = OdinSystemSerializer.Serialize(payload);
-                await deviceSocket.EnqueueMessage(json, groupId, cancellationToken);
+                await deviceSocket.SendMessageAsync(json, true, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -317,8 +317,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                         var options = OdinSystemSerializer.Deserialize<EstablishConnectionOptions>(command.Data) ??
                                       new EstablishConnectionOptions()
                                       {
-                                          WaitTimeMs = 100,
-                                          BatchSize = 100,
                                           Drives = []
                                       };
 
@@ -330,8 +328,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                         }
 
                         deviceSocket.Drives = drives;
-                        deviceSocket.ForcePushInterval = TimeSpan.FromMilliseconds(options.WaitTimeMs);
-                        deviceSocket.BatchSize = options.BatchSize;
                     }
                     catch (OdinSecurityException e)
                     {
