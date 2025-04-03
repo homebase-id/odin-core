@@ -96,8 +96,6 @@ public class NotificationsTest
             Data = OdinSystemSerializer.Serialize(new EstablishConnectionOptions
             {
                 Drives = [testAppContext.TargetDrive],
-                BatchSize = 1,
-                WaitTimeMs = 1
             })
         };
 
