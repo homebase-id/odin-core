@@ -33,6 +33,6 @@ public class OwnerClientContext(TargetDrive targetDrive) : IApiClientContext
     
     public override string ToString()
     {
-        return nameof(OwnerClientContext);
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }

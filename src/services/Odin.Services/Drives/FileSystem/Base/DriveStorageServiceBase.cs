@@ -595,13 +595,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 await WriteFileHeaderInternal(serverHeader);
             }
-            catch
-            {
-                await DeleteOrphanPayloadsAndThumbnails(targetFile, odinContext);
-                throw;
-            }
             finally
             {
+                //paranoid cleanup
+                await DeleteOrphanPayloads(targetFile, odinContext);
                 await tempStorageManager.EnsureDeleted(drive, newMetadata.File.FileId);
             }
 
@@ -661,7 +658,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                await DeleteOrphanPayloadsAndThumbnails(targetFile, odinContext);
+                await DeleteOrphanPayloads(targetFile, odinContext);
                 await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
             }
 
@@ -946,7 +943,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task UpdateBatchAsync(InternalDriveFileId originFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
             IOdinContext odinContext)
         {
-            async Task DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
+            void DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
             {
                 // Delete operations are for existing payloads, so we need to update the existing header
                 foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
@@ -1046,7 +1043,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             try
             {
                 await ProcessAppendOrOverwrite(drive, existingHeader);
-                await DeleteFileReferencesFromHeader(existingHeader);
+                DeleteFileReferencesFromHeader(existingHeader);
 
                 existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
                 await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
@@ -1054,7 +1051,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                await DeleteOrphanPayloadsAndThumbnails(targetFile, odinContext);
+                await DeleteOrphanPayloads(targetFile, odinContext);
                 await tempStorageManager.EnsureDeleted(drive, originFile.FileId);
             }
 
@@ -1240,7 +1237,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await using (var tx = await db.BeginStackedTransactionAsync())
             {
-                longTermStorageManager.DeleteAttachments(drive, file.FileId);
+                longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
                 await WriteFileHeaderInternal(deletedServerFileHeader);
                 await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                 await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
@@ -1373,12 +1370,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Delete the thumbnail files for this payload
             foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
             {
-                longTermStorageManager.DeleteThumbnailFile(drive, file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth,
+                longTermStorageManager.HardDeleteThumbnailFile(drive, file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth,
                     thumb.PixelHeight);
             }
 
             // Delete the payload file
-            longTermStorageManager.DeletePayloadFile(drive, file.FileId, descriptor);
+            longTermStorageManager.HardDeletePayloadFile(drive, file.FileId, descriptor.Key, descriptor.Uid.ToString());
         }
 
         private void ProcessPayloads(InternalDriveFileId originFile, InternalDriveFileId targetFile,
@@ -1443,20 +1440,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task DeleteOrphanPayloadsAndThumbnails(InternalDriveFileId file, IOdinContext odinContext)
+        private async Task DeleteOrphanPayloads(InternalDriveFileId file, IOdinContext odinContext)
         {
             var originalHeader = await this.GetServerFileHeaderInternal(file, odinContext);
 
             var metadata = originalHeader.FileMetadata;
             var fileId = metadata.File.FileId;
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
-
-            foreach (var payloadDescriptor in metadata.Payloads ?? [])
-            {
-                longTermStorageManager.DeleteMissingThumbnailFiles(drive, fileId, payloadDescriptor.Thumbnails);
-            }
-
-            longTermStorageManager.DeleteMissingPayloads(drive, fileId, metadata.Payloads);
+            
+            longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, fileId, metadata.Payloads);
         }
     }
 }

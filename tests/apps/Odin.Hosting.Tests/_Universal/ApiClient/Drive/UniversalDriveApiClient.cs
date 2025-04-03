@@ -767,7 +767,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard, bool directMatchOnly = false)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
@@ -777,7 +777,8 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             File = file,
             Height = height,
             Width = width,
-            PayloadKey = payloadKey
+            PayloadKey = payloadKey,
+            DirectMatchOnly = directMatchOnly
         });
 
         return thumbnailResponse;
