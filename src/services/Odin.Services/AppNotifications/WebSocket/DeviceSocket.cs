@@ -39,10 +39,13 @@ public class DeviceSocket
 
     public Task FireAndForgetAsync(string json, CancellationToken cancellationToken = default)
     {
-        return InternalSendAsync(json, cancellationToken).ContinueWith(_ =>
+        // Fire and forget, so NO await here:
+        InternalSendAsync(json, cancellationToken).ContinueWith(_ =>
         {
             // Not much we can do here, nom-nom
         }, TaskContinuationOptions.OnlyOnFaulted);
+
+        return Task.CompletedTask;
     }
 
     //
