@@ -311,7 +311,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 };
 
                 var json = OdinSystemSerializer.Serialize(payload);
-                await deviceSocket.SendMessageAsync(json, true, cancellationToken);
+                await deviceSocket.FireAndForgetAsync(json, cancellationToken);
             }
             catch (OperationCanceledException)
             {

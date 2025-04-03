@@ -30,23 +30,19 @@ public class DeviceSocket
 
     //
 
-    public async Task SendMessageAsync(
-        string json,
-        bool fireAndForget,
-        CancellationToken cancellationToken = default)
+    public async Task SendMessageAsync(string json, CancellationToken cancellationToken = default)
     {
-        if (!fireAndForget)
+        await InternalSendAsync(json, cancellationToken);
+    }
+
+    //
+
+    public Task FireAndForgetAsync(string json, CancellationToken cancellationToken = default)
+    {
+        return InternalSendAsync(json, cancellationToken).ContinueWith(_ =>
         {
-            await InternalSendAsync(json, cancellationToken);
-        }
-        else
-        {
-            _ = InternalSendAsync(json, cancellationToken)
-                .ContinueWith(t =>
-                {
-                    // Not much we can do here, nom-nom
-                }, TaskContinuationOptions.OnlyOnFaulted);
-        }
+            // Not much we can do here, nom-nom
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     //
