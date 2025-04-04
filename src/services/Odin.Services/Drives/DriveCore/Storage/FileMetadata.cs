@@ -139,7 +139,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             GlobalTransitId = record.globalTransitId;
             FileState = (FileState)record.fileState;
             Created = record.created;
-            Updated = record.modified == null ? UnixTimeUtc.ZeroTime : record.modified.Value; // Todd says NULL means zero
+            Updated = record.modified == null ? record.created : record.modified.Value; // Todd said NULL means UnixTimeUtc.ZeroTime, but it seems the FE code expects modified == created if modified is NULL
             // But I would prefer if it was nullable - except of course if we change it so that it's always set
 
             ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
