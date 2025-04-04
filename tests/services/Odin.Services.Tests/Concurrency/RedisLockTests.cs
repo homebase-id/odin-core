@@ -12,6 +12,8 @@ using Testcontainers.Redis;
 
 namespace Odin.Services.Tests.Concurrency;
 
+#if RUN_REDIS_TESTS
+
 public class RedisLockTests
 {
     private RedisContainer? _redisContainer;
@@ -65,9 +67,7 @@ public class RedisLockTests
 
     //
 
-#if RUN_REDIS_TESTS
     [Test]
-#endif
     public async Task LockAsync_AcquiresAndReleasesLockSuccessfully()
     {
         await RegisterServicesAsync();
@@ -96,9 +96,7 @@ public class RedisLockTests
 
     //
 
-#if RUN_REDIS_TESTS
     [Test]
-#endif
     public async Task LockAsync_ThrowsTimeoutException_WhenLockIsAlreadyHeld()
     {
         await RegisterServicesAsync();
@@ -127,9 +125,7 @@ public class RedisLockTests
 
     //
 
-#if RUN_REDIS_TESTS
     [Test]
-#endif
     public async Task LockAsync_AllowsSequentialLocking()
     {
         await RegisterServicesAsync();
@@ -183,3 +179,5 @@ public class RedisLockTests
     //
 
 }
+
+#endif
