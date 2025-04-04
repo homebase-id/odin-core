@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
-    public class KeyChainRecord
+    public record KeyChainRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -182,7 +182,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                   _recordHash = value;
                }
         }
-    } // End of class KeyChainRecord
+    } // End of record KeyChainRecord
 
     public class TableKeyChainCRUD
     {

@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {
-    public class AttestationStatusRecord
+    public record AttestationStatusRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -82,7 +82,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _modified = value;
                }
         }
-    } // End of class AttestationStatusRecord
+    } // End of record AttestationStatusRecord
 
     public class TableAttestationStatusCRUD
     {
