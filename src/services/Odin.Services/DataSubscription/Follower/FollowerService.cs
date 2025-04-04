@@ -482,7 +482,7 @@ namespace Odin.Services.DataSubscription.Follower
                 VersionTag = fm.VersionTag,
                 ReactionPreview = fm.ReactionPreview,
                 Created = fm.Created,
-                Updated = fm.Updated,
+                Updated = fm.Updated.GetValueOrDefault(),
                 FileState = dsr.FileState,
                 Payloads = fm.Payloads
             };

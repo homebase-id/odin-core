@@ -135,10 +135,10 @@ public static class DriveFileUtility
         var clientFile = new ClientFileMetadata
         {
             Created = fileMetadata.Created,
-            Updated = fileMetadata.Updated,
+            Updated = fileMetadata.Updated == 0 ? null : fileMetadata.Updated,
 
-            TransitCreated = fileMetadata.TransitCreated,
-            TransitUpdated = fileMetadata.TransitUpdated,
+            TransitCreated = fileMetadata.TransitCreated == 0 ? null : fileMetadata.TransitCreated,
+            TransitUpdated = fileMetadata.TransitUpdated == 0 ? null : fileMetadata.TransitUpdated,
 
             AppData = fileMetadata.AppData,
             LocalAppData = fileMetadata.LocalAppData,

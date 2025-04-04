@@ -19,11 +19,11 @@ public class ClientFileMetadata
 
     public UnixTimeUtc Created { get; set; }
 
-    public UnixTimeUtc Updated { get; set; }
+    public UnixTimeUtc? Updated { get; set; }
 
-    public UnixTimeUtc TransitCreated { get; set; }
+    public UnixTimeUtc? TransitCreated { get; set; }
 
-    public UnixTimeUtc TransitUpdated { get; set; }
+    public UnixTimeUtc? TransitUpdated { get; set; }
 
     /// <summary>
     /// If true, the payload is encrypted by the client.  In reality, you SHOULD to encrypt all
