@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using MediatR;
@@ -206,7 +205,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<uint> WriteTempStream(TempFile tempFile, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(tempFile.File.DriveId);
             return await tempStorageManager.WriteStream(tempFile, extension, stream);
         }
 
@@ -216,17 +214,21 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <returns></returns>
         public async Task<byte[]> GetAllFileBytesFromTempFile(TempFile tempFile, string extension, IOdinContext odinContext)
         {
-            await this.AssertCanReadDriveAsync(tempFile.File.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(tempFile.File.DriveId);
+            await AssertCanReadDriveAsync(tempFile.File.DriveId, odinContext);
             var bytes = await tempStorageManager.GetAllFileBytes(tempFile, extension);
             return bytes;
         }
-
+        
+        public async Task<bool> TempFileExists(TempFile tempFile, string extension, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertCallerIsOwner();
+            return await tempStorageManager.TempFileExists(tempFile, extension);
+        }
+        
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
             IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(tempFile.File.DriveId);
             return await tempStorageManager.GetAllFileBytes(tempFile, extension);
         }
 

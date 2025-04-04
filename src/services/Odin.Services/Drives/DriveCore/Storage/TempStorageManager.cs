@@ -15,12 +15,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
         DriveManager driveManager,
         ILogger<TempStorageManager> logger)
     {
+        public async Task<bool> TempFileExists(TempFile tempFile, string extension)
+        {
+            string path = await GetTempFilenameAndPathInternal(tempFile, extension);
+            return driveFileReaderWriter.FileExists(path);
+        }
+        
         /// <summary>
         /// Gets a stream of data for the specified file
         /// </summary>
         public async Task<byte[]> GetAllFileBytes(TempFile tempFile, string extension)
         {
-            string path = await GetTempFilenameAndPath(tempFile, extension);
+            string path = await GetTempFilenameAndPathInternal(tempFile, extension);
 
             logger.LogDebug("Getting temp file bytes for [{path}]", path);
             var bytes = await driveFileReaderWriter.GetAllFileBytesAsync(path);
@@ -33,7 +39,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<uint> WriteStream(TempFile tempFile, string extension, Stream stream)
         {
-            string path = await GetTempFilenameAndPath(tempFile, extension, true);
+            string path = await GetTempFilenameAndPathInternal(tempFile, extension, true);
             logger.LogDebug("Writing temp file: {filePath}", path);
             var bytesWritten = await driveFileReaderWriter.WriteStreamAsync(path, stream);
             if (bytesWritten == 0)
@@ -71,7 +77,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<string> GetPath(TempFile tempFile, string extension)
         {
-            string path = await GetTempFilenameAndPath(tempFile, extension);
+            string path = await GetTempFilenameAndPathInternal(tempFile, extension);
             return path;
         }
 
@@ -107,9 +113,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string file = DriveFileUtility.GetFileIdForStorage(fileId);
             return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
         }
-
-
-        private async Task<string> GetTempFilenameAndPath(TempFile tempFile, string extension, bool ensureExists = false)
+        
+        private async Task<string> GetTempFilenameAndPathInternal(TempFile tempFile, string extension, bool ensureExists = false)
         {
             var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
             var fileId = tempFile.File.FileId;
@@ -117,5 +122,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string dir = GetFileDirectory(drive, tempFile, ensureExists);
             return Path.Combine(dir, GetFilename(fileId, extension));
         }
+        
     }
 }
