@@ -44,8 +44,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
         private const int NotificationBatchSize = 10;
         private const int NotificationWaitTime = 30;
 
-        private readonly PeerAppNotificationSocketHandler _frodoSocketHandler = new(NotificationBatchSize, NotificationWaitTime);
-        private readonly PeerAppNotificationSocketHandler _samSocketHandler = new(NotificationBatchSize, NotificationWaitTime);
+        private readonly PeerAppNotificationSocketHandler _frodoSocketHandler = new();
+        private readonly PeerAppNotificationSocketHandler _samSocketHandler = new();
 
         [OneTimeSetUp]
         public void OneTimeSetUp()

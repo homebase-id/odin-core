@@ -57,9 +57,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public FileState FileState { get; set; }
 
-        public UnixTimeUtc Created { get; set; }
+        private UnixTimeUtc _created;
+        public UnixTimeUtc Created { get => _created; init => _created = value; }
 
-        public UnixTimeUtc Updated { get; set; }
+        private UnixTimeUtc _updated;
+        public UnixTimeUtc Updated { get => _updated; init => _updated = value; }
 
         public UnixTimeUtc TransitCreated { get; set; }
 
@@ -86,11 +88,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public AppFileMetaData AppData { get; set; }
 
         public LocalAppMetadata LocalAppData { get; set; }
-        
+
         public List<PayloadDescriptor> Payloads { get; set; }
 
         public Guid? VersionTag { get; set; }
 
+
+        public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
+        {
+            _created = databaseCreated;
+
+            if (databaseModified != null)
+                _updated = databaseModified.Value;
+            else
+                _updated = UnixTimeUtc.ZeroTime;
+        }
 
         // The record is needed to fill in specific colums from the record that are not in the Dto,
         // i.e. the columns that are commented out above
@@ -122,7 +134,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             // Now fill in FileMetadata with column specific values from the record
             //
-            
+
             File = new InternalDriveFileId() { FileId = record.fileId, DriveId = record.driveId };
             GlobalTransitId = record.globalTransitId;
             FileState = (FileState)record.fileState;
@@ -147,9 +159,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             VersionTag = record.hdrVersionTag;
         }
 
-        public PayloadDescriptor GetPayloadDescriptor(string key)
+        public PayloadDescriptor GetPayloadDescriptor(string key, bool failIfNotFound = false, string failureMessage = null)
         {
-            return Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
+            var descriptor = Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
+            if (null == descriptor && failIfNotFound)
+            {
+                throw new OdinClientException(failureMessage ?? $"Could not find payload with key [{key}]", OdinClientErrorCode.InvalidPayload);
+            }
+            
+            return descriptor;
         }
 
         public bool TryValidate()
@@ -182,6 +200,5 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     payload.Validate();
             }
         }
-
     }
 }

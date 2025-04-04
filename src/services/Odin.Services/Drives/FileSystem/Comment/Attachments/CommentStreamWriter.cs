@@ -27,7 +27,7 @@ public class CommentPayloadStreamWriter : PayloadStreamWriterBase
             // package.InternalFile,
             package.TempFile.AsTempFileUpload(),
             targetFile: package.InternalFile,
-            incomingPayloads: package.GetFinalPayloadDescriptors(),
+            payloadsDescriptors: package.GetFinalPayloadDescriptors(),
             odinContext);
     }
 }

@@ -102,7 +102,7 @@ public abstract class FileSystemUpdateWriterBase
 
     public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
     {
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile.AsTempFileUpload(), 
+        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile.AsTempFileUpload(),
             MultipartUploadParts.Metadata.ToString(), data, odinContext);
     }
 
@@ -196,7 +196,7 @@ public abstract class FileSystemUpdateWriterBase
             {
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
-            
+
             await ProcessExistingFileUploadAsync(Package, keyHeader, metadata, serverMetadata, odinContext);
 
             var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
@@ -230,11 +230,12 @@ public abstract class FileSystemUpdateWriterBase
             {
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
-            
-            await FileSystem.Storage.CommitNewFile(Package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false, odinContext);
+
+            await FileSystem.Storage.CommitNewFile(Package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false,
+                odinContext);
 
             var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext);
-            
+
             return new FileUpdateResult()
             {
                 NewVersionTag = Package.NewVersionTag,
@@ -274,7 +275,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatchAsync(sourceTempFile: package.InternalFile.AsTempFileUpload(), package.InternalFile, manifest, odinContext);
+        await FileSystem.Storage.UpdateBatchAsync(package.InternalFile.AsTempFileUpload(), package.InternalFile, manifest, odinContext);
     }
 
     /// <summary>
@@ -300,7 +301,7 @@ public abstract class FileSystemUpdateWriterBase
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
             ? updateDescriptor.EncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
-        
+
         await ValidateUploadDescriptor(updateDescriptor);
 
         var metadata = await MapUploadToMetadata(package, updateDescriptor, odinContext);
@@ -310,7 +311,7 @@ public abstract class FileSystemUpdateWriterBase
             AccessControlList = updateDescriptor.FileMetadata.AccessControlList,
             AllowDistribution = updateDescriptor.FileMetadata.AllowDistribution
         };
-        
+
         return (keyHeader, metadata, serverMetadata);
     }
 

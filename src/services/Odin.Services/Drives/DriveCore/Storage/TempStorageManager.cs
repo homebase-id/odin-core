@@ -53,6 +53,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
+        /// Deletes all files matching <param name="tempFile"></param> regardless of extension
+        /// </summary>
+        public async Task EnsureDeleted(TempFile tempFile)
+        {
+            var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
+
+            var dir = GetFileDirectory(drive, tempFile);
+            var pattern = GetFilename(tempFile.File.FileId, "*");
+
+            logger.LogDebug("Delete temp files in dir: {filePath} using searchPattern: {pattern}", dir, pattern);
+            driveFileReaderWriter.DeleteFilesInDirectory(dir, pattern);
+        }
+
+        /// <summary>
         /// Gets the physical path of the specified file
         /// </summary>
         public async Task<string> GetPath(TempFile tempFile, string extension)

@@ -58,6 +58,6 @@ public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKe
 
     public override string ToString()
     {
-        return nameof(AppWriteOnlyAccessToDrive);
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }

@@ -50,6 +50,6 @@ public class AppPermissionsKeysOnly(TestPermissionKeyList keys = null)
     
     public override string ToString()
     {
-        return nameof(AppWriteOnlyAccessToDrive);
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
     }
 }

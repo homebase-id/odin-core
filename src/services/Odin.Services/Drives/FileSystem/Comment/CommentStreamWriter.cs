@@ -93,7 +93,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
             await FileSystem.Storage.OverwriteFile(
-                tempSourceFile: package.InternalFile.AsTempFileUpload(),
+                originFile: package.InternalFile.AsTempFileUpload(),
                 targetFile: targetFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
