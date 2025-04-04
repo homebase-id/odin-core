@@ -117,10 +117,10 @@ namespace Odin.Services.Drives
             switch (storageType)
             {
                 case TempStorageType.Upload:
-                    return Path.Combine(_tempDataRootPath, "files");
+                    return Path.Combine(_tempDataRootPath, "uploads");
 
                 case TempStorageType.Inbox:
-                    return Path.Combine(_tempDataRootPath, "inbox-files");
+                    return Path.Combine(_tempDataRootPath, "inbox");
 
                 default:
                     throw new OdinSystemException($"Unknown storage type:[{storageType}]");
