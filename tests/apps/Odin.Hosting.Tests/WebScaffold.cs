@@ -383,7 +383,7 @@ namespace Odin.Hosting.Tests
             }
         }
 
-        private string TestPayloadPath
+        public string TestPayloadPath
         {
             get
             {
@@ -393,7 +393,7 @@ namespace Odin.Hosting.Tests
             }
         }
 
-        private string TestDataPath
+        public string TestDataPath
         {
             get
             {

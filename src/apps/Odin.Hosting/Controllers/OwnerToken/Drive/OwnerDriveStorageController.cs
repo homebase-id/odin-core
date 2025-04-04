@@ -28,6 +28,39 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         private readonly ILogger<OwnerDriveStorageController> _logger = logger;
 
         /// <summary>
+        /// Indicates if the specified TempFile exists.  This is used for testing only
+        /// </summary>
+        [SwaggerOperation(Tags = [ControllerConstants.OwnerDrive])]
+        [HttpGet("temp-file-exists")]
+        public async Task<bool> TempFileExists([FromQuery] Guid fileId, 
+            [FromQuery] Guid alias, 
+            [FromQuery] Guid type,
+            [FromQuery] TempStorageType storageType,
+            [FromQuery] string extension)
+        {
+            var tempFile = new TempFile()
+            {
+                File = MapToInternalFile(new ExternalFileIdentifier()
+                {
+                    FileId = fileId,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                }),
+                StorageType = storageType
+            };
+
+            var result = await this.GetHttpFileSystemResolver()
+                .ResolveFileSystem()
+                .Storage
+                .TempFileExists(tempFile, extension, WebOdinContext);
+
+            return result;
+        }
+
+        /// <summary>
         /// Retrieves a file's header and metadata
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]

@@ -88,7 +88,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public AppFileMetaData AppData { get; set; }
 
         public LocalAppMetadata LocalAppData { get; set; }
-        
+
         public List<PayloadDescriptor> Payloads { get; set; }
 
         public Guid? VersionTag { get; set; }
@@ -134,7 +134,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             // Now fill in FileMetadata with column specific values from the record
             //
-            
+
             File = new InternalDriveFileId() { FileId = record.fileId, DriveId = record.driveId };
             GlobalTransitId = record.globalTransitId;
             FileState = (FileState)record.fileState;
@@ -159,9 +159,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             VersionTag = record.hdrVersionTag;
         }
 
-        public PayloadDescriptor GetPayloadDescriptor(string key)
+        public PayloadDescriptor GetPayloadDescriptor(string key, bool failIfNotFound = false, string failureMessage = null)
         {
-            return Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
+            var descriptor = Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
+            if (null == descriptor && failIfNotFound)
+            {
+                throw new OdinClientException(failureMessage ?? $"Could not find payload with key [{key}]", OdinClientErrorCode.InvalidPayload);
+            }
+            
+            return descriptor;
         }
 
         public bool TryValidate()
@@ -194,6 +200,5 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     payload.Validate();
             }
         }
-
     }
 }

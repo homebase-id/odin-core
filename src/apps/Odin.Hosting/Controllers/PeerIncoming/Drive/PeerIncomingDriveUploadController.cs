@@ -87,9 +87,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("upload")]
         public async Task<PeerTransferResponse> ReceiveIncomingTransfer()
         {
-            
-
-            await AssertIsValidCaller();
+            WebOdinContext.Caller.AssertCallerIsConnected();
 
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -102,7 +100,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
-            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
+            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(),
+                "Invalid data deserialized when creating the TransferInstructionSet");
 
             //Optimizations - the caller can't write to the drive, no need to accept any more of the file
 
@@ -123,12 +122,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             // await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
             //End Optimizations
 
-            _incomingTransferService = GetPerimeterService(_fileSystem);
-            await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet, WebOdinContext);
-
-            //
-
-            var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync());
+            var metadata = await Initialize(transferInstructionSet, reader);
 
             //
 
@@ -154,6 +148,21 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
 
             return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext);
+        }
+
+        private async Task<FileMetadata> Initialize(
+            EncryptedRecipientTransferInstructionSet transferInstructionSet, MultipartReader reader)
+        {
+            var metadataSection = await reader.ReadNextSectionAsync();
+            AssertIsPart(metadataSection, MultipartHostTransferParts.Metadata);
+            var json = await new StreamReader(metadataSection!.Body).ReadToEndAsync();
+            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+
+            _incomingTransferService = GetPerimeterService(_fileSystem);
+            await _incomingTransferService.InitializeIncomingTransfer(transferInstructionSet,
+                metadata, WebOdinContext);
+
+            return metadata;
         }
 
         [HttpPost("deletelinkedfile")]
@@ -236,23 +245,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var transferInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
 
             OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
-            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(), "Invalid data deserialized when creating the TransferInstructionSet");
+            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(),
+                "Invalid data deserialized when creating the TransferInstructionSet");
 
             return transferInstructionSet;
-        }
-
-        private async Task<FileMetadata> ProcessMetadataSection(MultipartSection section)
-        {
-            
-
-            AssertIsPart(section, MultipartHostTransferParts.Metadata);
-
-            //HACK: need to optimize this 
-            var json = await new StreamReader(section.Body).ReadToEndAsync();
-            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
-            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await _incomingTransferService.AcceptMetadata("metadata", metadataStream, WebOdinContext);
-            return metadata;
         }
 
         private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata)

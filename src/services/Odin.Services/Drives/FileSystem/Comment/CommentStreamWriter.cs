@@ -68,7 +68,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false, odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
@@ -92,7 +92,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
+            await FileSystem.Storage.OverwriteFile(
+                originFile: package.InternalFile.AsTempFileUpload(),
                 targetFile: targetFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
