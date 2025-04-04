@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Drives.FileSystem.Base;
@@ -43,6 +44,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 // Sanity #2
                 logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, filePath);
             }
+
             logger.LogDebug("Wrote {count} bytes to {filePath}", bytesWritten, filePath);
 
             return bytesWritten;
@@ -53,15 +55,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         /// <param name="drive"></param>
         /// <param name="fileId"></param>
-        public async Task EnsureDeleted(StorageDrive drive, Guid fileId)
+        public void EnsureDeleted(StorageDrive drive, Guid fileId)
         {
-            // var dir = new DirectoryInfo(GetFileDirectory(fileId));
             var dir = GetFileDirectory(drive, fileId);
-            // logger.LogDebug("Delete temp files in dir: {filePath}", dir);
-            // await driveFileReaderWriter.DeleteFilesInDirectoryAsync(dir, searchPattern: GetFilename(fileId, "*"));
+            var pattern = GetFilename(fileId, "*");
             
-            await Task.CompletedTask;
-            logger.LogDebug("no-op: delete on temp files called yet we've removed this. path {filePath}", dir);
+            logger.LogDebug("Delete temp files in dir: {filePath} using searchPattern: {pattern}", dir, pattern);
+            driveFileReaderWriter.DeleteFilesInDirectory(dir, pattern);
         }
 
         /// <summary>

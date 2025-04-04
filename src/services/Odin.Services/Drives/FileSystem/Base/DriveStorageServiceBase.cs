@@ -147,11 +147,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
 
-            await WriteFileHeaderInternal(header, keepSameVersionTag); // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
-
-            var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            //clean up temp storage
-            await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
+            await WriteFileHeaderInternal(header,
+                keepSameVersionTag); // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
 
             //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
@@ -190,10 +187,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.FileState = FileState.Active;
 
             await WriteFileHeaderInternal(header, keepSameVersionTag: keepSameVersionTag); // sets the header.FileMetadata.Created/Updated
-
-            var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            //clean up temp storage
-            await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
 
             //HACKed in for Feed drive -> should become data subscription
             if (raiseEvent)
@@ -529,7 +522,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                await tempStorageManager.EnsureDeleted(drive, newMetadata.File.FileId);
+                tempStorageManager.EnsureDeleted(drive, newMetadata.File.FileId);
             }
 
             if (serverHeader != null && await ShouldRaiseDriveEventAsync(targetFile))
@@ -568,7 +561,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
             newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
             newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
-            newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created, existingServerHeader.FileMetadata.Updated);
+            newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
+                existingServerHeader.FileMetadata.Updated);
 
             //Only overwrite the globalTransitId if one is already set; otherwise let a file update set the ID (useful for mail-app drafts)
             if (existingServerHeader.FileMetadata.GlobalTransitId != null)
@@ -605,7 +599,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 //paranoid cleanup
                 await DeleteOrphanPayloads(targetFile, odinContext);
-                await tempStorageManager.EnsureDeleted(drive, newMetadata.File.FileId);
+                tempStorageManager.EnsureDeleted(drive, newMetadata.File.FileId);
             }
 
             if (serverHeader != null && await ShouldRaiseDriveEventAsync(targetFile))
@@ -665,7 +659,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             finally
             {
                 await DeleteOrphanPayloads(targetFile, odinContext);
-                await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
+                tempStorageManager.EnsureDeleted(drive, targetFile.FileId);
             }
 
             if (success && await ShouldRaiseDriveEventAsync(targetFile))
@@ -1057,7 +1051,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             finally
             {
                 await DeleteOrphanPayloads(targetFile, odinContext);
-                await tempStorageManager.EnsureDeleted(drive, originFile.FileId);
+                tempStorageManager.EnsureDeleted(drive, originFile.FileId);
             }
 
             if (await ShouldRaiseDriveEventAsync(targetFile))
@@ -1196,8 +1190,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + jsonBytes.Length;
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
-            
-            await longTermStorageManager.SaveFileHeader(drive, header);  // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
+
+            await longTermStorageManager.SaveFileHeader(drive,
+                header); // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
         }
 
         /// <summary>
@@ -1325,7 +1320,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var targetFile = existingServerHeader.FileMetadata.File;
             newMetadata.File = targetFile;
-            newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created, existingServerHeader.FileMetadata.Updated);
+            newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
+                existingServerHeader.FileMetadata.Updated);
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
             newMetadata.Payloads = existingServerHeader.FileMetadata.Payloads;
@@ -1450,7 +1446,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var metadata = originalHeader.FileMetadata;
             var fileId = metadata.File.FileId;
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
-            
+
             longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, fileId, metadata.Payloads);
         }
     }
