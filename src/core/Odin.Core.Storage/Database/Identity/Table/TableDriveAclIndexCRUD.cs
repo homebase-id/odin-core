@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class DriveAclIndexRecord
+    public record DriveAclIndexRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _aclMemberId = value;
                }
         }
-    } // End of class DriveAclIndexRecord
+    } // End of record DriveAclIndexRecord
 
     public abstract class TableDriveAclIndexCRUD
     {

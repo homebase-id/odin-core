@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class ImFollowingRecord
+    public record ImFollowingRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -78,7 +78,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
-    } // End of class ImFollowingRecord
+    } // End of record ImFollowingRecord
 
     public abstract class TableImFollowingCRUD
     {

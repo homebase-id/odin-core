@@ -631,7 +631,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 ServerMetadata = serverMetadata
             };
 
-            await WriteFileHeaderInternal(serverHeader);
+            await WriteFileHeaderInternal(serverHeader); // This will override the Created / Updated properties.
 
             //clean up temp storage
             await tempStorageManager.EnsureDeleted(drive, targetFile.FileId);

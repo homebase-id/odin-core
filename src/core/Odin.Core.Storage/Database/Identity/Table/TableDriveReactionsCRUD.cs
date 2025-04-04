@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class DriveReactionsRecord
+    public record DriveReactionsRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -92,7 +92,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _singleReaction = value;
                }
         }
-    } // End of class DriveReactionsRecord
+    } // End of record DriveReactionsRecord
 
     public abstract class TableDriveReactionsCRUD
     {

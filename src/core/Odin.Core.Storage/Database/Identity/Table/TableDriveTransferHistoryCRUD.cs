@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class DriveTransferHistoryRecord
+    public record DriveTransferHistoryRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -108,7 +108,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _isReadByRecipient = value;
                }
         }
-    } // End of class DriveTransferHistoryRecord
+    } // End of record DriveTransferHistoryRecord
 
     public abstract class TableDriveTransferHistoryCRUD
     {
