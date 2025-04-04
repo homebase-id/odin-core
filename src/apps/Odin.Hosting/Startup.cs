@@ -50,6 +50,7 @@ using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
+using Odin.Services.Concurrency;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
 using StackExchange.Redis;
@@ -244,6 +245,17 @@ namespace Odin.Hosting
             {
                 services.AddSingleton<IConnectionMultiplexer>(_ =>
                     ConnectionMultiplexer.Connect(_config.Redis.Configuration));
+            }
+
+            if (_config.Redis.Enabled)
+            {
+                // Distributed lock:
+                services.AddSingleton<INodeLock, RedisLock>();
+            }
+            else
+            {
+                // Node-wide lock:
+                services.AddSingleton<INodeLock, NodeLock>();
             }
 
             services.AddCoreCacheServices(new CacheConfiguration

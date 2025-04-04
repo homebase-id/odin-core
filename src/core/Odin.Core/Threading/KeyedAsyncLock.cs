@@ -1,6 +1,7 @@
 using Nito.AsyncEx;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Threading;
@@ -16,6 +17,7 @@ public sealed class KeyedAsyncLock
     /// Asynchronously acquires an exclusive lock associated with the specified key.
     /// </summary>
     /// <param name="key">The key identifying the lock to acquire.</param>
+    /// <param name="cancellationToken"></param>
     /// <example>
     /// <code>
     /// public async Task PerformOperationAsync(string key)
@@ -28,9 +30,9 @@ public sealed class KeyedAsyncLock
     /// }
     /// </code>
     /// </example>
-    public async Task<IDisposable> LockAsync(string key)
+    public async Task<IDisposable> LockAsync(string key, CancellationToken cancellationToken = default)
     {
-        var disposer = await GetOrCreateRefCountedLock(key).asyncLock.LockAsync();
+        var disposer = await GetOrCreateRefCountedLock(key).asyncLock.LockAsync(cancellationToken);
         return new Releaser(this, key, disposer);
     }
 
@@ -40,6 +42,7 @@ public sealed class KeyedAsyncLock
     /// Synchronously acquires an exclusive lock associated with the specified key.
     /// </summary>
     /// <param name="key">The key identifying the lock to acquire.</param>
+    /// <param name="cancellationToken"></param>
     /// <example>
     /// <code>
     /// public void PerformOperation(string key)
@@ -52,9 +55,9 @@ public sealed class KeyedAsyncLock
     /// }
     /// </code>
     /// </example>
-    public IDisposable Lock(string key)
+    public IDisposable Lock(string key, CancellationToken cancellationToken = default)
     {
-        var disposer = GetOrCreateRefCountedLock(key).asyncLock.Lock();
+        var disposer = GetOrCreateRefCountedLock(key).asyncLock.Lock(cancellationToken);
         return new Releaser(this, key, disposer);
     }
 
