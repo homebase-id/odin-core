@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class ConnectionsRecord
+    public record ConnectionsRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -134,7 +134,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
-    } // End of class ConnectionsRecord
+    } // End of record ConnectionsRecord
 
     public abstract class TableConnectionsCRUD
     {

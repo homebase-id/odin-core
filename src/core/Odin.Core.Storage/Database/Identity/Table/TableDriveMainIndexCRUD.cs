@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class DriveMainIndexRecord
+    public record DriveMainIndexRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -367,7 +367,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
                     if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {value.Length} (min 0)");
-                    if (value?.Length > 186000) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {value.Length} (max 186000)");
+                    if (value?.Length > 60000) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {value.Length} (max 60000)");
                   _hdrFileMetaData = value;
                }
         }
@@ -422,7 +422,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
-    } // End of class DriveMainIndexRecord
+    } // End of record DriveMainIndexRecord
 
     public abstract class TableDriveMainIndexCRUD
     {

@@ -19,7 +19,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class KeyValueRecord
+    public record KeyValueRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -87,7 +87,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _data = value;
                }
         }
-    } // End of class KeyValueRecord
+    } // End of record KeyValueRecord
 
     public abstract class TableKeyValueCRUD
     {

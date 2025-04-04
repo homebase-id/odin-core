@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.SQLite.NotaryDatabase
 {
-    public class NotaryChainRecord
+    public record NotaryChainRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -206,7 +206,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                   _recordHash = value;
                }
         }
-    } // End of class NotaryChainRecord
+    } // End of record NotaryChainRecord
 
     public class TableNotaryChainCRUD
     {
