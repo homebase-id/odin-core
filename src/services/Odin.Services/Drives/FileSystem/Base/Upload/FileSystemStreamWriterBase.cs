@@ -103,7 +103,7 @@ public abstract class FileSystemStreamWriterBase
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
     }
 
-    public virtual Task AddMetadata(Stream data, IOdinContext odinContext)
+    public virtual Task AddMetadata(Stream data)
     {
         Package.Metadata = data.ToByteArray();
         return Task.CompletedTask;
@@ -216,6 +216,8 @@ public abstract class FileSystemStreamWriterBase
 
         if (Package.IsUpdateOperation)
         {
+            _logger.LogWarning("files/upload with IsUpdateOperation endpoint used.  auth-context: {authContext}", odinContext.AuthContext);
+
             // Validate the file exists by the File Id
             if (!await FileSystem.Storage.FileExists(Package.InternalFile, odinContext))
             {

@@ -32,8 +32,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = [ControllerConstants.OwnerDrive])]
         [HttpGet("temp-file-exists")]
-        public async Task<bool> TempFileExists([FromQuery] Guid fileId, 
-            [FromQuery] Guid alias, 
+        public async Task<bool> TempFileExists([FromQuery] Guid fileId,
+            [FromQuery] Guid alias,
             [FromQuery] Guid type,
             [FromQuery] TempStorageType storageType,
             [FromQuery] string extension)
@@ -56,6 +56,33 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 .ResolveFileSystem()
                 .Storage
                 .TempFileExists(tempFile, extension, WebOdinContext);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Indicates if the specified TempFile exists.  This is used for testing only
+        /// </summary>
+        [SwaggerOperation(Tags = [ControllerConstants.OwnerDrive])]
+        [HttpGet("has-orphan-payloads")]
+        public async Task<bool> VerifyNoOrphans([FromQuery] Guid fileId,
+            [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            var file = MapToInternalFile(new ExternalFileIdentifier()
+            {
+                FileId = fileId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            });
+
+            var result = await this.GetHttpFileSystemResolver()
+                .ResolveFileSystem()
+                .Storage
+                .HasOrphanPayloads(file, WebOdinContext);
 
             return result;
         }

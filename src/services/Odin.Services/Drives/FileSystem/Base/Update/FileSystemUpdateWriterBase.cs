@@ -101,7 +101,7 @@ public abstract class FileSystemUpdateWriterBase
         throw new NotImplementedException("Unhandled locale specified");
     }
 
-    public virtual Task AddMetadata(Stream data, IOdinContext odinContext)
+    public virtual Task AddMetadata(Stream data)
     {
         Package.Metadata = data.ToByteArray();
         return Task.CompletedTask;

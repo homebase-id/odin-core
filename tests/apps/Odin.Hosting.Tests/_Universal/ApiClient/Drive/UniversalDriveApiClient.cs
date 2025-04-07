@@ -799,6 +799,19 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         );
     }
 
+    public async Task<ApiResponse<bool>> HasOrphanPayloads(ExternalFileIdentifier file,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        return await svc.HasOrphanPayloads(
+            file.FileId,
+            file.TargetDrive.Alias,
+            file.TargetDrive.Type
+        );
+    }
+
     public async Task<ApiResponse<DeleteFileResult>> SoftDeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {

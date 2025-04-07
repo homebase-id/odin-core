@@ -218,11 +218,22 @@ namespace Odin.Services.Drives.FileSystem.Base
             var bytes = await tempStorageManager.GetAllFileBytes(tempFile, extension);
             return bytes;
         }
-        
+
         public async Task<bool> TempFileExists(TempFile tempFile, string extension, IOdinContext odinContext)
         {
             odinContext.Caller.AssertCallerIsOwner();
             return await tempStorageManager.TempFileExists(tempFile, extension);
+        }
+
+        /// <summary>
+        /// Tests if additional payload or thumbnail files for the given file
+        /// </summary>
+        public async Task<bool> HasOrphanPayloads(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertCallerIsOwner();
+            var originalHeader = await this.GetServerFileHeaderInternal(file, odinContext);
+            var metadata = originalHeader.FileMetadata;
+            return await longTermStorageManager.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
         }
         
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
@@ -1448,5 +1459,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, fileId, metadata.Payloads);
         }
+        
     }
 }

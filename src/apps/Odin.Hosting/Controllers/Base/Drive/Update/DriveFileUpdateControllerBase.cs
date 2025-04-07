@@ -50,7 +50,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
             {
                 if (IsMetadataPart(section))
                 {
-                    await updateWriter.AddMetadata(section!.Body, WebOdinContext);
+                    await updateWriter.AddMetadata(section!.Body);
                 }
 
                 if (IsPayloadPart(section))

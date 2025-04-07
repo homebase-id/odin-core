@@ -78,6 +78,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         Task<ApiResponse<bool>> TempFileExists(Guid fileId, Guid alias, Guid type, TempStorageType storageType,
             string extension);
 
+        [Get(RootStorageEndpoint + "/has-orphan-payloads")]
+        Task<ApiResponse<bool>> HasOrphanPayloads(Guid fileId, Guid alias, Guid type);
+
         [Post(RootQueryEndpoint + "/modified")]
         Task<ApiResponse<QueryModifiedResult>> GetModified([Body] QueryModifiedRequest request);
 
