@@ -15,6 +15,7 @@ using Microsoft.Extensions.Hosting;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.CorrelationId.Serilog;
+using Odin.Core.Logging.Exception.Serilog;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
@@ -78,7 +79,7 @@ namespace Odin.Hosting
             LoggerConfiguration loggerConfig = null)
         {
             const string logOutputTemplate = // Add {SourceContext} to see source
-                "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
+                "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{ExceptionMessage:lj}{NewLine}{Exception}";
 
             loggerConfig ??= new LoggerConfiguration();
 
@@ -87,6 +88,7 @@ namespace Odin.Hosting
                 .Enrich.FromLogContext()
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                .Enrich.WithExceptionMessage()
                 .WriteTo.Filter(sink => sink
                     .Async(s => s.Console(
                         outputTemplate: logOutputTemplate,
