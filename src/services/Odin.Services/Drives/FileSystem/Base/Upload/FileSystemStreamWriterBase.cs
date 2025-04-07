@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -102,9 +103,10 @@ public abstract class FileSystemStreamWriterBase
         this.Package = new FileUploadPackage(file, instructionSet!, isUpdateOperation);
     }
 
-    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
+    public virtual Task AddMetadata(Stream data, IOdinContext odinContext)
     {
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), data, odinContext);
+        Package.Metadata = data.ToByteArray();
+        return Task.CompletedTask;
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
@@ -342,10 +344,11 @@ public abstract class FileSystemStreamWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(
-            package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), odinContext);
+        // var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(
+        //     package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), odinContext);
+        //
         
-        var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
+        var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)

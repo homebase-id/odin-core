@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -100,10 +101,10 @@ public abstract class FileSystemUpdateWriterBase
         throw new NotImplementedException("Unhandled locale specified");
     }
 
-    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
+    public virtual Task AddMetadata(Stream data, IOdinContext odinContext)
     {
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile.AsTempFileUpload(),
-            MultipartUploadParts.Metadata.ToString(), data, odinContext);
+        Package.Metadata = data.ToByteArray();
+        return Task.CompletedTask;
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
@@ -291,11 +292,7 @@ public abstract class FileSystemUpdateWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile.AsTempFileUpload(),
-            MultipartUploadParts.Metadata.ToString(),
-            odinContext);
-
-        var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
+        var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted

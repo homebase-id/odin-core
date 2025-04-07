@@ -297,12 +297,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task HandleUpdateFileAsync(TempFile tempFile, TransferInboxItem inboxItem, IOdinContext odinContext)
         {
             var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
-
-
-            var updateInstructionSet =
-                OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
-            var decryptedKeyHeader =
-                await DecryptedKeyHeaderAsync(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
+            
+            var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(
+                inboxItem.Data.ToStringFromUtf8Bytes());
+            
+            var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
+                    inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
+            
             await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext);
         }
 
