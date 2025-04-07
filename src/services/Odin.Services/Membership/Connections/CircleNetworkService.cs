@@ -18,6 +18,7 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
@@ -632,10 +633,8 @@ namespace Odin.Services.Membership.Connections
 
         public async Task RevokeConnectionAsync(OdinId odinId, IOdinContext odinContext)
         {
-            await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:DeleteAsync", async () =>
-            {
-                await circleNetworkStorage.DeleteAsync(odinId);
-            });
+            await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:DeleteAsync",
+                async () => { await circleNetworkStorage.DeleteAsync(odinId); });
 
             await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:Publish", async () =>
             {

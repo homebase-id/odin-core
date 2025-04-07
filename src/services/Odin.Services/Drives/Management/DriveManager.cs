@@ -13,6 +13,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Mediator;
 
 namespace Odin.Services.Drives.Management;
@@ -124,13 +125,15 @@ public class DriveManager
             _logger.LogDebug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
         }
 
-        await _mediator.Publish(new DriveDefinitionAddedNotification
+        if (!odinContext.HasMarker(TenantConfigService.IsInitializingMarker))
         {
-            IsNewDrive = true,
-            Drive = storageDrive,
-            OdinContext = odinContext,
-        });
-
+            await _mediator.Publish(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = true,
+                Drive = storageDrive,
+                OdinContext = odinContext,
+            });
+        }
         return storageDrive;
     }
 

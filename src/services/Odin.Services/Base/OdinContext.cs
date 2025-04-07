@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -24,6 +26,9 @@ namespace Odin.Services.Base
         void SetAuthContext(string authContext);
         void AssertCanManageConnections();
         RedactedOdinContext Redacted();
+        void AddMarker(string marker);
+        void RemoveMarker(string marker);
+        bool HasMarker(string marker);
     }
 
     //
@@ -38,7 +43,7 @@ namespace Odin.Services.Base
 
         public IOdinContext Clone()
         {
-            return new OdinContext
+            var ctx = new OdinContext
             {
                 Tenant = Tenant.Clone(),
                 Caller = Caller?.Clone(),
@@ -46,6 +51,15 @@ namespace Odin.Services.Base
                 AuthContext = AuthContext,
                 AuthTokenCreated = AuthTokenCreated?.Clone()
             };
+
+            ctx.SetMarkers(_markers);
+            
+            return ctx;
+        }
+
+        private void SetMarkers(List<string> markers)
+        {
+            this._markers.AddRange(markers);
         }
 
         public OdinId GetCallerOdinIdOrFail()
@@ -93,6 +107,23 @@ namespace Odin.Services.Base
                 Caller = Caller.Redacted(),
                 PermissionContext = PermissionsContext.Redacted()
             };
+        }
+
+        private readonly List<string> _markers = new List<string>();
+
+        public void AddMarker(string marker)
+        {
+            this._markers.Add(marker);
+        }
+
+        public void RemoveMarker(string marker)
+        {
+            this._markers.Remove(marker);
+        }
+
+        public bool HasMarker(string marker)
+        {
+            return this._markers.Exists(m => m.Equals(marker, StringComparison.InvariantCultureIgnoreCase));
         }
 
         private string DebugDisplay => $"{Caller.OdinId} is calling {Tenant} with security {Caller.SecurityLevel}";

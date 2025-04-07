@@ -86,6 +86,12 @@ public class VersionUpgradeService(
 
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
+            
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
 
             if (currentVersion == 2)
             {
@@ -101,11 +107,17 @@ public class VersionUpgradeService(
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
             
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            
             if (currentVersion == 3)
             {
                 _isRunning = true;
                 logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
-
+                
                 await v4.UpgradeAsync(odinContext, cancellationToken);
 
                 await v4.ValidateUpgradeAsync(odinContext, cancellationToken);
@@ -113,6 +125,12 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+            }
+            
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
             }
             
             // ...

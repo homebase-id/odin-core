@@ -30,7 +30,9 @@ namespace Odin.Services.Configuration;
 public class TenantConfigService
 {
     private const string ConfigContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
-    private static readonly SingleKeyValueStorage ConfigStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ConfigContextKey));
+
+    private static readonly SingleKeyValueStorage ConfigStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ConfigContextKey));
 
     private readonly CircleNetworkService _dbs;
     private readonly TenantContext _tenantContext;
@@ -67,6 +69,8 @@ public class TenantConfigService
         _identityDatabase = identityDatabase;
     }
 
+    public static readonly string IsInitializingMarker = "IsInitializingMarker";
+
     public async Task InitializeAsync()
     {
         var tenantSettings = await GetTenantSettingsAsync();
@@ -92,11 +96,12 @@ public class TenantConfigService
     /// </summary>
     public async Task<TenantVersionInfo> IncrementVersionAsync()
     {
-        var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key) ?? new TenantVersionInfo()
-        {
-            DataVersionNumber = 0,
-            LastUpgraded = 0
-        };
+        var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key) ??
+                             new TenantVersionInfo()
+                             {
+                                 DataVersionNumber = 0,
+                                 LastUpgraded = 0
+                             };
 
         var newVersion = new TenantVersionInfo()
         {
@@ -131,7 +136,6 @@ public class TenantConfigService
 
     public async Task<TenantVersionInfo> GetVersionInfoAsync()
     {
-
         var info = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key);
         return info ?? new TenantVersionInfo
         {
@@ -142,8 +146,6 @@ public class TenantConfigService
 
     public async Task<bool> IsIdentityServerConfiguredAsync()
     {
-
-
         //ok for anonymous to query this as long as we're only returning a bool
         var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValue, FirstRunInfo.Key);
         return firstRunInfo != null;
@@ -151,8 +153,6 @@ public class TenantConfigService
 
     public async Task<bool> IsEulaSignatureRequiredAsync(IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
         var info = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey);
@@ -176,19 +176,16 @@ public class TenantConfigService
 
     public async Task<List<EulaSignature>> GetEulaSignatureHistoryAsync(IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
-        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey) ??
+                         new List<EulaSignature>();
 
         return signatures;
     }
 
     public async Task MarkEulaSignedAsync(MarkEulaSignedRequest request, IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
@@ -199,7 +196,8 @@ public class TenantConfigService
             throw new OdinClientException("Invalid Eula version");
         }
 
-        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey) ??
+                         new List<EulaSignature>();
 
         signatures.Add(new EulaSignature()
         {
@@ -232,7 +230,7 @@ public class TenantConfigService
         }
 
         //Note: the order here is important.  if the request or system drives include any anonymous
-        //drives, they should be added after the system circle exists
+        //drives, they should be added to the circle after the system circle exists
         await _circleMembershipService.CreateSystemCirclesAsync(odinContext);
 
         await EnsureSystemDrivesExist(odinContext);
@@ -262,26 +260,33 @@ public class TenantConfigService
 
         tx.Commit();
     }
-
+    
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
     {
-        // Note - if the drive attributes was changed, they will be applied by this
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
+        try
+        {
+            odinContext.AddMarker(IsInitializingMarker);
 
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
+            // Note - if the drive attributes was changed, they will be applied by this
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
+
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
+            await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
+        }
+        finally
+        {
+            odinContext.RemoveMarker(IsInitializingMarker);
+        }
     }
 
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
@@ -289,7 +294,8 @@ public class TenantConfigService
             throw new OdinClientException("Invalid flag name", OdinClientErrorCode.InvalidFlagName);
         }
 
-        var cfg = await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValue, TenantSettings.ConfigKey) ?? new TenantSettings();
+        var cfg = await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValue, TenantSettings.ConfigKey) ??
+                  new TenantSettings();
 
         switch (flag)
         {
@@ -355,21 +361,18 @@ public class TenantConfigService
 
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {
-
         return await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValue, TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
     public async Task<OwnerAppSettings> GetOwnerAppSettingsAsync(IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
-        return await ConfigStorage.GetAsync<OwnerAppSettings>(_identityDatabase.KeyValue, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
+        return await ConfigStorage.GetAsync<OwnerAppSettings>(_identityDatabase.KeyValue, OwnerAppSettings.ConfigKey) ??
+               OwnerAppSettings.Default;
     }
 
     public async Task UpdateOwnerAppSettingsAsync(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
-
         odinContext.Caller.AssertHasMasterKey();
         await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, OwnerAppSettings.ConfigKey, newSettings);
     }
@@ -489,8 +492,6 @@ public class TenantConfigService
 
     private async Task<bool> CreateDriveIfNotExistsAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
-
-
         var drive = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, false);
 
         if (null == drive)
