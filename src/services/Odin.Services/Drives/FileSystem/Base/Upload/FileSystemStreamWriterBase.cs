@@ -343,9 +343,9 @@ public abstract class FileSystemStreamWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes =
-            await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(),
-                odinContext);
+        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(
+            package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), odinContext);
+        
         var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 

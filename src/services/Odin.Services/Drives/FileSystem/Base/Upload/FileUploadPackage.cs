@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core;
@@ -15,13 +14,13 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// <summary />
         public FileUploadPackage(InternalDriveFileId internalFile, UploadInstructionSet instructionSet, bool isUpdateOperation)
         {
-            // this.TempMetadataFile = new InternalDriveFileId()
-            // {
-            //     FileId = SequentialGuid.CreateGuid(UnixTimeUtc.Now()),
-            //     DriveId = internalFile.DriveId
-            // };
+            this.TempMetadataFile = new InternalDriveFileId()
+            {
+                FileId = SequentialGuid.CreateGuid(UnixTimeUtc.Now()),
+                DriveId = internalFile.DriveId
+            };
 
-            this.TempMetadataFile = internalFile;
+            // this.TempMetadataFile = internalFile;
             
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
