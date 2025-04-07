@@ -104,7 +104,6 @@ public abstract class FileSystemStreamWriterBase
 
     public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
     {
-        // await FileSystem.Storage.WriteTempStream(Package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
         await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), data, odinContext);
     }
 
