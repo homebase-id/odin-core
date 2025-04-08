@@ -152,7 +152,7 @@ public static class CommandLine
         //     CreateLocalAppMetadataSchema.Execute(args[1]);
         //     return (true, 0);
         // }
-        
+
         // if (args.Length == 2 && args[0] == "--rowidstep2")
         // {
         //     RowIdStep2.Execute(args[1]);
@@ -164,6 +164,13 @@ public static class CommandLine
         //     CreateRowId.Execute(args[1], args[2] == "--commit").GetAwaiter().GetResult();
         //     return (true, 0);
         // }
+
+        if (args.Length == 2 && args[0] == "--timefixes")
+        {
+            TimestampFixes.Execute(args[1]);
+            return (true, 0);
+        }
+
 
         return (false, 0);
     }
