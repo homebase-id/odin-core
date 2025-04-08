@@ -166,11 +166,11 @@ public static class CommandLine
         //     return (true, 0);
         // }
 
-        if (args.Length == 3 && args[0] == "--timefixes")
-        {
-            TimestampFixes.Execute(args[1], args[2]);
-            return (true, 0);
-        }
+        // if (args.Length == 3 && args[0] == "--timefixes")
+        // {
+        //     TimestampFixes.Execute(args[1], args[2]);
+        //     return (true, 0);
+        // }
 
 
         return (false, 0);

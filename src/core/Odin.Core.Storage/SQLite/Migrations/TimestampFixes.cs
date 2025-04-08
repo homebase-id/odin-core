@@ -26,6 +26,7 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 //  - Edit the docker-compose.yml file:
 //    - Add the correct command line param to start the migration
 //    - Disable start-always if enabled
+//    - Mount the timefix/olddata volume
 //  - Start the docker image: docker compose up
 //  - Wait for the migration to finish
 //  - Make sure docker container is gone: docker container prune -f
@@ -65,6 +66,8 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 //
 // run params:
 //   --timefixes /tmp/xx-olddata /identity-host/data
+
+#if false
 
 public static class TimestampFixes
 {
@@ -766,3 +769,5 @@ public static class TimestampFixes
         }
     }
 }
+
+#endif
