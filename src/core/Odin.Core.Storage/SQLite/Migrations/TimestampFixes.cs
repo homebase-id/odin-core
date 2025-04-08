@@ -95,7 +95,7 @@ public static class TimestampFixes
 
         if (!File.Exists(originalDbPath))
         {
-            throw new Exception("Database not found: " + currentDbPath);
+            throw new Exception("Database not found: " + originalDbPath);
         }
 
         {
