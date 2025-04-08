@@ -208,8 +208,28 @@ namespace Odin.Services.Drives.DriveCore.Storage
             Benchmark.Milliseconds(_logger, nameof(HardDeletePayloadFile), () =>
             {
                 var path = GetPayloadFilePath(drive, fileId, payloadKey, payloadUid);
-                _driveFileReaderWriter.DeleteFile(path);
-                DeleteAllThumbnails(drive, fileId, payloadKey, payloadUid);
+
+                //
+                // Re-enable DELETION this after we are good with actually deleting the file
+                //
+                
+                // _driveFileReaderWriter.DeleteFile(path);
+
+                var target = path.Replace(".payload", ".deleted-payload");
+                _driveFileReaderWriter.MoveFile(path, target);
+
+                // delete the thumbnails
+                // _driveFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
+
+                // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
+                var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, new UnixTimeUtcUnique(long.Parse(payloadUid)));
+                var dir = GetPayloadPath(drive, fileId);
+                var thumbnailFiles = _driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
+                foreach (var thumbnailFile in thumbnailFiles)
+                {
+                    var thumbnailTarget = path.Replace(".thumb", ".deleted-thumb");
+                    _driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
+                }
             });
         }
 
@@ -395,7 +415,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task HardDeleteAsync(StorageDrive drive, Guid fileId)
         {
-            Benchmark.Milliseconds(_logger, "HardDeleteAsync", () => { HardDeleteAllPayloadFiles(drive, fileId); });
+            Benchmark.Milliseconds(_logger, "HardDeleteAsync", () =>
+            {
+                HardDeleteAllPayloadFiles(drive, fileId);
+            });
             await _driveQuery.HardDeleteFileHeaderAsync(drive, GetInternalFile(drive, fileId));
         }
 
@@ -739,17 +762,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var extension = DriveFileUtility.GetPayloadFileExtension("*", "*");
             var mask = $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
             return mask;
-        }
-
-        private void DeleteAllThumbnails(StorageDrive drive, Guid fileId, string payloadKey, string payloadUid)
-        {
-            // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
-            Benchmark.Milliseconds(_logger, nameof(DeleteAllThumbnails), () =>
-            {
-                var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, new UnixTimeUtcUnique(long.Parse(payloadUid)));
-                var dir = GetPayloadPath(drive, fileId);
-                _driveFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
-            });
         }
 
         private InternalDriveFileId GetInternalFile(StorageDrive drive, Guid fileId)
