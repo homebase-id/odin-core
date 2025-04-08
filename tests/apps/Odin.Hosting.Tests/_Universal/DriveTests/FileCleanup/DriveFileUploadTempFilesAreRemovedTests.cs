@@ -170,6 +170,9 @@ public class DriveFileUploadTempFilesAreRemovedTests
     public async Task CanUpdateFilePayloadsAndThumbnailsAndOrphansAreDeleted(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
+        Console.WriteLine($"Test data path: [{_scaffold.TestPayloadPath}]");
+        Console.WriteLine($"Test payload data path: [{_scaffold.TestPayloadPath}]");
+        
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         var targetDrive = callerContext.TargetDrive;

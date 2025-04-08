@@ -33,6 +33,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private const string ThumbnailSizeDelimiter = "x";
 
+        private const string DeletePayloadExtension = ".p-deleted";
+        private const string DeletedThumbExtension = ".t-deleted";
+
         public LongTermStorageManager(
             ILogger<LongTermStorageManager> logger,
             DriveFileReaderWriter driveFileReaderWriter,
@@ -215,7 +218,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 
                 // _driveFileReaderWriter.DeleteFile(path);
 
-                var target = path.Replace(".payload", ".deleted-payload");
+                var target = path.Replace(".payload", DeletePayloadExtension);
                 _driveFileReaderWriter.MoveFile(path, target);
 
                 // delete the thumbnails
@@ -227,12 +230,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var thumbnailFiles = _driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
-                    var thumbnailTarget = path.Replace(".thumb", ".deleted-thumb");
+                    var thumbnailTarget = thumbnailFile.Replace(".thumb", DeletedThumbExtension);
                     _driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
                 }
             });
         }
-
+        
         public void HardDeleteAllPayloadFiles(StorageDrive drive, Guid fileId)
         {
             Benchmark.Milliseconds(_logger, nameof(HardDeleteAllPayloadFiles), () =>
