@@ -58,38 +58,35 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 
 // Local test:
 //
-//   mkdir $HOME/tmp/example
-//   rsync -rvz yagni.dk:/identity-host/data/system $HOME/tmp/example/data
-//   rsync -rvz yagni.dk:/identity-host/data/tenants/registrations $HOME/tmp/example/data/tenants
 // run params:
-//   --my-migration-name $HOME/tmp/example/data
+//   --timefixes /home/seb/tmp/timefix/olddata /home/seb/tmp/timefix/data
 
 // PROD:
 //
 // run params:
-//   --my-migration-name /identity-host/data
+//   --timefixes /tmp/xx-olddata /identity-host/data
 
 public static class TimestampFixes
 {
-    public static void Execute(string dataRootPath)
+    public static void Execute(string oldDataRootPath, string dataRootPath)
     {
-        var tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "", ""));
+        var tenantDirs = Directory.GetDirectories(Path.Combine(dataRootPath, "tenants", "registrations"));
         foreach (var tenantDir in tenantDirs)
         {
-            Console.WriteLine($"Tenant {tenantDir} - fixing timestamps");
-            DoDatabase(tenantDir);
+            var oldTenantDir = Path.Combine(oldDataRootPath, "tenants", "registrations", Path.GetFileName(tenantDir));
+            Console.WriteLine($"Tenant {tenantDir} - fixing timestamps from {oldTenantDir}");
+            DoDatabase(oldTenantDir, tenantDir);
         }
     }
 
     //
 
-    private static void DoDatabase(string tenantDir)
+    private static void DoDatabase(string oldTenantDir, string tenantDir)
     {
-        Console.WriteLine(tenantDir);
         var tenantId = Guid.Parse(Path.GetFileName(tenantDir));
 
         var currentDbPath = Path.Combine(tenantDir, "headers", "identity.db");
-        var originalDbPath = Path.Combine(tenantDir, "headers", "identity.db.backup"); // SEB FIX THE PATH HERE
+        var originalDbPath = Path.Combine(oldTenantDir, "headers", "identity.db");
 
         if (!File.Exists(currentDbPath))
         {
@@ -103,7 +100,7 @@ public static class TimestampFixes
 
         {
             // Back-up the current database before we make any changes
-            var backupDbPath = Path.Combine(tenantDir, "headers", "identity.db.20250404.backup");
+            var backupDbPath = Path.Combine(tenantDir, "headers", "identity.db.20250408.backup");
             // DO NOT DELETE THE BACKUP DATABASE. WE WANT TO BACK IT UP EXACTLY ONCE, 
             // AND IF IT ALREADY EXISTS, THEN LEAVE IT SO WE DONT RISK OVERWRITING IT
             // IF BY ACCIDENT WE RUN IT TWICE
