@@ -143,12 +143,12 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
         [HttpGet(HomeApiPathConstants.IsAuthenticatedMethodName)]
         [Produces("application/json")]
-        [AllowAnonymous]
+        [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme)]
         public ActionResult IsAuthenticated()
         {
             return Ok(User?.Identity?.IsAuthenticated);
         }
-
+        
         //
 
         [HttpGet(HomeApiPathConstants.DeleteTokenMethodName)]
