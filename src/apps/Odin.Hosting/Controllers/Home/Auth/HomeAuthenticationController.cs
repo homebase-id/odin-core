@@ -20,6 +20,7 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Services.Authorization;
 
 namespace Odin.Hosting.Controllers.Home.Auth
 {
@@ -146,7 +147,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
         [Authorize(AuthenticationSchemes = YouAuthConstants.YouAuthScheme)]
         public ActionResult IsAuthenticated()
         {
-            return Ok(User?.Identity?.IsAuthenticated);
+            return Ok(User?.HasClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower()) ?? false);
         }
         
         //
