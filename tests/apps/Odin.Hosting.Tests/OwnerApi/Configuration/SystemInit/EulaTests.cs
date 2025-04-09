@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Time;
 using Odin.Services.Configuration.Eula;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
@@ -73,7 +74,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             
             ClassicAssert.IsTrue(eulaSignature.SignatureBytes.Length == signature.Length);
 
-            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var nowMs = UnixTimeUtc.Now();
             ClassicAssert.IsTrue(eulaSignature.SignatureDate < nowMs);
         }
 
