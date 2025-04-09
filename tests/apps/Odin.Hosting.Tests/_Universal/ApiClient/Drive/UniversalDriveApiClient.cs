@@ -648,7 +648,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         KeyHeader keyHeader,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        
         var encryptedThumbnails = new List<EncryptedAttachmentUploadResult>();
         var encryptedPayloads = new List<EncryptedAttachmentUploadResult>();
 
@@ -659,7 +658,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.Content = encryptedJsonContent64;
             fileMetadata.IsEncrypted = true;
-            
+
             var descriptor = new UpdateFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, uploadInstructionSet.TransferIv, ref sharedSecret),
@@ -691,7 +690,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
                 });
 
                 payloadCipher.Position = 0;
-                
+
                 foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
                 {
                     var thumbnailKey =
@@ -706,7 +705,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
                         ContentType = payloadDefinition.ContentType,
                         EncryptedContent64 = thumbnailCipher.ToByteArray().ToBase64()
                     });
-                    
+
                     thumbnailCipher.Position = 0;
                 }
             }
@@ -742,7 +741,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
         return apiResponse;
     }
-    
+
     public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(ExternalFileIdentifier file,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -751,7 +750,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         var apiResponse = await svc.GetTransferHistory(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
         return apiResponse;
     }
-    
+
     public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -767,7 +766,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
-        FileSystemType fileSystemType = FileSystemType.Standard)
+        FileSystemType fileSystemType = FileSystemType.Standard, bool directMatchOnly = false)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
@@ -777,10 +776,40 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             File = file,
             Height = height,
             Width = width,
-            PayloadKey = payloadKey
+            PayloadKey = payloadKey,
+            DirectMatchOnly = directMatchOnly
         });
 
         return thumbnailResponse;
+    }
+
+
+    public async Task<ApiResponse<bool>> TempFileExists(ExternalFileIdentifier file, TempStorageType storageType, string extension,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        return await svc.TempFileExists(
+            file.FileId,
+            file.TargetDrive.Alias,
+            file.TargetDrive.Type,
+            storageType,
+            extension
+        );
+    }
+
+    public async Task<ApiResponse<bool>> HasOrphanPayloads(ExternalFileIdentifier file,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        return await svc.HasOrphanPayloads(
+            file.FileId,
+            file.TargetDrive.Alias,
+            file.TargetDrive.Type
+        );
     }
 
     public async Task<ApiResponse<DeleteFileResult>> SoftDeleteFile(ExternalFileIdentifier file, List<string> recipients = null,
@@ -889,7 +918,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             {
                 throw new TimeoutException(
                     $"timeout occured while waiting for outbox to complete processing " +
-                    $"-- Did you enable AllowDistribution on your outgoing file? - " + 
+                    $"-- Did you enable AllowDistribution on your outgoing file? - " +
                     $"(wait time: {maxWait.TotalSeconds}sec. " +
                     $"Total Items: {status.Outbox.TotalItems} " +
                     $"Checked Out {status.Outbox.CheckedOutCount})");

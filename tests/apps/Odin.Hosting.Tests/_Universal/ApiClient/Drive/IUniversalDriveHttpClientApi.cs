@@ -39,10 +39,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 
         [Patch(RootStorageEndpoint + "/update-local-metadata-tags")]
         Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalMetadataTags([Body] UpdateLocalMetadataTagsRequest request);
-        
+
         [Patch(RootStorageEndpoint + "/update-local-metadata-content")]
         Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalMetadataContent([Body] UpdateLocalMetadataContentRequest request);
-        
+
 
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteFileResult>> SoftDeleteFile([Body] DeleteFileRequest file);
@@ -74,15 +74,22 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Get(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
+        [Get(RootStorageEndpoint + "/temp-file-exists")]
+        Task<ApiResponse<bool>> TempFileExists(Guid fileId, Guid alias, Guid type, TempStorageType storageType,
+            string extension);
+
+        [Get(RootStorageEndpoint + "/has-orphan-payloads")]
+        Task<ApiResponse<bool>> HasOrphanPayloads(Guid fileId, Guid alias, Guid type);
+
         [Post(RootQueryEndpoint + "/modified")]
         Task<ApiResponse<QueryModifiedResult>> GetModified([Body] QueryModifiedRequest request);
 
         [Post(RootQueryEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] QueryBatchRequest request);
-        
+
         [Get(RootStorageEndpoint + "/transfer-history")]
         Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(Guid fileId, Guid alias, Guid type);
-            
+
         [Post(RootQueryEndpoint + "/batchcollection")]
         Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] QueryBatchCollectionRequest request);
 
@@ -94,7 +101,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
 
         [Post(RootStorageEndpoint + "/send-read-receipt")]
         Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(SendReadReceiptRequest request);
-        
+
         [Multipart]
         [Post(RootStorageEndpoint + "/uploadpayload")]
         Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);

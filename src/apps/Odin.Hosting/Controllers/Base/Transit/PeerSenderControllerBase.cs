@@ -66,7 +66,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await fileSystemWriter.AddMetadata(section!.Body, WebOdinContext);
+            await fileSystemWriter.AddMetadata(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();

@@ -292,7 +292,11 @@ namespace Odin.Core.Time
         }
 
         private Int64 _millisecondsUniqueWithCounter;
-        
+
+        public override string ToString()
+        {
+            return uniqueTime.ToString();
+        }
     }
 
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
@@ -100,9 +101,10 @@ public abstract class FileSystemUpdateWriterBase
         throw new NotImplementedException("Unhandled locale specified");
     }
 
-    public virtual async Task AddMetadata(Stream data, IOdinContext odinContext)
+    public virtual Task AddMetadata(Stream data)
     {
-        await FileSystem.Storage.WriteTempStream(Package.TempMetadataFile, MultipartUploadParts.Metadata.ToString(), data, odinContext);
+        Package.Metadata = data.ToByteArray();
+        return Task.CompletedTask;
     }
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
@@ -122,7 +124,8 @@ public abstract class FileSystemUpdateWriterBase
 
         var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile
+            .AsTempFileUpload(), extension, data, odinContext);
 
         if (bytesWritten > 0)
         {
@@ -168,7 +171,7 @@ public abstract class FileSystemUpdateWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile, extenstion, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extenstion, data, odinContext);
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -194,7 +197,7 @@ public abstract class FileSystemUpdateWriterBase
             {
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
-            
+
             await ProcessExistingFileUploadAsync(Package, keyHeader, metadata, serverMetadata, odinContext);
 
             var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
@@ -228,11 +231,12 @@ public abstract class FileSystemUpdateWriterBase
             {
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
-            
-            await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false, odinContext);
+
+            await FileSystem.Storage.CommitNewFile(Package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false,
+                odinContext);
 
             var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext);
-            
+
             return new FileUpdateResult()
             {
                 NewVersionTag = Package.NewVersionTag,
@@ -272,7 +276,7 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatchAsync(sourceTempFile: package.InternalFile, package.InternalFile, manifest, odinContext);
+        await FileSystem.Storage.UpdateBatchAsync(package.InternalFile.AsTempFileUpload(), package.InternalFile, manifest, odinContext);
     }
 
     /// <summary>
@@ -288,17 +292,13 @@ public abstract class FileSystemUpdateWriterBase
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
 
-        var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(package.TempMetadataFile,
-            MultipartUploadParts.Metadata.ToString(),
-            odinContext);
-
-        var decryptedJsonBytes = AesCbc.Decrypt(metadataBytes, clientSharedSecret, package.InstructionSet.TransferIv);
+        var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
         var updateDescriptor = OdinSystemSerializer.Deserialize<UpdateFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
         KeyHeader keyHeader = updateDescriptor.FileMetadata.IsEncrypted
             ? updateDescriptor.EncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
-        
+
         await ValidateUploadDescriptor(updateDescriptor);
 
         var metadata = await MapUploadToMetadata(package, updateDescriptor, odinContext);
@@ -308,7 +308,7 @@ public abstract class FileSystemUpdateWriterBase
             AccessControlList = updateDescriptor.FileMetadata.AccessControlList,
             AllowDistribution = updateDescriptor.FileMetadata.AllowDistribution
         };
-        
+
         return (keyHeader, metadata, serverMetadata);
     }
 

@@ -12,6 +12,7 @@ using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
@@ -22,7 +23,6 @@ using Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Reactions;
-using static Org.BouncyCastle.Bcpg.Attr.ImageAttrib;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -69,13 +69,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
                 logger.LogDebug("Processing Inbox (no call to CUOWA) item with marker/popStamp [{marker}]", inboxItem.Marker);
 
-                var tempFile = new InternalDriveFileId() { DriveId = inboxItem.DriveId, FileId = inboxItem.FileId };
-                var b = await ProcessInboxItemAsync(inboxItem, odinContext);
+                var tempFile = new TempFile()
+                {
+                    File = new InternalDriveFileId()
+                    {
+                        DriveId = inboxItem.DriveId,
+                        FileId = inboxItem.FileId
+                    },
+                    StorageType = TempStorageType.Inbox
+                };
 
-                if (b == true)
-                    await transitInboxBoxStorage.MarkCompleteAsync(tempFile, inboxItem.Marker);
+                var b = await ProcessInboxItemAsync(tempFile, inboxItem, odinContext);
+
+                if (b)
+                    await transitInboxBoxStorage.MarkCompleteAsync(tempFile.File, inboxItem.Marker);
                 else
-                    await transitInboxBoxStorage.MarkFailureAsync(tempFile, inboxItem.Marker);
+                    await transitInboxBoxStorage.MarkFailureAsync(tempFile.File, inboxItem.Marker);
             }
 
             return await GetPendingCountAsync(targetDrive, driveId);
@@ -89,7 +98,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// return false: the item is failed and we should retry later
         /// This function should never throw an exception, only return true / false
         /// </summary>
-        private async Task<bool> ProcessInboxItemAsync(TransferInboxItem inboxItem, IOdinContext odinContext)
+        private async Task<bool> ProcessInboxItemAsync(TempFile tempFile, TransferInboxItem inboxItem, IOdinContext odinContext)
         {
             correlationContext.Id = inboxItem.CorrelationId ?? FallbackCorrelationId;
             logger.LogDebug("Begin processing Inbox item");
@@ -98,11 +107,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             // await db.CreateCommitUnitOfWorkAsync(async () =>
             // {
-            var tempFile = new InternalDriveFileId()
-            {
-                DriveId = inboxItem.DriveId,
-                FileId = inboxItem.FileId
-            };
+
 
             try
             {
@@ -110,7 +115,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
-                    await HandleUpdateFileAsync(inboxItem, odinContext);
+                    await HandleUpdateFileAsync(tempFile, inboxItem, odinContext);
                     return true;
                 }
 
@@ -123,14 +128,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                             inboxItem.GlobalTransitId, inboxItem.InstructionType);
                         return true;
                     }
-                    
+
                     if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeedViaTransit)
                     {
                         //this was a file sent over transit (fully encrypted for connected identities but targeting the feed drive)
                         await ProcessFeedItemViaTransit(inboxItem, odinContext, writer, tempFile, fs);
                         return true;
                     }
-                    
+
                     if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed) //older path
                     {
                         await ProcessEccEncryptedFeedInboxItem(inboxItem, writer, tempFile, fs, odinContext);
@@ -216,6 +221,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                         Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
                 }
+
                 return true;
             }
             catch (OdinSecurityException securityException)
@@ -255,7 +261,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         private async Task ProcessNormalFileSaveOperation(TransferInboxItem inboxItem, IOdinContext odinContext, PeerFileWriter writer,
-            InternalDriveFileId tempFile, IDriveFileSystem fs)
+            TempFile tempFile, IDriveFileSystem fs)
         {
             logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
 
@@ -272,7 +278,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         private async Task ProcessFeedItemViaTransit(TransferInboxItem inboxItem, IOdinContext odinContext, PeerFileWriter writer,
-            InternalDriveFileId tempFile, IDriveFileSystem fs)
+            TempFile tempFile, IDriveFileSystem fs)
         {
             logger.LogDebug("ProcessFeedItemViaTransit -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
 
@@ -288,19 +294,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 handleFileMs);
         }
 
-        private async Task HandleUpdateFileAsync(TransferInboxItem inboxItem, IOdinContext odinContext)
+        private async Task HandleUpdateFileAsync(TempFile tempFile, TransferInboxItem inboxItem, IOdinContext odinContext)
         {
             var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
-            var tempFile = new InternalDriveFileId()
-            {
-                FileId = inboxItem.FileId,
-                DriveId = inboxItem.DriveId
-            };
-
-            var updateInstructionSet =
-                OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(inboxItem.Data.ToStringFromUtf8Bytes());
-            var decryptedKeyHeader =
-                await DecryptedKeyHeaderAsync(inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
+            
+            var updateInstructionSet = OdinSystemSerializer.Deserialize<EncryptedRecipientFileUpdateInstructionSet>(
+                inboxItem.Data.ToStringFromUtf8Bytes());
+            
+            var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
+                    inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
+            
             await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext);
         }
 
@@ -334,6 +337,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     throw new OdinClientException("HandleReaction -> Invalid instruction type", OdinClientErrorCode.InvalidTransferType);
             }
         }
+
         private T DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
         {
             //TODO: put decryption back in place
@@ -348,7 +352,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         private async Task ProcessEccEncryptedFeedInboxItem(TransferInboxItem inboxItem, PeerFileWriter writer,
-            InternalDriveFileId tempFile,
+            TempFile tempFile,
             IDriveFileSystem fs,
             IOdinContext odinContext)
         {

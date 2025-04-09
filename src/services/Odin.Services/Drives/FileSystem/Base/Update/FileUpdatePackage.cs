@@ -15,11 +15,6 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         public FileUpdatePackage(InternalDriveFileId internalFile)
         {
             InternalFile = internalFile;
-            this.TempMetadataFile = new InternalDriveFileId()
-            {
-                FileId = SequentialGuid.CreateGuid(UnixTimeUtc.Now()),
-                DriveId = internalFile.DriveId
-            };
 
             this.Thumbnails = new List<PackageThumbnailDescriptor>();
             this.Payloads = new List<PackagePayloadDescriptor>();
@@ -30,13 +25,6 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         /// The internal file on identity being updated
         /// </summary>
         public InternalDriveFileId InternalFile { get; init; }
-
-        /// <summary>
-        /// A temp file name for use while storing the temporary metadata file being uploaded
-        /// This is not the same as the final target file and is only used to avoid conflicts
-        /// while uploading metadata
-        /// </summary>
-        public InternalDriveFileId TempMetadataFile { get; }
 
         public FileUpdateInstructionSet InstructionSet { get; init; }
 
@@ -56,6 +44,8 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         /// in the payloads collection)
         /// </summary>
         public List<PackageThumbnailDescriptor> Thumbnails { get; }
+
+        public byte[] Metadata { get; set; }
 
         /// <summary>
         /// Merges uploaded payloads and thumbnails
@@ -94,5 +84,6 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         {
             return Payloads.Where(p => p.HasIv()).ToList();
         }
+
     }
 }

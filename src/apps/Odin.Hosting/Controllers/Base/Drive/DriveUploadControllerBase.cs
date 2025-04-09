@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
             logger.LogDebug("ReceiveFileStream: AddMetadata");
-            await driveUploadService.AddMetadata(section!.Body, WebOdinContext);
+            await driveUploadService.AddMetadata(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
@@ -81,6 +81,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<UploadPayloadResult> ReceivePayloadStream()
         {
+            logger.LogWarning("files/uploadpayload endpoint used.  auth-context: {authContext}", WebOdinContext.AuthContext);
+            
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
                 throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);

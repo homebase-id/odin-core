@@ -29,7 +29,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// </summary>
     public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
     {
-        public async Task HandleFile(InternalDriveFileId tempFile,
+        public async Task HandleFile(TempFile tempFile,
             IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
@@ -49,8 +49,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 if (bytes == null)
                 {
                     // this is bad error.
-                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId,
-                        tempFile.DriveId);
+                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.File.FileId,
+                        tempFile.File.DriveId);
                     throw new OdinFileWriteException("Missing temp file while processing inbox");
                 }
 
@@ -61,8 +61,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 // var theDrive = await driveManager.GetDrive(tempFile.DriveId);
                 if (null == metadata)
                 {
-                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId,
-                        tempFile.DriveId);
+                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", 
+                        tempFile.File.FileId,
+                        tempFile.File.DriveId);
                     throw new OdinFileWriteException("Metadata could not be deserialized");
                 }
             });
@@ -76,7 +77,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDriveAsync(tempFile.DriveId);
+            var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
@@ -221,7 +222,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return targetAcl;
         }
 
-        private async Task WriteNewFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
+        private async Task WriteNewFile(IDriveFileSystem fs, TempFile tempFile, KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext)
         {
             var ms = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter WriteNewFile", async () =>
@@ -234,7 +235,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
 
-        private async Task UpdateExistingFile(IDriveFileSystem fs, InternalDriveFileId targetFile, KeyHeader keyHeader,
+        private async Task UpdateExistingFile(IDriveFileSystem fs, TempFile tempSourceFile, InternalDriveFileId targetFile, KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext)
         {
             await PerformanceCounter.MeasureExecutionTime("PeerFileWriter UpdateExistingFile", async () =>
@@ -243,20 +244,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 //one is written any time you save a header)
                 metadata.TransitUpdated = UnixTimeUtc.Now().milliseconds;
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(targetFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext);
+                await fs.Storage.OverwriteFile(tempSourceFile, targetFile, keyHeader, metadata, serverMetadata, ignorePayloads, odinContext);
             });
         }
 
         /// <summary>
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
-        private async Task StoreNormalFileLongTermAsync(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
+        private async Task StoreNormalFileLongTermAsync(IDriveFileSystem fs, TempFile tempFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata,
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet, IOdinContext odinContext)
         {
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
-            var targetDriveId = tempFile.DriveId;
+            var targetDriveId = tempFile.File.DriveId;
 
             if (newMetadata.GlobalTransitId.HasValue == false)
             {
@@ -267,7 +268,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // If we can, then the gtid is the winner and decides the matching file
             //
 
-            SharedSecretEncryptedFileHeader header = await GetFileByGlobalTransitId(fs, tempFile.DriveId,
+            SharedSecretEncryptedFileHeader header = await GetFileByGlobalTransitId(fs, tempFile.File.DriveId,
                 newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
 
             // If there is no file matching the gtid, let's check if the UID might point to one
@@ -300,11 +301,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext);
+            await UpdateExistingFile(fs, tempFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext);
         }
 
 
-        private async Task StoreEncryptedFeedFile(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
+        private async Task StoreEncryptedFeedFile(IDriveFileSystem fs, TempFile tempFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata, bool driveOriginWasCollaborative, IOdinContext odinContext)
         {
             // Rules:
@@ -317,7 +318,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 throw new OdinClientException("Must have a global transit id to write to the feed drive.", OdinClientErrorCode.InvalidFile);
             }
 
-            var header = await GetFileByGlobalTransitId(fs, tempFile.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
+            var header = await GetFileByGlobalTransitId(fs, tempFile.File.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
 
             if (header == null)
             {
@@ -337,14 +338,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var targetFile = new InternalDriveFileId()
             {
                 FileId = header.FileId,
-                DriveId = tempFile.DriveId
+                DriveId = tempFile.File.DriveId
             };
 
             //Update the reaction preview first since the overwrite method; uses what's on disk
             // we call both of these here because this 'special' feed item hack method for collabgroups
             await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext);
             //note: we also update the key header because it might have been changed by the sender
-            await UpdateExistingFile(fs, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext);
+            await UpdateExistingFile(fs, tempFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId,

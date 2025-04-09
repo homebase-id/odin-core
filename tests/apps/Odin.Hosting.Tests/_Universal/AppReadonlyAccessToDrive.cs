@@ -52,4 +52,8 @@ public class AppReadonlyAccessToDrive //: IApiClientContext
         return Task.CompletedTask;
     }
 
+    public override string ToString()
+    {
+        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+    }
 }
