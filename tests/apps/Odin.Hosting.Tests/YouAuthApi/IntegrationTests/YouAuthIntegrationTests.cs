@@ -1513,7 +1513,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     driveAlias.ToString(),
                     driveType.ToString());
 
-                Assert.That(queryBatchResponse.QueryTime, Is.GreaterThan(0));
+                Assert.That(queryBatchResponse.QueryTime.milliseconds, Is.GreaterThan(0));
             }
         }
 
