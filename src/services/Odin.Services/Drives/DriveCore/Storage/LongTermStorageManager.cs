@@ -500,6 +500,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public void HardDeleteOrphanPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> expectedPayloads)
         {
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                _logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
+                return;
+            }
+            
             Benchmark.Milliseconds(_logger, nameof(HardDeleteOrphanPayloadFiles), () =>
             {
                 /*
