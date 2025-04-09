@@ -210,16 +210,27 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             Benchmark.Milliseconds(_logger, nameof(HardDeletePayloadFile), () =>
             {
-                var path = GetPayloadFilePath(drive, fileId, payloadKey, payloadUid);
+                var pathAndFilename = GetPayloadFilePath(drive, fileId, payloadKey, payloadUid);
 
                 //
                 // Re-enable DELETION this after we are good with actually deleting the file
                 //
-                
+
                 // _driveFileReaderWriter.DeleteFile(path);
 
-                var target = path.Replace(".payload", DeletePayloadExtension);
-                _driveFileReaderWriter.MoveFile(path, target);
+                var target = pathAndFilename.Replace(".payload", DeletePayloadExtension);
+                _logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
+                    pathAndFilename,
+                    target);
+
+                if (_driveFileReaderWriter.FileExists(pathAndFilename))
+                {
+                    _driveFileReaderWriter.MoveFile(pathAndFilename, target);
+                }
+                else
+                {
+                    _logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
+                }
 
                 // delete the thumbnails
                 // _driveFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
@@ -231,11 +242,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
                     var thumbnailTarget = thumbnailFile.Replace(".thumb", DeletedThumbExtension);
-                    _driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
+                    
+                    if (_driveFileReaderWriter.FileExists(thumbnailFile))
+                    {
+                        _driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
+                    }
+                    else
+                    {
+                        _logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]", thumbnailFile);
+                    }
                 }
             });
         }
-        
+
         public void HardDeleteAllPayloadFiles(StorageDrive drive, Guid fileId)
         {
             Benchmark.Milliseconds(_logger, nameof(HardDeleteAllPayloadFiles), () =>
@@ -418,10 +437,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task HardDeleteAsync(StorageDrive drive, Guid fileId)
         {
-            Benchmark.Milliseconds(_logger, "HardDeleteAsync", () =>
-            {
-                HardDeleteAllPayloadFiles(drive, fileId);
-            });
+            Benchmark.Milliseconds(_logger, "HardDeleteAsync", () => { HardDeleteAllPayloadFiles(drive, fileId); });
             await _driveQuery.HardDeleteFileHeaderAsync(drive, GetInternalFile(drive, fileId));
         }
 
