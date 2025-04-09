@@ -280,7 +280,7 @@ public class RegisterKeyControllerTest
         var response = await _client.GetAsync($"/RegisterKey/Verify?identity={frodoDomain.DomainName}");
         var content = await response.Content.ReadAsStringAsync();
         var verifyResult = JsonSerializer.Deserialize<VerifyResult>(content);
-        var delta = UnixTimeUtc.Now().seconds - verifyResult?.keyCreatedTime;
+        var delta = UnixTimeUtc.Now().seconds - verifyResult?.keyCreatedTime.seconds;
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -377,8 +377,8 @@ public class RegisterKeyControllerTest
         ClassicAssert.NotNull(verifyKeyResult);
         var tb = new UnixTimeUtc(instant1);
         var te = new UnixTimeUtc(instant2);
-        Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
-        Assert.That(verifyKeyResult.successorKeyCreatedTime == te.seconds);
+        Assert.That(verifyKeyResult.keyCreatedTime == tb);
+        Assert.That(verifyKeyResult.successorKeyCreatedTime == te);
 
 
         // Test the second public key
@@ -389,8 +389,8 @@ public class RegisterKeyControllerTest
         ClassicAssert.NotNull(verifyKeyResult);
         tb = new UnixTimeUtc(instant2);
         te = new UnixTimeUtc(instant3);
-        Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
-        Assert.That(verifyKeyResult.successorKeyCreatedTime == te.seconds);
+        Assert.That(verifyKeyResult.keyCreatedTime == tb);
+        Assert.That(verifyKeyResult.successorKeyCreatedTime == te);
 
         // Test the last public key
         response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={frodoDomain.DomainName}&PublicKeyJwkBase64Url={eccPublicKeyData3.PublicKeyJwkBase64Url()}");
@@ -399,7 +399,7 @@ public class RegisterKeyControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         ClassicAssert.NotNull(verifyKeyResult);
         tb = new UnixTimeUtc(instant3);
-        Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
+        Assert.That(verifyKeyResult.keyCreatedTime == tb);
         ClassicAssert.IsNull(verifyKeyResult.successorKeyCreatedTime);
 
         RegisterKeyController.simulateTime = 0;

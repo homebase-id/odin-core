@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Permissions;
 
 namespace Odin.Services.Authorization.ExchangeGrants;
@@ -14,8 +15,8 @@ public class ExchangeGrant
     {
     }
 
-    public long Created { get; set; }
-    public long Modified { get; set; }
+    public UnixTimeUtc Created { get; set; }
+    public UnixTimeUtc Modified { get; set; }
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
     public bool IsRevoked { get; set; }
     public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }

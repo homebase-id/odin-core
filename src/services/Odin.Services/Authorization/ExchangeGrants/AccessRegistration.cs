@@ -1,6 +1,7 @@
 using System;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Time;
 
 namespace Odin.Services.Authorization.ExchangeGrants
 {
@@ -10,7 +11,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
         public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
 
-        public Int64 Created { get; set; }
+        public UnixTimeUtc Created { get; set; }
 
         public SymmetricKeyEncryptedXor ClientAccessKeyEncryptedKeyStoreKey { get; set; }
 

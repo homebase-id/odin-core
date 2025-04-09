@@ -11,7 +11,7 @@ namespace Odin.Services.Tests.TypeTests;
 
 public struct Timestamp
 {
-    public long EpochTimeUtc { get; set; }
+    public UnixTimeUtc EpochTimeUtc { get; set; }
 
     public TimeZoneInfo Timezone { get; set; }
 }
