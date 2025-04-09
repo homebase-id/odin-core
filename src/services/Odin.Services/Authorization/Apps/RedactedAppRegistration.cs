@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
@@ -14,9 +15,9 @@ namespace Odin.Services.Authorization.Apps
 
         public bool IsRevoked { get; set; }
 
-        public Int64 Created { get; set; }
+        public UnixTimeUtc Created { get; set; }
 
-        public Int64 Modified { get; set; }
+        public UnixTimeUtc Modified { get; set; }
 
         public RedactedExchangeGrant Grant { get; set; }
         public List<Guid> AuthorizedCircles { get; set; }

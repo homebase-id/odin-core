@@ -14,9 +14,9 @@ namespace Odin.Services.Membership.YouAuth
 
         public bool IsRevoked { get; set; }
 
-        public Int64 Created { get; set; }
+        public UnixTimeUtc Created { get; set; }
 
-        public Int64 Modified { get; set; }
+        public UnixTimeUtc Modified { get; set; }
         
         public string CorsHostName { get; set; }
         

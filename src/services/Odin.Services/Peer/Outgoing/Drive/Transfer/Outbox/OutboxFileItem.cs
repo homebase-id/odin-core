@@ -18,7 +18,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// </summary>
         public int Priority { get; set; }
 
-        public Int64 AddedTimestamp { get; set; } = UnixTimeUtc.Now().seconds;
+        public UnixTimeUtc AddedTimestamp { get; set; } = UnixTimeUtc.Now().seconds;
 
         public Guid Marker { get; set; }
 
@@ -52,7 +52,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
 
         public int Priority { get; set; }
 
-        public Int64 AddedTimestamp { get; set; } = UnixTimeUtc.Now().seconds;
+        public UnixTimeUtc AddedTimestamp { get; set; } = UnixTimeUtc.Now().seconds;
 
         public Guid Marker { get; set; }
 

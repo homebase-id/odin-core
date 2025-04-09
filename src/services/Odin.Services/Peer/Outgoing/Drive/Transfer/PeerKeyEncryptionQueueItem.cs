@@ -1,6 +1,7 @@
 using System;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 {
@@ -13,7 +14,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public Guid FileId { get; set; }
         public OdinId Recipient { get; set; }
         public int Attempts { get; set; }
-        public Int64 LastAttemptTimestampMs { get; set; }
-        public Int64 FirstAddedTimestampMs { get; set; }
+        public UnixTimeUtc LastAttemptTimestampMs { get; set; }
+        public UnixTimeUtc FirstAddedTimestampMs { get; set; }
     }
 }
