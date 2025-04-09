@@ -52,7 +52,7 @@ namespace Odin.Core.Time
     /// </summary>
     [JsonConverter(typeof(UnixTimeUtcConverter))]
     [DebuggerDisplay("dt={System.DateTimeOffset.FromUnixTimeMilliseconds(_milliseconds).ToString(\"yyyy-MM-dd HH:mm:ss.fff\")}")]
-    public struct UnixTimeUtc : IGenericCloneable<UnixTimeUtc>, IEquatable<UnixTimeUtc>
+    public readonly struct UnixTimeUtc : IGenericCloneable<UnixTimeUtc>, IEquatable<UnixTimeUtc>
     {
         public static readonly UnixTimeUtc ZeroTime = new UnixTimeUtc(0);
 
