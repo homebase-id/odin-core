@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 
@@ -11,9 +12,9 @@ namespace Odin.Services.Membership.Circles
     {
         public GuidId Id { get; set; }
 
-        public Int64 Created { get; set; }
+        public UnixTimeUtc Created { get; set; }
 
-        public Int64 LastUpdated { get; set; }
+        public UnixTimeUtc LastUpdated { get; set; }
 
         public string Name { get; set; }
 

@@ -25,8 +25,8 @@ public class GetQueryModifiedRequest
 
     public Guid[] GroupId { get; set; } = null;
 
-    public Int64? UserDateStart { get; set; } = null;
-    public Int64? UserDateEnd { get; set; } = null;
+    public UnixTimeUtc? UserDateStart { get; set; } = null;
+    public UnixTimeUtc? UserDateEnd { get; set; } = null;
 
     public Guid[] ClientUniqueIdAtLeastOne { get; set; } = null;
     public Guid[] TagsMatchAtLeastOne { get; set; } = null;
@@ -40,7 +40,7 @@ public class GetQueryModifiedRequest
     public Guid[] GlobalTransitId { get; set; } = null;
 
     // QueryModifiedResultOptions
-    public long MaxDate { get; set; }
+    public UnixTimeUtc MaxDate { get; set; }
     public string Cursor { get; set; }
 
     /// <summary>

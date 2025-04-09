@@ -1,8 +1,10 @@
+using Odin.Core.Time;
+
 namespace Odin.Services.Drives.DriveCore.Query;
 
 public class QueryModifiedResultOptions : ResultOptions
 {
-    public long? MaxDate { get; set; }
+    public UnixTimeUtc? MaxDate { get; set; }
     public string Cursor { get; set; }
 
     public static QueryModifiedResultOptions Default()

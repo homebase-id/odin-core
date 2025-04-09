@@ -55,7 +55,7 @@ namespace Odin.Keychain
 
         public class VerifyResult
         {
-            public long keyCreatedTime { get; set; }
+            public UnixTimeUtc keyCreatedTime { get; set; }
         }
 
         /// <summary>
@@ -96,8 +96,8 @@ namespace Odin.Keychain
 
         public class VerifyKeyResult
         {
-            public long keyCreatedTime { get; set; }
-            public long? successorKeyCreatedTime { get; set; }
+            public UnixTimeUtc keyCreatedTime { get; set; }
+            public UnixTimeUtc? successorKeyCreatedTime { get; set; }
         }
 
         /// <summary>

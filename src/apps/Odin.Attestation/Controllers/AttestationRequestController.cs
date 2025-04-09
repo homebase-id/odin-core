@@ -55,8 +55,8 @@ namespace Odin.Attestation.Controllers
 
         public class VerifyAttestationResult
         {
-            public Int64 created { get; set; }
-            public Int64? modified { get; set; }
+            public UnixTimeUtc created { get; set; }
+            public UnixTimeUtc? modified { get; set; }
             public Int32 status { get; set; }
         };
 

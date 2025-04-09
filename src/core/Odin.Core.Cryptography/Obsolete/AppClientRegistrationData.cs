@@ -1,5 +1,6 @@
 ﻿using System;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Time;
 
 namespace Odin.Core.Cryptography.Obsolete
 {
@@ -25,7 +26,7 @@ namespace Odin.Core.Cryptography.Obsolete
     {
         public Guid DeviceId { get; set; }
 
-        public ulong RegistrationTimestamp { get; set; }
+        public UnixTimeUtc RegistrationTimestamp { get; set; }
 
         public string DeviceName { get; set; }
 

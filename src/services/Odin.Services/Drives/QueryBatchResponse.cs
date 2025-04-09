@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Time;
 using Odin.Services.Apps;
 
 namespace Odin.Services.Drives;
@@ -19,7 +20,7 @@ public class QueryBatchResponse
     /// <summary>
     /// Indicates when this result was generated
     /// </summary>
-    public Int64 QueryTime { get; set; }
+    public UnixTimeUtc QueryTime { get; set; }
 
     public bool IncludeMetadataHeader { get; set; }
     public string CursorState { get; set; }

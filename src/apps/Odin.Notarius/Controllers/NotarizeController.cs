@@ -72,7 +72,7 @@ namespace Odin.Notarius
 
         public class VerifyResult
         {
-            public long keyCreatedTime { get; set; }
+            public UnixTimeUtc keyCreatedTime { get; set; }
         }
 
         private JsonSerializerOptions options = new JsonSerializerOptions
@@ -83,7 +83,7 @@ namespace Odin.Notarius
         public class VerifyKeyResult
         {
             public string requestor { get; set; }
-            public long signatureCreatedTime { get; set; }
+            public UnixTimeUtc signatureCreatedTime { get; set; }
 
             public VerifyKeyResult() { requestor = ""; }
         }

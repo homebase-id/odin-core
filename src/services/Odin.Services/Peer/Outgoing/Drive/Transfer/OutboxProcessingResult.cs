@@ -1,5 +1,6 @@
 ﻿using System;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
@@ -18,7 +19,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         public InternalDriveFileId File { get; set; }
 
-        public Int64 Timestamp { get; set; }
+        public UnixTimeUtc Timestamp { get; set; }
 
         public OutboxFileItem OutboxFileItem { get; set; }
         public Guid? VersionTag { get; set; }

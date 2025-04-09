@@ -280,7 +280,7 @@ public class RegisterKeyControllerTest
         var response = await _client.GetAsync($"/RegisterKey/Verify?identity={frodoDomain.DomainName}");
         var content = await response.Content.ReadAsStringAsync();
         var verifyResult = JsonSerializer.Deserialize<VerifyResult>(content);
-        var delta = UnixTimeUtc.Now().seconds - verifyResult?.keyCreatedTime;
+        var delta = UnixTimeUtc.Now().seconds - verifyResult?.keyCreatedTime.seconds;
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

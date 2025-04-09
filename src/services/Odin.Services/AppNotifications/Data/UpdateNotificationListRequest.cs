@@ -61,7 +61,7 @@ public class MarkNotificationsAsReadRequest
 public class AddNotificationRequest
 {
     public AppNotificationOptions AppNotificationOptions { get; set; }
-    public long Timestamp { get; set; }
+    public UnixTimeUtc Timestamp { get; set; }
 }
 
 public class DeleteNotificationsRequest
