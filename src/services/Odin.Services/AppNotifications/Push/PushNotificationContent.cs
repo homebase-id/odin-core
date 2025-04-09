@@ -19,7 +19,7 @@ public class PushNotificationPayload
     
     public string AppDisplayName { get; set; }
 
-    public long Timestamp { get; set; }
+    public UnixTimeUtc Timestamp { get; set; }
 
     public AppNotificationOptions Options { get; set; }
     

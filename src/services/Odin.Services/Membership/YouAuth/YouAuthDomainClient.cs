@@ -1,5 +1,6 @@
 using System;
 using Odin.Core;
+using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
 
@@ -41,7 +42,7 @@ public class RedactedYouAuthDomainClient
 
     public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
 
-    public Int64 Created { get; set; }
+    public UnixTimeUtc Created { get; set; }
 
     public bool IsRevoked { get; set; }
 }
