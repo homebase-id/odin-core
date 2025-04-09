@@ -52,7 +52,7 @@ namespace Odin.Core.Time
     /// </summary>
     [JsonConverter(typeof(UnixTimeUtcConverter))]
     [DebuggerDisplay("dt={System.DateTimeOffset.FromUnixTimeMilliseconds(_milliseconds).ToString(\"yyyy-MM-dd HH:mm:ss.fff\")}")]
-    public struct UnixTimeUtc : IGenericCloneable<UnixTimeUtc>
+    public readonly struct UnixTimeUtc : IGenericCloneable<UnixTimeUtc>, IEquatable<UnixTimeUtc>
     {
         public static readonly UnixTimeUtc ZeroTime = new UnixTimeUtc(0);
 
@@ -225,6 +225,10 @@ namespace Odin.Core.Time
         {
             return left.milliseconds < right.milliseconds;
         }
+        public bool Equals(UnixTimeUtc other)
+        {
+            return this._milliseconds == other._milliseconds;
+        }
 
         public override bool Equals(object value)
         {
@@ -263,7 +267,7 @@ namespace Odin.Core.Time
     /// the timestamp is a 16-bit counter allowing 65K timestamps per millisecond. 
     /// </summary>
     [JsonConverter(typeof(UnixTimeUtcUniqueConverter))]
-    public struct UnixTimeUtcUnique
+    public struct UnixTimeUtcUnique 
     {
         public static readonly UnixTimeUtcUnique ZeroTime = new UnixTimeUtcUnique(0);
 
