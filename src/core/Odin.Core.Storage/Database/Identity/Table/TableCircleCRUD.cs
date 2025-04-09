@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class CircleRecord
+    public record CircleRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -94,7 +94,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _data = value;
                }
         }
-    } // End of class CircleRecord
+    } // End of record CircleRecord
 
     public abstract class TableCircleCRUD
     {

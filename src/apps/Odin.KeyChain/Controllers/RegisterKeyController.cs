@@ -55,7 +55,7 @@ namespace Odin.Keychain
 
         public class VerifyResult
         {
-            public long keyCreatedTime { get; set; }
+            public UnixTimeUtc keyCreatedTime { get; set; }
         }
 
         /// <summary>
@@ -83,7 +83,7 @@ namespace Odin.Keychain
                     return NotFound("No such identity found.");
                 }
 
-                var vr = new VerifyResult() { keyCreatedTime = r.timestamp.seconds };
+                var vr = new VerifyResult() { keyCreatedTime = r.timestamp };
 
                 return Ok(vr);
             }
@@ -96,8 +96,8 @@ namespace Odin.Keychain
 
         public class VerifyKeyResult
         {
-            public long keyCreatedTime { get; set; }
-            public long? successorKeyCreatedTime { get; set; }
+            public UnixTimeUtc keyCreatedTime { get; set; }
+            public UnixTimeUtc? successorKeyCreatedTime { get; set; }
         }
 
         /// <summary>
@@ -140,9 +140,9 @@ namespace Odin.Keychain
                 {
                     if (list[i].publicKeyJwkBase64Url == PublicKeyJwkBase64Url)
                     {
-                        var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp.seconds };
+                        var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp };
                         if (i + 1 < list.Count)
-                            vr.successorKeyCreatedTime = list[i + 1].timestamp.seconds;
+                            vr.successorKeyCreatedTime = list[i + 1].timestamp;
 
                         return Ok(JsonSerializer.Serialize(vr, options));
                     }

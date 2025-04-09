@@ -1,3 +1,4 @@
+using Odin.Core.Time;
 using System;
 
 namespace Odin.Services.Configuration;
@@ -11,7 +12,7 @@ public class TenantVersionInfo
     /// </summary>
     public int DataVersionNumber { get; set; }
     
-    public long LastUpgraded { get; set; }
+    public UnixTimeUtc LastUpgraded { get; set; }
 }
 
 public class FailedUpgradeVersionInfo
@@ -23,7 +24,7 @@ public class FailedUpgradeVersionInfo
     /// </summary>
     public int FailedDataVersionNumber { get; set; }
     
-    public long LastAttempted { get; set; }
+    public UnixTimeUtc LastAttempted { get; set; }
     
     /// <summary>
     /// The version on which the upgrade failed 

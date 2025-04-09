@@ -398,7 +398,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                         new ConsentRequirements
                         {
                             ConsentRequirementType = ConsentRequirementType.Expiring,
-                            Expiration = new UnixTimeUtc(DateTimeOffset.UtcNow + TimeSpan.FromDays(30))
+                            Expiration = UnixTimeUtc.Now().AddDays(30)
                         });
 
                     var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
@@ -574,7 +574,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                         new ConsentRequirements
                         {
                             ConsentRequirementType = ConsentRequirementType.Expiring,
-                            Expiration = new UnixTimeUtc(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(1))
+                            Expiration = UnixTimeUtc.Now().AddSeconds(1)
                         });
 
                     var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
@@ -772,7 +772,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     new ConsentRequirements
                     {
                         ConsentRequirementType = ConsentRequirementType.Expiring,
-                        Expiration = new UnixTimeUtc(DateTimeOffset.UtcNow + TimeSpan.FromDays(30))
+                        Expiration = UnixTimeUtc.Now().AddDays(30)
                     });
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
@@ -1513,7 +1513,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
                     driveAlias.ToString(),
                     driveType.ToString());
 
-                Assert.That(queryBatchResponse.QueryTime, Is.GreaterThan(0));
+                Assert.That(queryBatchResponse.QueryTime.milliseconds, Is.GreaterThan(0));
             }
         }
 

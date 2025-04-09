@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Connections.Requests;
@@ -68,8 +69,8 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public EccEncryptedPayload TempWeakKeyStoreKey { get; set; }
 
-        public long LastUpdated { get; set; }
-        public long Created { get; set; }
+        public UnixTimeUtc LastUpdated { get; set; }
+        public UnixTimeUtc Created { get; set; }
 
         /// <summary>
         /// The contact data received when the connection was established 
@@ -142,8 +143,8 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public RedactedAccessExchangeGrant AccessGrant { get; init; }
 
-        public long Created { get; set; }
-        public long LastUpdated { get; set; }
+        public UnixTimeUtc Created { get; set; }
+        public UnixTimeUtc LastUpdated { get; set; }
         public ContactRequestData OriginalContactData { get; init; }
         public OdinId? IntroducerOdinId { get; init; }
         public ConnectionRequestOrigin ConnectionRequestOrigin { get; init; }

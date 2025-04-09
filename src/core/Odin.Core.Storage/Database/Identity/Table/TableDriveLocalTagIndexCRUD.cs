@@ -16,7 +16,7 @@ using Odin.Core.Storage.Exceptions;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class DriveLocalTagIndexRecord
+    public record DriveLocalTagIndexRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _tagId = value;
                }
         }
-    } // End of class DriveLocalTagIndexRecord
+    } // End of record DriveLocalTagIndexRecord
 
     public abstract class TableDriveLocalTagIndexCRUD
     {

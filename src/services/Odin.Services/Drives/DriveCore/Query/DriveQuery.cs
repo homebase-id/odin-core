@@ -167,6 +167,7 @@ public class DriveQuery(
         try
         {
             await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags);
+            header.FileMetadata.SetCreatedModifiedWithDatabaseValue(driveMainIndexRecord.created, driveMainIndexRecord.modified);
         }
         catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
         {
