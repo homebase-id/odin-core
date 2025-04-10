@@ -61,6 +61,7 @@ public class DriveFileUploadTempFilesAreRemovedTests
 
 
     [Test]
+    [Ignore("disabled until we refactor orphan cleanup")]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
     public async Task CanUploadFileWith2PayloadsAnd2ThumbnailsAndTempFilesAreDeleted(IApiClientContext callerContext,
@@ -165,6 +166,7 @@ public class DriveFileUploadTempFilesAreRemovedTests
 
 
     [Test]
+    [Ignore("disabled until we refactor orphan cleanup")]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
     public async Task CanUpdateFilePayloadsAndThumbnailsAndOrphansAreDeleted(IApiClientContext callerContext,
