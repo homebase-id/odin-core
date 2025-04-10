@@ -995,7 +995,7 @@ namespace Odin.Services.Membership.Connections
                     return;
                 }
 
-                if (drive.AllowAnonymousReads && null == hasExistingDriveGrant)
+                if (drive.AllowAnonymousReads && !hasExistingDriveGrant)
                 {
                     //act like it's new
                     await this.HandleDriveAdded(drive, odinContext);
