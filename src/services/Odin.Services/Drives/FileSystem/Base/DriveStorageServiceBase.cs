@@ -1456,7 +1456,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var metadata = originalHeader.FileMetadata;
             var fileId = metadata.File.FileId;
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
-
+            
             longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, fileId, metadata.Payloads);
         }
         
