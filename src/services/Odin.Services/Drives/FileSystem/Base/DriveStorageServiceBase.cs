@@ -1453,11 +1453,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var originalHeader = await this.GetServerFileHeaderInternal(file, odinContext);
 
-            var metadata = originalHeader.FileMetadata;
-            var fileId = metadata.File.FileId;
-            var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
-
-            longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, fileId, metadata.Payloads);
+            _logger.LogDebug("DeleteOrphanPayloads called but not acting right now.");
+            // var metadata = originalHeader.FileMetadata;
+            // var fileId = metadata.File.FileId;
+            // var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
+            
+            // longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, fileId, metadata.Payloads);
         }
         
     }
