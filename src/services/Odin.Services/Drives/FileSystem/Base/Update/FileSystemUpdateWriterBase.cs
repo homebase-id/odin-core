@@ -109,7 +109,7 @@ public abstract class FileSystemUpdateWriterBase
 
     public virtual async Task AddPayload(string key, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
     {
-        if (Package.Payloads.Any(p => string.Equals(key, p.PayloadKey, StringComparison.InvariantCultureIgnoreCase)))
+        if (Package.Payloads.Any(p => p.KeyEquals(key)))
         {
             throw new OdinClientException($"Duplicate Payload key with key {key} has already been added",
                 OdinClientErrorCode.InvalidUpload);

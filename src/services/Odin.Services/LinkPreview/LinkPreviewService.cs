@@ -198,7 +198,7 @@ public class LinkPreviewService(
 
 
         PostContent content = null;
-        var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.Key == DefaultPayloadKey);
+        var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
         var json = "";
         try
         {

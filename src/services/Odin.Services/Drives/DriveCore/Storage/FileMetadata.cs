@@ -58,10 +58,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public FileState FileState { get; set; }
 
         private UnixTimeUtc _created;
-        public UnixTimeUtc Created { get => _created; init => _created = value; }
+
+        public UnixTimeUtc Created
+        {
+            get => _created;
+            init => _created = value;
+        }
 
         private UnixTimeUtc _updated;
-        public UnixTimeUtc Updated { get => _updated; init => _updated = value; }
+
+        public UnixTimeUtc Updated
+        {
+            get => _updated;
+            init => _updated = value;
+        }
 
         public UnixTimeUtc TransitCreated { get; set; }
 
@@ -139,7 +149,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             GlobalTransitId = record.globalTransitId;
             FileState = (FileState)record.fileState;
             Created = record.created;
-            Updated = record.modified == null ? record.created : record.modified.Value; // Todd said NULL means UnixTimeUtc.ZeroTime, but it seems the FE code expects modified == created if modified is NULL
+            Updated = record.modified == null
+                ? record.created
+                : record.modified
+                    .Value; // Todd said NULL means UnixTimeUtc.ZeroTime, but it seems the FE code expects modified == created if modified is NULL
             // But I would prefer if it was nullable - except of course if we change it so that it's always set
 
             ReactionPreview = string.IsNullOrEmpty(record.hdrReactionSummary)
@@ -161,12 +174,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public PayloadDescriptor GetPayloadDescriptor(string key, bool failIfNotFound = false, string failureMessage = null)
         {
-            var descriptor = Payloads?.SingleOrDefault(pk => string.Equals(pk.Key, key, StringComparison.InvariantCultureIgnoreCase));
+            var descriptor = Payloads?.SingleOrDefault(pk => pk.KeyEquals(key));
             if (null == descriptor && failIfNotFound)
             {
-                throw new OdinClientException(failureMessage ?? $"Could not find payload with key [{key}]", OdinClientErrorCode.InvalidPayload);
+                throw new OdinClientException(failureMessage ?? $"Could not find payload with key [{key}]",
+                    OdinClientErrorCode.InvalidPayload);
             }
-            
+
             return descriptor;
         }
 

@@ -40,4 +40,14 @@ public class PackagePayloadDescriptor
     {
         return HasIv() && ByteArrayUtil.IsStrongKey(Iv);
     }
+    
+    public bool KeyEquals(string otherKey)
+    {
+        return string.Equals(PayloadKey, otherKey, StringComparison.InvariantCultureIgnoreCase);
+    }
+
+    public bool KeyEquals(PayloadDescriptor other)
+    {
+        return string.Equals(PayloadKey, other?.Key, StringComparison.InvariantCultureIgnoreCase);
+    }
 }

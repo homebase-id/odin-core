@@ -109,7 +109,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
 
         // Payload should be listed 
         ClassicAssert.IsTrue(headerBeforePayloadDeleted.FileMetadata.Payloads.Count() == 1);
-        var thePayloadDescriptor = headerBeforePayloadDeleted.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
+        var thePayloadDescriptor = headerBeforePayloadDeleted.FileMetadata.Payloads.SingleOrDefault(p => p.KeyEquals(uploadedPayloadDefinition.Key));
         ClassicAssert.IsNotNull(thePayloadDescriptor);
         ClassicAssert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
         CollectionAssert.AreEquivalent(thePayloadDescriptor.Thumbnails, uploadedPayloadDefinition.Thumbnails);
@@ -133,7 +133,7 @@ public class DirectDrivePayloadTests_BadRequest_Tests
         // Payload should still be in header
         ClassicAssert.IsTrue(headerBeforePayloadDeleted.FileMetadata.Payloads.Count() == 1);
         var thePayloadDescriptorAfterAttemptingDelete =
-            headerBeforePayloadDeleted.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
+            headerBeforePayloadDeleted.FileMetadata.Payloads.SingleOrDefault(p => p.KeyEquals(uploadedPayloadDefinition.Key));
         ClassicAssert.IsNotNull(thePayloadDescriptorAfterAttemptingDelete);
         ClassicAssert.IsTrue(thePayloadDescriptorAfterAttemptingDelete.ContentType == uploadedPayloadDefinition.ContentType);
         CollectionAssert.AreEquivalent(thePayloadDescriptorAfterAttemptingDelete.Thumbnails, uploadedPayloadDefinition.Thumbnails);
