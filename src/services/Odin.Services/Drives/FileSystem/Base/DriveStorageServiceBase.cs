@@ -235,7 +235,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var metadata = originalHeader.FileMetadata;
             return await longTermStorageManager.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
         }
-        
+
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
             IOdinContext odinContext)
         {
@@ -611,7 +611,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             finally
             {
                 //paranoid cleanup
-                await DeleteOrphanPayloads(targetFile, odinContext);
+                await DeleteOrphanPayloads(targetFile, deadPayloads, odinContext);
                 await tempStorageManager.EnsureDeleted(originFile);
             }
 
@@ -670,7 +670,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                await DeleteOrphanPayloads(targetFile, odinContext);
+                await DeleteOrphanPayloads(targetFile, deadPayloads, odinContext);
                 await tempStorageManager.EnsureDeleted(originFile);
             }
 
@@ -962,8 +962,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
                     if (descriptor != null)
                     {
-                        existingHeader1.FileMetadata.Payloads.RemoveAll(pk =>
-                            string.Equals(pk.Key, op.Key, StringComparison.InvariantCultureIgnoreCase));
+                        existingHeader1.FileMetadata.Payloads.RemoveAll(pk => string.Equals(pk.Key, op.Key,
+                            StringComparison.InvariantCultureIgnoreCase));
                     }
                 }
             }
@@ -972,8 +972,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 await Task.CompletedTask;
 
-                foreach (var op in manifest.PayloadInstruction.Where(op =>
-                             op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType ==
+                                                                           PayloadUpdateOperationType.AppendOrOverwrite))
                 {
                     // Here look at the incoming payloads because we're adding a new one or overwriting
                     var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
@@ -1060,7 +1060,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                await DeleteOrphanPayloads(targetFile, odinContext);
+                await DeleteOrphanPayloads(targetFile, deadPayloads, odinContext);
                 await tempStorageManager.EnsureDeleted(originFile);
             }
 
@@ -1274,10 +1274,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return new ServerFileHeader()
             {
-                EncryptedKeyHeader =
-                    metadata.IsEncrypted
-                        ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext)
-                        : EncryptedKeyHeader.Empty(),
+                EncryptedKeyHeader = metadata.IsEncrypted
+                    ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext)
+                    : EncryptedKeyHeader.Empty(),
                 FileMetadata = metadata,
                 ServerMetadata = serverMetadata
             };
@@ -1449,16 +1448,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task DeleteOrphanPayloads(InternalDriveFileId file, IOdinContext odinContext)
+        private async Task DeleteOrphanPayloads(InternalDriveFileId file, List<PayloadDescriptor> deadPayloads, IOdinContext odinContext)
         {
-            var originalHeader = await this.GetServerFileHeaderInternal(file, odinContext);
-
-            var metadata = originalHeader.FileMetadata;
-            var fileId = metadata.File.FileId;
-            var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
-            
-            longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, fileId, metadata.Payloads);
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            longTermStorageManager.HardDeleteOrphanPayloadFiles(drive, file.FileId, deadPayloads);
         }
-        
     }
 }

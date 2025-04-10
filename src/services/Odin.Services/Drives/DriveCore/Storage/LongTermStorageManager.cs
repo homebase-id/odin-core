@@ -478,46 +478,44 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes any payloads that are not in the provided list
         /// </summary>
-        public void HardDeleteOrphanPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> expectedPayloads)
+        public void HardDeleteOrphanPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
         {
-            logger.LogDebug("HardDeleteOrphanPayloadFiles called but we are ignoring");
-            //
-            // if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
-            // {
-            //     logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
-            //     return;
-            // }
-            //
-            // Benchmark.Milliseconds(logger, nameof(HardDeleteOrphanPayloadFiles), () =>
-            // {
-            //     /*
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-20x20.thumb
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
-            //      */
-            //
-            //     var payloadFileDirectory = GetPayloadPath(drive, fileId);
-            //     if (!driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
-            //     {
-            //         return;
-            //     }
-            //
-            //     var searchPattern = GetPayloadSearchMask(fileId);
-            //     var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
-            //     var orphans = GetOrphanedPayloads(files, expectedPayloads);
-            //
-            //     foreach (var orphan in orphans)
-            //     {
-            //         HardDeletePayloadFile(drive, fileId, orphan.Key, orphan.Uid);
-            //     }
-            //
-            //     // Delete all orphaned thumbnails on a payload I am keeping
-            //     foreach (var payloadDescriptor in expectedPayloads)
-            //     {
-            //         HardDeleteOrphanThumbnailFiles(drive, fileId, payloadDescriptor);
-            //     }
-            // });
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
+                return;
+            }
+            
+            Benchmark.Milliseconds(logger, nameof(HardDeleteOrphanPayloadFiles), () =>
+            {
+                /*
+                   ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
+                   ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-20x20.thumb
+                   ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb
+                   ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
+                 */
+            
+                var payloadFileDirectory = GetPayloadPath(drive, fileId);
+                if (!driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
+                {
+                    return;
+                }
+            
+                var searchPattern = GetPayloadSearchMask(fileId);
+                var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
+                var orphans = GetOrphanedPayloads(files, deadPayloads);
+            
+                foreach (var orphan in orphans)
+                {
+                    HardDeletePayloadFile(drive, fileId, orphan.Key, orphan.Uid);
+                }
+            
+                // Delete all orphaned thumbnails on a payload I am keeping
+                foreach (var payloadDescriptor in deadPayloads)
+                {
+                    HardDeleteOrphanThumbnailFiles(drive, fileId, payloadDescriptor);
+                }
+            });
         }
 
         private List<PayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
