@@ -4,6 +4,6 @@ public static class TestSecrets
 {
     public static void Load()
     {
-        DotNetEnv.Env.Load();
+        DotNetEnv.Env.Load("secrets.env");
     }
 }

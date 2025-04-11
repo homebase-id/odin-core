@@ -24,7 +24,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Secrets\.env" />
+      <None Update="Secrets/secrets.env" Condition="Exists('Secrets/secrets.env')">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        <TargetPath>secrets.env</TargetPath>
+      </None>
     </ItemGroup>
 
 </Project>
