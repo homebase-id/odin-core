@@ -48,38 +48,61 @@ public class DefraggerTest
         _scaffold.AssertLogEvents();
     }
 
+    // [Test]
+    // public async Task TestSwaggerIsUp()
+    // {
+    //     var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
+    //     var result = await client.GetAsync("/swagger/v1/swagger.json");
+    //     ClassicAssert.AreEqual(HttpStatusCode.OK, result.StatusCode);
+    //
+    //     var loggerMock = new Mock<ILogger<Defragmenter>>();
+    //
+    //     var dfrw = _scaffold.Services.GetRequiredService<DriveFileReaderWriter>();
+    //     var mta = _scaffold.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+    //
+    //     var dq = mta.GetTenantScope(TestIdentities.Samwise.OdinId).Resolve<DriveQuery>();
+    //
+    //
+    //     var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+    //
+    //     var defragmenter = new Defragmenter(loggerMock.Object, dfrw, dq);
+    //
+    //     var drives = (await ownerClient.Drive.GetDrives(1, 100)).Content.Results;
+    //
+    //     foreach(var drive in drives) 
+    //     {
+    //         var sd = new StorageDrive(); // Todd, I need this object to call my own function...
+    //         var fst = Core.Storage.FileSystemType.Standard; // And I need this value picked out of the drive too somehow
+    //
+    //         // Todd if you're in a flow, please show me how I might iterate over each file on the drive.
+    //         // If I e.g. have the MainIndexMeta then I could call QueryBatch(), so you could show me how
+    //         // to get the MainIndexMeta object and I can take it from there.
+    //
+    //         //I'll eventually create a loop myself here and iterate over each file
+    //         await defragmenter.DefragmentFileAsync(sd, Guid.Empty, fst);
+    //     }
+    // }    
+
     [Test]
-    public async Task TestSwaggerIsUp()
+    public async Task DefragDriveTest()
     {
-        var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
-        var result = await client.GetAsync("/swagger/v1/swagger.json");
-        ClassicAssert.AreEqual(HttpStatusCode.OK, result.StatusCode);
+        var ownerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var drives = (await ownerClient.DriveManager.GetDrives(1, 200)).Content.Results;
 
-        var loggerMock = new Mock<ILogger<Defragmenter>>();
-
-        var dfrw = _scaffold.Services.GetRequiredService<DriveFileReaderWriter>();
-        var mta = _scaffold.Services.GetRequiredService<IMultiTenantContainerAccessor>();
-
-        var dq = mta.GetTenantScope(TestIdentities.Samwise.OdinId).Resolve<DriveQuery>();
-
-
-        var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-
-        var defragmenter = new Defragmenter(loggerMock.Object, dfrw, dq);
-
-        var drives = (await ownerClient.Drive.GetDrives(1, 100)).Content.Results;
-
-        foreach(var drive in drives) 
+        await LoadFiles();
+        foreach (var drive in drives)
         {
-            var sd = new StorageDrive(); // Todd, I need this object to call my own function...
-            var fst = Core.Storage.FileSystemType.Standard; // And I need this value picked out of the drive too somehow
-
-            // Todd if you're in a flow, please show me how I might iterate over each file on the drive.
-            // If I e.g. have the MainIndexMeta then I could call QueryBatch(), so you could show me how
-            // to get the MainIndexMeta object and I can take it from there.
-
-            //I'll eventually create a loop myself here and iterate over each file
-            await defragmenter.DefragmentFileAsync(sd, Guid.Empty, fst);
+            // this calls to the server and on the server side you will perform the defrag
+            // doing it this way ensures all context and all services are setup correclty
+            await ownerClient.DriveManager.Defrag(drive.TargetDriveInfo);
         }
-    }    
+    }
+
+    private async Task LoadFiles()
+    {
+
+        //TODO: 
+        await Task.CompletedTask;
+
+    }
 }

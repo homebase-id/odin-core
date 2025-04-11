@@ -12,7 +12,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
@@ -20,10 +22,10 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 {
     public class Defragmenter(
         ILogger<Defragmenter> logger,
-        DriveFileReaderWriter driveFileReaderWriter,
-        DriveQuery driveQuery)
+        DriveManager driveManager,
+        DriveFileReaderWriter driveFileReaderWriter)
     {
-        public async Task VerifyFolder(StorageDrive drive, string folderPath, FileSystemType fst)
+        public async Task VerifyFolder(StorageDrive drive, string folderPath, IDriveFileSystem fs, IOdinContext odinContext)
         {
             var files = GetFilesInDirectory(folderPath, "*.*", 24);
 
@@ -37,7 +39,9 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             foreach (var fileId in fileIds)
             {
-                var header = await GetServerFileHeader(drive, fileId, fst);
+                // var header = await GetServerFileHeader(drive, fileId, fst);
+                var file = GetInternalFile(drive, fileId);
+                var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
                 if (header == null)
                 {
@@ -47,10 +51,59 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             }
         }
 
-        public async Task<bool> DefragmentFileAsync(StorageDrive drive, Guid fileId, FileSystemType fst)
+        /// <summary>
+        /// Queries all files on the drive and defrags
+        /// </summary>
+        public async Task DefragDrive(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext)
         {
-            var header = await GetServerFileHeader(drive, fileId, fst);
+            var query = new FileQueryParams
+            {
+                TargetDrive = targetDrive,
+                FileType = null,
+                FileState = null,
+                DataType = null,
+                ArchivalStatus = null,
+                Sender = null,
+                GroupId = null,
+                UserDate = null,
+                ClientUniqueIdAtLeastOne = null,
+                TagsMatchAtLeastOne = null,
+                TagsMatchAll = null,
+                LocalTagsMatchAtLeastOne = null,
+                LocalTagsMatchAll = null,
+                GlobalTransitId = null
+            };
+
+            var options = new QueryBatchResultOptions
+            {
+                MaxRecords = int.MaxValue,
+                IncludeHeaderContent = false,
+                ExcludePreviewThumbnail = true,
+                ExcludeServerMetaData = true,
+                IncludeTransferHistory = true,
+                Cursor = default,
+                Ordering = QueryBatchOrdering.Default,
+                Sorting = QueryBatchType.FileId
+            };
+
+            var driveId = await driveManager.GetDriveIdByAliasAsync(targetDrive, true);
+            var storageDrive = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
+            var batch = await fs.Query.GetBatch(driveId.GetValueOrDefault(), query, options, odinContext);
+
+            logger.LogDebug("Defragmenting drive {driveName}.  File count: {fc}", storageDrive.Name, batch.SearchResults.Count());
             
+            foreach (var header in batch.SearchResults)
+            {
+                await this.DefragmentFileAsync(storageDrive, header.FileId, fs, odinContext);
+            }
+        }
+
+        public async Task<bool> DefragmentFileAsync(StorageDrive drive, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
+        {
+            // var header = await GetServerFileHeader(drive, fileId, fst);
+            var file = GetInternalFile(drive, fileId);
+            var header = await fs.Storage.GetServerFileHeader(file, odinContext);
+
             if (!CheckFileIntegrity(drive, header))
             {
                 // We got an incomplete header with a missing payload / thumbnail - what should we do?
@@ -78,6 +131,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                         return false;
                 }
             }
+
             return true;
         }
 
@@ -88,7 +142,8 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             var payloadDir = GetPayloadPath(drive, fileId);
             var searchPattern = GetPayloadSearchMask(fileId);
-            var files = GetFilesInDirectory(payloadDir, searchPattern, 24); // Get all files matching fileId-*-* but they must be at least 24 hours old
+            var files = GetFilesInDirectory(payloadDir, searchPattern,
+                24); // Get all files matching fileId-*-* but they must be at least 24 hours old
             var orphans = GetOrphanedPayloads(files, payloads);
 
             foreach (var orphan in orphans)
@@ -96,8 +151,6 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 HardDeletePayloadFile(drive, fileId, orphan.Key, orphan.Uid);
             }
         }
-
-
 
 
         /// <summary>
@@ -117,8 +170,6 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 .ToArray();
             return files;
         }
-
-
 
 
         public void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height,
@@ -170,14 +221,15 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
                     var thumbnailTarget = thumbnailFile.Replace(".thumb", LongTermStorageManager.DeletedThumbExtension);
-                    
+
                     if (driveFileReaderWriter.FileExists(thumbnailFile))
                     {
                         driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
                     }
                     else
                     {
-                        logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]", thumbnailFile);
+                        logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
+                            thumbnailFile);
                     }
                 }
             });
@@ -214,35 +266,35 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             return driveFileReaderWriter.FileExists(path);
         }
 
-        /// <summary>
-        /// Checks if the header file exists in db.  Does not check the validity of the header
-        /// </summary>
-        public async Task<bool> HeaderFileExists(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
-        {
-            var header = await this.GetServerFileHeader(drive, fileId, fileSystemType);
-            if (header == null)
-            {
-                return false;
-            }
+        // /// <summary>
+        // /// Checks if the header file exists in db.  Does not check the validity of the header
+        // /// </summary>
+        // public async Task<bool> HeaderFileExists(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
+        // {
+        //     var header = await this.GetServerFileHeader(drive, fileId, fileSystemType);
+        //     if (header == null)
+        //     {
+        //         return false;
+        //     }
+        //
+        //     return true;
+        // }
 
-            return true;
-        }
+        // /// <summary>
+        // /// Removes all traces of a file and deletes its record from the index
+        // /// </summary>
+        // public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, IDriveFileSystem fs)
+        // {
+        //     Benchmark.Milliseconds(logger, "HardDeleteAsync", () => { HardDeleteAllPayloadFiles(drive, fileId); });
+        //     await fs.Storage.HardDeleteLongTermFile(drive, GetInternalFile(drive, fileId));
+        // }
 
-        /// <summary>
-        /// Removes all traces of a file and deletes its record from the index
-        /// </summary>
-        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId)
-        {
-            Benchmark.Milliseconds(logger, "HardDeleteAsync", () => { HardDeleteAllPayloadFiles(drive, fileId); });
-            await driveQuery.HardDeleteFileHeaderAsync(drive, GetInternalFile(drive, fileId));
-        }
-
-
-        public async Task<ServerFileHeader> GetServerFileHeader(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
-        {
-            var header = await driveQuery.GetFileHeaderAsync(drive, fileId, fileSystemType);
-            return header;
-        }
+        //
+        // public async Task<ServerFileHeader> GetServerFileHeader(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
+        // {
+        //     var header = await driveQuery.GetFileHeaderAsync(drive, fileId, fileSystemType);
+        //     return header;
+        // }
 
         /// <summary>
         /// Removes any payloads that are not in the provided list
@@ -301,9 +353,8 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
                 var fileRecord = ParsePayloadFilename(filename);
 
-                bool isKept = expectedPayloads.Any(p =>
-                    p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                    p.Uid.ToString() == fileRecord.Uid);
+                bool isKept = expectedPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
+                                                        p.Uid.ToString() == fileRecord.Uid);
 
                 if (!isKept)
                 {
@@ -458,8 +509,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             if (ensureExists)
             {
-                Benchmark.Milliseconds(logger, "GetFilePath/CreateDirectory", () =>
-                    driveFileReaderWriter.CreateDirectory(dir));
+                Benchmark.Milliseconds(logger, "GetFilePath/CreateDirectory", () => driveFileReaderWriter.CreateDirectory(dir));
             }
 
             return dir;

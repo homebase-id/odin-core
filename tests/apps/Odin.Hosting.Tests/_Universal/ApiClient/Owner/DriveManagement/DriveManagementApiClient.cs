@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Services.Drives;
@@ -21,7 +22,8 @@ public class DriveManagementApiClient
         _identity = identity;
     }
 
-    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
+    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads,
+        bool ownerOnly = false,
         bool allowSubscriptions = false, Dictionary<string, string> attributes = null)
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
@@ -54,5 +56,12 @@ public class DriveManagementApiClient
 
         var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
         return await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = pageNumber, PageSize = pageSize });
+    }
+
+    public async Task<ApiResponse<HttpContent>> Defrag(TargetDrive targetDrive)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
+        var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
+        return await driveSvc.DefragDrive(targetDrive);
     }
 }

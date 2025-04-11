@@ -5,11 +5,10 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
-using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage.Gugga;
 using Odin.Services.Drives.Management;
-using Odin.Services.Peer;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
@@ -20,33 +19,32 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     public class OwnerDriveManagementController : OdinControllerBase
     {
         private readonly DriveManager _driveManager;
+        private readonly Defragmenter _defragmenter;
 
 
-        public OwnerDriveManagementController(DriveManager driveManager)
+        public OwnerDriveManagementController(DriveManager driveManager, Defragmenter defragmenter)
         {
             _driveManager = driveManager;
-            
+            _defragmenter = defragmenter;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody] GetDrivesRequest request)
         {
-            
             var drives = await _driveManager.GetDrivesAsync(new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
-            var clientDriveData = drives.Results.Select(drive =>
-                new OwnerClientDriveData()
-                {
-                    Name = drive.Name,
-                    TargetDriveInfo = drive.TargetDriveInfo,
-                    Metadata = drive.Metadata,
-                    IsReadonly = drive.IsReadonly,
-                    AllowAnonymousReads = drive.AllowAnonymousReads,
-                    AllowSubscriptions = drive.AllowSubscriptions,
-                    OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes
-                }).ToList();
+            var clientDriveData = drives.Results.Select(drive => new OwnerClientDriveData()
+            {
+                Name = drive.Name,
+                TargetDriveInfo = drive.TargetDriveInfo,
+                Metadata = drive.Metadata,
+                IsReadonly = drive.IsReadonly,
+                AllowAnonymousReads = drive.AllowAnonymousReads,
+                AllowSubscriptions = drive.AllowSubscriptions,
+                OwnerOnly = drive.OwnerOnly,
+                Attributes = drive.Attributes
+            }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
@@ -57,7 +55,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
             //create a drive on the drive service
-            
+
             var _ = await _driveManager.CreateDriveAsync(request, WebOdinContext);
             return true;
         }
@@ -65,7 +63,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("updatemetadata")]
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
         {
-            
             var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, true);
             await _driveManager.UpdateMetadataAsync(driveId.GetValueOrDefault(), request.Metadata, WebOdinContext);
             return true;
@@ -74,7 +71,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("UpdateAttributes")]
         public async Task<bool> UpdateDriveAttributes([FromBody] UpdateDriveDefinitionRequest request)
         {
-            
             var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, true);
             await _driveManager.UpdateAttributesAsync(driveId.GetValueOrDefault(), request.Attributes, WebOdinContext);
             return true;
@@ -83,12 +79,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("setdrivereadmode")]
         public async Task<IActionResult> SetDriveReadMode([FromBody] UpdateDriveReadModeRequest request)
         {
-            
             var driveId = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, true);
             await _driveManager.SetDriveReadModeAsync(driveId.GetValueOrDefault(), request.AllowAnonymousReads, WebOdinContext);
             return Ok();
         }
-        
+
         [HttpPost("set-allow-subscriptions")]
         public async Task<IActionResult> SetDriveAllowSubscriptions([FromBody] UpdateDriveAllowSubscriptionsRequest request)
         {
@@ -96,29 +91,35 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             await _driveManager.SetDriveAllowSubscriptionsAsync(driveId.GetValueOrDefault(), request.AllowSubscriptions, WebOdinContext);
             return Ok();
         }
-        
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpGet("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            
-            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
-            var clientDriveData = drives.Results.Select(drive =>
-                new OwnerClientDriveData()
-                {
-                    Name = drive.Name,
-                    TargetDriveInfo = drive.TargetDriveInfo,
-                    Metadata = drive.Metadata,
-                    IsReadonly = drive.IsReadonly,
-                    AllowAnonymousReads = drive.AllowAnonymousReads,
-                    AllowSubscriptions = drive.AllowSubscriptions,
-                    OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes
-                }).ToList();
+            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize),
+                WebOdinContext);
+            var clientDriveData = drives.Results.Select(drive => new OwnerClientDriveData()
+            {
+                Name = drive.Name,
+                TargetDriveInfo = drive.TargetDriveInfo,
+                Metadata = drive.Metadata,
+                IsReadonly = drive.IsReadonly,
+                AllowAnonymousReads = drive.AllowAnonymousReads,
+                AllowSubscriptions = drive.AllowSubscriptions,
+                OwnerOnly = drive.OwnerOnly,
+                Attributes = drive.Attributes
+            }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
+        }
+
+        [HttpPost("defrag")]
+        public async Task<IActionResult> DefragDrive([FromBody] TargetDrive targetDrive)
+        {
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            await _defragmenter.DefragDrive(targetDrive, fs, WebOdinContext);
+            return Ok();
         }
     }
 
@@ -136,7 +137,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public TargetDrive TargetDrive { get; set; }
         public bool AllowAnonymousReads { get; set; }
     }
-    
+
     public class UpdateDriveAllowSubscriptionsRequest
     {
         public TargetDrive TargetDrive { get; set; }
