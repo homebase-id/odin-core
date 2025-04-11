@@ -29,6 +29,22 @@ public static class DriveFileUtility
     // public const int MaxLocalAppDataContentLength = 4 * 1024; MOVED TO LocalAppMetaData.MaxLocalAppDataContentLength
     // public const int MaxTinyThumbLength = 1 * 1024;  MOVED TO ThumbNailContent.MaxTinyThumbLength
 
+
+
+    public static Guid RestoreFileIdFromDiskString(string fileId)
+    {
+        if (fileId.Length != 32)
+            throw new ArgumentException("Invalid fileId length for restoration; expected 32 characters.");
+
+        // Convert hex string to byte array (2 chars = 1 byte)
+        byte[] bytes = Enumerable.Range(0, 16)
+            .Select(i => Convert.ToByte(fileId.Substring(i * 2, 2), 16))
+            .ToArray();
+
+        return new Guid(bytes);
+    }
+
+
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
