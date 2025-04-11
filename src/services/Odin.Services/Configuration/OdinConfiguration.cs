@@ -38,6 +38,8 @@ namespace Odin.Services.Configuration
         public RedisSection Redis { get; init; }
         public CacheSection Cache { get; init; }
 
+        public S3ObjectStorageSection S3ObjectStorage { get; init; } = new();
+
         public OdinConfiguration()
         {
             // Mockable support
@@ -65,6 +67,7 @@ namespace Odin.Services.Configuration
             Database = new DatabaseSection(config);
             Redis = new RedisSection(config);
             Cache = new CacheSection(config);
+            S3ObjectStorage = new S3ObjectStorageSection(config);
         }
 
         //
@@ -500,5 +503,32 @@ namespace Odin.Services.Configuration
 
         //
 
+        public class S3ObjectStorageSection
+        {
+            public bool Enabled { get; init; }
+            public string Endpoint { get; init; } = "";
+            public string BucketName { get; init; } = "";
+            public string AccessKey { get; init; } = "";
+            public string SecretAccessKey { get; init; } = "";
+            public string Region { get; init; } = "";
+
+            public S3ObjectStorageSection()
+            {
+                // Mockable support
+            }
+
+            public S3ObjectStorageSection(IConfiguration config)
+            {
+                Enabled = config.GetOrDefault("S3ObjectStorage:Enabled", false);
+                if (Enabled)
+                {
+                    Endpoint = config.Required<string>("S3ObjectStorage:Endpoint");
+                    BucketName = config.Required<string>("S3ObjectStorage:BucketName");
+                    AccessKey = config.Required<string>("S3ObjectStorage:AccessKey");
+                    SecretAccessKey = config.Required<string>("S3ObjectStorage:SecretAccessKey");
+                    Region = config.GetOrDefault("S3ObjectStorage:Region", ""); // Is this AWS only?
+                }
+            }
+        }
     }
 }

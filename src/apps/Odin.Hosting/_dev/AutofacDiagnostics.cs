@@ -9,7 +9,6 @@ using Autofac.Core;
 using Autofac.Core.Activators.Reflection;
 using Autofac.Core.Lifetime;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Identity;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting._dev;
@@ -46,6 +45,8 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},
+        {typeof(Odin.Core.Storage.ObjectStorage.IS3SystemStorage), "a6c4c051"},
+        {typeof(Odin.Core.Storage.ObjectStorage.S3SystemStorage), "a6c4c051"},
     };
 
     public void AssertSingletonDependencies()

@@ -8,6 +8,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
@@ -317,6 +318,12 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
+
+        // Tenant S3 bucket
+        if (odinConfig.S3ObjectStorage.Enabled)
+        {
+            cb.AddS3TenantStorage(odinConfig.S3ObjectStorage.BucketName);
+        }
     }
 
     //
@@ -346,4 +353,7 @@ public static class TenantServices
                 throw new InvalidOperationException($"Unsupported database type: {config.Database.Type}");
         }
     }
+
+    //
+
 }
