@@ -8,6 +8,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
@@ -98,7 +99,7 @@ public static class TenantServices
         cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
-        
+
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
         cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
@@ -157,7 +158,7 @@ public static class TenantServices
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
         cb.RegisterType<TenantPathManager>().AsSelf().SingleInstance();
-        
+
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
         cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
@@ -248,7 +249,7 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionDeletedNotification>>()
             .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
             .InstancePerLifetimeScope();
-        
+
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
@@ -302,7 +303,7 @@ public static class TenantServices
         cb.RegisterType<V1ToV2VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V2ToV3VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V3ToV4VersionMigrationService>().InstancePerLifetimeScope();
-        
+
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 
@@ -322,9 +323,15 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
-        
+
         cb.RegisterType<Defragmenter>().InstancePerLifetimeScope();
 
+
+        // Tenant S3 bucket
+        if (odinConfig.S3ObjectStorage.Enabled)
+        {
+            cb.AddS3TenantStorage(odinConfig.S3ObjectStorage.BucketName);
+        }
     }
 
     //
@@ -354,4 +361,7 @@ public static class TenantServices
                 throw new InvalidOperationException($"Unsupported database type: {config.Database.Type}");
         }
     }
+
+    //
+
 }

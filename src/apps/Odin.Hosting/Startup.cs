@@ -26,6 +26,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
@@ -265,6 +266,17 @@ namespace Odin.Hosting
 
             // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
             services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
+
+            if (_config.S3ObjectStorage.Enabled)
+            {
+                services.AddMinioClient(
+                    _config.S3ObjectStorage.Endpoint,
+                    _config.S3ObjectStorage.AccessKey,
+                    _config.S3ObjectStorage.SecretAccessKey,
+                    _config.S3ObjectStorage.Region);
+
+                services.AddS3SystemStorage(_config.S3ObjectStorage.BucketName);
+            }
         }
 
         // ConfigureContainer is where you can register things directly
@@ -564,6 +576,17 @@ namespace Odin.Hosting
                 if (pong != "pong")
                 {
                     throw new OdinSystemException("Cache sanity check failed");
+                }
+
+                // Sanity ping S3 bucket
+                if (_config.S3ObjectStorage.Enabled)
+                {
+                    var systemBucket = services.GetRequiredService<S3SystemStorage>();
+                    var bucketExists = systemBucket.BucketExistsAsync().GetAwaiter().GetResult();
+                    if (!bucketExists)
+                    {
+                        throw new OdinSystemException("S3 bucket sanity check failed");
+                    }
                 }
 
                 // Start system background services
