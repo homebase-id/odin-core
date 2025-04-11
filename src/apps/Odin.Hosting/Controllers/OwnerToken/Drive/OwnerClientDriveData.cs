@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odin.Services.Drives;
 
@@ -5,6 +6,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
 {
     public class OwnerClientDriveData
     {
+        public Guid DriveId { get; set; }
         public string Name { get; set; }
 
         public TargetDrive TargetDriveInfo { get; set; }
