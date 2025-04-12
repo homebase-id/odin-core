@@ -67,6 +67,13 @@ public sealed class VersionUpgradeScheduler(
         var currentVersion = (await configService.GetVersionInfoAsync()).DataVersionNumber;
         var failure = await configService.GetVersionFailureInfoAsync();
 
+        var isConfigured = await configService.IsIdentityServerConfiguredAsync();
+        if (!isConfigured)
+        {
+            // no need to upgrade on unconfigured identity
+            return (requiresUpgrade: false, currentVersion, failure);
+        }
+
         bool upgradeRequired;
         var versionTooLow = currentVersion < Version.DataVersionNumber;
         if (failure == null)
