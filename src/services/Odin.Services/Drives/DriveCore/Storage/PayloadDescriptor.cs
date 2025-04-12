@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Drives.FileSystem.Base;
@@ -10,12 +11,12 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 /// <summary>
 /// Defines a payload
 /// </summary>
+[DebuggerDisplay("Key=[{Key}] Uid=[{Uid.uniqueTime}]")]
 public class PayloadDescriptor
 {
     public static readonly int MaxDescriptorContentLength = 1024;
     public static readonly int MaxThumbnailsCount = 5;
-
-
+    
     public PayloadDescriptor()
     {
         this.Thumbnails = new List<ThumbnailDescriptor>();
@@ -60,6 +61,16 @@ public class PayloadDescriptor
         return LastModified.ToDateTime().ToString("R");
     }
 
+    public bool KeyEquals(string otherKey)
+    {
+        return string.Equals(Key, otherKey, StringComparison.InvariantCultureIgnoreCase);
+    }
+
+    public bool KeyEquals(PayloadDescriptor other)
+    {
+        return string.Equals(Key, other?.Key, StringComparison.InvariantCultureIgnoreCase);
+    }
+    
     public bool IsValid()
     {
         var hasValidContentType = !(string.IsNullOrEmpty(ContentType) || string.IsNullOrWhiteSpace(ContentType));
