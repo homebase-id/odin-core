@@ -1,13 +1,15 @@
 ﻿using System;
 using System.IO;
 using Odin.Core.Time;
+using Odin.Services.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
-    public class TenantPathManager(Guid tenantId, string tenantShard)
+    // public class TenantPathManager(Guid tenantId, string tenantShard)
+    public class TenantPathManager(TenantContext tenantContext)
     {
-        public readonly Guid TenantId = tenantId;
-        public readonly string TenantShard = tenantShard;
+        public readonly Guid TenantId = tenantContext.DotYouRegistryId;
+        public readonly string TenantShard = tenantContext.StorageConfig.PayloadShardKey;
 
         /*public TenantPathManager(Guid tenantId, string tenantShard, string configRoot, string currentEnvironment)
         {

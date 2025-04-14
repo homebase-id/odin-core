@@ -27,7 +27,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
         DriveManager driveManager,
-        TableDriveMainIndex driveMainIndex)
+        TableDriveMainIndex driveMainIndex,
+        TenantPathManager tenantPathManager)
     {
         public static readonly string ThumbnailSizeDelimiter = "x";
 
