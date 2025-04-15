@@ -1020,6 +1020,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
 
+            if (existingHeader.FileMetadata.IsEncrypted && !metadata.IsEncrypted)
+            {
+                //we are going from encrypted to unencrypted so 
+                throw new OdinClientException("going from encrypted to unencrypted not yet supported");
+            }
+            
             if (existingHeader.FileMetadata.IsEncrypted)
             {
                 var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
