@@ -252,6 +252,10 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         {
             var path = GetPayloadFilePath(drive, fileId, descriptor);
             var exists = driveFileReaderWriter.FileExists(path);
+
+            if (!exists)
+                Console.WriteLine($"File integrity problem with driveId {drive.Id.ToString()} fileId {fileId.ToString()} file {path}");
+
             return exists;
         }
 
@@ -263,7 +267,12 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 descriptor.Key,
                 descriptor.Uid);
 
-            return driveFileReaderWriter.FileExists(path);
+            var exists = driveFileReaderWriter.FileExists(path);
+
+            if (!exists)
+                Console.WriteLine($"File integrity problem with driveId {drive.Id.ToString()} fileId {fileId.ToString()} file {path}");
+
+            return exists;
         }
 
         // /// <summary>

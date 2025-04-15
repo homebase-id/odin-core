@@ -121,7 +121,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var fileId = tempFile.File.FileId;
 
             string dir = GetFileDirectory(drive, tempFile, ensureExists);
-            return Path.Combine(dir, GetFilename(fileId, extension));
+            var r =  Path.Combine(dir, GetFilename(fileId, extension));
+
+            return r;
         }
         
     }
