@@ -167,48 +167,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public string GetDriveTransferDbPath()
             => Path.Combine(GetHeaderDataStorageBasePath(), "drive_transfer.db");
-    }
 
-
-    public static class PathManager
-    {
-        // public static string ConfigRoot;
-        // public static string CurrentEnvironment;
-
-        public static string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-        public static string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-
-        public static readonly string FileNameSectionDelimiter = "-";
-        public static readonly string PayloadExtension = ".payload";
-        public static readonly string ThumbnailExtension = ".thumb";
-        public static readonly string ThumbnailSizeDelimiter = "x";
-        public static readonly string DriveFolder = "drives";
-        public static readonly string StorageFolder = "storage";
-        public static readonly string HeadersFolder = "headers";
-        public static readonly string TempFolder = "temp";
-        public static readonly string PayloadsFolder = "payloads";
-        public static readonly string StaticFolder = "static";
-        public static readonly string UploadFolder = "uploads";
-        public static readonly string InboxFolder = "inbox";
-        public static readonly string FilesFolder = "files";
-
-        private static bool _initialized;
-
-        public static void Init(string configRoot, string currentEnvironment)
+        public string GetIdentityDatabasePath()
         {
-            if (_initialized) throw new InvalidOperationException("PathManager already initialized.");
-            ConfigRoot = configRoot ?? throw new ArgumentNullException(nameof(configRoot));
-            CurrentEnvironment = currentEnvironment ?? throw new ArgumentNullException(nameof(currentEnvironment));
-            _initialized = true;
+            return Path.Combine(_tenantContext.StorageConfig.HeaderDataStoragePath, "identity.db");
         }
-
-
-
-        // ----------------------
-        // File-specific paths
-        // ----------------------
-
-
-
     }
 }
