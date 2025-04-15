@@ -1384,7 +1384,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // Delete the payload file
-            longTermStorageManager.HardDeletePayloadFile(drive, file.FileId, descriptor.Key, descriptor.Uid.ToString());
+            longTermStorageManager.HardDeletePayloadFile(drive, file.FileId, descriptor.Key, descriptor.Uid);
         }
 
         private async Task ProcessPayloads(TempFile originFile, InternalDriveFileId targetFile,

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -187,7 +188,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             });
         }
 
-        public void HardDeletePayloadFile(StorageDrive drive, Guid fileId, string payloadKey, string payloadUid)
+        public void HardDeletePayloadFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             Benchmark.Milliseconds(logger, nameof(HardDeletePayloadFile), () =>
             {
@@ -217,7 +218,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 // _driveFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
 
                 // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
-                var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, new UnixTimeUtcUnique(long.Parse(payloadUid)));
+                var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, payloadUid);
                 var dir = GetPayloadPath(drive, fileId);
                 var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
@@ -688,7 +689,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
-            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            var r = $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+
+            var s = tenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
+            Debug.Assert(s == r);
+
+            return r;
         }
 
         private string GetThumbnailPath(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
@@ -697,6 +703,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var thumbnailFileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
             var filePath = GetFilePath(drive, fileId, FilePart.Thumb);
             var thumbnailPath = Path.Combine(filePath, thumbnailFileName);
+
+            var s = tenantPathManager.GetThumbnailFilePath(drive.Id, fileId, payloadKey, payloadUid, width, height);
+            Debug.Assert(s == thumbnailPath);
+
             return thumbnailPath;
         }
 
@@ -733,24 +743,37 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     driveFileReaderWriter.CreateDirectory(dir));
             }
 
+            var s = tenantPathManager.GetPayloadDirectory(drive.Id, fileId, ensureExists);
+            Debug.Assert(s == dir);
+
             return dir;
         }
 
         private string GetPayloadPath(StorageDrive drive, Guid fileId, bool ensureExists = false)
         {
-            return GetFilePath(drive, fileId, FilePart.Payload, ensureExists);
+            var r = GetFilePath(drive, fileId, FilePart.Payload, ensureExists);
+            var s = tenantPathManager.GetPayloadDirectory(drive.Id, fileId, ensureExists);
+
+            Debug.Assert(r == s);
+            return r;
         }
 
-        private string GetPayloadFilePath(StorageDrive drive, Guid fileId, string payloadKey, string payloadUid, bool ensureExists = false)
+        private string GetPayloadFilePath(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
         {
             var extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadUid);
             var payloadFileName = $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
-            return Path.Combine(GetPayloadPath(drive, fileId, ensureExists), $"{payloadFileName}");
+            var r = Path.Combine(GetPayloadPath(drive, fileId, ensureExists), $"{payloadFileName}");
+
+            var s = tenantPathManager.GetPayloadFilePath(drive.Id, fileId, payloadKey, payloadUid, ensureExists);
+            Debug.Assert(s == r);
+
+            return r;
         }
 
         private string GetPayloadFilePath(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, bool ensureExists = false)
         {
-            return GetPayloadFilePath(drive, fileId, descriptor.Key, descriptor.Uid.ToString(), ensureExists);
+            var r = GetPayloadFilePath(drive, fileId, descriptor.Key, descriptor.Uid, ensureExists);
+            return r;
         }
 
         private string GetPayloadSearchMask(Guid fileId)
