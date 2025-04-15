@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http.Headers;
@@ -268,11 +269,6 @@ public static class DriveFileUtility
         }
     }
 
-    public static string GetFileIdForStorage(Guid fileId)
-    {
-        return $"{fileId.ToString("N").ToLower()}";
-    }
-
     public static string GetPayloadFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
         return GetPayloadFileExtension(payloadKey, payloadUid.ToString());
@@ -303,7 +299,15 @@ public static class DriveFileUtility
     private static string CreateBasePayloadFileName(string payloadKey, string uid)
     {
         var parts = new[] { payloadKey, uid };
-        return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+        var r = string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+
+        var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, new UnixTimeUtcUnique(long.Parse(uid)));
+        if (s != r)
+        {
+            Debug.Assert(s == r);
+            throw new Exception($"CreateBasePayloadFileName mismatch {r} vs {s}");
+        }
+        return r;
     }
 
     public static SharedSecretEncryptedFileHeader AddIfDeletedNotification(IDriveNotification notification, IOdinContext deviceOdinContext)

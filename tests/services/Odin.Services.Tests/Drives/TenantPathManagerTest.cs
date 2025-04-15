@@ -65,7 +65,7 @@ public class OdinPathManagerTest
             "3333", "33", "33", "33",
             "33333333333333333333333333333333-key1-1234567890.payload"
         );
-        ClassicAssert.AreEqual(expected, _manager.GetPayloadFilePath(driveId, fileId, payloadKey, payloadUid));
+        ClassicAssert.AreEqual(expected, _manager.GetPayloadDirectoryAndFileName(driveId, fileId, payloadKey, payloadUid));
     }
 
     [Test]
@@ -82,6 +82,6 @@ public class OdinPathManagerTest
             "3333", "33", "33", "33",
             "33333333333333333333333333333333-thumb1-1234567890-100x200.thumb"
         );
-        ClassicAssert.AreEqual(expected, _manager.GetThumbnailFilePath(driveId, fileId, payloadKey, payloadUid, 100, 200));
+        ClassicAssert.AreEqual(expected, _manager.GetThumbnailDirectoryandFileName(driveId, fileId, payloadKey, payloadUid, 100, 200));
     }
 }

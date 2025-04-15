@@ -1,13 +1,31 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Services.Base;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Tenant;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
+    public record ParsedPayloadFileRecord
+    {
+        public string Filename { get; set; }
+        public string Key { get; init; }
+        public string Uid { get; init; }
+    }
+
+    public record ParsedThumbnailFileRecord
+    {
+        public string Filename { get; set; }
+        public string Key { get; init; }
+        public string Uid { get; init; }
+        public int Width { get; init; }
+        public int Height { get; init; }
+    }
+
     // public class TenantPathManager(Guid tenantId, string tenantShard)
     public class TenantPathManager(TenantContext tenantContext)
     {
@@ -32,6 +50,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public static readonly string FilesFolder = "files";
 
 
+        //
+        // File String Ops
+        //
+
+        public static string GuidToPathSafeString(Guid fileId)
+            => $"{fileId.ToString("N")}";  // .ToLower() not needed - "N" means lowercase
+
         // ----------------------
         // Disk root locations
         // ----------------------
@@ -55,7 +80,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             // StorageDrive._tempDataRootPath
             var s1 = Path.Combine(_tenantContext.StorageConfig.TempStoragePath, DriveFolder);
-            var _driveFolderName = driveId.ToString("N").ToLower();
+            var _driveFolderName = GuidToPathSafeString(driveId);
             return Path.Combine(s1, _driveFolderName);
         }
 
@@ -63,7 +88,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             // StorageDrive._longTermPayloadPath + "files" = GetLongTermPayloadStoragePath();
             var s2 = Path.Combine(_tenantContext.StorageConfig.PayloadStoragePath, DriveFolder);
-            var _driveFolderName = driveId.ToString("N").ToLower();
+            var _driveFolderName = GuidToPathSafeString(driveId);
             return Path.Combine(s2, _driveFolderName, FilesFolder);
         }
 
@@ -80,7 +105,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public string GetDriveTempStoragePath(Guid tenantId, Guid driveId, TempStorageType storageType)
         {
-            var driveFolderName = driveId.ToString("N").ToLower();
+            var driveFolderName = GuidToPathSafeString(driveId);
             var tempBase = Path.Combine(GetTempStorageBasePath(), DriveFolder, driveFolderName);
             switch (storageType)
             {
@@ -95,7 +120,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public string GetDriveLongTermPayloadPath(Guid tenantId, string payloadShardKey, Guid driveId)
         {
-            var driveFolderName = driveId.ToString("N").ToLower();
+            var driveFolderName = GuidToPathSafeString(driveId);
             return Path.Combine(GetPayloadStorageBasePath(), DriveFolder, driveFolderName, FilesFolder);
         }
 
@@ -103,28 +128,39 @@ namespace Odin.Services.Drives.DriveCore.Storage
         // ----------------------
         // Payload-specific paths
         // ----------------------
-        public string GetPayloadDirectory(Guid  driveId, Guid fileId, bool ensureExists = false)
+        public static string GetPayloadDirectoryFromGuid(Guid fileId)
         {
-            var root = GetStorageDriveBasePath(driveId);
-
-            var id = fileId.ToString("N").ToLower();
+            var id = GuidToPathSafeString(fileId);
             var year = id.Substring(0, 4);
             var month = id.Substring(4, 2);
             var day = id.Substring(6, 2);
             var hour = id.Substring(8, 2);
 
-            var path = Path.Combine(root, year, month, day, hour);
+            var path = Path.Combine(year, month, day, hour);
+
+            return path;
+        }
+
+        public string GetPayloadDirectory(Guid  driveId, Guid fileId, bool ensureExists = false)
+        {
+            var root = GetStorageDriveBasePath(driveId);
+            var subdir = GetPayloadDirectoryFromGuid(fileId);
+            var path = Path.Combine(root, subdir);
             if (ensureExists) Directory.CreateDirectory(path);
             return path;
         }
 
-        public string GetPayloadFileName(Guid fileId, string key, UnixTimeUtcUnique uid)
+        public static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique uid)
         {
-            var r = $"{fileId.ToString("N").ToLower()}{FileNameSectionDelimiter}{key.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}{PayloadExtension}";
-            return r;
+            return $"{payloadKey.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}";
         }
 
-        public string GetPayloadFilePath(Guid  driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
+        public string GetPayloadFileName(Guid fileId, string key, UnixTimeUtcUnique uid)
+        {
+            return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{CreateBasePayloadFileName(key, uid)}{PayloadExtension}";
+        }
+
+        public string GetPayloadDirectoryAndFileName(Guid  driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
         {
             var fileName = GetPayloadFileName(fileId, payloadKey, payloadUid);
             var dir = GetPayloadDirectory(driveId, fileId, ensureExists);
@@ -136,18 +172,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
         // ----------------------
         public string GetThumbnailDirectory(Guid  driveId, Guid fileId, bool ensureExists = false)
         {
-            // return PathManager.GetThumbnailDirectory(TenantId, TenantShard, drive.Id, fileId, ensureExists);
-            // public static string GetThumbnailDirectory(Guid tenantId, string payloadShardKey, Guid driveId, Guid fileId, bool ensureExists = false)
             return GetPayloadDirectory(driveId, fileId, ensureExists);
         }
 
         public string GetThumbnailFileName(Guid fileId, string key, UnixTimeUtcUnique uid, int width, int height)
         {
             var size = $"{width}{ThumbnailSizeDelimiter}{height}";
-            return $"{fileId.ToString("N").ToLower()}{FileNameSectionDelimiter}{key.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}{FileNameSectionDelimiter}{size}{ThumbnailExtension}";
+            return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{key.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}{FileNameSectionDelimiter}{size}{ThumbnailExtension}";
         }
 
-        public string GetThumbnailFilePath(Guid  driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int thumbWidth, int thumbHeight)
+        public string GetThumbnailDirectoryandFileName(Guid  driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int thumbWidth, int thumbHeight)
         {
             var fileName = GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbWidth, thumbHeight);
             var dir = GetThumbnailDirectory(driveId, fileId, false);
@@ -172,5 +206,52 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             return Path.Combine(_tenantContext.StorageConfig.HeaderDataStoragePath, "identity.db");
         }
+
+        //
+        // Parsing
+        //
+        public static ParsedPayloadFileRecord ParsePayloadFilename(string filename)
+        {
+            // file name on disk: 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
+            // fileId is 1fedce18c0022900efbb396f9796d3d0
+            // payload key is prfl_pic
+            // payload UID is 113599297775861760
+            var parts = filename.Split(DriveFileUtility.PayloadDelimiter);
+            return new ParsedPayloadFileRecord()
+            {
+                Filename = parts[0],
+                Key = parts[1],
+                Uid = parts[2]
+            };
+        }
+
+        public static ParsedThumbnailFileRecord ParseThumbnailFilename(string filename)
+        {
+            // filename = "1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb"
+            // fileId is 1fedce18c0022900efbb396f9796d3d0
+            // payload key is prfl_pic
+            // payload UID is 113599297775861760
+            // width = 400
+            // height 400
+
+            var parts = filename.Split(DriveFileUtility.PayloadDelimiter);
+            var fileNameOnDisk = parts[0]; // not used 
+            var payloadKeyOnDisk = parts[1];
+            var payloadUidOnDisk = parts[2];
+            var thumbnailSize = parts[3];
+            var sizeParts = thumbnailSize.Split(ThumbnailSizeDelimiter);
+            var widthOnDisk = int.Parse(sizeParts[0]);
+            var heightOnDisk = int.Parse(sizeParts[1]);
+
+            return new ParsedThumbnailFileRecord
+            {
+                Filename = fileNameOnDisk,
+                Key = payloadKeyOnDisk,
+                Uid = payloadUidOnDisk,
+                Width = widthOnDisk,
+                Height = heightOnDisk
+            };
+        }
+
     }
 }

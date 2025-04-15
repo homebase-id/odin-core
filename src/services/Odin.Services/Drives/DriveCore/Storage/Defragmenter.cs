@@ -17,6 +17,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
+using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 {
@@ -239,7 +240,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         {
             Benchmark.Milliseconds(logger, nameof(HardDeleteAllPayloadFiles), () =>
             {
-                var fn = DriveFileUtility.GetFileIdForStorage(fileId);
+                var fn = TenantPathManager.GuidToPathSafeString(fileId);
                 var searchPattern = $"{fn}*";
 
                 // note: no need to delete thumbnails separately due to the aggressive searchPattern
@@ -350,17 +351,17 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             // });
         }
 
-        private List<PayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
+        private List<ParsedPayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
         {
             // examine all payload files for a given fileId, regardless of key.
             // we'll compare the file below before deleting
 
-            var orphanFiles = new List<PayloadFileRecord>();
+            var orphanFiles = new List<ParsedPayloadFileRecord>();
 
             foreach (var payloadFilePath in files)
             {
                 var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
-                var fileRecord = ParsePayloadFilename(filename);
+                var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
 
                 bool isKept = expectedPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
                                                         p.Uid.ToString() == fileRecord.Uid);
@@ -374,7 +375,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             return orphanFiles;
         }
 
-        private List<ThumbnailFileRecord> GetOrphanThumbnails(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
+        private List<ParsedThumbnailFileRecord> GetOrphanThumbnails(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
         {
             // examine all payload files for a given fileId, regardless of key.
             // we'll compare the file below before deleting
@@ -394,12 +395,12 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 fileId,
                 thumbnailSearchPatternForPayload);
 
-            var orphans = new List<ThumbnailFileRecord>();
+            var orphans = new List<ParsedThumbnailFileRecord>();
 
             foreach (var thumbnailFilePath in thumbnailFilePathsForPayload)
             {
                 var filename = Path.GetFileNameWithoutExtension(thumbnailFilePath);
-                var thumbnailFileRecord = ParseThumbnailFilename(filename);
+                var thumbnailFileRecord = TenantPathManager.ParseThumbnailFilename(filename);
 
                 // is the file from the payload and thumbnail size
                 var keepThumbnail = payloadDescriptor.Key.Equals(thumbnailFileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
@@ -413,49 +414,6 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             }
 
             return orphans;
-        }
-
-        private PayloadFileRecord ParsePayloadFilename(string filename)
-        {
-            // file name on disk: 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
-            // fileId is 1fedce18c0022900efbb396f9796d3d0
-            // payload key is prfl_pic
-            // payload UID is 113599297775861760
-            var parts = filename.Split(DriveFileUtility.PayloadDelimiter);
-            return new PayloadFileRecord()
-            {
-                Filename = parts[0],
-                Key = parts[1],
-                Uid = parts[2]
-            };
-        }
-
-        private ThumbnailFileRecord ParseThumbnailFilename(string filename)
-        {
-            // filename = "1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb"
-            // fileId is 1fedce18c0022900efbb396f9796d3d0
-            // payload key is prfl_pic
-            // payload UID is 113599297775861760
-            // width = 400
-            // height 400
-
-            var parts = filename.Split(DriveFileUtility.PayloadDelimiter);
-            var fileNameOnDisk = parts[0]; // not used 
-            var payloadKeyOnDisk = parts[1];
-            var payloadUidOnDisk = parts[2];
-            var thumbnailSize = parts[3];
-            var sizeParts = thumbnailSize.Split(LongTermStorageManager.ThumbnailSizeDelimiter);
-            var widthOnDisk = int.Parse(sizeParts[0]);
-            var heightOnDisk = int.Parse(sizeParts[1]);
-
-            return new ThumbnailFileRecord
-            {
-                Filename = fileNameOnDisk,
-                Key = payloadKeyOnDisk,
-                Uid = payloadUidOnDisk,
-                Width = widthOnDisk,
-                Height = heightOnDisk
-            };
         }
 
         /// <summary>
@@ -477,7 +435,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
-            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            return $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
         }
 
         private string GetThumbnailPath(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
@@ -492,7 +450,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         private string GetThumbnailSearchMask(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, "*", "*");
-            return $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            return $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
         }
 
         private string GetFilePath(StorageDrive drive, Guid fileId, FilePart filePart, bool ensureExists = false)
@@ -532,7 +490,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         private string GetPayloadFilePath(StorageDrive drive, Guid fileId, string payloadKey, string payloadUid, bool ensureExists = false)
         {
             var extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadUid);
-            var payloadFileName = $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            var payloadFileName = $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
             return Path.Combine(GetPayloadPath(drive, fileId, ensureExists), $"{payloadFileName}");
         }
 
@@ -544,7 +502,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         private string GetPayloadSearchMask(Guid fileId)
         {
             var extension = DriveFileUtility.GetPayloadFileExtension("*", "*");
-            var mask = $"{DriveFileUtility.GetFileIdForStorage(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            var mask = $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
             return mask;
         }
 
@@ -556,22 +514,5 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 DriveId = drive.Id
             };
         }
-    }
-
-
-    internal record PayloadFileRecord
-    {
-        public string Filename { get; set; }
-        public string Key { get; init; }
-        public string Uid { get; init; }
-    }
-
-    internal record ThumbnailFileRecord
-    {
-        public string Filename { get; set; }
-        public string Key { get; init; }
-        public string Uid { get; init; }
-        public int Width { get; init; }
-        public int Height { get; init; }
     }
 }
