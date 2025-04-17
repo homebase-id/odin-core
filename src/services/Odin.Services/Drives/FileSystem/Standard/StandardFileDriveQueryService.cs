@@ -11,17 +11,14 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Standard
 {
-    public class StandardFileDriveQueryService : DriveQueryServiceBase
+    public class StandardFileDriveQueryService(
+        ILogger<StandardFileDriveQueryService> logger,
+        DriveManager driveManager,
+        DriveQuery driveQuery,
+        StandardFileDriveStorageService storage,
+        IdentityDatabase db)
+        : DriveQueryServiceBase(logger, driveManager, driveQuery, storage, db)
     {
-        public StandardFileDriveQueryService(
-            ILogger<StandardFileDriveQueryService> logger,
-            DriveManager driveManager,
-            DriveQuery driveQuery,
-            StandardFileDriveStorageService storage, IdentityDatabase db) :
-            base(logger, driveManager, driveQuery, storage, db)
-        {
-        }
-
         public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
         {
             var drive = await DriveManager.GetDriveAsync(driveId, true);

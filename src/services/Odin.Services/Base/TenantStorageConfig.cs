@@ -6,25 +6,18 @@ namespace Odin.Services.Base
     /// <summary>
     /// Configuration for how data is stored.  This can include paths for storing images as well as database connection strings.
     /// </summary>
-    public class TenantStorageConfig
+    public class TenantStorageConfig(
+        string headerDataStoragePath,
+        string tempStoragePath,
+        string payloadStoragePath,
+        string staticFileStoragePath,
+        string payloadShardKey)
     {
-        public TenantStorageConfig(string headerDataStoragePath, string tempStoragePath,
-            string payloadStoragePath,
-            string staticFileStoragePath,
-            string payloadShardKey)
-        {
-            HeaderDataStoragePath = headerDataStoragePath;
-            TempStoragePath = tempStoragePath;
-            PayloadStoragePath = payloadStoragePath;
-            StaticFileStoragePath = staticFileStoragePath;
-            PayloadShardKey = payloadShardKey;
-        }
-
-        public string PayloadShardKey { get; }
-        public string HeaderDataStoragePath { get; }
-        public string PayloadStoragePath { get; }
-        public string TempStoragePath { get; }
-        public string StaticFileStoragePath { get; }
+        public string PayloadShardKey { get; } = payloadShardKey;
+        public string HeaderDataStoragePath { get; } = headerDataStoragePath;
+        public string PayloadStoragePath { get; } = payloadStoragePath;
+        public string TempStoragePath { get; } = tempStoragePath;
+        public string StaticFileStoragePath { get; } = staticFileStoragePath;
 
 
         public void CreateDirectories()
