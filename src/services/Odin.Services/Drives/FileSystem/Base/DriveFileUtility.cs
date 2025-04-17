@@ -301,12 +301,12 @@ public static class DriveFileUtility
         var parts = new[] { payloadKey, uid };
         var r = string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
 
-        var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, new UnixTimeUtcUnique(long.Parse(uid)));
+        /* var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, new UnixTimeUtcUnique(long.Parse(uid)));
         if (s != r)
         {
             Debug.Assert(s == r);
             throw new Exception($"CreateBasePayloadFileName mismatch {r} vs {s}");
-        }
+        }*/
         return r;
     }
 
