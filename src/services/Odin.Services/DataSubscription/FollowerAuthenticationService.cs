@@ -12,19 +12,10 @@ namespace Odin.Services.DataSubscription;
 /// <summary>
 /// Authenticates calls using the 
 /// </summary>
-public class FollowerAuthenticationService
+public class FollowerAuthenticationService(
+    FollowerService followerService,
+    OdinContextCache cache)
 {
-    private readonly FollowerService _followerService;
-    private readonly OdinContextCache _cache;
-
-    public FollowerAuthenticationService(
-        FollowerService followerService,
-        OdinContextCache cache)
-    {
-        _followerService = followerService;
-        _cache = cache;
-    }
-
     /// <summary>
     /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
     /// </summary>
@@ -59,12 +50,12 @@ public class FollowerAuthenticationService
             return dotYouContext;
         });
 
-        return await _cache.GetOrAddContextAsync(tempToken, creator);
+        return await cache.GetOrAddContextAsync(tempToken, creator);
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId, ClientAuthenticationToken token)
     {
-        var permissionContext = await _followerService.CreateFollowerPermissionContextAsync(callerOdinId, token);
+        var permissionContext = await followerService.CreateFollowerPermissionContextAsync(callerOdinId, token);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,

@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -11,10 +10,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// <summary>
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
     /// </summary>
-    public class TempStorageManager(
+    public class UploadStorageManager(
         DriveFileReaderWriter driveFileReaderWriter,
         DriveManager driveManager,
-        ILogger<TempStorageManager> logger)
+        ILogger<UploadStorageManager> logger)
     {
         public async Task<bool> TempFileExists(TempFile tempFile, string extension)
         {

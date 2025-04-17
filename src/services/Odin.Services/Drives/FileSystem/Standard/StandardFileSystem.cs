@@ -5,14 +5,9 @@ using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.FileSystem.Standard;
 
-public class StandardFileSystem : IDriveFileSystem
+public class StandardFileSystem(StandardFileDriveStorageService storageService, StandardFileDriveQueryService queryService)
+    : IDriveFileSystem
 {
-    public StandardFileSystem(StandardFileDriveStorageService storageService, StandardFileDriveQueryService queryService)
-    {
-        Storage = storageService;
-        Query = queryService;
-    }
-    
-    public DriveQueryServiceBase Query { get; }
-    public DriveStorageServiceBase Storage { get; }
+    public DriveQueryServiceBase Query { get; } = queryService;
+    public DriveStorageServiceBase Storage { get; } = storageService;
 }

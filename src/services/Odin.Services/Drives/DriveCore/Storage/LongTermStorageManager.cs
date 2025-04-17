@@ -31,8 +31,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         TableDriveMainIndex driveMainIndex,
         TenantPathManager tenantPathManager)
     {
-        public static readonly string ThumbnailSizeDelimiter = "x";
-
         public static readonly string DeletePayloadExtension = ".p-deleted";
         public static readonly string DeletedThumbExtension = ".t-deleted";
 
