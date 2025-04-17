@@ -188,6 +188,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             });
         }
 
+        /// <summary>
+        /// Deletes the payload file and all associated thumbnails
+        /// </summary>
         public void HardDeletePayloadFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             Benchmark.Milliseconds(logger, nameof(HardDeletePayloadFile), () =>
@@ -224,14 +227,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
                     var thumbnailTarget = thumbnailFile.Replace(".thumb", DeletedThumbExtension);
-                    
+
                     if (driveFileReaderWriter.FileExists(thumbnailFile))
                     {
                         driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
                     }
                     else
                     {
-                        logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]", thumbnailFile);
+                        logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
+                            thumbnailFile);
                     }
                 }
             });
@@ -386,8 +390,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)
         {
             var list = await tableDriveTransferHistory.GetAsync(driveId, fileId);
-            return list.Select(item =>
-                new RecipientTransferHistoryItem
+            return list.Select(item => new RecipientTransferHistoryItem
                 {
                     Recipient = item.remoteIdentityId,
                     LastUpdated = default,
@@ -480,46 +483,59 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Removes any payloads that are not in the provided list
         /// </summary>
-        public void HardDeleteOrphanPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> expectedPayloads)
+        public void HardDeleteDeadPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
         {
-            logger.LogDebug("HardDeleteOrphanPayloadFiles called but we are ignoring");
-            //
-            // if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
-            // {
-            //     logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
-            //     return;
-            // }
-            //
-            // Benchmark.Milliseconds(logger, nameof(HardDeleteOrphanPayloadFiles), () =>
-            // {
-            //     /*
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-20x20.thumb
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb
-            //        ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
-            //      */
-            //
-            //     var payloadFileDirectory = GetPayloadPath(drive, fileId);
-            //     if (!driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
-            //     {
-            //         return;
-            //     }
-            //
-            //     var searchPattern = GetPayloadSearchMask(fileId);
-            //     var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
-            //     var orphans = GetOrphanedPayloads(files, expectedPayloads);
-            //
-            //     foreach (var orphan in orphans)
-            //     {
-            //         HardDeletePayloadFile(drive, fileId, orphan.Key, orphan.Uid);
-            //     }
-            //
-            //     // Delete all orphaned thumbnails on a payload I am keeping
-            //     foreach (var payloadDescriptor in expectedPayloads)
-            //     {
-            //         HardDeleteOrphanThumbnailFiles(drive, fileId, payloadDescriptor);
-            //     }
-            // });
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
+                return;
+            }
+
+            Benchmark.Milliseconds(logger, nameof(HardDeleteDeadPayloadFiles), () =>
+            {
+                var zombiePayloadFiles = GetZombiePayloadFilePaths(drive, fileId, deadPayloads);
+                foreach (var zombiePayload in zombiePayloadFiles)
+                {
+                    //Note: this also kills the thumbnails for this file
+                    HardDeletePayloadFile(drive, fileId, zombiePayload.Key, new UnixTimeUtcUnique(long.Parse(zombiePayload.Uid)));
+                }
+            });
+        }
+
+        private List<ParsedPayloadFileRecord> GetZombiePayloadFilePaths(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
+        {
+            /*
+              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
+              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-20x20.thumb
+              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb
+              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
+            */
+
+            var payloadFileDirectory = GetPayloadPath(drive, fileId);
+            if (!driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
+            {
+                return [];
+            }
+
+            var searchPattern = GetPayloadSearchMask(fileId);
+            var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
+
+            var zombies = new List<ParsedPayloadFileRecord>();
+            foreach (var payloadFilePath in files)
+            {
+                var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
+                var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
+
+                bool isZombie = deadPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
+                                                      p.Uid.ToString() == fileRecord.Uid);
+                // 🧟🧟🧟
+                if (isZombie)
+                {
+                    zombies.Add(fileRecord);
+                }
+            }
+
+            return zombies;
         }
 
         private List<ParsedPayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
@@ -534,9 +550,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
                 var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
 
-                bool isKept = expectedPayloads.Any(p =>
-                    p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                    p.Uid.ToString() == fileRecord.Uid);
+                bool isKept = expectedPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
+                                                        p.Uid.ToString() == fileRecord.Uid);
 
                 if (!isKept)
                 {
@@ -635,7 +650,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             try
             {
                 var drive = await driveManager.GetDriveAsync(targetFile.DriveId);
-                HardDeleteOrphanPayloadFiles(drive, targetFile.FileId, []);
+                HardDeleteDeadPayloadFiles(drive, targetFile.FileId, []);
             }
             catch (Exception e)
             {
@@ -704,8 +719,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             if (ensureExists)
             {
-                Benchmark.Milliseconds(logger, "GetFilePath/CreateDirectory", () =>
-                    driveFileReaderWriter.CreateDirectory(dir));
+                Benchmark.Milliseconds(logger, "GetFilePath/CreateDirectory", () => driveFileReaderWriter.CreateDirectory(dir));
             }
 
             var s = tenantPathManager.GetPayloadDirectory(drive.Id, fileId, ensureExists);

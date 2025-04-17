@@ -152,7 +152,8 @@ public class DirectDrivePayload_Sequential_HammerTests_Unencrypted
 
         // Payload should be listed 
         ClassicAssert.IsTrue(headerAfterPayloadWasUploaded.FileMetadata.Payloads.Count() == 1);
-        var thePayloadDescriptor = headerAfterPayloadWasUploaded.FileMetadata.Payloads.SingleOrDefault(p => p.Key == uploadedPayloadDefinition.Key);
+        var thePayloadDescriptor = headerAfterPayloadWasUploaded.FileMetadata.Payloads
+            .SingleOrDefault(p => p.KeyEquals( uploadedPayloadDefinition.Key));
         ClassicAssert.IsNotNull(thePayloadDescriptor);
         ClassicAssert.IsTrue(thePayloadDescriptor.ContentType == uploadedPayloadDefinition.ContentType);
         CollectionAssert.AreEquivalent(thePayloadDescriptor.Thumbnails, uploadedPayloadDefinition.Thumbnails);

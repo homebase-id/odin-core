@@ -138,7 +138,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             if (null != request.Chunk)
             {
-                var payloadSize = header.FileMetadata.Payloads.SingleOrDefault(p => p.Key == request.Key)?.BytesWritten ??
+                var payloadSize = header.FileMetadata.Payloads.SingleOrDefault(p => p.KeyEquals(request.Key))?.BytesWritten ??
                                   throw new OdinSystemException("Invalid payload key");
 
                 var to = request.Chunk.Length == int.MaxValue ? payloadSize - 1 : request.Chunk.Start + request.Chunk.Length - 1;

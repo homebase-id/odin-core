@@ -14,8 +14,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     public class TempStorageManager(
         DriveFileReaderWriter driveFileReaderWriter,
         DriveManager driveManager,
-        ILogger<TempStorageManager> logger,
-        TenantPathManager tenantPathManager)
+        ILogger<TempStorageManager> logger)
     {
         public async Task<bool> TempFileExists(TempFile tempFile, string extension)
         {
