@@ -22,26 +22,13 @@ namespace Odin.Services.Authentication.YouAuth;
 
 #nullable enable
 
-public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
+public sealed class YouAuthUnifiedService(
+    IAppRegistrationService appRegistrationService,
+    YouAuthDomainRegistrationService domainRegistrationService,
+    CircleNetworkService circleNetwork,
+    ITenantLevel2Cache<YouAuthUnifiedService> level2Cache)
+    : IYouAuthUnifiedService
 {
-    private readonly IAppRegistrationService _appRegistrationService;
-    private readonly YouAuthDomainRegistrationService _domainRegistrationService;
-    private readonly CircleNetworkService _circleNetwork;
-    private readonly ITenantLevel2Cache<YouAuthUnifiedService> _level2Cache;
-
-    public YouAuthUnifiedService(
-        IAppRegistrationService appRegistrationService,
-        YouAuthDomainRegistrationService domainRegistrationService,
-        CircleNetworkService circleNetwork,
-        ITenantLevel2Cache<YouAuthUnifiedService> level2Cache)
-    {
-        _appRegistrationService = appRegistrationService;
-
-        _domainRegistrationService = domainRegistrationService;
-        _circleNetwork = circleNetwork;
-        _level2Cache = level2Cache;
-    }
-
     //
 
     public Task<bool> AppNeedsRegistration(string clientIdOrDomain, string permissionRequest)
@@ -60,16 +47,16 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest, odinContext);
 
         //TODO: need to talk with Seb about the redirecting loop issue here
-        var tempConsent = await _level2Cache.GetOrDefaultAsync(TempConsentCacheKey(clientIdOrDomain), false);
+        var tempConsent = await level2Cache.GetOrDefaultAsync(TempConsentCacheKey(clientIdOrDomain), false);
         if (tempConsent)
         {
-            await _level2Cache.RemoveAsync(TempConsentCacheKey(clientIdOrDomain));
+            await level2Cache.RemoveAsync(TempConsentCacheKey(clientIdOrDomain));
             return false;
         }
 
         if (clientType == ClientType.domain)
         {
-            return await _domainRegistrationService.IsConsentRequiredAsync(new AsciiDomainName(clientIdOrDomain), odinContext);
+            return await domainRegistrationService.IsConsentRequiredAsync(new AsciiDomainName(clientIdOrDomain), odinContext);
         }
 
         // Apps on /owner doesn't need consent
@@ -94,14 +81,14 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         if (clientType == ClientType.app)
         {
             //so for now i'll just use this dictionary
-            await _level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
+            await level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
 
         if (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientIdOrDomain);
 
-            var existingDomain = await _domainRegistrationService.GetRegistration(domain, odinContext);
+            var existingDomain = await domainRegistrationService.GetRegistration(domain, odinContext);
             if (null == existingDomain)
             {
                 var request = new YouAuthDomainRegistrationRequest()
@@ -113,15 +100,15 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     ConsentRequirements = consentRequirements
                 };
 
-                await _domainRegistrationService.RegisterDomainAsync(request, odinContext);
+                await domainRegistrationService.RegisterDomainAsync(request, odinContext);
             }
             else
             {
-                await _domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements, odinContext);
+                await domainRegistrationService.UpdateConsentRequirements(domain, consentRequirements, odinContext);
             }
 
             //so for now i'll just use this dictionary
-            await _level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
+            await level2Cache.SetAsync(TempConsentCacheKey(clientIdOrDomain), true, TimeSpan.FromMinutes(60));
         }
     }
 
@@ -146,13 +133,13 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             OdinValidationUtils.AssertNotNullOrEmpty(clientInfo, nameof(clientInfo));
 
             //TODO: Need to check if the app is registered, if not need redirect to get consent.
-            (token, _) = await _appRegistrationService.RegisterClientAsync(appId, clientInfo, odinContext);
+            (token, _) = await appRegistrationService.RegisterClientAsync(appId, clientInfo, odinContext);
         }
         else if (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientId);
 
-            var info = await _circleNetwork.GetIcrAsync((OdinId)domain, odinContext);
+            var info = await circleNetwork.GetIcrAsync((OdinId)domain, odinContext);
             if (info.IsConnected())
             {
                 var icrKey = odinContext.PermissionsContext.GetIcrKey();
@@ -168,7 +155,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                     CircleIds = default //TODO: should we set a circle here?
                 };
 
-                (token, _) = await _domainRegistrationService.RegisterClientAsync(domain, domain.DomainName, request, odinContext);
+                (token, _) = await domainRegistrationService.RegisterClientAsync(domain, domain.DomainName, request, odinContext);
             }
         }
         else
@@ -196,7 +183,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             clientAuthTokenCipher,
             clientAuthTokenIv);
 
-        await _level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
+        await level2Cache.SetAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest), encryptedTokenExchange, TimeSpan.FromMinutes(5));
 
         return (keyPair.PublicKeyJwkBase64Url(), Convert.ToBase64String(exchangeSalt));
     }
@@ -205,11 +192,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest)
     {
-        var ec = await _level2Cache.TryGetAsync<EncryptedTokenExchange?>(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
+        var ec = await level2Cache.TryGetAsync<EncryptedTokenExchange?>(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
 
         if (ec.HasValue)
         {
-            await _level2Cache.RemoveAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
+            await level2Cache.RemoveAsync(EncryptedTokenCacheKey(exchangeSharedSecretDigest));
         }
 
         return ec.GetValueOrDefault();
@@ -224,7 +211,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             throw new OdinClientException("App id must be a uuid", OdinClientErrorCode.ArgumentError);
         }
 
-        var appReg = await _appRegistrationService.GetAppRegistration(appId, odinContext);
+        var appReg = await appRegistrationService.GetAppRegistration(appId, odinContext);
         if (appReg == null)
         {
             return true;
