@@ -1,8 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net.Http;
+using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Services.Drives;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement
@@ -17,5 +19,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement
         [Post(RootEndpoint)]
         Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives([Body] GetDrivesRequest request);
 
+        [Post(RootEndpoint + "/defrag")]
+        Task<ApiResponse<HttpContent>> DefragDrive([Body] TargetDrive targetDrive);
     }
 }

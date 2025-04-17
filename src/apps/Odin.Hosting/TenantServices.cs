@@ -58,6 +58,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version2tov3;
 using Odin.Services.Configuration.VersionUpgrade.Version3tov4;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.DriveCore.Storage.Gugga;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Fingering;
 using Odin.Services.LinkMetaExtractor;
@@ -97,7 +98,7 @@ public static class TenantServices
         cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
-
+        
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
         cb.RegisterType<NotificationListService>().AsSelf().InstancePerLifetimeScope();
@@ -155,7 +156,8 @@ public static class TenantServices
 
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
-
+        cb.RegisterType<TenantPathManager>().AsSelf().SingleInstance();
+        
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
         cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
@@ -246,7 +248,7 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionDeletedNotification>>()
             .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
             .InstancePerLifetimeScope();
-
+        
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
@@ -320,6 +322,9 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
+        
+        cb.RegisterType<Defragmenter>().InstancePerLifetimeScope();
+
     }
 
     //

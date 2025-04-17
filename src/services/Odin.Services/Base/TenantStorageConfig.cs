@@ -8,18 +8,24 @@ namespace Odin.Services.Base
     /// </summary>
     public class TenantStorageConfig
     {
-        public TenantStorageConfig(string headerDataStoragePath, string tempStoragePath, string payloadStoragePath, string staticFileStoragePath)
+        public TenantStorageConfig(string headerDataStoragePath, string tempStoragePath,
+            string payloadStoragePath,
+            string staticFileStoragePath,
+            string payloadShardKey)
         {
             HeaderDataStoragePath = headerDataStoragePath;
             TempStoragePath = tempStoragePath;
             PayloadStoragePath = payloadStoragePath;
             StaticFileStoragePath = staticFileStoragePath;
+            PayloadShardKey = payloadShardKey;
         }
 
+        public string PayloadShardKey { get; }
         public string HeaderDataStoragePath { get; }
         public string PayloadStoragePath { get; }
         public string TempStoragePath { get; }
         public string StaticFileStoragePath { get; }
+
 
         public void CreateDirectories()
         {
@@ -33,6 +39,5 @@ namespace Odin.Services.Base
             Directory.CreateDirectory(PayloadStoragePath);
             Directory.CreateDirectory(StaticFileStoragePath);
         }
-
     }
 }
