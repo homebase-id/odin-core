@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Org.BouncyCastle.Asn1.Nist;
 using Org.BouncyCastle.Asn1.Sec;
@@ -40,35 +41,43 @@ namespace Odin.Core.Cryptography.Data
 
         public static EccPublicKeyData FromJwkPublicKey(string jwk, int hours = 1)
         {
-            var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
-
-            if (jwkObject["kty"] != "EC")
-                throw new InvalidOperationException("Invalid key type, kty must be EC");
-
-            string curveName = jwkObject["crv"];
-            if ((curveName != "P-384") && (curveName != "P-256"))
-                throw new InvalidOperationException("Invalid curve, crv must be P-384 OR P-256");
-
-            byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
-            byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
-
-            X9ECParameters x9ECParameters = NistNamedCurves.GetByName(curveName);
-            ECCurve curve = x9ECParameters.Curve;
-            ECPoint ecPoint = curve.CreatePoint(new BigInteger(1, x), new BigInteger(1, y));
-
-            ECPublicKeyParameters publicKeyParameters = new ECPublicKeyParameters(ecPoint, new ECDomainParameters(curve, x9ECParameters.G, x9ECParameters.N, x9ECParameters.H));
-
-            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKeyParameters);
-            byte[] derEncodedPublicKey = publicKeyInfo.GetDerEncoded();
-
-            var publicKey = new EccPublicKeyData()
+            try
             {
-                publicKey = derEncodedPublicKey,
-                crc32c = KeyCRC(derEncodedPublicKey),
-                expiration = UnixTimeUtc.Now().AddSeconds(hours * 60 * 60)
-            };
+                var jwkObject = JsonSerializer.Deserialize<Dictionary<string, string>>(jwk);
 
-            return publicKey;
+                if (jwkObject["kty"] != "EC")
+                    throw new InvalidOperationException("Invalid key type, kty must be EC");
+
+                string curveName = jwkObject["crv"];
+                if ((curveName != "P-384") && (curveName != "P-256"))
+                    throw new InvalidOperationException("Invalid curve, crv must be P-384 OR P-256");
+
+                byte[] x = Base64UrlEncoder.Decode(jwkObject["x"]);
+                byte[] y = Base64UrlEncoder.Decode(jwkObject["y"]);
+
+                X9ECParameters x9ECParameters = NistNamedCurves.GetByName(curveName);
+                ECCurve curve = x9ECParameters.Curve;
+                ECPoint ecPoint = curve.CreatePoint(new BigInteger(1, x), new BigInteger(1, y));
+
+                ECPublicKeyParameters publicKeyParameters = new ECPublicKeyParameters(ecPoint,
+                    new ECDomainParameters(curve, x9ECParameters.G, x9ECParameters.N, x9ECParameters.H));
+
+                SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKeyParameters);
+                byte[] derEncodedPublicKey = publicKeyInfo.GetDerEncoded();
+
+                var publicKey = new EccPublicKeyData()
+                {
+                    publicKey = derEncodedPublicKey,
+                    crc32c = KeyCRC(derEncodedPublicKey),
+                    expiration = UnixTimeUtc.Now().AddSeconds(hours * 60 * 60)
+                };
+
+                return publicKey;
+            }
+            catch (FormatException)
+            {
+                throw new OdinClientException("Invalid Jwk public key format");
+            }
         }
 
         public static EccPublicKeyData FromJwkBase64UrlPublicKey(string jwkbase64Url, int hours = 1)
@@ -126,13 +135,13 @@ namespace Odin.Core.Cryptography.Data
             var xBytes = EnsureLength(x.ToByteArrayUnsigned(), expectedBytes);
             var yBytes = EnsureLength(y.ToByteArrayUnsigned(), expectedBytes);
 
-            string curveName = eccKeyTypeNames[(int) curveSize];
+            string curveName = eccKeyTypeNames[(int)curveSize];
 
             // Create a JSON object to represent the JWK
             var jwk = new
             {
                 kty = "EC",
-                crv =  curveName, // P-256 or P-384
+                crv = curveName, // P-256 or P-384
                 x = Base64UrlEncoder.Encode(xBytes),
                 y = Base64UrlEncoder.Encode(yBytes)
             };
@@ -188,7 +197,8 @@ namespace Odin.Core.Cryptography.Data
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
             ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
 
-            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int) GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
+            ISigner signer =
+                SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int)GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
 
             signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
 
@@ -220,13 +230,19 @@ namespace Odin.Core.Cryptography.Data
 
     public class EccFullKeyData : EccPublicKeyData
     {
-        private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
+        private SensitiveByteArray _privateKey; // Cached decrypted private key, not stored
 
-        public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
+        public byte[] storedKey { get; set; } // The key as stored on disk encrypted with a secret key or constant
 
-        public byte[] iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
-        public byte[] keyHash { get; set; }  // The hash of the encryption key
-        public UnixTimeUtc createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
+        public byte[] iv { get; set; } // Iv used for encrypting the storedKey and the masterCopy
+        public byte[] keyHash { get; set; } // The hash of the encryption key
+
+        public UnixTimeUtc
+            createdTimeStamp
+        {
+            get;
+            set;
+        } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
 
 
         /// <summary>
@@ -251,7 +267,7 @@ namespace Odin.Core.Cryptography.Data
         {
             // Generate an EC key with Bouncy Castle, curve secp384r1
             ECKeyPairGenerator generator = new ECKeyPairGenerator();
-            X9ECParameters ecp = SecNamedCurves.GetByName(eccCurveIdentifiers[(int) keySize]);
+            X9ECParameters ecp = SecNamedCurves.GetByName(eccCurveIdentifiers[(int)keySize]);
 
             var domainParams = new ECDomainParameters(ecp.Curve, ecp.G, ecp.N, ecp.H, ecp.GetSeed());
             generator.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
@@ -268,7 +284,7 @@ namespace Odin.Core.Cryptography.Data
             if (expiration <= createdTimeStamp)
                 throw new Exception("Expiration must be > 0");
 
-            CreatePrivate(key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
+            CreatePrivate(key, privateKeyInfo.GetDerEncoded()); // TODO: Can we cleanup the generated key?
 
             publicKey = publicKeyInfo.GetDerEncoded();
             crc32c = KeyCRC();
@@ -291,7 +307,6 @@ namespace Odin.Core.Cryptography.Data
             //publicKey = pk.GetDerEncoded();
             Interlocked.Increment(ref SimplePerformanceCounter.noRsaKeysCreatedTest);
         }
-
 
 
         private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
@@ -393,10 +408,11 @@ namespace Odin.Core.Cryptography.Data
 
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
             ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters)publicKeyRestored;
-            
+
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
-            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int)GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
+            ISigner signer =
+                SignerUtilities.GetSigner(eccSignatureAlgorithmNames[(int)GetCurveEnum((ECCurve)publicKeyParameters.Parameters.Curve)]);
 
             signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
 
