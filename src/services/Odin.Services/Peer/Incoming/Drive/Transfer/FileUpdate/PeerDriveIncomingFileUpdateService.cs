@@ -257,7 +257,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //S2210 - comments cannot fall back to inbox
             if (fileSystemType == FileSystemType.Comment)
             {
-                throw new OdinSecurityException("Sender cannot direct-write the comment to drive {}");
+                throw new OdinSecurityException($"Sender cannot direct-write the comment to drive {driveId}");
             }
 
             await Task.CompletedTask;
