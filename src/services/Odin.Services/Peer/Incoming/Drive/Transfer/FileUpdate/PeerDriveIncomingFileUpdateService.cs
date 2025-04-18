@@ -43,7 +43,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             IOdinContext odinContext)
         {
             var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.Request.File.TargetDrive);
-            var canDirectWrite = await CanDirectWriteFile(metadata, transferInstructionSet, odinContext);
+            var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet.FileSystemType, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
             _tempFile = new TempFile()
@@ -147,7 +147,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(metadata, _updateInstructionSet, odinContext))
+            if (!await CanDirectWriteFile(_tempFile.File.DriveId, metadata, _updateInstructionSet.FileSystemType, odinContext))
             {
                 return false;
             }
@@ -232,8 +232,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return PeerResponseCode.AcceptedIntoInbox;
         }
 
-        private async Task<bool> CanDirectWriteFile(FileMetadata metadata,
-            EncryptedRecipientFileUpdateInstructionSet transferInstructionSet, IOdinContext odinContext)
+        private async Task<bool> CanDirectWriteFile(Guid driveId,
+            FileMetadata metadata,
+            FileSystemType fileSystemType,
+            IOdinContext odinContext)
         {
             //HACK: if it's not a connected token
             if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
@@ -247,15 +249,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             }
 
             //S1100
-            if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(_tempFile.File.DriveId, out _))
+            if (metadata.IsEncrypted && odinContext.PermissionsContext.TryGetDriveStorageKey(driveId, out _))
             {
                 return true;
             }
 
             //S2210 - comments cannot fall back to inbox
-            if (transferInstructionSet.FileSystemType == FileSystemType.Comment)
+            if (fileSystemType == FileSystemType.Comment)
             {
-                throw new OdinSecurityException("Sender cannot write the comment");
+                throw new OdinSecurityException($"Sender cannot direct-write the comment to drive {driveId}");
             }
 
             await Task.CompletedTask;
