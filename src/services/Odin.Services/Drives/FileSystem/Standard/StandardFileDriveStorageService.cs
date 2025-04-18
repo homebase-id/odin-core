@@ -13,20 +13,17 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Standard
 {
-    public class StandardFileDriveStorageService : DriveStorageServiceBase
+    public class StandardFileDriveStorageService(
+        ILoggerFactory loggerFactory,
+        IMediator mediator,
+        IDriveAclAuthorizationService driveAclAuthorizationService,
+        DriveManager driveManager,
+        LongTermStorageManager longTermStorageManager,
+        UploadStorageManager uploadStorageManager,
+        IdentityDatabase db)
+        : DriveStorageServiceBase(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager,
+            uploadStorageManager, db)
     {
-        public StandardFileDriveStorageService(
-            ILoggerFactory loggerFactory,
-            IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService,
-            DriveManager driveManager,
-            LongTermStorageManager longTermStorageManager,
-            TempStorageManager tempStorageManager,
-            IdentityDatabase db) :
-            base(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager, tempStorageManager, db)
-        {
-        }
-
         public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
         {
             var drive = await DriveManager.GetDriveAsync(driveId, true);

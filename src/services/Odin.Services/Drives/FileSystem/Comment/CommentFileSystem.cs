@@ -3,15 +3,9 @@ using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.FileSystem.Comment;
 
-public class CommentFileSystem : IDriveFileSystem
+public class CommentFileSystem(CommentFileStorageService storage, CommentFileQueryService queryService)
+    : IDriveFileSystem
 {
-    public CommentFileSystem(CommentFileStorageService storage, CommentFileQueryService queryService)
-    {
-        Storage = storage;
-        Query = queryService;
-    }
-    
-    public DriveQueryServiceBase Query { get; }
-    public DriveStorageServiceBase Storage { get; }
-
+    public DriveQueryServiceBase Query { get; } = queryService;
+    public DriveStorageServiceBase Storage { get; } = storage;
 }

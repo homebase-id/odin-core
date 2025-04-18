@@ -1,8 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -10,10 +10,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// <summary>
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
     /// </summary>
-    public class TempStorageManager(
+    public class UploadStorageManager(
         DriveFileReaderWriter driveFileReaderWriter,
         DriveManager driveManager,
-        ILogger<TempStorageManager> logger)
+        ILogger<UploadStorageManager> logger)
     {
         public async Task<bool> TempFileExists(TempFile tempFile, string extension)
         {
@@ -98,6 +98,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var hourMinute = parts[1];
             var hour = hourMinute[..2];
 
+            var r = Path.Combine(year, month, day, hour);
+            var s = TenantPathManager.GetPayloadDirectoryFromGuid(tempFile.File.FileId);
+
+            if (r != s)
+            {
+                logger.LogError($"GetFileDirectory mismatch {r} vs {s}");
+                Debug.Assert(s == r);
+            }
+
             string dir = Path.Combine(path, year, month, day, hour);
 
             if (ensureExists)
@@ -110,7 +119,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetFilename(Guid fileId, string extension)
         {
-            string file = DriveFileUtility.GetFileIdForStorage(fileId);
+            string file = TenantPathManager.GuidToPathSafeString(fileId);
             return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
         }
         
@@ -120,7 +129,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var fileId = tempFile.File.FileId;
 
             string dir = GetFileDirectory(drive, tempFile, ensureExists);
-            return Path.Combine(dir, GetFilename(fileId, extension));
+            var r =  Path.Combine(dir, GetFilename(fileId, extension));
+
+            return r;
         }
         
     }

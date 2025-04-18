@@ -125,7 +125,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             headerDataStoragePath: Path.Combine(rootPath, "headers"),
             tempStoragePath: Path.Combine(_tempFolderRoot, "temp", regIdFolder),
             payloadStoragePath: Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder),
-            staticFileStoragePath: Path.Combine(rootPath, "static")
+            staticFileStoragePath: Path.Combine(rootPath, "static"),
+            idReg.PayloadShardKey
         );
     }
 

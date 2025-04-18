@@ -9,22 +9,11 @@ using Odin.Services.DataSubscription.Follower;
 
 namespace Odin.Services.DataSubscription;
 
-public class IdentitiesIFollowAuthenticationService
+public class IdentitiesIFollowAuthenticationService(
+    OdinContextCache cache,
+    FollowerService followerService,
+    TenantContext tenantContext)
 {
-    private readonly OdinContextCache _cache;
-    private readonly TenantContext _tenantContext;
-    private readonly FollowerService _followerService;
-
-    public IdentitiesIFollowAuthenticationService(
-        OdinContextCache cache,
-        FollowerService followerService,
-        TenantContext tenantContext)
-    {
-        _followerService = followerService;
-        _tenantContext = tenantContext;
-        _cache = cache;
-    }
-
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
@@ -36,7 +25,7 @@ public class IdentitiesIFollowAuthenticationService
 
         //TODO: i still dont think this is secure.  hmm let me think
         var callerGuidId = callerOdinId.ToHashId();
-        var recipientGuidId = _tenantContext.HostOdinId.ToHashId();
+        var recipientGuidId = tenantContext.HostOdinId.ToHashId();
         var tempToken = new ClientAuthenticationToken()
         {
             Id = callerGuidId,
@@ -61,13 +50,13 @@ public class IdentitiesIFollowAuthenticationService
         });
 
         // return await creator();
-        return await _cache.GetOrAddContextAsync(tempToken, creator);
+        return await cache.GetOrAddContextAsync(tempToken, creator);
     }
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
         ClientAuthenticationToken token)
     {
-        var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollowAsync(callerOdinId, token);
+        var permissionContext = await followerService.CreatePermissionContextForIdentityIFollowAsync(callerOdinId, token);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
