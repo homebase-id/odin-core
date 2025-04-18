@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http.Headers;
@@ -28,6 +29,22 @@ public static class DriveFileUtility
     // public const int MaxAppDataContentLength = 10 * 1024; MOVED TO AppMetaData.MaxAppDataContentLength
     // public const int MaxLocalAppDataContentLength = 4 * 1024; MOVED TO LocalAppMetaData.MaxLocalAppDataContentLength
     // public const int MaxTinyThumbLength = 1 * 1024;  MOVED TO ThumbNailContent.MaxTinyThumbLength
+
+
+
+    public static Guid RestoreFileIdFromDiskString(string fileId)
+    {
+        if (fileId.Length != 32)
+            throw new ArgumentException("Invalid fileId length for restoration; expected 32 characters.");
+
+        // Convert hex string to byte array (2 chars = 1 byte)
+        byte[] bytes = Enumerable.Range(0, 16)
+            .Select(i => Convert.ToByte(fileId.Substring(i * 2, 2), 16))
+            .ToArray();
+
+        return new Guid(bytes);
+    }
+
 
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
@@ -252,11 +269,6 @@ public static class DriveFileUtility
         }
     }
 
-    public static string GetFileIdForStorage(Guid fileId)
-    {
-        return $"{fileId.ToString("N").ToLower()}";
-    }
-
     public static string GetPayloadFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
         return GetPayloadFileExtension(payloadKey, payloadUid.ToString());
@@ -287,7 +299,15 @@ public static class DriveFileUtility
     private static string CreateBasePayloadFileName(string payloadKey, string uid)
     {
         var parts = new[] { payloadKey, uid };
-        return string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+        var r = string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+
+        /* var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, new UnixTimeUtcUnique(long.Parse(uid)));
+        if (s != r)
+        {
+            Debug.Assert(s == r);
+            throw new Exception($"CreateBasePayloadFileName mismatch {r} vs {s}");
+        }*/
+        return r;
     }
 
     public static SharedSecretEncryptedFileHeader AddIfDeletedNotification(IDriveNotification notification, IOdinContext deviceOdinContext)

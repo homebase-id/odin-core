@@ -14,18 +14,8 @@ using Odin.Services.Util;
 namespace Odin.Services.DataSubscription.Follower
 {
     /// <summary/>
-    public class FollowerPerimeterService
+    public class FollowerPerimeterService(IMediator mediator, IdentityDatabase db)
     {
-        private readonly IMediator _mediator;
-        private readonly IdentityDatabase _db;
-
-
-        public FollowerPerimeterService(IMediator mediator, IdentityDatabase db)
-        {
-            _mediator = mediator;
-            _db = db;
-        }
-
         /// <summary>
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
@@ -39,9 +29,9 @@ namespace Odin.Services.DataSubscription.Follower
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
                 // Created sample DeleteAndAddFollower() - take a look
-                await using var trx = await _db.BeginStackedTransactionAsync();
-                await _db.FollowsMe.DeleteByIdentityAsync(new OdinId(request.OdinId));
-                await _db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
+                await using var trx = await db.BeginStackedTransactionAsync();
+                await db.FollowsMe.DeleteByIdentityAsync(new OdinId(request.OdinId));
+                await db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
                 trx.Commit();
             }
 
@@ -76,10 +66,10 @@ namespace Odin.Services.DataSubscription.Follower
                     followsMeRecords.Add(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                 }
 
-                await _db.FollowsMe.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
+                await db.FollowsMe.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
             }
 
-            await _mediator.Publish(new NewFollowerNotification
+            await mediator.Publish(new NewFollowerNotification
             {
                 Sender = (OdinId)request.OdinId,
                 OdinContext = odinContext,
@@ -94,7 +84,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             var follower = odinContext.Caller.OdinId;
 
-            await _db.FollowsMe.DeleteByIdentityAsync(new OdinId(follower));
+            await db.FollowsMe.DeleteByIdentityAsync(new OdinId(follower));
         }
     }
 }
