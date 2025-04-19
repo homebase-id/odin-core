@@ -22,6 +22,9 @@ public class FrontEndProfile
     [JsonPropertyName("image")]
     public string Image { get; set; }
     
+    [JsonPropertyName("bioSummary")]
+    public string BioSummary { get; set; }
+
     [JsonPropertyName("bio")]
     public string Bio { get; set; }
     

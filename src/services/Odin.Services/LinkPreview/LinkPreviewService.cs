@@ -128,8 +128,8 @@ public class LinkPreviewService(
                 string channelKey = segments[2];
                 string postKey = segments[3];
 
-                (var success, title, imageUrl, description) =
-                    await TryParsePostFile(channelKey, postKey, odinContext, context.RequestAborted);
+                (var success, title, imageUrl, description) = await TryParsePostFile(channelKey, postKey, odinContext,
+                    context.RequestAborted);
 
                 if (!success)
                 {
@@ -596,7 +596,7 @@ public class LinkPreviewService(
             GivenName = profile?.GiveName,
             FamilyName = profile?.FamilyName,
             Email = null,
-            Description = profile?.Bio,
+            Description = profile?.BioSummary ?? profile?.Bio,
             BirthDate = null,
             JobTitle = null,
             Image = AppendJpgIfNoExtension(profile?.Image ?? ""),
