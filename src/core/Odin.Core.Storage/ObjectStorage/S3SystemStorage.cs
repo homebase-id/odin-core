@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Minio;
@@ -20,6 +21,8 @@ public static class S3SystemStorageExtensions
 {
     public static IServiceCollection AddS3SystemStorage(this IServiceCollection services, string bucketName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
+
         services.AddSingleton<S3SystemStorage>(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<S3SystemStorage>>();

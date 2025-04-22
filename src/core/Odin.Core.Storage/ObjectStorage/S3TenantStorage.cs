@@ -1,3 +1,4 @@
+using System;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Minio;
@@ -24,6 +25,8 @@ public static class S3TenantStorageExtensions
 {
     public static ContainerBuilder AddS3TenantStorage(this ContainerBuilder cb, string bucketName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
+
         cb.Register(c =>
             new S3TenantStorage(
                 c.Resolve<ILogger<S3TenantStorage>>(),

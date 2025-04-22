@@ -25,8 +25,13 @@ public class S3StorageBucketTests
     {
         TestSecrets.Load();
 
-        var accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY") ?? throw new Exception("missing ODIN_S3_ACCESS_KEY");
-        var secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY") ?? throw new Exception("missing ODIN_S3_SECRET_ACCESS_KEY");
+        var accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY");
+        var secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY");
+
+        if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretAccessKey))
+        {
+            Assert.Ignore("Environment variable ODIN_S3_ACCESS_KEY or ODIN_S3_SECRET_ACCESS_KEY is not set");
+        }
 
         _minioClient = new MinioClient()
             .WithEndpoint("hel1.your-objectstorage.com")
@@ -35,7 +40,7 @@ public class S3StorageBucketTests
             .WithSSL()
             .Build();
 
-        _bucketName = $"test-{Guid.NewGuid():N}";
+        _bucketName = $"zz-ci-test-{Guid.NewGuid():N}";
         await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(_bucketName));
     }
 
@@ -44,12 +49,15 @@ public class S3StorageBucketTests
     [TearDown]
     public async Task TearDown()
     {
-        await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
+        if (_minioClient != null!)
+        {
+            await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
+        }
     }
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task BucketShouldExist()
     {
         var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
@@ -61,7 +69,7 @@ public class S3StorageBucketTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task ItShouldReadAndWriteFile()
     {
         const string path = "the-file";
@@ -84,7 +92,7 @@ public class S3StorageBucketTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public void ItShouldThrowWhenWritingToFolder()
     {
         const string path = "the-file/";
@@ -98,7 +106,7 @@ public class S3StorageBucketTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task ItShouldCheckFileExistence()
     {
         const string path = "the-file";
@@ -117,7 +125,7 @@ public class S3StorageBucketTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task ItShouldDeleteFile()
     {
         const string path = "the-file";
@@ -135,7 +143,7 @@ public class S3StorageBucketTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task ItShouldCopyFile()
     {
         const string srcPath = "the-src-file";
@@ -157,7 +165,7 @@ public class S3StorageBucketTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task ItShouldMoveFile()
     {
         const string srcPath = "the-src-file";
@@ -178,7 +186,7 @@ public class S3StorageBucketTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task ItShouldListFiles()
     {
         const string file0 = "/file0";

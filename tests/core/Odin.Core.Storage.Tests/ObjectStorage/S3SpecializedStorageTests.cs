@@ -16,14 +16,26 @@ namespace Odin.Core.Storage.Tests.ObjectStorage;
 
 public class S3SystemStorageTests
 {
-    private readonly string _bucketName = $"test-{Guid.NewGuid():N}";
+    private string _bucketName = "";
     private IServiceProvider _services = null!;
     private ILifetimeScope _container = null!;
 
     [SetUp]
     public async Task SetUp()
     {
-        AddServices();
+        TestSecrets.Load();
+
+        var accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY");
+        var secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY");
+
+        if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretAccessKey))
+        {
+            Assert.Ignore("Environment variable ODIN_S3_ACCESS_KEY or ODIN_S3_SECRET_ACCESS_KEY is not set");
+        }
+
+        _bucketName = $"zz-ci-test-{Guid.NewGuid():N}";
+        AddServices(accessKey, secretAccessKey);
+
         var minioClient = _services.GetRequiredService<IMinioClient>();
         await minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(_bucketName));
     }
@@ -31,17 +43,15 @@ public class S3SystemStorageTests
     [TearDown]
     public async Task TearDown()
     {
-        var minioClient = _services.GetRequiredService<IMinioClient>();
-        await minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
+        if (_services != null!)
+        {
+            var minioClient = _services.GetRequiredService<IMinioClient>();
+            await minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
+        }
     }
 
-    private void AddServices()
+    private void AddServices(string accessKey, string secretAccessKey)
     {
-        TestSecrets.Load();
-
-        var accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY") ?? throw new Exception("missing ODIN_S3_ACCESS_KEY");
-        var secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY") ?? throw new Exception("missing ODIN_S3_SECRET_ACCESS_KEY");
-
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddMinioClient(
@@ -63,7 +73,7 @@ public class S3SystemStorageTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task IsShouldCreateCorrectSystemRootPath()
     {
         var bucket = _services.GetRequiredService<IS3SystemStorage>();
@@ -74,7 +84,7 @@ public class S3SystemStorageTests
 
     //
 
-    [Test, Explicit]
+    [Test]
     public async Task IsShouldCreateCorrectTenantRootPath()
     {
         var bucket = _container.Resolve<IS3TenantStorage>();
