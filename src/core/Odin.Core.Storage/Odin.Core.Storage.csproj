@@ -10,6 +10,7 @@
     <PackageReference Include="AutoMapper" Version="14.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.2" />
+    <PackageReference Include="Minio" Version="6.0.4" />
     <PackageReference Include="Npgsql" Version="9.0.2" />
     <PackageReference Include="System.Runtime.Caching" Version="9.0.2" />
     <PackageReference Include="ZiggyCreatures.FusionCache" Version="2.1.0" />
