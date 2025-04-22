@@ -82,7 +82,7 @@ public class S3StorageBucketTests
 
         // Test that file exists at the right place through minio client
         var exists = await _minioClient.StatObjectAsync(
-            new StatObjectArgs().WithBucket(_bucketName).WithObject(Path.Combine(RootPath, path)));
+            new StatObjectArgs().WithBucket(_bucketName).WithObject(S3Path.Combine(RootPath, path)));
         Assert.That(exists, Is.Not.Null);
 
         // Read back from bucket
