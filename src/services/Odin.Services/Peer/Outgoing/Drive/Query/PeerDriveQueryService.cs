@@ -118,10 +118,8 @@ public class PeerDriveQueryService(
                     async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
             });
 
-            await Benchmark.MillisecondsAsync(logger, "HandleInvalidResponseAsync", async () =>
-            {
-                await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
-            });
+            await Benchmark.MillisecondsAsync(logger, "HandleInvalidResponseAsync",
+                async () => { await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext); });
 
             var batch = queryBatchResponse.Content;
             return new QueryBatchResult
@@ -544,7 +542,7 @@ public class PeerDriveQueryService(
 
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
-            throw new OdinSystemException($"Unhandled peer error response: {response.StatusCode}");
+            throw new OdinSystemException($"Unhandled peer error response from [{odinId}]: {response.StatusCode}");
         }
     }
 
