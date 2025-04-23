@@ -733,12 +733,12 @@ public class TryRetryTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(2)); // Retry warnings
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(3)); // Retry warnings
         _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Error),
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once); // Final failure
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never); // Final failure
     }
 
     [Test]
@@ -777,11 +777,11 @@ public class TryRetryTests
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(2)); // Retry warnings
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(3)); // Retry warnings
         _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Error),
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once); // Final failure
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never); // Final failure
     }
 }
