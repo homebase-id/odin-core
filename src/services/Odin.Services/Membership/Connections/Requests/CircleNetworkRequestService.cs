@@ -404,11 +404,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
             try
             {
-                await TryRetry.WithDelayAsync(
-                    _odinConfiguration.Host.PeerOperationMaxAttempts,
-                    _odinConfiguration.Host.PeerOperationDelayMs,
-                    CancellationToken.None,
-                    async () =>
+                await TryRetry.Create()
+                    .WithAttempts(_odinConfiguration.Host.PeerOperationMaxAttempts)
+                    .WithDelay(_odinConfiguration.Host.PeerOperationDelayMs)
+                    .ExecuteAsync(async () =>
                     {
                         var json = OdinSystemSerializer.Serialize(acceptedReq);
                         var encryptedPayload =

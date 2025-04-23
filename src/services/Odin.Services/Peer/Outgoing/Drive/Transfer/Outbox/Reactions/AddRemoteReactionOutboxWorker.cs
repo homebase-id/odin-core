@@ -87,11 +87,11 @@ public class AddRemoteReactionOutboxWorker(
         {
             ApiResponse<PeerResponseCode> response = null;
 
-            await TryRetry.WithDelayAsync(
-                Configuration.Host.PeerOperationMaxAttempts,
-                Configuration.Host.PeerOperationDelayMs,
-                cancellationToken,
-                async () => { response = await TrySendRequest(); });
+            await TryRetry.Create()
+                .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
+                .WithDelay(Configuration.Host.PeerOperationDelayMs)
+                .WithCancellation(cancellationToken)
+                .ExecuteAsync(async () => { response = await TrySendRequest(); });
 
             if (response.IsSuccessStatusCode)
             {

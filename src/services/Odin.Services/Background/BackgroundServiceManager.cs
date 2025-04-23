@@ -178,16 +178,21 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         // another background service that hasn't started yet.
         if (backgroundService == null)
         {
-            TryRetry.WithDelay(30, TimeSpan.FromSeconds(1), _stoppingCts.Token, () =>
-            {
-                using (_lock.ReaderLock())
+            TryRetry.Create()
+                .WithAttempts(30)
+                .WithDelay(TimeSpan.FromSeconds(1))
+                .WithCancellation(_stoppingCts.Token)
+                .Execute(() =>
                 {
-                    if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
+                    using (_lock.ReaderLock())
                     {
-                        throw new InvalidOperationException($"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
+                        if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
+                        {
+                            throw new InvalidOperationException(
+                                $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
+                        }
                     }
-                }
-            });
+                });
         }
 
         if (!_stoppingCts.IsCancellationRequested)

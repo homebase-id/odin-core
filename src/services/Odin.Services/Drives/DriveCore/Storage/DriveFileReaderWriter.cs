@@ -21,11 +21,10 @@ public sealed class DriveFileReaderWriter(
     {
         try
         {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.FileOperationRetryAttempts,
-                odinConfiguration.Host.FileOperationRetryDelayMs,
-                CancellationToken.None,
-                async () =>
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .ExecuteAsync(async () =>
                 {
                     try
                     {
@@ -48,11 +47,10 @@ public sealed class DriveFileReaderWriter(
     {
         try
         {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.FileOperationRetryAttempts,
-                odinConfiguration.Host.FileOperationRetryDelayMs,
-                CancellationToken.None,
-                async () =>
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .ExecuteAsync(async () =>
                 {
                     try
                     {
@@ -77,11 +75,10 @@ public sealed class DriveFileReaderWriter(
 
         try
         {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.FileOperationRetryAttempts,
-                odinConfiguration.Host.FileOperationRetryDelayMs,
-                CancellationToken.None,
-                async () =>
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .ExecuteAsync(async () =>
                 {
                     try
                     {
@@ -114,11 +111,10 @@ public sealed class DriveFileReaderWriter(
 
         try
         {
-            await TryRetry.WithDelayAsync(
-                odinConfiguration.Host.FileOperationRetryAttempts,
-                odinConfiguration.Host.FileOperationRetryDelayMs,
-                CancellationToken.None,
-                async () =>
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .ExecuteAsync(async () =>
                 {
                     try
                     {
@@ -148,11 +144,10 @@ public sealed class DriveFileReaderWriter(
     {
         try
         {
-            TryRetry.WithDelay(
-                odinConfiguration.Host.FileOperationRetryAttempts,
-                odinConfiguration.Host.FileOperationRetryDelayMs,
-                CancellationToken.None,
-                () =>
+            TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .Execute(() =>
                 {
                     try
                     {
@@ -197,11 +192,10 @@ public sealed class DriveFileReaderWriter(
 
         try
         {
-            TryRetry.WithDelay(
-                odinConfiguration.Host.FileOperationRetryAttempts,
-                odinConfiguration.Host.FileOperationRetryDelayMs,
-                CancellationToken.None,
-                () =>
+            TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .Execute(() =>
                 {
                     try
                     {
@@ -245,11 +239,10 @@ public sealed class DriveFileReaderWriter(
         try
         {
             //TODO: Consider if we need to do file.exists before deleting?
-            TryRetry.WithDelay(
-                odinConfiguration.Host.FileOperationRetryAttempts,
-                odinConfiguration.Host.FileOperationRetryDelayMs,
-                CancellationToken.None,
-                () =>
+            TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .Execute(() =>
                 {
                     try
                     {

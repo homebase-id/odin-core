@@ -87,11 +87,11 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
         {
             ApiResponse<PeerTransferResponse> response = null;
 
-            await TryRetry.WithDelayAsync(
-                Configuration.Host.PeerOperationMaxAttempts,
-                Configuration.Host.PeerOperationDelayMs,
-                cancellationToken,
-                async () => { response = await TrySendDeleteFileRequest(); });
+            await TryRetry.Create()
+                .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
+                .WithDelay(Configuration.Host.PeerOperationDelayMs)
+                .WithCancellation(cancellationToken)
+                .ExecuteAsync(async () => { response = await TrySendDeleteFileRequest(); });
 
             if (response.IsSuccessStatusCode)
             {
