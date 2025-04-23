@@ -1,282 +1,377 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 
 namespace Odin.Core.Util;
 
-// In TryRetry CancellationToken parameters must be explicit and action should always be last parameter
-#pragma warning disable CA1068
+#nullable enable
 
+/// <summary>
+/// Provides fluent retry functionality for operations that may fail temporarily.
+/// </summary>
 public static class TryRetry
 {
-    private static readonly TimeSpan DefaultExponentialMs = TimeSpan.FromMilliseconds(100);
-    private static readonly Random Random = new();
-
-    //
-    // SYNC
-    //
-
-    public static int WithDelay(
-        int attempts,
-        TimeSpan delay,
-        CancellationToken cancellationToken,
-        Action action)
+    /// <summary>
+    /// Creates a retry builder with default configuration (retries on any exception)
+    /// </summary>
+    public static RetryBuilder Create()
     {
-        return WithDelay<Exception>(attempts, (delay, delay), cancellationToken, action);
+        return new RetryBuilder();
     }
 
-    public static int WithDelay(
-        int attempts,
-        ValueTuple<TimeSpan, TimeSpan> randomDelay,
-        CancellationToken cancellationToken,
-        Action action)
+    /// <summary>
+    /// Creates a retry builder configured to handle specific exception types
+    /// </summary>
+    public static RetryBuilder RetryOn<TException>() where TException : Exception
     {
-        return WithDelay<Exception>(attempts, randomDelay, cancellationToken, action);
+        return new RetryBuilder().RetryOn<TException>();
     }
 
-    public static int WithDelay<T>(
-        int attempts,
-        TimeSpan delay,
-        CancellationToken cancellationToken,
-        Action action) where T : Exception
+    /// <summary>
+    /// Creates a retry builder configured to handle multiple exception types
+    /// </summary>
+    public static RetryBuilder RetryOn(params Type[] exceptionTypes)
     {
-        return WithDelay<T>(attempts, (delay, delay), cancellationToken, action);
+        return new RetryBuilder().RetryOn(exceptionTypes);
     }
-
-    public static int WithDelay<T>(
-        int attempts,
-        ValueTuple<TimeSpan, TimeSpan> randomDelay,
-        CancellationToken cancellationToken,
-        Action action) where T : Exception
-    {
-        if (attempts < 1)
-        {
-            throw new ArgumentException("attempts must be greater than 0");
-        }
-
-        if (randomDelay.Item1 > randomDelay.Item2)
-        {
-            throw new ArgumentException("randomDelay.Item1 must be less than or equal to randomDelay.Item2");
-        }
-
-        var attempt = 0;
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            attempt++;
-            try
-            {
-                action();
-                return attempt;
-            }
-            catch(T e)
-            {
-                if (attempt == attempts)
-                {
-                    throw new TryRetryException($"{e.Message} (giving up after {attempts} attempt(s))", e);
-                }
-                var delay1 = (int)randomDelay.Item1.TotalMilliseconds;
-                var delay2 = (int)randomDelay.Item2.TotalMilliseconds;
-                Thread.Sleep(Random.Next(delay1, delay2));
-            }
-        }
-
-    }
-
-    public static int WithBackoff(
-        int attempts,
-        Action action,
-        CancellationToken cancellationToken)
-    {
-        return WithBackoff<Exception>(attempts, DefaultExponentialMs, cancellationToken, action);
-    }
-
-    public static int WithBackoff<T>(
-        int attempts,
-        CancellationToken cancellationToken,
-        Action action) where T : Exception
-    {
-        return WithBackoff<T>(attempts, DefaultExponentialMs, cancellationToken, action);
-    }
-
-    public static int WithBackoff(
-        int attempts,
-        TimeSpan exponentialBackoff,
-        CancellationToken cancellationToken,
-        Action action)
-    {
-        return WithBackoff<Exception>(attempts, exponentialBackoff, cancellationToken, action);
-    }
-
-    public static int WithBackoff<T>(
-        int attempts,
-        TimeSpan exponentialBackoff,
-        CancellationToken cancellationToken,
-        Action action) where T : Exception
-    {
-        if (attempts < 1)
-        {
-            throw new ArgumentException("attempts must be greater than 0");
-        }
-
-        var attempt = 0;
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            attempt++;
-            try
-            {
-                action();
-                return attempt;
-            }
-            catch(T e)
-            {
-                if (attempt == attempts)
-                {
-                    throw new TryRetryException($"{e.Message} (giving up after {attempts} attempt(s))", e);
-                }
-                var ms = (int)(Math.Pow(2, attempt - 1) * exponentialBackoff.TotalMilliseconds);
-                Thread.Sleep(ms);
-            }
-        }
-    }
-
-    //
-    // ASYNC
-    //
-
-    public static Task<int> WithDelayAsync(
-        int attempts,
-        TimeSpan delay,
-        CancellationToken cancellationToken,
-        Func<Task> action)
-    {
-        return WithDelayAsync<Exception>(attempts, (delay, delay), cancellationToken, action);
-    }
-
-    public static Task<int> WithDelayAsync(
-        int attempts,
-        ValueTuple<TimeSpan, TimeSpan> randomDelay,
-        CancellationToken cancellationToken,
-        Func<Task> action)
-    {
-        return WithDelayAsync<Exception>(attempts, randomDelay, cancellationToken, action);
-    }
-
-    public static Task<int> WithDelayAsync<T>(
-        int attempts,
-        TimeSpan delay,
-        CancellationToken cancellationToken,
-        Func<Task> action) where T : Exception
-    {
-        return WithDelayAsync<T>(attempts, (delay, delay), cancellationToken, action);
-    }
-
-    public static async Task<int> WithDelayAsync<T>(
-        int attempts,
-        ValueTuple<TimeSpan, TimeSpan> randomDelay,
-        CancellationToken cancellationToken,
-        Func<Task> action) where T : Exception
-    {
-        if (attempts < 1)
-        {
-            throw new ArgumentException("attempts must be greater than 0");
-        }
-
-        if (randomDelay.Item1 > randomDelay.Item2)
-        {
-            throw new ArgumentException("randomDelay.Item1 must be less than or equal to randomDelay.Item2");
-        }
-
-        var attempt = 0;
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            attempt++;
-            try
-            {
-                await action();
-                return attempt;
-            }
-            catch(T e)
-            {
-                if (attempt == attempts)
-                {
-                    throw new TryRetryException($"{e.Message} (giving up after {attempts} attempt(s))", e);
-                }
-                var delay1 = (int)randomDelay.Item1.TotalMilliseconds;
-                var delay2 = (int)randomDelay.Item2.TotalMilliseconds;
-                await Task.Delay(Random.Next(delay1, delay2), cancellationToken);
-            }
-        }
-    }
-
-    public static Task<int> WithBackoffAsync(
-        int attempts,
-        CancellationToken cancellationToken,
-        Func<Task> action)
-    {
-        return WithBackoffAsync<Exception>(attempts, DefaultExponentialMs, cancellationToken, action);
-    }
-
-    public static Task<int> WithBackoffAsync<T>(
-        int attempts,
-        CancellationToken cancellationToken,
-        Func<Task> action) where T : Exception
-    {
-        return WithBackoffAsync<T>(attempts, DefaultExponentialMs, cancellationToken, action);
-    }
-
-    public static Task<int> WithBackoffAsync(
-        int attempts,
-        TimeSpan exponentialBackoff,
-        CancellationToken cancellationToken,
-        Func<Task> action)
-    {
-        return WithBackoffAsync<Exception>(attempts, exponentialBackoff, cancellationToken, action);
-    }
-
-    public static async Task<int> WithBackoffAsync<T>(
-        int attempts,
-        TimeSpan exponentialBackoff,
-        CancellationToken cancellationToken,
-        Func<Task> action) where T : Exception
-    {
-        if (attempts < 1)
-        {
-            throw new ArgumentException("attempts must be greater than 0");
-        }
-
-        var attempt = 0;
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            attempt++;
-            try
-            {
-                await action();
-                return attempt;
-            }
-            catch(T e)
-            {
-                if (attempt == attempts)
-                {
-                    throw new TryRetryException($"{e.Message} (giving up after {attempts} attempt(s))", e);
-                }
-                var ms = (int)(Math.Pow(2, attempt - 1) * exponentialBackoff.TotalMilliseconds);
-                await Task.Delay(ms, cancellationToken);
-            }
-        }
-    }
-
-    //
-
 }
-#pragma warning restore CA1068
 
-public class TryRetryException(string message, Exception innerException) : OdinSystemException(message, innerException);
+/// <summary>
+/// Provides a fluent API for retry operations with configurable behaviors
+/// Note: Instances of this class should not be reused for multiple operations to avoid unintended configuration changes.
+/// </summary>
+public class RetryBuilder
+{
+    private readonly List<Type> _exceptionTypes = []; // Defaults to retry on all exceptions
+    private int _attempts = 3;
+    private TimeSpan? _exponentialBackoff = TimeSpan.FromMilliseconds(100);
+    private TimeSpan? _maxExponentialBackoff;
+    private TimeSpan? _delay;
+    private ValueTuple<TimeSpan, TimeSpan>? _randomDelay;
+    private CancellationToken _cancellationToken = CancellationToken.None;
+    private ILogger? _logger;
+
+    /// <summary>
+    /// Sets the number of retry attempts
+    /// </summary>
+    public RetryBuilder WithAttempts(int attempts)
+    {
+        if (attempts < 1)
+        {
+            throw new ArgumentException("Attempts must be greater than 0");
+        }
+        _attempts = attempts;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a fixed delay between retries
+    /// </summary>
+    public RetryBuilder WithDelay(TimeSpan delay)
+    {
+        if (delay < TimeSpan.Zero)
+        {
+            throw new ArgumentException("Delay cannot be negative", nameof(delay));
+        }
+        _delay = delay;
+        _randomDelay = null;
+        _exponentialBackoff = null;
+        _maxExponentialBackoff = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a random delay between min and max values between retries
+    /// </summary>
+    public RetryBuilder WithRandomDelay(TimeSpan min, TimeSpan max)
+    {
+        if (min < TimeSpan.Zero)
+        {
+            throw new ArgumentException("Delay cannot be negative", nameof(min));
+        }
+        if (min > max)
+        {
+            throw new ArgumentException("Minimum delay must be less than or equal to maximum delay");
+        }
+        _randomDelay = (min, max);
+        _delay = null;
+        _exponentialBackoff = null;
+        _maxExponentialBackoff = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets exponential backoff between retries with the given initial delay
+    /// </summary>
+    public RetryBuilder WithExponentialBackoff(TimeSpan initialDelay, TimeSpan? maxExponentialBackoff = null)
+    {
+        if (initialDelay < TimeSpan.Zero)
+        {
+            throw new ArgumentException("Initial delay must be greater than or equal to 0");
+        }
+        if (maxExponentialBackoff.HasValue)
+        {
+            if (maxExponentialBackoff.Value < TimeSpan.Zero)
+            {
+                throw new ArgumentException("Max exponential backoff cannot be negative",
+                    nameof(maxExponentialBackoff));
+            }
+            if (maxExponentialBackoff.Value < initialDelay)
+            {
+                throw new ArgumentException("Max exponential backoff must be greater than or equal to initial delay",
+                    nameof(maxExponentialBackoff));
+            }
+        }
+        _exponentialBackoff = initialDelay;
+        _maxExponentialBackoff = maxExponentialBackoff;
+        _delay = null;
+        _randomDelay = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the cancellation token for the retry operation
+    /// </summary>
+    public RetryBuilder WithCancellation(CancellationToken cancellationToken)
+    {
+        _cancellationToken = cancellationToken;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a logger to log retry attempts
+    /// </summary>
+    public RetryBuilder WithLogging(ILogger logger)
+    {
+        _logger = logger;
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies a single exception type to retry on
+    /// </summary>
+    public RetryBuilder RetryOn<TException>() where TException : Exception
+    {
+        _exceptionTypes.Clear();
+        _exceptionTypes.Add(typeof(TException));
+        return this;
+    }
+
+    /// <summary>
+    /// Specifies multiple exception types to retry on
+    /// </summary>
+    public RetryBuilder RetryOn(params Type[] exceptionTypes)
+    {
+        if (exceptionTypes == null || exceptionTypes.Length == 0)
+        {
+            throw new ArgumentException("At least one exception type must be specified");
+        }
+
+        foreach (var type in exceptionTypes)
+        {
+            if (!typeof(Exception).IsAssignableFrom(type))
+            {
+                throw new ArgumentException($"Type {type.Name} is not an Exception type");
+            }
+        }
+
+        _exceptionTypes.Clear();
+        _exceptionTypes.AddRange(exceptionTypes);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds an additional exception type to retry on
+    /// </summary>
+    public RetryBuilder AlsoRetryOn<TException>() where TException : Exception
+    {
+        var exceptionType = typeof(TException);
+        if (!_exceptionTypes.Contains(exceptionType))
+        {
+            _exceptionTypes.Add(exceptionType);
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Executes the synchronous action with the configured retry behavior
+    /// </summary>
+    public void Execute(Action action)
+    {
+        ExecuteInternal(action);
+    }
+
+    /// <summary>
+    /// Executes the synchronous action with the configured retry behavior
+    /// </summary>
+    public T Execute<T>(Func<T> action)
+    {
+        return ExecuteInternal(action)!; // Non-null return since T is expected
+    }
+
+    /// <summary>
+    /// Executes the asynchronous action with the configured retry behavior
+    /// </summary>
+    public Task ExecuteAsync(Func<CancellationToken, Task> action)
+    {
+        return ExecuteInternalAsync(action);
+    }
+
+    /// <summary>
+    /// Executes the asynchronous action with the configured retry behavior
+    /// </summary>
+    public Task ExecuteAsync(Func<Task> action)
+    {
+        return ExecuteInternalAsync(_ => action());
+    }
+
+    /// <summary>
+    /// Executes the asynchronous action with the configured retry behavior
+    /// </summary>
+    public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action)
+    {
+        return ExecuteInternalAsync(action)
+            .ContinueWith(t => t.Result!, TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    /// <summary>
+    /// Executes the asynchronous action with the configured retry behavior
+    /// </summary>
+    public Task<T> ExecuteAsync<T>(Func<Task<T>> action)
+    {
+        return ExecuteInternalAsync<T>(_ => action())
+            .ContinueWith(t => t.Result!, TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
+    // Wrapper for void synchronous action returning void
+    private void ExecuteInternal(Action action)
+    {
+        ExecuteInternal<object>(() =>
+        {
+            action();
+            return null!;
+        });
+    }
+
+    // Consolidated synchronous internal method
+    private T ExecuteInternal<T>(Func<T> action)
+    {
+        var attempt = 0;
+
+        while (true)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            attempt++;
+
+            try
+            {
+                _logger?.LogTrace("Executing attempt {Attempt} of {MaxAttempts}", attempt, _attempts);
+                var result = action();
+                _logger?.LogTrace("Attempt {Attempt} succeeded", attempt);
+                return result;
+            }
+            catch (Exception e) when (ShouldRetry(attempt, e))
+            {
+                var delayMs = CalculateDelay(attempt);
+                _logger?.LogWarning(e,
+                    "Attempt {Attempt} of {MaxAttempts} failed with {ExceptionType}, retrying in {DelayMs}ms",
+                    attempt, _attempts, e.GetType().Name, delayMs);
+                Thread.Sleep(delayMs);
+            }
+            catch (Exception e)
+            {
+                _logger?.LogError(e, "All {Attempts} retry attempts failed", _attempts);
+                throw new TryRetryException($"{e.Message} (giving up after {_attempts} attempt(s))", e);
+            }
+        }
+    }
+
+    //
+
+    // Wrapper for void asynchronous action returning void
+    private async Task ExecuteInternalAsync(Func<CancellationToken, Task> action)
+    {
+        await ExecuteInternalAsync<object>(async ct =>
+        {
+            await action(ct);
+            return null!;
+        });
+    }
+
+    //
+
+    // Consolidated asynchronous internal method
+    private async Task<T?> ExecuteInternalAsync<T>(Func<CancellationToken, Task<T>> action)
+    {
+        var attempt = 0;
+
+        while (true)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            attempt++;
+
+            try
+            {
+                _logger?.LogTrace("Executing attempt {Attempt} of {MaxAttempts}", attempt, _attempts);
+                var result = await action(_cancellationToken);
+                _logger?.LogTrace("Attempt {Attempt} succeeded", attempt);
+                return result;
+            }
+            catch (Exception e) when (ShouldRetry(attempt, e))
+            {
+                var delayMs = CalculateDelay(attempt);
+                _logger?.LogWarning(e,
+                    "Attempt {Attempt} of {MaxAttempts} failed with {ExceptionType}, retrying in {DelayMs}ms",
+                    attempt, _attempts, e.GetType().Name, delayMs);
+                await Task.Delay(delayMs, _cancellationToken);
+            }
+            catch (Exception e)
+            {
+                _logger?.LogError(e, "All {Attempts} retry attempts failed", _attempts);
+                throw new TryRetryException($"{e.Message} (giving up after {_attempts} attempt(s))", e);
+            }
+        }
+    }
+
+    //
+
+    private bool ShouldRetry(int currentAttempt, Exception exception)
+    {
+        return
+            currentAttempt < _attempts &&
+            (_exceptionTypes.Count == 0 || _exceptionTypes.Any(type => type.IsAssignableFrom(exception.GetType())));
+    }
+
+    //
+
+    private int CalculateDelay(int attempt)
+    {
+        if (_delay.HasValue)
+        {
+            return (int)_delay.Value.TotalMilliseconds;
+        }
+
+        if (_randomDelay.HasValue)
+        {
+            var (min, max) = _randomDelay.Value;
+            return Random.Shared.Next((int)min.TotalMilliseconds, (int)max.TotalMilliseconds);
+        }
+
+        // Default to exponential backoff
+        var multiplier = Math.Pow(2, attempt - 1);
+        var delayMs = multiplier * _exponentialBackoff!.Value.TotalMilliseconds;
+        var delay = (long)delayMs;
+        if (_maxExponentialBackoff.HasValue)
+        {
+            delay = Math.Min(delay, (long)_maxExponentialBackoff.Value.TotalMilliseconds);
+        }
+        return (int)Math.Min(delay, int.MaxValue);
+    }
+}
+
+public class TryRetryException(string message, Exception innerException)
+    : OdinSystemException(message, innerException);

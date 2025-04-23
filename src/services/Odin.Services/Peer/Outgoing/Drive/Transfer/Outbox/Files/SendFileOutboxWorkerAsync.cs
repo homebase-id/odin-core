@@ -161,11 +161,11 @@ public class SendFileOutboxWorkerAsync(
         {
             ApiResponse<PeerTransferResponse> response = null;
 
-            await TryRetry.WithDelayAsync(
-                Configuration.Host.PeerOperationMaxAttempts,
-                Configuration.Host.PeerOperationDelayMs,
-                cancellationToken,
-                async () => { response = await TrySendFile(); });
+            await TryRetry.Create()
+                .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
+                .WithDelay(Configuration.Host.PeerOperationDelayMs)
+                .WithCancellation(cancellationToken)
+                .ExecuteAsync(async () => { response = await TrySendFile(); });
 
             if (response.IsSuccessStatusCode)
             {

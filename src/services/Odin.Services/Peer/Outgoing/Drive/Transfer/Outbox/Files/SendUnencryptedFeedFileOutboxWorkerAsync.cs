@@ -182,11 +182,11 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);
         ApiResponse<PeerTransferResponse> httpResponse = null;
 
-        await TryRetry.WithDelayAsync(
-            Configuration.Host.PeerOperationMaxAttempts,
-            Configuration.Host.PeerOperationDelayMs,
-            cancellationToken,
-            async () => { httpResponse = await client.SendFeedFileMetadata(request); });
+        await TryRetry.Create()
+            .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
+            .WithDelay(Configuration.Host.PeerOperationDelayMs)
+            .WithCancellation(cancellationToken)
+            .ExecuteAsync(async () => { httpResponse = await client.SendFeedFileMetadata(request); });
 
         return httpResponse;
     }
@@ -207,11 +207,11 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
         ApiResponse<PeerTransferResponse> httpResponse = null;
 
-        await TryRetry.WithDelayAsync(
-            Configuration.Host.PeerOperationMaxAttempts,
-            Configuration.Host.PeerOperationDelayMs,
-            cancellationToken,
-            async () => { httpResponse = await client.DeleteFeedMetadata(request); });
+        await TryRetry.Create()
+            .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
+            .WithDelay(Configuration.Host.PeerOperationDelayMs)
+            .WithCancellation(cancellationToken)
+            .ExecuteAsync(async () => { httpResponse = await client.DeleteFeedMetadata(request); });
 
         return httpResponse;
     }

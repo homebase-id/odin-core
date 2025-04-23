@@ -274,7 +274,10 @@ public class PushNotificationService(
             httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, correlationContext.Id);
             var push = RestService.For<IDevicePushNotificationApi>(httpClient);
 
-            await TryRetry.WithBackoffAsync(5, TimeSpan.FromSeconds(1), CancellationToken.None, async () =>
+            await TryRetry.Create()
+                .WithAttempts(5)
+                .WithExponentialBackoff(TimeSpan.FromSeconds(1))
+                .ExecuteAsync(async () =>
             {
                 try
                 {

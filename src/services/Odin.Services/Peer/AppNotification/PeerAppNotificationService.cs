@@ -135,11 +135,10 @@ public class PeerAppNotificationService : PeerServiceBase
         ApiResponse<SharedSecretEncryptedPayload> response = null;
         try
         {
-            await TryRetry.WithDelayAsync(
-                _odinConfiguration.Host.PeerOperationMaxAttempts,
-                _odinConfiguration.Host.PeerOperationDelayMs,
-                CancellationToken.None,
-                async () => { response = await client.GetAppNotificationToken(); });
+            await TryRetry.Create()
+                .WithAttempts(_odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(_odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await client.GetAppNotificationToken(); });
         }
         catch (TryRetryException ex)
         {

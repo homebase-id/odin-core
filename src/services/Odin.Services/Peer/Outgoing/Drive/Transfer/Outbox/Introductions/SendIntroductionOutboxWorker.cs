@@ -38,11 +38,11 @@ public class SendIntroductionOutboxWorker(
             var clientAuthToken = FileItem.State.GetClientAccessToken();
 
             ApiResponse<HttpContent> response = null;
-            await TryRetry.WithDelayAsync(
-                Configuration.Host.PeerOperationMaxAttempts,
-                Configuration.Host.PeerOperationDelayMs,
-                cancellationToken,
-                async () =>
+            await TryRetry.Create()
+                .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
+                .WithDelay(Configuration.Host.PeerOperationDelayMs)
+                .WithCancellation(cancellationToken)
+                .ExecuteAsync(async () =>
                 {
                     var json = OdinSystemSerializer.Serialize(introduction);
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);

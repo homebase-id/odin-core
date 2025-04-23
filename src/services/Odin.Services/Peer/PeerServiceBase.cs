@@ -161,11 +161,11 @@ namespace Odin.Services.Peer
 
             try
             {
-                await TryRetry.WithDelayAsync(
-                    OdinConfiguration.Host.PeerOperationMaxAttempts,
-                    OdinConfiguration.Host.PeerOperationDelayMs,
-                    cancellationToken,
-                    async () => { result.Response = await action(); });
+                await TryRetry.Create()
+                    .WithAttempts(OdinConfiguration.Host.PeerOperationMaxAttempts)
+                    .WithDelay(OdinConfiguration.Host.PeerOperationDelayMs)
+                    .WithCancellation(cancellationToken)
+                    .ExecuteAsync(async () => { result.Response = await action(); });
 
                 result.IssueType = MapIssueType(result.Response);
 
