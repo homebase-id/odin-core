@@ -112,6 +112,7 @@ public class PeerDriveQueryService(
                 await TryRetry.Create()
                     .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
                     .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                    .WithLogging(logger)
                     .ExecuteAsync(async () => { queryBatchResponse = await httpClient.QueryBatch(request); });
             });
 
