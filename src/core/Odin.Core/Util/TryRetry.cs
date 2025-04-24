@@ -269,22 +269,22 @@ public class RetryBuilder
 
             try
             {
-                _logger?.LogTrace("Executing attempt {Attempt} of {MaxAttempts}", attempt, _attempts);
+                _logger?.LogTrace("Executing attempt {attempt} of {maxAttempts}", attempt, _attempts);
                 var result = action();
-                _logger?.LogTrace("Attempt {Attempt} succeeded", attempt);
+                _logger?.LogTrace("Attempt {attempt} succeeded", attempt);
                 return result;
             }
             catch (Exception e) when (ShouldRetry(attempt, e))
             {
                 var delayMs = CalculateDelay(attempt);
-                _logger?.LogWarning(e,
-                    "Attempt {Attempt} of {MaxAttempts} failed with {ExceptionType}, retrying in {DelayMs}ms",
-                    attempt, _attempts, e.GetType().Name, delayMs);
+                _logger?.LogWarning(
+                    "Attempt {attempt} of {maxAttempts} failed: '{message}' - retrying in {delayMs}ms",
+                    attempt, _attempts, e.Message, delayMs);
                 Thread.Sleep(delayMs);
             }
             catch (Exception e)
             {
-                _logger?.LogError(e, "All {Attempts} retry attempts failed", _attempts);
+                _logger?.LogWarning("All {attempts} retry attempts failed: '{message}'", _attempts, e.Message);
                 throw new TryRetryException($"{e.Message} (giving up after {_attempts} attempt(s))", e);
             }
         }
@@ -316,22 +316,22 @@ public class RetryBuilder
 
             try
             {
-                _logger?.LogTrace("Executing attempt {Attempt} of {MaxAttempts}", attempt, _attempts);
+                _logger?.LogTrace("Executing attempt {attempt} of {maxAttempts}", attempt, _attempts);
                 var result = await action(_cancellationToken);
-                _logger?.LogTrace("Attempt {Attempt} succeeded", attempt);
+                _logger?.LogTrace("Attempt {attempt} succeeded", attempt);
                 return result;
             }
             catch (Exception e) when (ShouldRetry(attempt, e))
             {
                 var delayMs = CalculateDelay(attempt);
-                _logger?.LogWarning(e,
-                    "Attempt {Attempt} of {MaxAttempts} failed with {ExceptionType}, retrying in {DelayMs}ms",
-                    attempt, _attempts, e.GetType().Name, delayMs);
+                _logger?.LogWarning(
+                    "Attempt {attempt} of {maxAttempts} failed: '{message}' - retrying in {delayMs}ms",
+                    attempt, _attempts, e.Message, delayMs);
                 await Task.Delay(delayMs, _cancellationToken);
             }
             catch (Exception e)
             {
-                _logger?.LogError(e, "All {Attempts} retry attempts failed", _attempts);
+                _logger?.LogWarning("All {attempts} retry attempts failed: '{message}'", _attempts, e.Message);
                 throw new TryRetryException($"{e.Message} (giving up after {_attempts} attempt(s))", e);
             }
         }
