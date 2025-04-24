@@ -196,6 +196,11 @@ namespace Odin.Core.Time
             return start > this && end < this;
         }
 
+        public static TimeSpan operator -(UnixTimeUtc left, UnixTimeUtc right)
+        {
+            return TimeSpan.FromMilliseconds(left.milliseconds - right.milliseconds);
+        }
+        
         public static bool operator ==(UnixTimeUtc left, UnixTimeUtc right)
         {
             return left.milliseconds == right.milliseconds;

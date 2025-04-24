@@ -143,5 +143,49 @@ namespace Odin.Core.Tests
             UnixTimeUtc ut2 = i;
             ClassicAssert.AreEqual(i, (Int64) ut2);
         }
+        
+        [Test]
+        public void SubtractingEarlierTime_ReturnsPositiveTimeSpan()
+        {
+            var earlier = UnixTimeUtc.FromDateTime(new DateTime(2023, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+            var later = UnixTimeUtc.FromDateTime(new DateTime(2023, 1, 1, 12, 5, 0, DateTimeKind.Utc));
+
+            TimeSpan result = later - earlier;
+
+            ClassicAssert.AreEqual(TimeSpan.FromMinutes(5), result);
+        }
+
+        [Test]
+        public void SubtractingLaterTime_ReturnsNegativeTimeSpan()
+        {
+            var earlier = UnixTimeUtc.FromDateTime(new DateTime(2023, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+            var later = UnixTimeUtc.FromDateTime(new DateTime(2023, 1, 1, 12, 5, 0, DateTimeKind.Utc));
+
+            TimeSpan result = earlier - later;
+
+            ClassicAssert.AreEqual(TimeSpan.FromMinutes(-5), result);
+        }
+
+        [Test]
+        public void SubtractingEqualTimes_ReturnsZeroTimeSpan()
+        {
+            var time = UnixTimeUtc.FromDateTime(new DateTime(2023, 1, 1, 12, 0, 0, DateTimeKind.Utc));
+
+            TimeSpan result = time - time;
+
+            ClassicAssert.AreEqual(TimeSpan.Zero, result);
+        }
+
+        [Test]
+        public void SubtractionWithMillisecondsPrecision_WorksAccurately()
+        {
+            var baseTime = UnixTimeUtc.FromDateTime(new DateTime(2023, 1, 1, 12, 0, 0, 0, DateTimeKind.Utc));
+            var slightlyLater = UnixTimeUtc.FromDateTime(new DateTime(2023, 1, 1, 12, 0, 0, 250, DateTimeKind.Utc));
+
+            TimeSpan result = slightlyLater - baseTime;
+
+            ClassicAssert.AreEqual(TimeSpan.FromMilliseconds(250), result);
+        }
+
     }
 }
