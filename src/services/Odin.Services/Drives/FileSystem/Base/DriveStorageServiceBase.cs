@@ -1250,12 +1250,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await using (var tx = await db.BeginStackedTransactionAsync())
             {
-                longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
                 await WriteFileHeaderInternal(deletedServerFileHeader);
                 await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                 await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                 tx.Commit();
             }
+            longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
 
             if (await ShouldRaiseDriveEventAsync(file))
             {
