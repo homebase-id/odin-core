@@ -31,9 +31,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         TableDriveMainIndex driveMainIndex,
         TenantPathManager tenantPathManager)
     {
-        public static readonly string DeletePayloadExtension = ".p-deleted";
-        public static readonly string DeletedThumbExtension = ".t-deleted";
-
         /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
@@ -173,14 +170,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.SaveReactionSummary(drive, fileId, null);
         }
 
-        public void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int height,
-            int width)
+        public void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
         {
             Benchmark.Milliseconds(logger, nameof(HardDeleteThumbnailFile), () =>
             {
                 var fileName = GetThumbnailFileName(fileId, width, height, payloadKey, payloadUid);
                 var dir = GetFilePath(drive, fileId, FilePart.Thumb);
                 var path = Path.Combine(dir, fileName);
+
+                var s = tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, fileId, payloadKey, payloadUid, width, height);
+
+                if (s != path)
+                {
+                    logger.LogError($"HardDeleteThumbnailFile {path} != {s}");
+                    Debug.Assert(s != path);
+                }
 
                 driveFileReaderWriter.DeleteFile(path);
             });
@@ -195,13 +199,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
             {
                 var pathAndFilename = GetPayloadFilePath(drive, fileId, payloadKey, payloadUid);
 
+                var s = tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
+
+                if (s != pathAndFilename)
+                {
+                    logger.LogError($"HardDeleteThumbnailFile {pathAndFilename} != {s}");
+                    Debug.Assert(s != pathAndFilename);
+                }
+
                 //
                 // Re-enable DELETION this after we are good with actually deleting the file
                 //
 
                 // _driveFileReaderWriter.DeleteFile(path);
 
-                var target = pathAndFilename.Replace(".payload", DeletePayloadExtension);
+                var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
                 logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
                     pathAndFilename,
                     target);
@@ -224,7 +236,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
-                    var thumbnailTarget = thumbnailFile.Replace(".thumb", DeletedThumbExtension);
+                    var thumbnailTarget = thumbnailFile.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
 
                     if (driveFileReaderWriter.FileExists(thumbnailFile))
                     {

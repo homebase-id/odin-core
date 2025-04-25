@@ -48,6 +48,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public static readonly string UploadFolder = "uploads";
         public static readonly string InboxFolder = "inbox";
         public static readonly string FilesFolder = "files";
+        public static readonly string DeletePayloadExtension = ".p-deleted";
+        public static readonly string DeletedThumbExtension = ".t-deleted";
 
 
         //
@@ -57,12 +59,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public static string GuidToPathSafeString(Guid fileId)
             => $"{fileId.ToString("N")}";  // .ToLower() not needed - "N" means lowercase
 
+        public static string GetFilename(Guid fileId, string extension)
+        {
+            string fileStr = TenantPathManager.GuidToPathSafeString(fileId);
+            return string.IsNullOrEmpty(extension) ? fileStr : $"{fileStr}.{extension.ToLower()}";
+        }
+
         // ----------------------
         // Disk root locations
         // ----------------------
 
         public string GetTenantRootBasePath()
             => Path.Combine(ConfigRoot, StorageFolder, CurrentEnvironment.ToLowerInvariant(), TenantId.ToString());
+
+        // MS TODO: public string GetTenantRootBasePath(BaseStorageType storageType) -> make a case for the below, but understand if this path is long term or temp.
 
         public string GetHeaderDataStorageBasePath()
             => Path.Combine(GetTenantRootBasePath(), HeadersFolder);
@@ -103,7 +113,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         // Drive-specific paths
         // ----------------------
 
-        public string GetDriveTempStoragePath(Guid tenantId, Guid driveId, TempStorageType storageType)
+        public string GetDriveTempStoragePath(Guid driveId, TempStorageType storageType)
         {
             var driveFolderName = GuidToPathSafeString(driveId);
             var tempBase = Path.Combine(GetTempStorageBasePath(), DriveFolder, driveFolderName);
@@ -118,7 +128,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        public string GetDriveLongTermPayloadPath(Guid tenantId, string payloadShardKey, Guid driveId)
+        public string GetDriveLongTermPayloadPath(Guid driveId)
         {
             var driveFolderName = GuidToPathSafeString(driveId);
             return Path.Combine(GetPayloadStorageBasePath(), DriveFolder, driveFolderName, FilesFolder);

@@ -109,7 +109,9 @@ namespace Odin.Services.Drives
 
         public string GetLongTermPayloadStoragePath()
         {
-            return Path.Combine(_longTermPayloadPath, "files");
+            var r = Path.Combine(_longTermPayloadPath, "files");
+            // var s = TenantPathManager.GetDriveLongTermPayloadPath(Id);
+            return r;
         }
 
         public string GetTempStoragePath(TempStorageType storageType)

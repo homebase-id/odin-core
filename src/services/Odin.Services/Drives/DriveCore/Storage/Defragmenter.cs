@@ -198,7 +198,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
                 // _driveFileReaderWriter.DeleteFile(path);
 
-                var target = pathAndFilename.Replace(".payload", LongTermStorageManager.DeletePayloadExtension);
+                var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
                 logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
                     pathAndFilename,
                     target);
@@ -221,7 +221,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
-                    var thumbnailTarget = thumbnailFile.Replace(".thumb", LongTermStorageManager.DeletedThumbExtension);
+                    var thumbnailTarget = thumbnailFile.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
 
                     if (driveFileReaderWriter.FileExists(thumbnailFile))
                     {
