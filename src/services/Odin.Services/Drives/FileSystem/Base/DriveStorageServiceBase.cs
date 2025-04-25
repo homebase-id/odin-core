@@ -16,6 +16,7 @@ using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Concurrency;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -33,8 +34,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         DriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
-        IdentityDatabase db) : RequirePermissionsBase
+        IdentityDatabase db,
+        INodeLock nodeLock) : RequirePermissionsBase
     {
+        private const int ForceReleaseSeconds = 60 * 5;
+
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
         protected override DriveManager DriveManager { get; } = driveManager;
@@ -325,7 +329,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var header = await this.GetServerFileHeader(file, odinContext);
             DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, targetVersionTag);
 
-            var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => p.KeyEquals( key)) ?? -1;
+            var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => p.KeyEquals(key)) ?? -1;
 
             if (descriptorIndex == -1)
             {
@@ -551,68 +555,72 @@ namespace Odin.Services.Drives.FileSystem.Base
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
-
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-
-            var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
-            if (null == existingServerHeader)
-            {
-                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
-            }
-
-            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            {
-                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
-            }
-
-            DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
-
-            newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
-            newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
-            newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
-            newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
-            newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
-                existingServerHeader.FileMetadata.Updated);
-
-            //Only overwrite the globalTransitId if one is already set; otherwise let a file update set the ID (useful for mail-app drafts)
-            if (existingServerHeader.FileMetadata.GlobalTransitId != null)
-            {
-                newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
-            }
-
-            newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
-            newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
-
-            newMetadata.File = existingServerHeader.FileMetadata.File;
-            //Note: our call to GetServerFileHeader earlier validates the existing
-            serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
-
+            
             ServerFileHeader serverHeader;
-            try
+            
+            var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
+            await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
             {
-                if (!ignorePayload.GetValueOrDefault(false))
+                var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
+                if (null == existingServerHeader)
                 {
-                    await ProcessPayloads(originFile, targetFile, newMetadata.Payloads ?? [], drive);
+                    throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
                 }
 
-                serverHeader = new ServerFileHeader()
+                if (existingServerHeader.FileMetadata.FileState != FileState.Active)
                 {
-                    EncryptedKeyHeader = await EncryptKeyHeader(originFile.File.DriveId, keyHeader, odinContext),
-                    FileMetadata = newMetadata,
-                    ServerMetadata = serverMetadata
-                };
+                    throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
+                }
 
-                await WriteFileHeaderInternal(serverHeader);
-            }
-            finally
-            {
-                //paranoid cleanup
-                if (!ignorePayload.GetValueOrDefault(false))
+                DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
+
+                newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
+                newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
+                newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
+                newMetadata.SenderOdinId = existingServerHeader.FileMetadata.SenderOdinId;
+                newMetadata.SetCreatedModifiedWithDatabaseValue(existingServerHeader.FileMetadata.Created,
+                    existingServerHeader.FileMetadata.Updated);
+
+                //Only overwrite the globalTransitId if one is already set; otherwise let a file update set the ID (useful for mail-app drafts)
+                if (existingServerHeader.FileMetadata.GlobalTransitId != null)
                 {
-                    //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
-                    var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
-                    await DeleteZombiePayloads(targetFile, zombiePayloads);
-                    await uploadStorageManager.EnsureDeleted(originFile);
+                    newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
+                }
+
+                newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
+                newMetadata.ReactionPreview = existingServerHeader.FileMetadata.ReactionPreview;
+
+                newMetadata.File = existingServerHeader.FileMetadata.File;
+                //Note: our call to GetServerFileHeader earlier validates the existing
+                serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
+
+                try
+                {
+                    if (!ignorePayload.GetValueOrDefault(false))
+                    {
+                        await ProcessPayloads(originFile, targetFile, newMetadata.Payloads ?? [], drive);
+                    }
+
+                    serverHeader = new ServerFileHeader()
+                    {
+                        EncryptedKeyHeader = await EncryptKeyHeader(originFile.File.DriveId, keyHeader, odinContext),
+                        FileMetadata = newMetadata,
+                        ServerMetadata = serverMetadata
+                    };
+
+                    await WriteFileHeaderInternal(serverHeader);
+                }
+                finally
+                {
+                    //paranoid cleanup
+                    if (!ignorePayload.GetValueOrDefault(false))
+                    {
+                        //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
+                        var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
+                        await DeleteZombiePayloads(targetFile, zombiePayloads);
+                        await uploadStorageManager.EnsureDeleted(originFile);
+                    }
                 }
             }
 
@@ -951,122 +959,129 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task UpdateBatchAsync(TempFile originFile, InternalDriveFileId targetFile, BatchUpdateManifest manifest,
             IOdinContext odinContext)
         {
-            List<PayloadDescriptor> DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
+            ServerFileHeader existingHeader;
+            var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
+            await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
             {
+                existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+
+                List<PayloadDescriptor> DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
+                {
+                    var zombies = new List<PayloadDescriptor>();
+
+                    // Delete operations are for existing payloads, so we need to update the existing header
+                    foreach (var op in manifest.PayloadInstruction.Where(op =>
+                                 op.OperationType == PayloadUpdateOperationType.DeletePayload))
+                    {
+                        var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
+                        if (descriptor != null)
+                        {
+                            existingHeader1.FileMetadata.Payloads.RemoveAll(pk => pk.KeyEquals(op.Key));
+                            zombies.Add(descriptor);
+                        }
+                    }
+
+                    return zombies;
+                }
+
+                async Task<List<PayloadDescriptor>> ProcessAppendOrOverwrite(StorageDrive storageDrive, ServerFileHeader serverFileHeader)
+                {
+                    var zombies = new List<PayloadDescriptor>();
+                    foreach (var op in manifest.PayloadInstruction
+                                 .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                    {
+                        // Here look at the incoming payloads because we're adding a new one or overwriting
+                        var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
+                            $"with key {op.Key} in FileMetadata to " +
+                            $"perform operation {op.OperationType}");
+
+                        // Move the payload from the temp folder to the long term folder
+                        await ProcessPayloadDescriptor(originFile, targetFile, storageDrive, descriptor);
+
+                        //
+                        // Upsert the descriptor in the existing header
+                        //
+                        var idx = serverFileHeader.FileMetadata.Payloads.FindIndex(p => p.KeyEquals(op.Key));
+
+                        if (idx == -1)
+                        {
+                            // item was new (appended)
+                            serverFileHeader.FileMetadata.Payloads.Add(descriptor);
+                        }
+                        else
+                        {
+                            // payload was overwritten so this means we need to
+                            // mark the old one as a zombie
+                            zombies.Add(serverFileHeader.FileMetadata.Payloads[idx]);
+                            serverFileHeader.FileMetadata.Payloads[idx] = descriptor;
+                        }
+                    }
+
+                    return zombies;
+                }
+
+                OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
+                var metadata = manifest.FileMetadata;
+                metadata.AppData?.Validate();
+
+                //
+                // Validations
+                //
+                if (null == existingHeader)
+                {
+                    throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
+                }
+
+                DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
+
+                if (existingHeader.FileMetadata.IsEncrypted)
+                {
+                    var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
+                    var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+
+                    if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
+                    {
+                        throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
+                                                      "invalidate one or more payloads.  Re-upload the entire file if you wish " +
+                                                      "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
+                    }
+
+                    if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
+                    {
+                        throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
+                    }
+                }
+
+                //
+                // For the payloads, we have two sources and one set of operations
+                // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
+                // 2. existingHeader.FileMetadata.Payloads - indicates the payload descriptors in current state on the server
+                // 3. manifest.PayloadInstruction - this indicates what to do with the payloads on the file
+
+                // now - each PayloadInstruction needs to be applied
+                // to delete a payload, remove from disk and remove from the existingHeader.FileMetadata.Payloads
+                // to add or append a payload, save on disk then upsert the value in existingHeader.FileMetadata.Payloads
+                // 
+                // Note: I have separated the payload instructions for readability
+                // 
+
+                var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
                 var zombies = new List<PayloadDescriptor>();
 
-                // Delete operations are for existing payloads, so we need to update the existing header
-                foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
+                try
                 {
-                    var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
-                    if (descriptor != null)
-                    {
-                        existingHeader1.FileMetadata.Payloads.RemoveAll(pk => pk.KeyEquals(op.Key));
-                        zombies.Add(descriptor);
-                    }
+                    zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
+                    zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
+
+                    existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
+                    await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
+                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
                 }
-
-                return zombies;
-            }
-
-            async Task<List<PayloadDescriptor>> ProcessAppendOrOverwrite(StorageDrive storageDrive, ServerFileHeader serverFileHeader)
-            {
-                var zombies = new List<PayloadDescriptor>();
-                foreach (var op in manifest.PayloadInstruction
-                             .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                finally
                 {
-                    // Here look at the incoming payloads because we're adding a new one or overwriting
-                    var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
-                        $"with key {op.Key} in FileMetadata to " +
-                        $"perform operation {op.OperationType}");
-
-                    // Move the payload from the temp folder to the long term folder
-                    await ProcessPayloadDescriptor(originFile, targetFile, storageDrive, descriptor);
-
-                    //
-                    // Upsert the descriptor in the existing header
-                    //
-                    var idx = serverFileHeader.FileMetadata.Payloads.FindIndex(p => p.KeyEquals(op.Key));
-
-                    if (idx == -1)
-                    {
-                        // item was new (appended)
-                        serverFileHeader.FileMetadata.Payloads.Add(descriptor);
-                    }
-                    else
-                    {
-                        // payload was overwritten so this means we need to
-                        // mark the old one as a zombie
-                        zombies.Add(serverFileHeader.FileMetadata.Payloads[idx]);
-                        serverFileHeader.FileMetadata.Payloads[idx] = descriptor;
-                    }
+                    await DeleteZombiePayloads(targetFile, zombies);
+                    await uploadStorageManager.EnsureDeleted(originFile);
                 }
-
-                return zombies;
-            }
-
-            OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
-            var metadata = manifest.FileMetadata;
-            metadata.AppData?.Validate();
-
-            //
-            // Validations
-            //
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-            if (null == existingHeader)
-            {
-                throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
-            }
-
-            DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
-
-            if (existingHeader.FileMetadata.IsEncrypted)
-            {
-                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
-                var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-
-                if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
-                {
-                    throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
-                                                  "invalidate one or more payloads.  Re-upload the entire file if you wish " +
-                                                  "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
-                }
-
-                if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
-                {
-                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
-                }
-            }
-
-            //
-            // For the payloads, we have two sources and one set of operations
-            // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
-            // 2. existingHeader.FileMetadata.Payloads - indicates the payload descriptors in current state on the server
-            // 3. manifest.PayloadInstruction - this indicates what to do with the payloads on the file
-
-            // now - each PayloadInstruction needs to be applied
-            // to delete a payload, remove from disk and remove from the existingHeader.FileMetadata.Payloads
-            // to add or append a payload, save on disk then upsert the value in existingHeader.FileMetadata.Payloads
-            // 
-            // Note: I have separated the payload instructions for readability
-            // 
-
-            var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            var zombies = new List<PayloadDescriptor>();
-
-            try
-            {
-                zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
-                zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
-
-                existingHeader.FileMetadata.VersionTag = manifest.NewVersionTag;
-                await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
-                    manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
-            }
-            finally
-            {
-                await DeleteZombiePayloads(targetFile, zombies);
-                await uploadStorageManager.EnsureDeleted(originFile);
             }
 
             if (await ShouldRaiseDriveEventAsync(targetFile))
@@ -1255,6 +1270,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                 tx.Commit();
             }
+
             longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
 
             if (await ShouldRaiseDriveEventAsync(file))
