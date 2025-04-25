@@ -50,6 +50,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public static readonly string FilesFolder = "files";
         public static readonly string DeletePayloadExtension = ".p-deleted";
         public static readonly string DeletedThumbExtension = ".t-deleted";
+        public static readonly string PayloadDelimiter = "-";
+        public static readonly string TransitThumbnailKeyDelimiter = "|";
 
 
         //
@@ -226,7 +228,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // fileId is 1fedce18c0022900efbb396f9796d3d0
             // payload key is prfl_pic
             // payload UID is 113599297775861760
-            var parts = filename.Split(DriveFileUtility.PayloadDelimiter);
+            var parts = filename.Split(TenantPathManager.PayloadDelimiter);
             return new ParsedPayloadFileRecord()
             {
                 Filename = parts[0],
@@ -244,7 +246,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // width = 400
             // height 400
 
-            var parts = filename.Split(DriveFileUtility.PayloadDelimiter);
+            var parts = filename.Split(TenantPathManager.PayloadDelimiter);
             var fileNameOnDisk = parts[0]; // not used 
             var payloadKeyOnDisk = parts[1];
             var payloadUidOnDisk = parts[2];

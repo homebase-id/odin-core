@@ -22,9 +22,6 @@ namespace Odin.Services.Drives.FileSystem.Base;
 public static class DriveFileUtility
 {
     public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
-    public const string PayloadDelimiter = "-";
-    public const string FileNameSectionDelimiter = "-";
-    public const string TransitThumbnailKeyDelimiter = "|";
 
     // public const int MaxAppDataContentLength = 10 * 1024; MOVED TO AppMetaData.MaxAppDataContentLength
     // public const int MaxLocalAppDataContentLength = 4 * 1024; MOVED TO LocalAppMetaData.MaxLocalAppDataContentLength
@@ -283,7 +280,7 @@ public static class DriveFileUtility
     public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, string width, string height)
     {
         var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
-        return $"{bn}{FileNameSectionDelimiter}{width}x{height}.thumb";
+        return $"{bn}{TenantPathManager.FileNameSectionDelimiter}{width}x{height}.thumb";
     }
     
     public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
@@ -299,7 +296,7 @@ public static class DriveFileUtility
     private static string CreateBasePayloadFileName(string payloadKey, string uid)
     {
         var parts = new[] { payloadKey, uid };
-        var r = string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+        var r = string.Join(TenantPathManager.FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
 
         /* var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, new UnixTimeUtcUnique(long.Parse(uid)));
         if (s != r)
