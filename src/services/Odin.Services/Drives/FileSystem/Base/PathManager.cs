@@ -7,6 +7,7 @@ using Odin.Core.Trie;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Tenant;
+using Odin.Services.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -14,7 +15,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     {
         public string Filename { get; set; }
         public string Key { get; init; }
-        public string Uid { get; init; }
+        public UnixTimeUtcUnique Uid { get; init; }
     }
 
     public record ParsedThumbnailFileRecord
@@ -162,10 +163,27 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return path;
         }
 
+        private static string CreateBasePayloadFileName(string payloadKey, string uid)
+        {
+            return $"{payloadKey.ToLower()}{FileNameSectionDelimiter}{uid}";
+        }
+
         public static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique uid)
         {
-            return $"{payloadKey.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}";
+            return CreateBasePayloadFileName(payloadKey, uid.ToString());
         }
+
+        public static string CreateBasePayloadSearchMask()
+        {
+            return CreateBasePayloadFileName("*", "*");
+        }
+
+
+        public static string CreateBasePayloadFileNameAndExtension(string payloadKey, UnixTimeUtcUnique uid)
+        {
+            return $"{payloadKey.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}{PayloadExtension}";
+        }
+
 
         public string GetPayloadFileName(Guid fileId, string key, UnixTimeUtcUnique uid)
         {
@@ -182,6 +200,29 @@ namespace Odin.Services.Drives.DriveCore.Storage
         // ----------------------
         // Thumbnail-specific paths
         // ----------------------
+
+        private static string CreateThumbnailFileNameAndExtension(string payloadKey, string payloadUid, string width, string height)
+        {
+            var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
+            var r = $"{bn}{FileNameSectionDelimiter}{width}x{height}{ThumbnailExtension}";
+            return r;
+        }
+
+
+        public static string CreateThumbnailFileNameAndExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
+        {
+            OdinValidationUtils.AssertIsTrue(width > 0, "Thumbnail width must be > 0");
+            OdinValidationUtils.AssertIsTrue(height > 0, "Thumbnail height must be > 0");
+
+            return CreateThumbnailFileNameAndExtension(payloadKey, payloadUid.ToString(), width.ToString(), height.ToString());
+        }
+
+        public static string CreateThumbnailFileExtensionStarStar(string payloadKey, UnixTimeUtcUnique payloadUid)
+        {
+            return CreateThumbnailFileNameAndExtension(payloadKey, payloadUid.ToString(), "*", "*");
+        }
+
+
         public string GetThumbnailDirectory(Guid  driveId, Guid fileId, bool ensureExists = false)
         {
             return GetPayloadDirectory(driveId, fileId, ensureExists);
@@ -189,6 +230,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public string GetThumbnailFileName(Guid fileId, string key, UnixTimeUtcUnique uid, int width, int height)
         {
+            OdinValidationUtils.AssertIsTrue(width > 0, "Thumbnail width must be > 0");
+            OdinValidationUtils.AssertIsTrue(height > 0, "Thumbnail height must be > 0");
             var size = $"{width}{ThumbnailSizeDelimiter}{height}";
             return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{key.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}{FileNameSectionDelimiter}{size}{ThumbnailExtension}";
         }
@@ -233,7 +276,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             {
                 Filename = parts[0],
                 Key = parts[1],
-                Uid = parts[2]
+                Uid = new UnixTimeUtcUnique(long.Parse(parts[2]))
             };
         }
 

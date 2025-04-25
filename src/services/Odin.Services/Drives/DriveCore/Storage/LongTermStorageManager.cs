@@ -507,7 +507,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 foreach (var zombiePayload in zombiePayloadFiles)
                 {
                     //Note: this also kills the thumbnails for this file
-                    HardDeletePayloadFile(drive, fileId, zombiePayload.Key, new UnixTimeUtcUnique(long.Parse(zombiePayload.Uid)));
+                    HardDeletePayloadFile(drive, fileId, zombiePayload.Key, zombiePayload.Uid);
                 }
             });
         }
@@ -537,7 +537,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
 
                 bool isZombie = deadPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                                                      p.Uid.ToString() == fileRecord.Uid);
+                                                      p.Uid.uniqueTime == fileRecord.Uid.uniqueTime);
                 // 🧟🧟🧟
                 if (isZombie)
                 {
@@ -561,7 +561,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
 
                 bool isKept = expectedPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                                                        p.Uid.ToString() == fileRecord.Uid);
+                                                        p.Uid.uniqueTime == fileRecord.Uid.uniqueTime);
 
                 if (!isKept)
                 {
@@ -702,7 +702,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetThumbnailSearchMask(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, "*", "*");
+            var extension = DriveFileUtility.GetThumbnailFileExtensionStarStar(payloadKey, payloadUid);
             return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 
@@ -779,7 +779,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetPayloadSearchMask(Guid fileId)
         {
-            var extension = DriveFileUtility.GetPayloadFileExtension("*", "*");
+            var extension = DriveFileUtility.GetPayloadFileExtensionStarStar();
             var mask = $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
             return mask;
         }
