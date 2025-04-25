@@ -22,9 +22,6 @@ namespace Odin.Services.Drives.FileSystem.Base;
 public static class DriveFileUtility
 {
     public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
-    public const string PayloadDelimiter = "-";
-    public const string FileNameSectionDelimiter = "-";
-    public const string TransitThumbnailKeyDelimiter = "|";
 
     // public const int MaxAppDataContentLength = 10 * 1024; MOVED TO AppMetaData.MaxAppDataContentLength
     // public const int MaxLocalAppDataContentLength = 4 * 1024; MOVED TO LocalAppMetaData.MaxLocalAppDataContentLength
@@ -271,42 +268,54 @@ public static class DriveFileUtility
 
     public static string GetPayloadFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
-        return GetPayloadFileExtension(payloadKey, payloadUid.ToString());
+        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
+        var r = $"{bn}{TenantPathManager.PayloadExtension}";
+
+        var s = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadUid);
+        OdinValidationUtils.AssertIsTrue(s == r, "PathManager Mismatch"); // Where is LOG ?!
+
+        return r;
     }
 
-    public static string GetPayloadFileExtension(string payloadKey, string payloadUid)
+    public static string GetPayloadFileExtensionStarStar()
     {
-        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
-        return $"{bn}.payload";
+        var bn = CreateBasePayloadFileNameStarStar();
+        var r = $"{bn}{TenantPathManager.PayloadExtension}";
+
+        return r;
     }
 
-    public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, string width, string height)
-    {
-        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
-        return $"{bn}{FileNameSectionDelimiter}{width}x{height}.thumb";
-    }
-    
+
     public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
     {
-        return GetThumbnailFileExtension(payloadKey, payloadUid, width.ToString(), height.ToString());
+        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
+        var r = $"{bn}{TenantPathManager.FileNameSectionDelimiter}{width}x{height}{TenantPathManager.ThumbnailExtension}";
+
+        var s = TenantPathManager.CreateThumbnailFileNameAndExtension(payloadKey, payloadUid, width, height);
+        OdinValidationUtils.AssertIsTrue(s == r, "PathManager Mismatch GetThumbnailFileExtension"); // Where is LOG ?!
+
+        return r;
+    }
+
+    public static string GetThumbnailFileExtensionStarStar(string payloadKey, UnixTimeUtcUnique payloadUid)
+    {
+        return TenantPathManager.CreateThumbnailFileExtensionStarStar(payloadKey, payloadUid);
+    }
+
+
+    private static string CreateBasePayloadFileNameStarStar()
+    {
+        return TenantPathManager.CreateBasePayloadSearchMask();
     }
 
     private static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique payloadUid)
     {
-        return CreateBasePayloadFileName(payloadKey, payloadUid.uniqueTime.ToString());
-    }
+        var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
+        var r = string.Join(TenantPathManager.FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
 
-    private static string CreateBasePayloadFileName(string payloadKey, string uid)
-    {
-        var parts = new[] { payloadKey, uid };
-        var r = string.Join(FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
+        var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, payloadUid);
+        OdinValidationUtils.AssertIsTrue(s == r, "CreateBasePayloadFileName"); // Where is LOG ?!
 
-        /* var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, new UnixTimeUtcUnique(long.Parse(uid)));
-        if (s != r)
-        {
-            Debug.Assert(s == r);
-            throw new Exception($"CreateBasePayloadFileName mismatch {r} vs {s}");
-        }*/
         return r;
     }
 

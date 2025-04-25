@@ -46,9 +46,9 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     {
         return
             $"{payloadKey}" +
-            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+            $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
             $"{this.PixelWidth}" +
-            $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+            $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
             $"{this.PixelHeight}";
     }
 
