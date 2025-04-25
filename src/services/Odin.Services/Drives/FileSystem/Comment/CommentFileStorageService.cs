@@ -7,6 +7,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Concurrency;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -20,9 +21,10 @@ public class CommentFileStorageService(
     DriveManager driveManager,
     LongTermStorageManager longTermStorageManager,
     UploadStorageManager uploadStorageManager,
-    IdentityDatabase db)
+    IdentityDatabase db,
+    INodeLock nodeLock)
     : DriveStorageServiceBase(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager,
-        uploadStorageManager, db)
+        uploadStorageManager, db, nodeLock)
 {
     public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
     {
