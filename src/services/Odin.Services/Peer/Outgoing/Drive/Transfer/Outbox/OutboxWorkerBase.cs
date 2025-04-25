@@ -187,9 +187,9 @@ public abstract class OutboxWorkerBase(
 
                     var thumbnailKey =
                         $"{payloadKey}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                        $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
                         $"{thumb.PixelWidth}" +
-                        $"{DriveFileUtility.TransitThumbnailKeyDelimiter}" +
+                        $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
                         $"{thumb.PixelHeight}";
 
                     payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,

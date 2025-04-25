@@ -202,7 +202,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey);
 
-            var parts = thumbnailUploadKey.Split(DriveFileUtility.TransitThumbnailKeyDelimiter);
+            var parts = thumbnailUploadKey.Split(TenantPathManager.TransitThumbnailKeyDelimiter);
             if (parts.Length != 3)
             {
                 throw new OdinClientException($"The thumbnail upload key provided is invalid {thumbnailUploadKey}");

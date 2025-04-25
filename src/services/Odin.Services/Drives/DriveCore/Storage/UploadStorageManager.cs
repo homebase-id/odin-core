@@ -66,7 +66,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
 
             var dir = GetFileDirectory(drive, tempFile);
-            var pattern = GetFilename(tempFile.File.FileId, "*");
+            var pattern = TenantPathManager.GetFilename(tempFile.File.FileId, "*");
 
             logger.LogDebug("Delete temp files in dir: {filePath} using searchPattern: {pattern}", dir, pattern);
             driveFileReaderWriter.DeleteFilesInDirectory(dir, pattern);
@@ -83,8 +83,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetFileDirectory(StorageDrive drive, TempFile tempFile, bool ensureExists = false)
         {
-            string path = drive.GetTempStoragePath(tempFile.StorageType);
-
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8
             //The positions in the time guid are hex values as follows
             //from new DateTimeOffset(2021, 7, 21, 23, 59, 59, TimeSpan.Zero);
@@ -107,6 +105,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 Debug.Assert(s == r);
             }
 
+            string path = drive.GetTempStoragePath(tempFile.StorageType);
+
+            // need tenantPathManager injection
+            // var t = tenantPathManager.GetDriveTempStoragePath(drive.Id, tempFile.StorageType);
+
             string dir = Path.Combine(path, year, month, day, hour);
 
             if (ensureExists)
@@ -117,19 +120,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return dir;
         }
 
-        private string GetFilename(Guid fileId, string extension)
-        {
-            string file = TenantPathManager.GuidToPathSafeString(fileId);
-            return string.IsNullOrEmpty(extension) ? file : $"{file}.{extension.ToLower()}";
-        }
-        
         private async Task<string> GetTempFilenameAndPathInternal(TempFile tempFile, string extension, bool ensureExists = false)
         {
             var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
             var fileId = tempFile.File.FileId;
 
             string dir = GetFileDirectory(drive, tempFile, ensureExists);
-            var r =  Path.Combine(dir, GetFilename(fileId, extension));
+            var r =  Path.Combine(dir, TenantPathManager.GetFilename(fileId, extension));
 
             return r;
         }

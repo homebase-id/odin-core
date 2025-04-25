@@ -31,7 +31,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             var files = GetFilesInDirectory(folderPath, "*.*", 24);
 
             var fileIds = files
-                .Select(f => Path.GetFileNameWithoutExtension(f).Split(DriveFileUtility.PayloadDelimiter)[0])
+                .Select(f => Path.GetFileNameWithoutExtension(f).Split(TenantPathManager.PayloadDelimiter)[0])
                 .Distinct()
                 .Select(f => Guid.TryParse(DriveFileUtility.RestoreFileIdFromDiskString(f).ToString(), out var guid) ? guid : (Guid?)null)
                 .Where(g => g.HasValue)
@@ -186,7 +186,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             });
         }
 
-        public void HardDeletePayloadFile(StorageDrive drive, Guid fileId, string payloadKey, string payloadUid)
+        public void HardDeletePayloadFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             Benchmark.Milliseconds(logger, nameof(HardDeletePayloadFile), () =>
             {
@@ -198,7 +198,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
                 // _driveFileReaderWriter.DeleteFile(path);
 
-                var target = pathAndFilename.Replace(".payload", LongTermStorageManager.DeletePayloadExtension);
+                var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
                 logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
                     pathAndFilename,
                     target);
@@ -216,12 +216,12 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 // _driveFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
 
                 // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
-                var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, new UnixTimeUtcUnique(long.Parse(payloadUid)));
+                var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, payloadUid);
                 var dir = GetPayloadPath(drive, fileId);
                 var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
-                    var thumbnailTarget = thumbnailFile.Replace(".thumb", LongTermStorageManager.DeletedThumbExtension);
+                    var thumbnailTarget = thumbnailFile.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
 
                     if (driveFileReaderWriter.FileExists(thumbnailFile))
                     {
@@ -364,7 +364,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
 
                 bool isKept = expectedPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                                                        p.Uid.ToString() == fileRecord.Uid);
+                                                        p.Uid.uniqueTime == fileRecord.Uid.uniqueTime);
 
                 if (!isKept)
                 {
@@ -435,7 +435,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
             var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
-            return $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 
         private string GetThumbnailPath(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
@@ -449,8 +449,8 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
         private string GetThumbnailSearchMask(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, "*", "*");
-            return $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            var extension = DriveFileUtility.GetThumbnailFileExtensionStarStar(payloadKey, payloadUid);
+            return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 
         private string GetFilePath(StorageDrive drive, Guid fileId, FilePart filePart, bool ensureExists = false)
@@ -487,22 +487,22 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             return GetFilePath(drive, fileId, FilePart.Payload, ensureExists);
         }
 
-        private string GetPayloadFilePath(StorageDrive drive, Guid fileId, string payloadKey, string payloadUid, bool ensureExists = false)
+        private string GetPayloadFilePath(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
         {
             var extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadUid);
-            var payloadFileName = $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            var payloadFileName = $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
             return Path.Combine(GetPayloadPath(drive, fileId, ensureExists), $"{payloadFileName}");
         }
 
         private string GetPayloadFilePath(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, bool ensureExists = false)
         {
-            return GetPayloadFilePath(drive, fileId, descriptor.Key, descriptor.Uid.ToString(), ensureExists);
+            return GetPayloadFilePath(drive, fileId, descriptor.Key, descriptor.Uid, ensureExists);
         }
 
         private string GetPayloadSearchMask(Guid fileId)
         {
-            var extension = DriveFileUtility.GetPayloadFileExtension("*", "*");
-            var mask = $"{TenantPathManager.GuidToPathSafeString(fileId)}{DriveFileUtility.FileNameSectionDelimiter}{extension}";
+            var extension = DriveFileUtility.GetPayloadFileExtensionStarStar();
+            var mask = $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
             return mask;
         }
 
