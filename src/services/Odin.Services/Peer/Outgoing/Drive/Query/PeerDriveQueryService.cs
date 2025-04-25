@@ -46,10 +46,14 @@ public class PeerDriveQueryService(
             var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
             ApiResponse<QueryModifiedResponse> queryModifiedResponse = null;
 
-            await TryRetry.Create()
-                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
-                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
-                .ExecuteAsync(async () => { queryModifiedResponse = await httpClient.QueryModified(request); });
+            await Benchmark.MillisecondsAsync(logger, "QueryModified", async () =>
+            {
+                await TryRetry.Create()
+                    .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                    .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                    .WithLogging(logger)
+                    .ExecuteAsync(async () => { queryModifiedResponse = await httpClient.QueryModified(request); });
+            });
 
             await HandleInvalidResponseAsync(odinId, queryModifiedResponse, odinContext);
 
@@ -66,6 +70,10 @@ public class PeerDriveQueryService(
         {
             HandleTryRetryException(t);
             throw;
+        }
+        finally
+        {
+            logger.LogDebug("Exiting GetModifiedAsync");
         }
     }
 
@@ -94,6 +102,10 @@ public class PeerDriveQueryService(
         {
             HandleTryRetryException(t);
             throw;
+        }
+        finally
+        {
+            logger.LogDebug("Exiting GetBatchCollectionAsync");
         }
     }
 
@@ -132,6 +144,10 @@ public class PeerDriveQueryService(
         {
             HandleTryRetryException(t);
             throw;
+        }
+        finally
+        {
+            logger.LogDebug("Exiting GetBatchAsync");
         }
     }
 
