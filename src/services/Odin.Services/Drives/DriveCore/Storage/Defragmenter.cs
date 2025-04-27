@@ -26,6 +26,20 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         DriveManager driveManager,
         DriveFileReaderWriter driveFileReaderWriter)
     {
+
+        public static Guid RestoreFileIdFromDiskString(string fileId)
+        {
+            if (fileId.Length != 32)
+                throw new ArgumentException("Invalid fileId length for restoration; expected 32 characters.");
+
+            // Convert hex string to byte array (2 chars = 1 byte)
+            byte[] bytes = Enumerable.Range(0, 16)
+                .Select(i => Convert.ToByte(fileId.Substring(i * 2, 2), 16))
+                .ToArray();
+
+            return new Guid(bytes);
+        }
+
         public async Task VerifyFolder(StorageDrive drive, string folderPath, IDriveFileSystem fs, IOdinContext odinContext)
         {
             var files = GetFilesInDirectory(folderPath, "*.*", 24);
@@ -33,7 +47,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             var fileIds = files
                 .Select(f => Path.GetFileNameWithoutExtension(f).Split(TenantPathManager.PayloadDelimiter)[0])
                 .Distinct()
-                .Select(f => Guid.TryParse(DriveFileUtility.RestoreFileIdFromDiskString(f).ToString(), out var guid) ? guid : (Guid?)null)
+                .Select(f => Guid.TryParse(RestoreFileIdFromDiskString(f).ToString(), out var guid) ? guid : (Guid?)null)
                 .Where(g => g.HasValue)
                 .Select(g => g.Value)
                 .ToList();
@@ -404,7 +418,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
                 // is the file from the payload and thumbnail size
                 var keepThumbnail = payloadDescriptor.Key.Equals(thumbnailFileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                                    payloadDescriptor.Uid.ToString() == thumbnailFileRecord.Uid &&
+                                    payloadDescriptor.Uid.uniqueTime == thumbnailFileRecord.Uid.uniqueTime &&
                                     expectedThumbnails.Exists(thumb => thumb.PixelWidth == thumbnailFileRecord.Width &&
                                                                        thumb.PixelHeight == thumbnailFileRecord.Height);
                 if (!keepThumbnail)
@@ -434,7 +448,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadUid, width, height);
+            var extension = TenantPathManager.CreateThumbnailFileNameAndExtension(payloadKey, payloadUid, width, height);
             return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 
@@ -449,7 +463,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
         private string GetThumbnailSearchMask(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = DriveFileUtility.GetThumbnailFileExtensionStarStar(payloadKey, payloadUid);
+            var extension = TenantPathManager.CreateThumbnailFileExtensionStarStar(payloadKey, payloadUid);
             return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 
@@ -489,7 +503,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
         private string GetPayloadFilePath(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
         {
-            var extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadUid);
+            var extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadUid);
             var payloadFileName = $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
             return Path.Combine(GetPayloadPath(drive, fileId, ensureExists), $"{payloadFileName}");
         }

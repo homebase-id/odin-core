@@ -21,26 +21,12 @@ namespace Odin.Services.Drives.FileSystem.Base;
 
 public static class DriveFileUtility
 {
-    public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
+    //public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
 
     // public const int MaxAppDataContentLength = 10 * 1024; MOVED TO AppMetaData.MaxAppDataContentLength
     // public const int MaxLocalAppDataContentLength = 4 * 1024; MOVED TO LocalAppMetaData.MaxLocalAppDataContentLength
     // public const int MaxTinyThumbLength = 1 * 1024;  MOVED TO ThumbNailContent.MaxTinyThumbLength
 
-
-
-    public static Guid RestoreFileIdFromDiskString(string fileId)
-    {
-        if (fileId.Length != 32)
-            throw new ArgumentException("Invalid fileId length for restoration; expected 32 characters.");
-
-        // Convert hex string to byte array (2 chars = 1 byte)
-        byte[] bytes = Enumerable.Range(0, 16)
-            .Select(i => Convert.ToByte(fileId.Substring(i * 2, 2), 16))
-            .ToArray();
-
-        return new Guid(bytes);
-    }
 
 
     /// <summary>
@@ -238,26 +224,6 @@ public static class DriveFileUtility
         return instant.ToDateTimeUtc().ToString("R");
     }
 
-    public static void AssertValidPayloadKey(string payloadKey)
-    {
-        if (!IsValidPayloadKey(payloadKey))
-        {
-            throw new OdinClientException($"Missing payload key.  It must match pattern {ValidPayloadKeyRegex}.",
-                OdinClientErrorCode.InvalidPayloadNameOrKey);
-        }
-    }
-
-    public static bool IsValidPayloadKey(string payloadKey)
-    {
-        if (string.IsNullOrEmpty(payloadKey?.Trim()))
-        {
-            return false;
-        }
-
-        bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
-        return isMatch;
-    }
-
     public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
     {
         if (currentVersionTag != versionTagToCompare)
@@ -266,58 +232,14 @@ public static class DriveFileUtility
         }
     }
 
-    public static string GetPayloadFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid)
-    {
-        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
-        var r = $"{bn}{TenantPathManager.PayloadExtension}";
-
-        var s = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadUid);
-        OdinValidationUtils.AssertIsTrue(s == r, "PathManager Mismatch"); // Where is LOG ?!
-
-        return r;
-    }
-
     public static string GetPayloadFileExtensionStarStar()
     {
-        var bn = CreateBasePayloadFileNameStarStar();
+        var bn = TenantPathManager.CreateBasePayloadSearchMask();
         var r = $"{bn}{TenantPathManager.PayloadExtension}";
 
         return r;
     }
 
-
-    public static string GetThumbnailFileExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
-    {
-        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
-        var r = $"{bn}{TenantPathManager.FileNameSectionDelimiter}{width}x{height}{TenantPathManager.ThumbnailExtension}";
-
-        var s = TenantPathManager.CreateThumbnailFileNameAndExtension(payloadKey, payloadUid, width, height);
-        OdinValidationUtils.AssertIsTrue(s == r, "PathManager Mismatch GetThumbnailFileExtension"); // Where is LOG ?!
-
-        return r;
-    }
-
-    public static string GetThumbnailFileExtensionStarStar(string payloadKey, UnixTimeUtcUnique payloadUid)
-    {
-        return TenantPathManager.CreateThumbnailFileExtensionStarStar(payloadKey, payloadUid);
-    }
-
-
-    private static string CreateBasePayloadFileNameStarStar()
-    {
-        return TenantPathManager.CreateBasePayloadSearchMask();
-    }
-
-    private static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique payloadUid)
-    {
-        var parts = new[] { payloadKey, payloadUid.uniqueTime.ToString() };
-        var r = string.Join(TenantPathManager.FileNameSectionDelimiter, parts.Select(p => p.ToLower()));
-
-        var s = TenantPathManager.CreateBasePayloadFileName(payloadKey, payloadUid);
-        OdinValidationUtils.AssertIsTrue(s == r, "CreateBasePayloadFileName"); // Where is LOG ?!
-
-        return r;
-    }
 
     public static SharedSecretEncryptedFileHeader AddIfDeletedNotification(IDriveNotification notification, IOdinContext deviceOdinContext)
     {

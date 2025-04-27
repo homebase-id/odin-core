@@ -74,7 +74,7 @@ public class PayloadDescriptor
     public bool IsValid()
     {
         var hasValidContentType = !(string.IsNullOrEmpty(ContentType) || string.IsNullOrWhiteSpace(ContentType));
-        var hasValidKey = DriveFileUtility.IsValidPayloadKey(Key);
+        var hasValidKey = TenantPathManager.IsValidPayloadKey(Key);
         return hasValidKey && hasValidContentType;
     }
 

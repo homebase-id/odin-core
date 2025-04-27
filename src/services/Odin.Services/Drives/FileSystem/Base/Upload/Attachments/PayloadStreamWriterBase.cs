@@ -65,7 +65,7 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("Duplicate payload keys", OdinClientErrorCode.InvalidUpload);
         }
 
-        var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
+        var extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile.AsTempFileUpload(), extension, data, odinContext);
         if (bytesWritten > 0)
         {
@@ -105,7 +105,7 @@ public abstract class PayloadStreamWriterBase
         }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+        string extenstion = TenantPathManager.CreateThumbnailFileNameAndExtension(
             result.PayloadKey,
             result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
