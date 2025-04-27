@@ -194,7 +194,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = DriveFileUtility.GetPayloadFileExtension(payloadKey, payloadDescriptor.Uid);
+            string extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
             await _fileUpdateService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext);
         }
 
@@ -211,7 +211,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var payloadKey = parts[0];
             var width = int.Parse(parts[1]);
             var height = int.Parse(parts[2]);
-            DriveFileUtility.AssertValidPayloadKey(payloadKey);
+            TenantPathManager.AssertValidPayloadKey(payloadKey);
             var payloadDescriptor = fileMetadata.GetPayloadDescriptor(payloadKey);
 
             if (null == payloadDescriptor)
@@ -219,7 +219,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = DriveFileUtility.GetThumbnailFileExtension(payloadKey, payloadDescriptor.Uid, width, height);
+            string extension = TenantPathManager.CreateThumbnailFileNameAndExtension(payloadKey, payloadDescriptor.Uid, width, height);
             await _fileUpdateService.AcceptThumbnail(payloadKey, thumbnailUploadKey, extension,
                 fileSection.FileStream,
                 WebOdinContext);
@@ -236,7 +236,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
 
             fileSection = section.AsFileSection();
-            DriveFileUtility.AssertValidPayloadKey(fileSection?.FileName);
+            TenantPathManager.AssertValidPayloadKey(fileSection?.FileName);
             payloadKey = fileSection?.FileName;
         }
 

@@ -33,7 +33,7 @@ public class UploadManifest
         {
             foreach (var pd in this.PayloadDescriptors)
             {
-                DriveFileUtility.AssertValidPayloadKey(pd.PayloadKey);
+                TenantPathManager.AssertValidPayloadKey(pd.PayloadKey);
 
                 var anyMissingThumbnailKey = pd.Thumbnails?.Any(thumb => string.IsNullOrEmpty(thumb.ThumbnailKey?.Trim())) ?? false;
                 if (anyMissingThumbnailKey)
@@ -114,7 +114,7 @@ public class UploadManifestPayloadDescriptor
                 OdinValidationUtils.AssertNotEmptyByteArray(this.Iv, nameof(Iv));
             }
             
-            DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
+            TenantPathManager.AssertValidPayloadKey(this.PayloadKey);
             OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType));
 
             foreach (var thumb in this.Thumbnails ?? [])
@@ -125,7 +125,7 @@ public class UploadManifestPayloadDescriptor
 
         if (this.PayloadUpdateOperationType == PayloadUpdateOperationType.DeletePayload)
         {
-            DriveFileUtility.AssertValidPayloadKey(this.PayloadKey);
+            TenantPathManager.AssertValidPayloadKey(this.PayloadKey);
         }
     }
     

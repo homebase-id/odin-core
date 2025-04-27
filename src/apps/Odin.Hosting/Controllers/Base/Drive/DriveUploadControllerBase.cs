@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -171,7 +172,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             fileSection = section.AsFileSection();
             contentTypeFromMultiPartSection = section.ContentType;
 
-            DriveFileUtility.AssertValidPayloadKey(fileSection?.FileName);
+            TenantPathManager.AssertValidPayloadKey(fileSection?.FileName);
             payloadKey = fileSection?.FileName;
         }
 

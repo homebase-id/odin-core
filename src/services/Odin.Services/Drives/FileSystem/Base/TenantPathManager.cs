@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Odin.Core.Exceptions;
+using System.Text.RegularExpressions;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Services.Base;
@@ -22,7 +24,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     {
         public string Filename { get; set; }
         public string Key { get; init; }
-        public string Uid { get; init; }
+        public UnixTimeUtcUnique Uid { get; init; }
         public int Width { get; init; }
         public int Height { get; init; }
     }
@@ -36,6 +38,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public static string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
         public static string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+
+        public static readonly string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
         public static readonly string FileNameSectionDelimiter = "-";
         public static readonly string PayloadExtension = ".payload";
         public static readonly string ThumbnailExtension = ".thumb";
@@ -141,6 +145,26 @@ namespace Odin.Services.Drives.DriveCore.Storage
         // ----------------------
         // Payload-specific paths
         // ----------------------
+        public static void AssertValidPayloadKey(string payloadKey)
+        {
+            if (!IsValidPayloadKey(payloadKey))
+            {
+                throw new OdinClientException($"Missing payload key.  It must match pattern {ValidPayloadKeyRegex}.",
+                    OdinClientErrorCode.InvalidPayloadNameOrKey);
+            }
+        }
+
+        public static bool IsValidPayloadKey(string payloadKey)
+        {
+            if (string.IsNullOrEmpty(payloadKey?.Trim()))
+            {
+                return false;
+            }
+
+            bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
+            return isMatch;
+        }
+
         public static string GetPayloadDirectoryFromGuid(Guid fileId)
         {
             var id = GuidToPathSafeString(fileId);
@@ -292,7 +316,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var parts = filename.Split(TenantPathManager.PayloadDelimiter);
             var fileNameOnDisk = parts[0]; // not used 
             var payloadKeyOnDisk = parts[1];
-            var payloadUidOnDisk = parts[2];
+            var payloadUidOnDisk = long.Parse(parts[2]);
             var thumbnailSize = parts[3];
             var sizeParts = thumbnailSize.Split(ThumbnailSizeDelimiter);
             var widthOnDisk = int.Parse(sizeParts[0]);
@@ -302,7 +326,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             {
                 Filename = fileNameOnDisk,
                 Key = payloadKeyOnDisk,
-                Uid = payloadUidOnDisk,
+                Uid = new UnixTimeUtcUnique(payloadUidOnDisk),
                 Width = widthOnDisk,
                 Height = heightOnDisk
             };

@@ -254,7 +254,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
 
-            DriveFileUtility.AssertValidPayloadKey(payloadKey);
+            TenantPathManager.AssertValidPayloadKey(payloadKey);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext);
@@ -437,7 +437,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
-            DriveFileUtility.AssertValidPayloadKey(key);
+            TenantPathManager.AssertValidPayloadKey(key);
 
             //Note: calling to get the file header will also
             //ensure the caller can touch this file.
@@ -1419,13 +1419,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task ProcessPayloadDescriptor(TempFile originFile, InternalDriveFileId targetFile, StorageDrive drive,
             PayloadDescriptor descriptor)
         {
-            var payloadExtension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key, descriptor.Uid);
+            var payloadExtension = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = await uploadStorageManager.GetPath(originFile, payloadExtension);
             longTermStorageManager.MovePayloadToLongTerm(drive, targetFile.FileId, descriptor, sourceFilePath);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
-                var thumbExt = DriveFileUtility.GetThumbnailFileExtension(
+                var thumbExt = TenantPathManager.CreateThumbnailFileNameAndExtension(
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
                 var sourceThumbnail = await uploadStorageManager.GetPath(originFile, thumbExt);

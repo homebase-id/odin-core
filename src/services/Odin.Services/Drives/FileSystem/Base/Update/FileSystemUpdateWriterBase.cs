@@ -122,7 +122,7 @@ public abstract class FileSystemUpdateWriterBase
             throw new OdinClientException($"Cannot find descriptor for payload key {key}", OdinClientErrorCode.InvalidUpload);
         }
 
-        var extension = DriveFileUtility.GetPayloadFileExtension(key, descriptor.PayloadUid);
+        var extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
 
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile
             .AsTempFileUpload(), extension, data, odinContext);
@@ -164,7 +164,7 @@ public abstract class FileSystemUpdateWriterBase
         }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = DriveFileUtility.GetThumbnailFileExtension(
+        string extenstion = TenantPathManager.CreateThumbnailFileNameAndExtension(
             result.PayloadKey,
             result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,

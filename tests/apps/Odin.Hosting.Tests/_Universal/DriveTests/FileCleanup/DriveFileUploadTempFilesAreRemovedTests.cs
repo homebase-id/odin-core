@@ -143,7 +143,7 @@ public class DriveFileUploadTempFilesAreRemovedTests
         //
         foreach (var descriptor in header.FileMetadata.Payloads)
         {
-            var payloadExtension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key, descriptor.Uid);
+            var payloadExtension = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var payloadTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(
                 uploadResult.File, TempStorageType.Upload, payloadExtension);
 
@@ -153,7 +153,7 @@ public class DriveFileUploadTempFilesAreRemovedTests
             foreach (var thumbnail in descriptor.Thumbnails)
             {
                 var thumbnailExtension =
-                    DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, descriptor.Uid, thumbnail.PixelWidth, thumbnail.PixelHeight);
+                    TenantPathManager.CreateThumbnailFileNameAndExtension(descriptor.Key, descriptor.Uid, thumbnail.PixelWidth, thumbnail.PixelHeight);
                 var thumbnailTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(
                     uploadResult.File, TempStorageType.Upload, thumbnailExtension);
 
@@ -279,7 +279,7 @@ public class DriveFileUploadTempFilesAreRemovedTests
         var getUpdatedHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
         foreach (var descriptor in getUpdatedHeaderResponse.Content!.FileMetadata.Payloads)
         {
-            var payloadExtension = DriveFileUtility.GetPayloadFileExtension(descriptor.Key, descriptor.Uid);
+            var payloadExtension = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var payloadTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(
                 uploadResult.File, TempStorageType.Upload, payloadExtension);
 
@@ -288,7 +288,7 @@ public class DriveFileUploadTempFilesAreRemovedTests
 
             foreach (var thumbnail in descriptor.Thumbnails)
             {
-                var thumbnailExtension = DriveFileUtility.GetThumbnailFileExtension(descriptor.Key, 
+                var thumbnailExtension = TenantPathManager.CreateThumbnailFileNameAndExtension(descriptor.Key, 
                     descriptor.Uid, thumbnail.PixelWidth, thumbnail.PixelHeight);
                 
                 var thumbnailTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(

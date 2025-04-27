@@ -17,6 +17,7 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.ApiExceptions.Client;
+using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -104,7 +105,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
-            DriveFileUtility.AssertValidPayloadKey(request.Key);
+            TenantPathManager.AssertValidPayloadKey(request.Key);
 
             var file = MapToInternalFile(request.File);
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
@@ -166,7 +167,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
-            DriveFileUtility.AssertValidPayloadKey(request.PayloadKey);
+            TenantPathManager.AssertValidPayloadKey(request.PayloadKey);
 
             var file = MapToInternalFile(request.File);
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
@@ -309,7 +310,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Invalid delete payload request");
             }
 
-            DriveFileUtility.AssertValidPayloadKey(request.Key);
+            TenantPathManager.AssertValidPayloadKey(request.Key);
             if (request.VersionTag == null)
             {
                 throw new OdinClientException("Missing version tag", OdinClientErrorCode.MissingVersionTag);
