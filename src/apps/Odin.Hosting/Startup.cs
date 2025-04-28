@@ -333,6 +333,7 @@ namespace Odin.Hosting
                 app.UseRateLimiter();
             }
 
+            app.UseMiddleware<OdinVersionNumberMiddleware>();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMiddleware<RedirectIfNotApexMiddleware>();
             app.UseMiddleware<CertesAcmeMiddleware>();

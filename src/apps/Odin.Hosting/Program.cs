@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -21,6 +22,7 @@ using Odin.Core.Logging.Hostname.Serilog;
 using Odin.Core.Logging.LogLevelOverwrite.Serilog;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Cli;
+using Odin.Hosting.Middleware;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
@@ -124,9 +126,13 @@ namespace Odin.Hosting
 
         //
 
+        public const string IncludeTestMiddlewareArg = "include-test-middleware";
+
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
+
+            var includeTestMiddleware = args.Any(a => a.Equals(IncludeTestMiddlewareArg, StringComparison.InvariantCultureIgnoreCase));
 
             if (odinConfig.Logging.LogFilePath != "")
             {
@@ -178,6 +184,11 @@ namespace Odin.Hosting
                             }
                         })
                         .UseStartup(context => new Startup(context.Configuration, args));
+
+                    if (includeTestMiddleware)
+                    {
+                        webBuilder.Configure(app => { app.UseMiddleware<TestVersionHeaderValidatorMiddleware>(); });
+                    }
                 });
 
             return builder;
@@ -265,7 +276,7 @@ namespace Odin.Hosting
             {
                 Log.Verbose("Getting certificate for {host}", hostName);
             }
-            
+
             if (string.IsNullOrWhiteSpace(hostName))
             {
                 return (null, false);
@@ -301,7 +312,9 @@ namespace Odin.Hosting
             //
             else
             {
-                Log.Verbose("Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host", hostName);
+                Log.Verbose(
+                    "Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host",
+                    hostName);
                 return (null, false);
             }
 
@@ -354,7 +367,7 @@ namespace Odin.Hosting
                 sslRoot = config.Host.SystemSslRootPath;
                 return true;
             }
-            
+
             if (config.Admin.ApiEnabled && hostName == config.Admin.Domain)
             {
                 sslRoot = config.Host.SystemSslRootPath;
@@ -366,6 +379,5 @@ namespace Odin.Hosting
         }
 
         //
-
     }
 }
