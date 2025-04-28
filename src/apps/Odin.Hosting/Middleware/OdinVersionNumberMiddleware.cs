@@ -8,7 +8,7 @@ namespace Odin.Hosting.Middleware;
 public class OdinVersionNumberMiddleware(RequestDelegate next)
 {
     /// <summary/>
-    public async Task Invoke(HttpContext httpContext, IOdinContext odinContext)
+    public async Task Invoke(HttpContext httpContext)
     {
         httpContext.Response.OnStarting(() =>
         {

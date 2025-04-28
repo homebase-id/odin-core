@@ -132,8 +132,6 @@ namespace Odin.Hosting
         {
             var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
 
-            var includeTestMiddleware = args.Any(a => a.Equals(IncludeTestMiddlewareArg, StringComparison.InvariantCultureIgnoreCase));
-
             if (odinConfig.Logging.LogFilePath != "")
             {
                 var loggingDirInfo = Directory.CreateDirectory(odinConfig.Logging.LogFilePath);
@@ -184,11 +182,6 @@ namespace Odin.Hosting
                             }
                         })
                         .UseStartup(context => new Startup(context.Configuration, args));
-
-                    if (includeTestMiddleware)
-                    {
-                        webBuilder.Configure(app => { app.UseMiddleware<TestVersionHeaderValidatorMiddleware>(); });
-                    }
                 });
 
             return builder;
