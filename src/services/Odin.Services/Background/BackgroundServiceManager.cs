@@ -95,7 +95,15 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
                 throw new InvalidOperationException("Background service not found. Did you forget to call Create?");
             }
             
-            _logger.LogInformation("Starting background service '{serviceIdentifier}'", serviceIdentifier);
+            var correlationIdGenerator = scopedService.Scope.Resolve<ICorrelationIdGenerator>();
+            var newCorrelationId = correlationIdGenerator.Generate();
+
+            _logger.LogInformation("Starting background service '{serviceIdentifier}' with new correlation-id {cid}",
+                serviceIdentifier, newCorrelationId);
+
+            var correlationContext = scopedService.Scope.Resolve<ICorrelationContext>();
+            correlationContext.Id = newCorrelationId;
+
             await scopedService.BackgroundService.InternalStartAsync(_stoppingCts.Token);
         }
     }
