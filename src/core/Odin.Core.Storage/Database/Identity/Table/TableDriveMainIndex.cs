@@ -63,7 +63,7 @@ public class TableDriveMainIndex(
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
-    public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item)
+    public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? versionTagOverride = null)
     {
         item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
         item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");

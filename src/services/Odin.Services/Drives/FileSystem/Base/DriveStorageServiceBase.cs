@@ -34,8 +34,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         DriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
-        IdentityDatabase db,
-        INodeLock nodeLock) : RequirePermissionsBase
+        IdentityDatabase db) : RequirePermissionsBase
     {
         private const int ForceReleaseSeconds = 60 * 5;
 
@@ -556,11 +555,11 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            
+
             ServerFileHeader serverHeader;
-            
-            var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
-            await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
+
+            // var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
+            // await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
             {
                 var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
                 if (null == existingServerHeader)
@@ -610,17 +609,16 @@ namespace Odin.Services.Drives.FileSystem.Base
                     };
 
                     await WriteFileHeaderInternal(serverHeader);
-                }
-                finally
-                {
-                    //paranoid cleanup
                     if (!ignorePayload.GetValueOrDefault(false))
                     {
                         //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
                         var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
                         await DeleteZombiePayloads(targetFile, zombiePayloads);
-                        await uploadStorageManager.EnsureDeleted(originFile);
                     }
+                }
+                finally
+                {
+                    await uploadStorageManager.EnsureDeleted(originFile);
                 }
             }
 
@@ -960,8 +958,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             ServerFileHeader existingHeader;
-            var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
-            await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
+            // var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
+            // await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
             {
                 existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
 
@@ -1070,25 +1068,15 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 try
                 {
-                    //
-                    {
-                        zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
-                        //Note: existingHeader.FileMetadata.VersionTag is updated by the storage system
-                        await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
-                            manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
-                    }
-                    
-                    // removes all deleted payloads from the header
-                    // so the header no longer knows they exist
-                    {
-                        zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
-                        await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
-                            manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
-                    }
+                    zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
+                    zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
+                    await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
+                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+
+                    await DeleteZombiePayloads(targetFile, zombies);
                 }
                 finally
                 {
-                    await DeleteZombiePayloads(targetFile, zombies);
                     await uploadStorageManager.EnsureDeleted(originFile);
                 }
             }
@@ -1214,10 +1202,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             header.FileMetadata.AppData?.Validate();
 
-            // if (!keepSameVersionTag)
-            // {
-            //     header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
-            // }
+            if (!keepSameVersionTag)
+            {
+                header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
+            }
 
             var json = OdinSystemSerializer.Serialize(header);
             var jsonBytes = Encoding.UTF8.GetBytes(json);
