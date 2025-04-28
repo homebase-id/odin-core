@@ -10,12 +10,7 @@ public class OdinVersionNumberMiddleware(RequestDelegate next)
     /// <summary/>
     public async Task Invoke(HttpContext httpContext)
     {
-        httpContext.Response.OnStarting(() =>
-        {
-            httpContext.Response.Headers[OdinHeaderNames.OdinVersionTag] = Odin.Services.Version.VersionText;
-            return Task.CompletedTask;
-        });
-
+        httpContext.Response.Headers[OdinHeaderNames.OdinVersionTag] = Odin.Services.Version.VersionText;
         await next(httpContext);
     }
 }
