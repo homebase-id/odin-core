@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Dto;
 using Odin.Core.Exceptions;
@@ -55,6 +56,7 @@ public class PushNotificationService(
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
     private static readonly TwoKeyValueStorage DeviceSubscriptionStorage = TenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
     private static readonly byte[] DeviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
+    private readonly AsyncLock _dbParallelLock = new();
 
     /// <summary>
     /// Adds a notification to the outbox
@@ -289,7 +291,12 @@ public class PushNotificationService(
                     if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
                     {
                         logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
-                        await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
+                        // PushAsync can call DevicePushAsync multiple times in parallel,
+                        // so we need to serialize calls to the database
+                        using (await _dbParallelLock.LockAsync())
+                        {
+                            await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
+                        }
                     }
                     else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
                     {
