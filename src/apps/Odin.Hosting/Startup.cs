@@ -550,8 +550,7 @@ namespace Odin.Hosting
                     });
 
                 var includeTestMiddleware =
-                    args.Any(a => a.Equals(Program..
-                        IncludeTestMiddlewareArg, StringComparison.InvariantCultureIgnoreCase));
+                    args.Any(a => a.Equals(Program.IncludeTestMiddlewareArg, StringComparison.InvariantCultureIgnoreCase));
                 if (includeTestMiddleware)
                 {
                     app.UseMiddleware<TestVersionHeaderValidatorMiddleware>();
