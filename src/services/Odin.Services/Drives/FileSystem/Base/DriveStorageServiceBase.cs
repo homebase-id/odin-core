@@ -1072,15 +1072,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     //
                     {
+                        //write this first header with a system version tag
                         zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
-                        //Note: existingHeader.FileMetadata.VersionTag is updated by the storage system
                         await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
-                            manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+                            manifest.ServerMetadata, odinContext);
                     }
 
-                    // removes all deleted payloads from the header
-                    // so the header no longer knows they exist
+                    // removes all deleted payloads from the header, so the header no longer knows they exist
                     {
+                        //ensure we are working with the latest version
                         existingHeader = await GetServerFileHeader(existingHeader.FileMetadata.File, odinContext);
                         zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
                         await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
