@@ -222,7 +222,7 @@ public class ScopedConnectionFactory<T>(
         {
             foreach (var (guid, info) in Diagnostics)
             {
-                _logger.LogDebug("Connection {id} was created at {info}", guid, info);
+                _logger.LogDebug("DB diag: connection {id} was created at {info}", guid, info);
             }
         }
     }
@@ -272,7 +272,9 @@ public class ScopedConnectionFactory<T>(
     {
         if (Interlocked.Increment(ref _parallelDetectionRefCount) != expectedRefCount)
         {
-            var message = $"Parallelism detected ({context}). Use a new scope for each parallel task or thread.";
+            var message =
+                $"Parallelism detected ({context}). " +
+                "Use a new IOC scope for each parallel task or thread, or make sure to serialize calls with a lock.";
             LogError(message);
             throw new OdinDatabaseException(DatabaseType, message);
         }
