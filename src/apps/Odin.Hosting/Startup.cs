@@ -60,7 +60,6 @@ namespace Odin.Hosting
 {
     public class Startup(IConfiguration configuration, IEnumerable<string> args)
     {
-        private readonly IEnumerable<string> _args = args;
         private readonly OdinConfiguration _config = new(configuration);
 
         public void ConfigureServices(IServiceCollection services)
