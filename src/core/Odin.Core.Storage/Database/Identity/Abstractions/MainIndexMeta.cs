@@ -847,58 +847,5 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             return (r.created);
         }
-
-
-        /// <summary>
-        /// Only kept to not change all tests! Do not use.
-        /// </summary>
-        internal async Task<int> UpsertEntryZapZapPassAlongAsync(Guid driveId, Guid fileId,
-            Guid? globalTransitId = null,
-            Int32? fileState = null,
-            Int32? fileType = null,
-            Int32? dataType = null,
-            string senderId = null,
-            Guid? groupId = null,
-            Guid? uniqueId = null,
-            Int32? archivalStatus = null,
-            UnixTimeUtc? userDate = null,
-            Int32? requiredSecurityGroup = null,
-            Int64? byteCount = null,
-            List<Guid> accessControlList = null,
-            List<Guid> tagIdList = null,
-            Int32 fileSystemType = 0)
-        {
-            int n = 0;
-            var r = new DriveMainIndexRecord()
-            {
-                driveId = driveId,
-                fileId = fileId,
-                globalTransitId = globalTransitId,
-                fileState = fileState ?? 0,
-                userDate = userDate ?? UnixTimeUtc.ZeroTime,
-                fileType = fileType ?? 0,
-                dataType = dataType ?? 0,
-                senderId = senderId,
-                groupId = groupId,
-                uniqueId = uniqueId,
-                archivalStatus = archivalStatus ?? 0,
-                historyStatus = 0,
-                requiredSecurityGroup = requiredSecurityGroup ?? 999,
-                fileSystemType = fileSystemType,
-                byteCount = byteCount ?? 1,
-                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
-                hdrVersionTag = SequentialGuid.CreateGuid(),
-                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
-                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
-                hdrTmpDriveType = SequentialGuid.CreateGuid()
-            };
-            await BaseUpsertEntryZapZapAsync(r, accessControlList: accessControlList, tagIdList: tagIdList);
-
-            return n;
-        }
     }
 }

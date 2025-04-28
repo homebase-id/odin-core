@@ -233,7 +233,7 @@ public class TableDriveMainIndex(
             }
         }
 
-        return 0;
+        // Unreachable return 0;
     }
 
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
