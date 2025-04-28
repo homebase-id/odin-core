@@ -45,17 +45,17 @@ public class TableDriveMainIndex(
         return await base.DeleteAsync(odinIdentity, driveId, fileId);
     }
 
-    public new async Task<int> UpdateAsync(DriveMainIndexRecord item)
-    {
-        item.identityId = odinIdentity;
-        return await base.UpdateAsync(item);
-    }
+    //public new async Task<int> UpdateAsync(DriveMainIndexRecord item)
+    //{
+    //    item.identityId = odinIdentity;
+    //    return await base.UpdateAsync(item);
+    //}
 
-    public new async Task<int> UpsertAsync(DriveMainIndexRecord item)
-    {
-        item.identityId = odinIdentity;
-        return await base.UpsertAsync(item);
-    }
+    //public new async Task<int> UpsertAsync(DriveMainIndexRecord item)
+    //{
+    //    item.identityId = odinIdentity;
+    //    return await base.UpsertAsync(item);
+    //}
 
     public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
@@ -86,10 +86,12 @@ public class TableDriveMainIndex(
 
         upsertCommand.CommandText =
             "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-            $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},NULL)" +
+            $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},NULL) " +
             "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
-            $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {sqlNowStr} " +
+            $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {sqlNowStr} " +
+            "WHERE driveMainIndex.hdrVersionTag = @hdrVersionTag " +
             "RETURNING created, modified, rowid;";
+
         var upsertParam1 = upsertCommand.CreateParameter();
         upsertParam1.ParameterName = "@identityId";
         upsertCommand.Parameters.Add(upsertParam1);
@@ -171,6 +173,9 @@ public class TableDriveMainIndex(
         var upsertParam27 = upsertCommand.CreateParameter();
         upsertParam27.ParameterName = "@hdrTmpDriveType";
         upsertCommand.Parameters.Add(upsertParam27);
+        var upsertParam28 = upsertCommand.CreateParameter();
+        upsertParam28.ParameterName = "@newVersionTag";
+        upsertCommand.Parameters.Add(upsertParam28);
 
         upsertParam1.Value = item.identityId.ToByteArray();
         upsertParam2.Value = item.driveId.ToByteArray();
@@ -198,8 +203,12 @@ public class TableDriveMainIndex(
         upsertParam23.Value = item.hdrServerData;
         //upsertParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
         upsertParam25.Value = item.hdrFileMetaData;
+
+        var newVersionTag = SequentialGuid.CreateGuid();
+
         upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
         upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
+        upsertParam28.Value = newVersionTag.ToByteArray();
 
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
         {
@@ -209,11 +218,18 @@ public class TableDriveMainIndex(
                 long? modified = (rdr[1] == DBNull.Value) ? null : (long)rdr[1];
                 item.created = new UnixTimeUtc(created);
                 if (modified != null)
+                {
                     item.modified = new UnixTimeUtc((long)modified);
+                    item.hdrVersionTag = newVersionTag;
+                }
                 else
                     item.modified = null;
                 item.rowId = (long)rdr[2];
                 return 1;
+            }
+            else
+            {
+                throw new OdinDatabaseException(DatabaseType.Sqlite, "Mismatching version tag");
             }
         }
 

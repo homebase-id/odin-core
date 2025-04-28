@@ -101,7 +101,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return n;
         }
 
-
+        /*
         public async Task<int> BaseUpdateEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
@@ -126,6 +126,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             return n;
         }
+        */
 
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf, List<Guid> localTagsAnyOf,
@@ -851,7 +852,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        internal async Task<int> UpdateEntryZapZapPassAlongAsync(Guid driveId, Guid fileId,
+        internal async Task<int> UpsertEntryZapZapPassAlongAsync(Guid driveId, Guid fileId,
             Guid? globalTransitId = null,
             Int32? fileState = null,
             Int32? fileType = null,
@@ -895,7 +896,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
                 hdrTmpDriveType = SequentialGuid.CreateGuid()
             };
-            await BaseUpdateEntryZapZapAsync(r, accessControlList: accessControlList, tagIdList: tagIdList);
+            await BaseUpsertEntryZapZapAsync(r, accessControlList: accessControlList, tagIdList: tagIdList);
 
             return n;
         }
