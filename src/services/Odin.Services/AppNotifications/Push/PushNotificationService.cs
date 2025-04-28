@@ -5,10 +5,10 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using HttpClientFactoryLite;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Dto;
 using Odin.Core.Exceptions;
@@ -48,6 +48,7 @@ public class PushNotificationService(
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
     IMediator mediator,
+    ILifetimeScope scope,
     TableKeyTwoValue twoKeyValue)
     : INotificationHandler<ConnectionRequestAcceptedNotification>,
         INotificationHandler<ConnectionRequestReceivedNotification>
@@ -56,7 +57,6 @@ public class PushNotificationService(
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
     private static readonly TwoKeyValueStorage DeviceSubscriptionStorage = TenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
     private static readonly byte[] DeviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
-    private readonly AsyncLock _dbParallelLock = new();
 
     /// <summary>
     /// Adds a notification to the outbox
@@ -94,6 +94,12 @@ public class PushNotificationService(
     }
 
     public async Task RemoveDeviceAsync(Guid deviceKey, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
+    }
+
+    public static async Task RemoveDeviceAsync(TableKeyTwoValue twoKeyValue, Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
@@ -292,11 +298,10 @@ public class PushNotificationService(
                     {
                         logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
                         // PushAsync can call DevicePushAsync multiple times in parallel,
-                        // so we need to serialize calls to the database
-                        using (await _dbParallelLock.LockAsync())
-                        {
-                            await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
-                        }
+                        // so we need to make separate scopes to call the database
+                        await using var dbScope = scope.BeginLifetimeScope();
+                        var tkv = dbScope.Resolve<TableKeyTwoValue>();
+                        await RemoveDeviceAsync(tkv, subscription.AccessRegistrationId, odinContext);
                     }
                     else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
                     {
