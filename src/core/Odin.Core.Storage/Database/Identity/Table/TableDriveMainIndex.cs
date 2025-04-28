@@ -71,7 +71,13 @@ public class TableDriveMainIndex(
         item.globalTransitId.AssertGuidNotEmpty("Guid parameter globalTransitId cannot be set to Empty GUID.");
         item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
         item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
-        item.hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+
+        // Must be a new file, so let us give it a new version
+        if (item.hdrVersionTag == Guid.Empty)
+        {
+            item.hdrVersionTag = SequentialGuid.CreateGuid();
+        }
+        
         item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
         item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
 

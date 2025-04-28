@@ -1214,10 +1214,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             header.FileMetadata.AppData?.Validate();
 
-            if (!keepSameVersionTag)
-            {
-                header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
-            }
+            // if (!keepSameVersionTag)
+            // {
+            //     header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
+            // }
 
             var json = OdinSystemSerializer.Serialize(header);
             var jsonBytes = Encoding.UTF8.GetBytes(json);
@@ -1265,7 +1265,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     FileState = FileState.Deleted,
                     Updated = UnixTimeUtc.Now().milliseconds,
-                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId
+                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
+                    VersionTag = existingHeader.FileMetadata.VersionTag
                 },
                 ServerMetadata = existingHeader.ServerMetadata
             };
