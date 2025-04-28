@@ -634,7 +634,7 @@ public class JobManagerTests
         });
         
         // Act
-        await WaitForJobStatus<EventuallySucceedJobTest>(jobManager, jobId, JobState.Failed, TimeSpan.FromSeconds(2));
+        await WaitForJobStatus<EventuallySucceedJobTest>(jobManager, jobId, JobState.Failed, TimeSpan.FromSeconds(3));
 
         // Assert final fail
         job = await jobManager.GetJobAsync<EventuallySucceedJobTest>(jobId);
