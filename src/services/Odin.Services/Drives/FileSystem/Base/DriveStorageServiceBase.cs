@@ -556,9 +556,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            
+
             ServerFileHeader serverHeader;
-            
+
             var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
             await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
             {
@@ -1077,10 +1077,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                         await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
                             manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
                     }
-                    
+
                     // removes all deleted payloads from the header
                     // so the header no longer knows they exist
                     {
+                        existingHeader = await GetServerFileHeader(existingHeader.FileMetadata.File, odinContext);
                         zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
                         await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
                             manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
