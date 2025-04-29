@@ -15,20 +15,3 @@ public class OdinVersionNumberMiddleware(RequestDelegate next)
     }
 }
 
-public class TestVersionHeaderValidatorMiddleware(RequestDelegate next)
-{
-    public async Task InvokeAsync(HttpContext context)
-    {
-        context.Response.OnStarting(() =>
-        {
-            if (!context.Response.Headers.ContainsKey(OdinHeaderNames.OdinVersionTag))
-            {
-                throw new OdinSystemException("Missing required X-Version header in response.");
-            }
-
-            return Task.CompletedTask;
-        });
-
-        await next(context);
-    }
-}

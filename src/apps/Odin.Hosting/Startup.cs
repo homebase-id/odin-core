@@ -376,13 +376,6 @@ namespace Odin.Hosting
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
 
-            var includeTestMiddleware = args.Any(a => a.Equals(Program.IncludeTestMiddlewareArg,
-                StringComparison.InvariantCultureIgnoreCase));
-                
-            if (includeTestMiddleware)
-            {
-                app.UseMiddleware<TestVersionHeaderValidatorMiddleware>();
-            }
             app.UseEndpoints(endpoints =>
             {
                 if (env.IsDevelopment())

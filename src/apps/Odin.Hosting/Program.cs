@@ -126,8 +126,6 @@ namespace Odin.Hosting
 
         //
 
-        public const string IncludeTestMiddlewareArg = "include-test-middleware";
-
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             var (odinConfig, appSettingsConfig) = AppSettings.LoadConfig(true);
