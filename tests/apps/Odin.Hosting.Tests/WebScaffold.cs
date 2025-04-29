@@ -235,7 +235,7 @@ namespace Odin.Hosting.Tests
             CreateData();
             CreateLogs();
 
-            _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
+            _webserver = Program.CreateHostBuilder([]).Build();
             _webserver.Start();
 
             if (setupOwnerAccounts)

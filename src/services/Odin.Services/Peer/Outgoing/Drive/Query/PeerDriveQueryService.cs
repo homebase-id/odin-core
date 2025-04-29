@@ -545,6 +545,16 @@ public class PeerDriveQueryService(
             throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
         }
 
+        if (response.IsSuccessStatusCode)
+        {
+            //the server might not be an odin server
+            var isOdinServer = response.Headers.TryGetValues(OdinHeaderNames.OdinVersionTag, out _);
+            if (!isOdinServer)
+            {
+                throw new OdinClientException("Peer server is not an ODIN server", OdinClientErrorCode.RemoteServerIsNotAnOdinServer);
+            }
+        }
+        
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
             throw new OdinSystemException($"Unhandled peer error response from [{odinId}]: {response.StatusCode}");
