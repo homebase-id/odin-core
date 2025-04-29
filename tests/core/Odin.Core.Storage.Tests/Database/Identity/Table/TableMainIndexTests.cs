@@ -900,7 +900,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             {
                 await metaIndex.BaseUpsertEntryZapZapAsync(rec, useThisNewVersionTag: Guid.Empty);
             }
-            catch (ArgumentException ex)
+            catch (ArgumentException)
             {
                 ok = true;
             }
@@ -912,7 +912,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             {
                 await metaIndex.BaseUpsertEntryZapZapAsync(rec, useThisNewVersionTag: rec.hdrVersionTag);
             }
-            catch (ArgumentException ex)
+            catch (ArgumentException)
             {
                 ok = true;
             }
