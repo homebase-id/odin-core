@@ -525,6 +525,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     await ProcessPayloads(originFile, targetFile, newMetadata.Payloads ?? [], drive);
                 }
 
+                // set the version tag null on a new file sine it will be handled by the
+                // db and this stops conflicts if someone passes in useThisVersionTag 
+                newMetadata.VersionTag = null; 
                 serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
                 await WriteNewFileHeader(targetFile, serverHeader, odinContext, useThisVersionTag: useThisVersionTag);
             }
