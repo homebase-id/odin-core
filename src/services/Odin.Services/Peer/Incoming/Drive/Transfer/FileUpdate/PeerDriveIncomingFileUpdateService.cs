@@ -88,7 +88,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
         {
             // if there are payloads in the descriptor, be sure we got it all
-            if (fileMetadata.Payloads.Any())
+            if (fileMetadata.Payloads?.Any() ?? false)
             {
                 foreach (var expectedPayload in fileMetadata.Payloads)
                 {
