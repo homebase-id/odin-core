@@ -47,6 +47,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},
         {typeof(Odin.Core.Storage.ObjectStorage.IS3SystemStorage), "a6c4c051"},
         {typeof(Odin.Core.Storage.ObjectStorage.S3SystemStorage), "a6c4c051"},
+        {typeof(Odin.Core.Logging.CorrelationId.CorrelationUniqueIdGenerator), "e6f1c919"},
     };
 
     public void AssertSingletonDependencies()

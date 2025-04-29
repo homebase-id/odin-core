@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using HttpClientFactoryLite;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -47,6 +48,7 @@ public class PushNotificationService(
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
     IMediator mediator,
+    ILifetimeScope scope,
     TableKeyTwoValue twoKeyValue)
     : INotificationHandler<ConnectionRequestAcceptedNotification>,
         INotificationHandler<ConnectionRequestReceivedNotification>
@@ -92,6 +94,12 @@ public class PushNotificationService(
     }
 
     public async Task RemoveDeviceAsync(Guid deviceKey, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+        await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
+    }
+
+    public static async Task RemoveDeviceAsync(TableKeyTwoValue twoKeyValue, Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
@@ -289,7 +297,11 @@ public class PushNotificationService(
                     if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
                     {
                         logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
-                        await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
+                        // PushAsync can call DevicePushAsync multiple times in parallel,
+                        // so we need to make separate scopes to call the database
+                        await using var dbScope = scope.BeginLifetimeScope();
+                        var tkv = dbScope.Resolve<TableKeyTwoValue>();
+                        await RemoveDeviceAsync(tkv, subscription.AccessRegistrationId, odinContext);
                     }
                     else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
                     {
