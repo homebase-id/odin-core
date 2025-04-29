@@ -96,6 +96,7 @@ public enum OdinClientErrorCode
     InvalidTransitOptions = 7901,
     FileDoesNotHaveSender = 7902,
     MissingGlobalTransitId = 7903,
+    RemoteServerIsNotAnOdinServer = 7904,
 
     RegistrationStatusNotReadyForFinalization = 8001,
 
