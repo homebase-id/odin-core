@@ -75,6 +75,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="driveMainIndexRecord"></param>
         /// <param name="accessControlList"></param>
         /// <param name="tagIdList"></param>
+        /// <param name="useThisNewVersionTag"></param>
         /// <returns></returns>
         public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,

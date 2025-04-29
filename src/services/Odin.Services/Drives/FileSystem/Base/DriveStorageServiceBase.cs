@@ -113,7 +113,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (serverFileHeader.ServerMetadata.OriginalRecipientCount, pagedResults);
         }
 
-        private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header, bool keepSameVersionTag,
+        private async Task UpdateActiveFileHeaderInternal(InternalDriveFileId targetFile, ServerFileHeader header,
             IOdinContext odinContext,
             bool raiseEvent = false, bool ignoreFeedDistribution = false)
         {
@@ -149,8 +149,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
 
-            await WriteFileHeaderInternal(header,
-                keepSameVersionTag); // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
+            // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
+            await WriteFileHeaderInternal(header);
 
             //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
@@ -172,7 +172,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Writes a new file header w/o checking for an existing one
         /// </summary>
         public async Task WriteNewFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
-            bool raiseEvent = false, bool keepSameVersionTag = false)
+            bool raiseEvent = false, Guid? useThisVersionTag = null)
         {
             if (!header.IsValid())
             {
@@ -188,7 +188,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
             metadata.FileState = FileState.Active;
 
-            await WriteFileHeaderInternal(header, keepSameVersionTag: keepSameVersionTag); // sets the header.FileMetadata.Created/Updated
+            await WriteFileHeaderInternal(header, useThisVersionTag); // sets the header.FileMetadata.Created/Updated
 
             //HACKed in for Feed drive -> should become data subscription
             if (raiseEvent)
@@ -507,7 +507,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task CommitNewFile(TempFile originFile, KeyHeader keyHeader, FileMetadata newMetadata,
-            ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, bool keepSameVersionTag = false)
+            ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
             await AssertCanWriteToDrive(originFile.File.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(originFile.File.DriveId);
@@ -526,7 +526,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
-                await WriteNewFileHeader(targetFile, serverHeader, odinContext, keepSameVersionTag: keepSameVersionTag);
+                await WriteNewFileHeader(targetFile, serverHeader, odinContext, useThisVersionTag: useThisVersionTag);
             }
             catch
             {
@@ -874,7 +874,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            header.FileMetadata = fileMetadata;
+            var localVersionTag = header.FileMetadata.VersionTag;
+            header.FileMetadata = fileMetadata; //overwrite with incoming info
+            fileMetadata.VersionTag = localVersionTag; // keep this identity's version tag
 
             // Clearing the UID for any files that go into the feed drive because the feed drive 
             // comes from multiple channel drives from many different identities so there could be a clash
@@ -950,7 +952,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
             bool raiseEvent = false)
         {
-            await UpdateActiveFileHeaderInternal(targetFile, header, false, odinContext, raiseEvent);
+            await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent);
         }
 
 
@@ -1193,7 +1195,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        private async Task WriteFileHeaderInternal(ServerFileHeader header, bool keepSameVersionTag = false)
+        private async Task WriteFileHeaderInternal(ServerFileHeader header, Guid? useThisVersionTag = null)
         {
             await AssertPayloadsExistOnFileSystem(header.FileMetadata);
 
@@ -1201,11 +1203,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             // other operations will have occured, so these checks also exist in the upload validation
 
             header.FileMetadata.AppData?.Validate();
-
-            if (!keepSameVersionTag)
-            {
-                header.FileMetadata.VersionTag = DriveFileUtility.CreateVersionTag();
-            }
 
             var json = OdinSystemSerializer.Serialize(header);
             var jsonBytes = Encoding.UTF8.GetBytes(json);
@@ -1218,8 +1215,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
 
-            await longTermStorageManager.SaveFileHeader(drive,
-                header); // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
+            // SaveFileHeader updates the Created / Updated fields in the header.FileMetadata
+            await longTermStorageManager.SaveFileHeader(drive, header, useThisVersionTag);
         }
 
         /// <summary>
@@ -1318,7 +1315,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task OverwriteMetadataInternal(byte[] keyHeaderIv, ServerFileHeader existingServerHeader, FileMetadata newMetadata,
             ServerMetadata newServerMetadata,
-            IOdinContext odinContext, Guid? newVersionTag = null)
+            IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
             if (newMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(keyHeaderIv))
             {
@@ -1339,11 +1336,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 throw new OdinClientException($"Cannot change encryption when storage intent is {StorageIntent.MetadataOnly} since your " +
                                               $"payloads might be invalidated", OdinClientErrorCode.ArgumentError);
-            }
-
-            if (newVersionTag == null)
-            {
-                DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
             }
 
             var targetFile = existingServerHeader.FileMetadata.File;
@@ -1379,15 +1371,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
-            if (newVersionTag == null)
-            {
-                await WriteFileHeaderInternal(existingServerHeader); // Sets header.FileMetadata.Created/Updated
-            }
-            else
-            {
-                existingServerHeader.FileMetadata.VersionTag = newVersionTag.Value;
-                await WriteFileHeaderInternal(existingServerHeader, keepSameVersionTag: true); // Sets header.FileMetadata.Created/Updated
-            }
+            await WriteFileHeaderInternal(existingServerHeader, useThisVersionTag); // Sets header.FileMetadata.Created/Updated
         }
 
         private async Task DeletePayloadFromDiskInternal(InternalDriveFileId file, PayloadDescriptor descriptor)

@@ -40,7 +40,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// <summary>
         /// Saves the file to the database
         /// </summary>
-        Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader metadata);
+        Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader metadata, Guid? useThisVersionTag);
 
         /// <summary>
         /// Todd says it aint soft and it aint hard ... mushy it is
