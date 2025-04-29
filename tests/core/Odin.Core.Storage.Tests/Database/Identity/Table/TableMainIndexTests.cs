@@ -701,7 +701,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.AreEqual(ndr.hdrFileMetaData, md.hdrFileMetaData, "HdrFileMetaData mismatch");
             ClassicAssert.AreEqual(ndr.hdrTmpDriveAlias, md.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch");
             ClassicAssert.AreEqual(ndr.hdrTmpDriveType, md.hdrTmpDriveType, "HdrTmpDriveType mismatch");
-           
+
             //Note: local version info is not updated with the normal updates for drive main index; there are dedicated methods for this
             // ClassicAssert.AreEqual(ndr.hdrLocalVersionTag, md.hdrLocalVersionTag, "HdrLocalVersionTag mismatch");
             // ClassicAssert.AreEqual(ndr.hdrLocalAppData, md.hdrLocalAppData, "HdrLocalAppData mismatch");
@@ -758,9 +758,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.AreEqual(md.hdrFileMetaData, md2.hdrFileMetaData, "HdrFileMetaData mismatch after modification");
             ClassicAssert.AreEqual(md.hdrTmpDriveAlias, md2.hdrTmpDriveAlias, "HdrTmpDriveAlias mismatch after modification");
             ClassicAssert.AreEqual(md.hdrTmpDriveType, md2.hdrTmpDriveType, "HdrTmpDriveType mismatch after modification");
-            
+
             //Note: local version info is not updated with the normal updates for drive main index; there are dedicated methods for this
-            
+
             // ClassicAssert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
             // ClassicAssert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
         }
@@ -842,6 +842,146 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             }
 
             ClassicAssert.IsTrue(ok);
+        }
+
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task VersionTagUseThisInvalidTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId = Guid.NewGuid();
+
+            var k1 = Guid.NewGuid();
+            var cts1 = UnixTimeUtc.Now();
+            var sid1 = Guid.NewGuid().ToByteArray();
+            var tid1 = Guid.NewGuid();
+            var ud1 = UnixTimeUtc.Now();
+
+            var rec = new DriveMainIndexRecord()
+            {
+                driveId = driveId,
+                fileId = k1,
+                globalTransitId = Guid.NewGuid(),
+                created = cts1,
+                fileType = 7,
+                dataType = 42,
+                senderId = sid1.ToString(),
+                groupId = tid1,
+                uniqueId = Guid.NewGuid(),
+                userDate = ud1,
+                archivalStatus = 0,
+                historyStatus = 1,
+                requiredSecurityGroup = 44,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid()
+            };
+
+            // Test that if no tag is given for a new record, it will create one
+            await metaIndex.BaseUpsertEntryZapZapAsync(rec);
+            ClassicAssert.IsTrue(rec.hdrVersionTag != Guid.Empty);
+
+            // Test empty guid not allowed
+            bool ok = false;
+            try
+            {
+                await metaIndex.BaseUpsertEntryZapZapAsync(rec, useThisNewVersionTag: Guid.Empty);
+            }
+            catch (ArgumentException ex)
+            {
+                ok = true;
+            }
+            ClassicAssert.IsTrue(ok);
+
+            // Test same guid not allowed
+            ok = false;
+            try
+            {
+                await metaIndex.BaseUpsertEntryZapZapAsync(rec, useThisNewVersionTag: rec.hdrVersionTag);
+            }
+            catch (ArgumentException ex)
+            {
+                ok = true;
+            }
+            ClassicAssert.IsTrue(ok);
+
+            // Test choosing my own version tag is allowed
+            ok = false;
+            try
+            {
+                var newTag = SequentialGuid.CreateGuid();
+                await metaIndex.BaseUpsertEntryZapZapAsync(rec, useThisNewVersionTag: newTag);
+                ClassicAssert.IsTrue(newTag == rec.hdrVersionTag);
+                ok = true;
+            }
+            catch
+            {
+            }
+            ClassicAssert.IsTrue(ok);
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task VersionTag3Test(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId = Guid.NewGuid();
+
+            var k1 = Guid.NewGuid();
+            var cts1 = UnixTimeUtc.Now();
+            var sid1 = Guid.NewGuid().ToByteArray();
+            var tid1 = Guid.NewGuid();
+            var ud1 = UnixTimeUtc.Now();
+
+            var rec = new DriveMainIndexRecord()
+            {
+                driveId = driveId,
+                fileId = k1,
+                globalTransitId = Guid.NewGuid(),
+                created = cts1,
+                fileType = 7,
+                dataType = 42,
+                senderId = sid1.ToString(),
+                groupId = tid1,
+                uniqueId = Guid.NewGuid(),
+                userDate = ud1,
+                archivalStatus = 0,
+                historyStatus = 1,
+                requiredSecurityGroup = 44,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid()
+            };
+
+            // Test that if no tag is given for a new record, it will create one
+            var myTag = SequentialGuid.CreateGuid();
+            await metaIndex.BaseUpsertEntryZapZapAsync(rec, useThisNewVersionTag: myTag);
+            ClassicAssert.IsTrue(rec.hdrVersionTag == myTag);
         }
     }
 }

@@ -63,7 +63,7 @@ public class TableDriveMainIndex(
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
-    public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? versionTagOverride = null)
+    public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null)
     {
         item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
         item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
@@ -72,11 +72,18 @@ public class TableDriveMainIndex(
         item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
         item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
 
-        // Must be a new file, so let us give it a new version
+        if (useThisNewVersionTag == null)
+            useThisNewVersionTag = SequentialGuid.CreateGuid();
+        else if (useThisNewVersionTag == Guid.Empty)
+            throw new ArgumentException("useThisNewVersionTag not allowed to be an empty guid");
+
+
+        if (item.hdrVersionTag == useThisNewVersionTag)
+            throw new ArgumentException("useThisNewVersionTag==item.hdrVersionTag : Fy fy, skamme skamme, man må ikke snyde");
+
+        // If it is a new file, and the caller likely didn't set a VersionTag, we'll assign it the new version
         if (item.hdrVersionTag == Guid.Empty)
-        {
-            item.hdrVersionTag = SequentialGuid.CreateGuid();
-        }
+            item.hdrVersionTag = useThisNewVersionTag.Value;
         
         item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
         item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
@@ -210,11 +217,9 @@ public class TableDriveMainIndex(
         //upsertParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
         upsertParam25.Value = item.hdrFileMetaData;
 
-        var newVersionTag = SequentialGuid.CreateGuid();
-
         upsertParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
         upsertParam27.Value = item.hdrTmpDriveType.ToByteArray();
-        upsertParam28.Value = newVersionTag.ToByteArray();
+        upsertParam28.Value = useThisNewVersionTag.Value.ToByteArray();
 
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
         {
@@ -226,7 +231,7 @@ public class TableDriveMainIndex(
                 if (modified != null)
                 {
                     item.modified = new UnixTimeUtc((long)modified);
-                    item.hdrVersionTag = newVersionTag;
+                    item.hdrVersionTag = useThisNewVersionTag.Value;
                 }
                 else
                     item.modified = null;

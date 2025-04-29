@@ -78,7 +78,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <returns></returns>
         public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
-            List<Guid> tagIdList = null)
+            List<Guid> tagIdList = null,
+            Guid? useThisNewVersionTag = null)
         {
             driveMainIndexRecord.identityId = odinIdentity;
 
@@ -86,7 +87,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await using var tx = await cn.BeginStackedTransactionAsync();
 
             var n = 0;
-            n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord);
+            n = await driveMainIndex.UpsertAllButReactionsAndTransferAsync(driveMainIndexRecord, useThisNewVersionTag);
 
             await driveAclIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveAclIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
