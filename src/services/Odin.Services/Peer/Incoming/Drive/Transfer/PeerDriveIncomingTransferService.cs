@@ -100,7 +100,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var shouldExpectPayload = _transferState.TransferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
 
             // if there are payloads in the descriptor, and they should have been sent
-            if (fileMetadata.Payloads.Any() && shouldExpectPayload)
+            if ((fileMetadata.Payloads?.Any() ?? false) && shouldExpectPayload)
             {
                 foreach (var expectedPayload in fileMetadata.Payloads)
                 {
