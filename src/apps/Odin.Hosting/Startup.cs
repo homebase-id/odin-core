@@ -327,6 +327,7 @@ namespace Odin.Hosting
             });
 
             app.UseLoggingMiddleware();
+            app.UseMiddleware<OdinVersionNumberMiddleware>();
 
             if (env.IsProduction())
             {
