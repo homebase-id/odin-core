@@ -3,7 +3,6 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
-using Odin.Services.Base;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base
@@ -25,17 +24,17 @@ namespace Odin.Services.Drives.FileSystem.Base
     }
 
     // public class TenantPathManager(Guid tenantId, string tenantShard)
-    public class TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
+    public class TenantPathManager
     {
-        public readonly Guid TenantId = tenantId;
+        public readonly Guid TenantId;
 
-        public readonly string TenantShard = payloadShardKey;
-        public readonly string TempStoragePath = tempStoragePath;
-        public readonly string PayloadStoragePath = payloadStoragePath;
-        public readonly string HeaderDataStoragePath = headerDataStoragePath;
+        public readonly string TenantShard;
+        public readonly string TempStoragePath;
+        public readonly string PayloadStoragePath;
+        public readonly string HeaderDataStoragePath;
 
-        public readonly string TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
-        public readonly string TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
+        public readonly string TenantDataRootPath;
+        public readonly string TenantSystemDataRootPath;
         public static string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
         public static string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 
@@ -58,6 +57,38 @@ namespace Odin.Services.Drives.FileSystem.Base
         public static readonly string PayloadDelimiter = "-";
         public static readonly string TransitThumbnailKeyDelimiter = "|";
 
+
+        public TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
+        {
+            TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
+            TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
+
+            TenantId = tenantId;
+            TenantShard = payloadShardKey;
+            TempStoragePath = tempStoragePath;
+            PayloadStoragePath = payloadStoragePath;
+            HeaderDataStoragePath = headerDataStoragePath;
+
+            var s = TempStoragePath;
+            var r = Path.Combine(TenantDataRootPath, TempFolder, TenantId.ToString());
+            if (s != r)
+                throw new Exception("boom2");
+
+            s = PayloadStoragePath;
+            r = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
+            if (s != r)
+                throw new Exception("boom3");
+
+            s = HeaderDataStoragePath;
+            r = Path.Combine(TenantDataRootPath, "registrations", TenantId.ToString(), HeadersFolder);
+            if (s != r)
+                throw new Exception("boom4");
+
+            s = GetTenantRootBasePath();
+            r = Path.Combine(ConfigRoot, StorageFolder, CurrentEnvironment.ToLower(), TenantId.ToString());
+            if (s != r)
+                throw new Exception("boom1");
+        }
 
         //
         // File String Ops
