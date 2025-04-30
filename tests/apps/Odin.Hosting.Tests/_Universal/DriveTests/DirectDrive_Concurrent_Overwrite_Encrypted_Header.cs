@@ -11,6 +11,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
+using Minio.DataModel.Notification;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 
@@ -21,9 +22,8 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
     private WebScaffold _scaffold;
 
     private OwnerApiClientRedux _ownerApiClient;
-    private Guid _initialVersionTag;
-    private ExternalFileIdentifier _targetFile;
-    private KeyHeader _metadataKeyHeader;
+
+    private TargetDrive _targetDrive;
 
     private int _successCount;
     private int _serverErrorCount;
@@ -60,24 +60,8 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {
         var identity = TestIdentities.Pippin;
-        var targetDrive = TargetDrive.NewTargetDrive();
         _ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        //
-        // Prepare by uploading a file
-        //
-        var (uploadResult, metadataKeyHeader) = await PrepareEncryptedFile(identity, targetDrive);
-        _targetFile = uploadResult.File;
-        _initialVersionTag = uploadResult.NewVersionTag;
-        _metadataKeyHeader = metadataKeyHeader;
-
-        //
-        // Get the header before we make changes so we have a baseline
-        //
-        var getHeaderBeforeUploadResponse = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
-        ClassicAssert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
-        var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
-        ClassicAssert.IsNotNull(headerBeforeUpload);
+        _targetDrive = TargetDrive.NewTargetDrive();
 
         await PerformanceFramework.ThreadedTestAsync(maxThreads: 20, iterations: 50, OverwriteFile);
         Console.WriteLine($"Success Count: {_successCount}");
@@ -88,6 +72,24 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
 
     private async Task<(long, long[])> OverwriteFile(int threadNumber, int iterations)
     {
+        var identity = TestIdentities.Pippin;
+
+        //
+        // Prepare by uploading a file
+        //
+        var (uploadResult, metadataKeyHeader) = await PrepareEncryptedFile(identity, _targetDrive);
+        var _targetFile = uploadResult.File;
+        var _initialVersionTag = uploadResult.NewVersionTag;
+        var _metadataKeyHeader = metadataKeyHeader;
+
+        //
+        // Get the header before we make changes so we have a baseline
+        //
+        var getHeaderBeforeUploadResponse = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
+        ClassicAssert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
+        var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
+        ClassicAssert.IsNotNull(headerBeforeUpload);
+
         long[] timers = new long[iterations];
         var sw = new Stopwatch();
         int fileByteLength = 0;
@@ -101,10 +103,15 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
             var prevTag = newVersionTag;
             var tag = await UploadAndValidateHeader(_targetFile, newVersionTag);
 
+
             if (tag.HasValue)
             {
                 newVersionTag = tag.GetValueOrDefault();
                 ClassicAssert.IsTrue(prevTag != newVersionTag, "version tag did not change");
+            }
+            else
+            {
+                ClassicAssert.IsTrue(tag.HasValue); // Shouldn't happen
             }
 
             // Finished doing all the work
