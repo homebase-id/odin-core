@@ -25,9 +25,12 @@ namespace Odin.Services.Drives.FileSystem.Base
     }
 
     // public class TenantPathManager(Guid tenantId, string tenantShard)
-    public class TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
+    public class TenantPathManager(string tenantDataRootPath, string tenantSystemDataRootPath, string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
     {
         public readonly Guid TenantId = tenantId;
+
+        public readonly string TenantDataRootPath = tenantDataRootPath;
+        public readonly string TenantSystemDataRootPath = tenantSystemDataRootPath;
 
         public readonly string TenantShard = payloadShardKey;
         public readonly string TempStoragePath = tempStoragePath;

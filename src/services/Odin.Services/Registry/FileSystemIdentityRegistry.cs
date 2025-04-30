@@ -155,7 +155,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         string DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "tmp", "data-protection-keys");
         */
 
-        var tenantPathManager = new TenantPathManager(storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, idReg.Id);
+        var tenantPathManager = new TenantPathManager(_config.Host.TenantDataRootPath, _config.Host.SystemDataRootPath, storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, idReg.Id);
 
         var tc = new TenantContext(
             idReg.Id,

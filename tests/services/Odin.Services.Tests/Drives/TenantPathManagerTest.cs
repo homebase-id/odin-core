@@ -30,7 +30,7 @@ public class OdinPathManagerTest
             payloadShardKey: "shard1");
 
         var dotYouRegistryId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        _manager = new TenantPathManager(storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, dotYouRegistryId);
+        _manager = new TenantPathManager("notyet", "notyet2", storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, dotYouRegistryId);
 
         _context = new TenantContext(
             dotYouRegistryId,
