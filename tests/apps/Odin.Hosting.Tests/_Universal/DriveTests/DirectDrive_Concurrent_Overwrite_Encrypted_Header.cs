@@ -118,7 +118,7 @@ public class DirectDrive_Concurrent_Overwrite_Encrypted_Header
             timers[count] = sw.ElapsedMilliseconds;
 
             // If you want to introduce a delay be sure to use: await Task.Delay(1);
-            await Task.Delay(100);
+            // await Task.Delay(100);
             // Take.Delay() is very inaccurate.
         }
 

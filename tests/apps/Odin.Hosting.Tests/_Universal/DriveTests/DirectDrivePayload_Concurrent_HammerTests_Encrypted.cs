@@ -15,6 +15,7 @@ using Odin.Services.Peer.Encryption;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.Performance;
+using Minio.DataModel.Notification;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 
@@ -25,9 +26,11 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
     private WebScaffold _scaffold;
 
     private OwnerApiClientRedux _ownerApiClient;
-    private Guid _initialVersionTag;
-    private ExternalFileIdentifier _targetFile;
-    private KeyHeader _metadataKeyHeader;
+    private TargetDrive _targetDrive;
+
+    //private Guid _initialVersionTag;
+    //private ExternalFileIdentifier _targetFile;
+    // private KeyHeader _metadataKeyHeader;
 
     private int _successCount;
     private int _badRequestCount;
@@ -64,24 +67,8 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
     public async Task Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads()
     {
         var identity = TestIdentities.Pippin;
-        var targetDrive = TargetDrive.NewTargetDrive();
+        _targetDrive = TargetDrive.NewTargetDrive();
         _ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        //
-        // Prepare
-        //
-        var (uploadResult, metadataKeyHeader) = await PrepareEncryptedFile(identity, targetDrive);
-        _targetFile = uploadResult.File;
-        _initialVersionTag = uploadResult.NewVersionTag;
-        _metadataKeyHeader = metadataKeyHeader;
-
-        //
-        // Get the header before we make changes so we have a baseline
-        //
-        var getHeaderBeforeUploadResponse = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
-        ClassicAssert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
-        var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
-        ClassicAssert.IsNotNull(headerBeforeUpload);
 
         await PerformanceFramework.ThreadedTestAsync(maxThreads: 9, iterations: 100, OverwritePayload);
         
@@ -94,6 +81,25 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
         long[] timers = new long[iterations];
         var sw = new Stopwatch();
         int fileByteLength = 0;
+
+        var identity = TestIdentities.Pippin;
+
+        //
+        // Prepare
+        //
+        var (uploadResult, metadataKeyHeader) = await PrepareEncryptedFile(identity, _targetDrive);
+        var _targetFile = uploadResult.File;
+        var _initialVersionTag = uploadResult.NewVersionTag;
+        var _metadataKeyHeader = metadataKeyHeader;
+
+        //
+        // Get the header before we make changes so we have a baseline
+        //
+        var getHeaderBeforeUploadResponse = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
+        ClassicAssert.IsTrue(getHeaderBeforeUploadResponse.IsSuccessStatusCode);
+        var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
+        ClassicAssert.IsNotNull(headerBeforeUpload);
+
 
         var newVersionTag = _initialVersionTag;
         //
@@ -130,7 +136,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
             };
 
             var prevTag = newVersionTag;
-            var tag  = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
+            var tag  = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads, metadataKeyHeader);
 
             if (tag.HasValue)
             {
@@ -142,7 +148,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
             timers[count] = sw.ElapsedMilliseconds;
 
             // If you want to introduce a delay be sure to use: await Task.Delay(1);
-            await Task.Delay(100);
+            // await Task.Delay(0);
             // Take.Delay() is very inaccurate.
         }
 
@@ -150,10 +156,10 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
     }
 
     private async Task<Guid?> UploadAndValidatePayload(ExternalFileIdentifier targetFile, Guid targetVersionTag, UploadManifest uploadManifest,
-        List<TestPayloadDefinition> testPayloads)
+        List<TestPayloadDefinition> testPayloads, KeyHeader metadataKeyHeader)
     {
         var (uploadPayloadResponse, encryptedPayloads64) =
-            await _ownerApiClient.DriveRedux.UploadEncryptedPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads, _metadataKeyHeader.AesKey.GetKey());
+            await _ownerApiClient.DriveRedux.UploadEncryptedPayloads(targetFile, targetVersionTag, uploadManifest, testPayloads, metadataKeyHeader.AesKey.GetKey());
 
         if (uploadPayloadResponse.StatusCode == HttpStatusCode.OK)
         {
