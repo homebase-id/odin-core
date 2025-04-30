@@ -25,12 +25,14 @@ namespace Odin.Services.Drives.FileSystem.Base
     }
 
     // public class TenantPathManager(Guid tenantId, string tenantShard)
-    public class TenantPathManager(Guid tenantId)
+    public class TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
     {
-        private static readonly TenantContext _tenantContext = null!; // MS:TODO delete this, it's just here to satisfy the compiler
-
         public readonly Guid TenantId = tenantId;
-        public readonly string TenantShard = _tenantContext.StorageConfig.PayloadShardKey;
+
+        public readonly string TenantShard = payloadShardKey;
+        public readonly string TempStoragePath = tempStoragePath;
+        public readonly string PayloadStoragePath = payloadStoragePath;
+        public readonly string HeaderDataStoragePath = headerDataStoragePath;
 
         public static string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
         public static string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
@@ -92,7 +94,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public string GetDriveTempStoragePath(Guid driveId)
         {
             // StorageDrive._tempDataRootPath
-            var s1 = Path.Combine(_tenantContext.StorageConfig.TempStoragePath, DriveFolder);
+            var s1 = Path.Combine(TempStoragePath, DriveFolder);
             var _driveFolderName = GuidToPathSafeString(driveId);
             return Path.Combine(s1, _driveFolderName);
         }
@@ -100,7 +102,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public string GetDriveLongTermStoragePath(Guid driveId)
         {
             // StorageDrive._longTermPayloadPath + "files" = GetLongTermPayloadStoragePath();
-            var s2 = Path.Combine(_tenantContext.StorageConfig.PayloadStoragePath, DriveFolder);
+            var s2 = Path.Combine(PayloadStoragePath, DriveFolder);
             var _driveFolderName = GuidToPathSafeString(driveId);
             return Path.Combine(s2, _driveFolderName, FilesFolder);
         }
@@ -279,7 +281,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public string GetIdentityDatabasePath()
         {
-            return Path.Combine(_tenantContext.StorageConfig.HeaderDataStoragePath, "identity.db");
+            return Path.Combine(HeaderDataStoragePath, "identity.db");
         }
 
         //

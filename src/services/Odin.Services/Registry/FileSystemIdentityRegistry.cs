@@ -27,6 +27,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
@@ -137,7 +138,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
         var sslRoot = Path.Combine(rootPath, "ssl");
         var storageConfig = GetStorageConfig(idReg); // SEB:TODO redo this to satisfy TenantPathManager ctor
-        var tenantPathManager = new TenantPathManager(idReg.Id);
 
         if (updateFileSystem)
         {
@@ -148,6 +148,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
+        /*
+        string TenantDataRootPath = Env.ExpandEnvironmentVariablesCrossPlatform(_config("Host:TenantDataRootPath"));
+        string SystemDataRootPath = Env.ExpandEnvironmentVariablesCrossPlatform(_config.Required<string>("Host:SystemDataRootPath"));
+        string SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
+        string DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "tmp", "data-protection-keys");
+        */
+
+        var tenantPathManager = new TenantPathManager(storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, idReg.Id);
+
         var tc = new TenantContext(
             idReg.Id,
             (OdinId)idReg.PrimaryDomainName,
@@ -157,6 +166,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             idReg.FirstRunToken,
             isPreconfigured,
             idReg.MarkedForDeletionDate);
+
         return tc;
     }
 
