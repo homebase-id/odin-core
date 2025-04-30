@@ -25,18 +25,17 @@ namespace Odin.Services.Drives.FileSystem.Base
     }
 
     // public class TenantPathManager(Guid tenantId, string tenantShard)
-    public class TenantPathManager(string tenantDataRootPath, string tenantSystemDataRootPath, string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
+    public class TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
     {
         public readonly Guid TenantId = tenantId;
-
-        public readonly string TenantDataRootPath = tenantDataRootPath;
-        public readonly string TenantSystemDataRootPath = tenantSystemDataRootPath;
 
         public readonly string TenantShard = payloadShardKey;
         public readonly string TempStoragePath = tempStoragePath;
         public readonly string PayloadStoragePath = payloadStoragePath;
         public readonly string HeaderDataStoragePath = headerDataStoragePath;
 
+        public readonly string TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
+        public readonly string TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
         public static string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
         public static string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 
