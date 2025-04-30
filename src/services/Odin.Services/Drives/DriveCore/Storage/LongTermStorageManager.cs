@@ -14,6 +14,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -29,8 +30,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         TableDriveTransferHistory tableDriveTransferHistory,
         DriveManager driveManager,
         TableDriveMainIndex driveMainIndex,
-        TenantPathManager tenantPathManager)
+        TenantContext tenantContext)
     {
+        private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
+
         /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
@@ -178,7 +181,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 //var dir =  GetPayloadDirectory(drive, fileId, FilePart.Thumb);
                 //var path = Path.Combine(dir, fileName);
 
-                var path = tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, fileId, payloadKey, payloadUid, width, height);
+                var path = _tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, fileId, payloadKey, payloadUid, width, height);
 
                 //if (s != path)
                 //{
@@ -197,7 +200,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             Benchmark.Milliseconds(logger, nameof(HardDeletePayloadFile), () =>
             {
-                var pathAndFilename = tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
+                var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
 
                 //var s = tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
 
@@ -232,7 +235,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
                 var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, payloadUid);
-                var dir = tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
                 var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
@@ -259,7 +262,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var searchPattern = $"{fn}*";
 
                 // note: no need to delete thumbnails separately due to the aggressive searchPattern
-                var dir = tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
                 driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
             });
         }
@@ -268,7 +271,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var result = Benchmark.Milliseconds(logger, "GetPayloadDiskUsage", () =>
             {
-                var payloadFilePath = tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                var payloadFilePath = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
                 if (!driveFileReaderWriter.DirectoryExists(payloadFilePath))
                 {
                     return 0;
@@ -289,7 +292,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public bool PayloadExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
         {
-            var path = tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
+            var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
             var exists = driveFileReaderWriter.FileExists(path);
             return exists;
         }
@@ -297,7 +300,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public bool ThumbnailExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
-            var path = tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, fileId, descriptor.Key,descriptor.Uid,
+            var path = _tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, fileId, descriptor.Key,descriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
             return driveFileReaderWriter.FileExists(path);
@@ -310,7 +313,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             async Task<Stream> Execute()
             {
-                var path = tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
+                var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
                 logger.LogDebug("Get Chunked Stream called on file [{path}]", path);
 
                 Stream fileStream;
@@ -372,8 +375,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var result = Benchmark.Milliseconds(logger, "GetThumbnailStream", () =>
             {
-                var fileName = tenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
-                var dir = tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                var fileName = _tenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
+                var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
                 var path = Path.Combine(dir, fileName);
 
                 try
@@ -446,7 +449,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
                 }
 
-                var destinationFile = tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid, ensureExists: true);
+                var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid, ensureExists: true);
                 driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
                 logger.LogDebug("Payload: moved {sourceFile} to {destinationFile}", sourceFile, destinationFile);
             });
@@ -466,7 +469,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var payloadKey = payloadDescriptor.Key;
 
                 TenantPathManager.AssertValidPayloadKey(payloadKey);
-                var destinationFile = tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, targetFileId, payloadKey, payloadDescriptor.Uid,
+                var destinationFile = _tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, targetFileId, payloadKey, payloadDescriptor.Uid,
                     thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
                 var dir = Path.GetDirectoryName(destinationFile) ??
@@ -517,7 +520,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
               ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
             */
 
-            var payloadFileDirectory = tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+            var payloadFileDirectory = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
             if (!driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
             {
                 return [];
@@ -574,7 +577,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // we'll compare the file below before deleting
 
             var expectedThumbnails = payloadDescriptor.Thumbnails?.ToList() ?? [];
-            var dir = tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+            var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
             if (driveFileReaderWriter.DirectoryExists(dir))
             {
                 return [];
@@ -612,7 +615,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<bool> HasOrphanPayloadsOrThumbnails(InternalDriveFileId file, List<PayloadDescriptor> expectedPayloads)
         {
             var drive = await driveManager.GetDriveAsync(file.DriveId);
-            var payloadFileDirectory = tenantPathManager.GetPayloadDirectory(drive.Id, file.FileId);
+            var payloadFileDirectory = _tenantPathManager.GetPayloadDirectory(drive.Id, file.FileId);
 
             var searchPattern = GetPayloadSearchMask(file.FileId);
             var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);

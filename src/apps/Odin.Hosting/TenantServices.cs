@@ -157,7 +157,6 @@ public static class TenantServices
 
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
-        cb.RegisterType<TenantPathManager>().AsSelf().SingleInstance();
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();

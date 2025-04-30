@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using Odin.Core.Exceptions;
 using System.Text.RegularExpressions;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
-using Odin.Core.Trie;
 using Odin.Services.Base;
-using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Tenant;
 using Odin.Services.Util;
 
-namespace Odin.Services.Drives.DriveCore.Storage
+namespace Odin.Services.Drives.FileSystem.Base
 {
     public record ParsedPayloadFileRecord
     {
@@ -30,11 +25,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
     }
 
     // public class TenantPathManager(Guid tenantId, string tenantShard)
-    public class TenantPathManager(TenantContext tenantContext)
+    public class TenantPathManager(Guid tenantId)
     {
-        private readonly TenantContext _tenantContext = tenantContext;
-        public readonly Guid TenantId = tenantContext.DotYouRegistryId;
-        public readonly string TenantShard = tenantContext.StorageConfig.PayloadShardKey;
+        private static readonly TenantContext _tenantContext = null!; // MS:TODO delete this, it's just here to satisfy the compiler
+
+        public readonly Guid TenantId = tenantId;
+        public readonly string TenantShard = _tenantContext.StorageConfig.PayloadShardKey;
 
         public static string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
         public static string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";

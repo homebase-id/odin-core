@@ -9,6 +9,7 @@ using System.IO;
 using System;
 using Odin.Core.Identity;
 using NUnit.Framework.Legacy;
+using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Tests.Config;
 
@@ -28,16 +29,18 @@ public class OdinPathManagerTest
             staticFileStoragePath: "/static",
             payloadShardKey: "shard1");
 
+        var dotYouRegistryId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        _manager = new TenantPathManager(dotYouRegistryId);
+
         _context = new TenantContext(
-            dotYouRegistryId: Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            dotYouRegistryId,
             hostOdinId: new OdinId("frodo.baggins.demo.rocks"),
             sslRoot: "sslRoot",
             storageConfig: storageConfig,
+            tenantPathManager: _manager,
             firstRunToken: null,
             isPreconfigured: true,
             markedForDeletionDate: null);
-
-        _manager = new TenantPathManager(_context);
 
         return (_context, _manager);
     }
