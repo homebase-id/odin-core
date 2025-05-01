@@ -147,7 +147,7 @@ public class DriveQuery(
             return "{" + v1Str + "," + v2Str + "}";
     }
 
-    public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header)
+    public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag = null)
     {
         var fileMetadata = header.FileMetadata;
 
@@ -166,8 +166,9 @@ public class DriveQuery(
 
         try
         {
-            await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags);
+            await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag);
             header.FileMetadata.SetCreatedModifiedWithDatabaseValue(driveMainIndexRecord.created, driveMainIndexRecord.modified);
+            header.FileMetadata.VersionTag = driveMainIndexRecord.hdrVersionTag;
         }
         catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
         {

@@ -43,10 +43,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Writes a file header to the database
         /// </summary>
-        public async Task SaveFileHeader(StorageDrive drive, ServerFileHeader header)
+        public async Task SaveFileHeader(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag)
         {
             OdinValidationUtils.AssertNotNull(header, nameof(header));
-            await driveQuery.SaveFileHeaderAsync(drive, header);
+            await driveQuery.SaveFileHeaderAsync(drive, header, useThisVersionTag);
         }
 
         public async Task SaveLocalMetadataAsync(InternalDriveFileId file, LocalAppMetadata metadata)
