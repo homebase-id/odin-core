@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Util;
-using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -34,8 +33,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         public readonly string PayloadStoragePath;
         public readonly string HeaderDataStoragePath;
 
-        public static readonly string TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
-        public static readonly string TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
+        public readonly string TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
+        public readonly string TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
         public static readonly string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
         public static readonly string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 
@@ -67,8 +66,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
         {
-            AssertEqualPaths(TenantDataRootPath, Environment.GetEnvironmentVariable("Host__TenantDataRootPath"));
-            AssertEqualPaths(TenantSystemDataRootPath, Environment.GetEnvironmentVariable("Host__SystemDataRootPath"));
+            TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
+            TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
 
             TenantId = tenantId;
             TenantShard = payloadShardKey;
@@ -324,7 +323,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return Path.Combine(HeaderDataStoragePath, "identity.db");
         }
 
-        public static string GetSysDatabasePath()
+        public string GetSysDatabasePath()
         {
             return Path.Combine(TenantSystemDataRootPath, "sys.db");
         }

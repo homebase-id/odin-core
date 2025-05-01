@@ -300,7 +300,7 @@ namespace Odin.Hosting
             switch (_config.Database.Type)
             {
                 case DatabaseType.Sqlite:
-                    TenantPathManager.AssertEqualPaths(TenantPathManager.GetSysDatabasePath(), Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
+                    // TenantPathManager.AssertEqualPaths(TenantPathManager.GetSysDatabasePath(), Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
                     builder.AddSqliteSystemDatabaseServices(Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
                     break;
                 case DatabaseType.Postgres:

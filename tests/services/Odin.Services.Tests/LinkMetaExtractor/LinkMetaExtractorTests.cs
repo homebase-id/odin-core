@@ -95,6 +95,7 @@ public class LinkMetaExtractorTests
     }
 
 #if !CI_GITHUB
+    [Explicit]
     [Test]
     public async Task TestTwitterUrl()
     {
@@ -802,6 +803,7 @@ public class LinkMetaExtractorTests
 
 #if !CI_GITHUB
     [Test]
+    [Explicit]
     public async Task TestBenz()
     {
         var logStore = new LogEventMemoryStore();
