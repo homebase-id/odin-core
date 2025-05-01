@@ -123,7 +123,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
         return new TenantStorageConfig(
             headerDataStoragePath: Path.Combine(rootPath, "headers"),
-            tempStoragePath: Path.Combine(_tempFolderRoot, "temp", regIdFolder),
+            tempStoragePath: Path.Combine(rootPath, "temp"),
             payloadStoragePath: Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder),
             staticFileStoragePath: Path.Combine(rootPath, "static"),
             idReg.PayloadShardKey
