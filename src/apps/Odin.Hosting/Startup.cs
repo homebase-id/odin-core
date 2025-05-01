@@ -615,7 +615,17 @@ namespace Odin.Hosting
                 // Shutdown system background services
                 //
                 services.ShutdownSystemBackgroundServices().BlockingWait();
+
+                // DON'T PUT ANYTHING BELOW THIS LINE
+                logger.LogInformation("Background services stopped");
             });
+
+            lifetime.ApplicationStopped.Register(() =>
+            {
+                // DON'T PUT ANYTHING BELOW THIS LINE
+                logger.LogInformation("Application stopped");
+            });
+
         }
 
 

@@ -32,62 +32,6 @@ namespace Odin.Hosting.Tests.Performance
         }
 
 
-/*        public static void ThreadedTest(int maxThreads, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
-        {
-            // var tasks = new Task[maxThreads];
-            List<long[]> timers = new List<long[]>();
-            long fileByteLength = 0;
-
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
-
-            Thread[] threads = new Thread[maxThreads];
-
-            for (var i = 0; i < maxThreads; i++)
-            {
-                int threadIndex = i;
-
-                threads[i] = new Thread(() =>
-                {
-                    var resultTuple = functionToExecute(threadIndex, iterations);
-                    long bw = resultTuple.Result.Item1;
-                    long[] measurements = resultTuple.Result.Item2;
-                    ClassicAssert.IsTrue(measurements.Length == iterations);
-                    lock (timers)
-                    {
-                        timers.Add(measurements);
-                        fileByteLength += bw;
-                    }
-                });
-
-                threads[i].Start();
-            }
-
-            // Join the threads
-            for (var i = 0; i < maxThreads; i++)
-            {
-                threads[i].Join();
-            }
-
-            // [snip]
-
-            sw.Stop();
-
-            ClassicAssert.IsTrue(timers.Count == maxThreads);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            ClassicAssert.IsTrue(oneDimensionalArray.Length == (maxThreads * iterations));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < maxThreads * iterations; i++)
-                ClassicAssert.IsTrue(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            PerformanceLog(maxThreads, iterations, sw.ElapsedMilliseconds, oneDimensionalArray);
-            if (fileByteLength > 0)
-                Console.WriteLine($"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
-        }
-*/
-
         public static async Task ThreadedTestAsync(int maxThreads, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
         {
             List<long[]> timers = new List<long[]>();

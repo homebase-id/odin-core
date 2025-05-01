@@ -57,7 +57,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 //
                 // we must create a new file
                 //
-                incomingMetadata.VersionTag = instructionSet.Request.NewVersionTag;
+                // incomingMetadata.VersionTag = instructionSet.Request.NewVersionTag;
                 await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter WriteNewFile",
                     async () =>
                     {
@@ -67,7 +67,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                             serverMetadata,
                             ignorePayload: false,
                             odinContext,
-                            keepSameVersionTag: true);
+                            useThisVersionTag: instructionSet.Request.NewVersionTag);
                     });
 
                 return;

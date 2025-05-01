@@ -643,7 +643,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             r.fileState = 42;
-            await metaIndex.BaseUpdateEntryZapZapAsync(r, null, null);
+            await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
             var c2 = new QueryBatchCursor(UnixTimeUtc.ZeroTime);
             (result, moreRows, var outc2) = await metaIndex.QueryBatchAsync(driveId, 10, c2, sortOrder: QueryBatchOrdering.NewestFirst, queryType: QueryBatchType.ModifiedDate, requiredSecurityGroup: allIntRange);
@@ -652,7 +652,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             r = await tblDriveMainIndex.GetAsync(driveId, f2);
             r.fileState = 43;
-            await metaIndex.BaseUpdateEntryZapZapAsync(r, null, null);
+            await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, fileStateAnyOf: new List<Int32>() { 42, 43 }, requiredSecurityGroup: allIntRange);
@@ -725,7 +725,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             r.archivalStatus = 7;
-            await metaIndex.BaseUpdateEntryZapZapAsync(r, null, null);
+            await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
             c2 = new QueryBatchCursor();
             (result, moreRows, outc2) = await metaIndex.QueryBatchAsync(driveId, 10, c2, sortOrder: QueryBatchOrdering.NewestFirst, queryType: QueryBatchType.ModifiedDate, requiredSecurityGroup: allIntRange);
@@ -739,7 +739,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             r = await tblDriveMainIndex.GetAsync(driveId, f2);
             r.archivalStatus = 7;
-            await metaIndex.BaseUpdateEntryZapZapAsync(r, null, null);
+            await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
@@ -2548,11 +2548,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
-            await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, globalTransitId: g2, archivalStatus: 7);
+            data.archivalStatus = 7;
+            data.globalTransitId = g2;
+            await metaIndex.BaseUpsertEntryZapZapAsync(data);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
-            await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, globalTransitId: g3);
+            data.globalTransitId = g3;
+            await metaIndex.BaseUpsertEntryZapZapAsync(data);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g3) == 0);
         }
@@ -2744,6 +2747,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         }
 
 
+
+
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
@@ -2771,11 +2776,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
 
-            await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, uniqueId: u2);
+            data.uniqueId = u2;
+            await metaIndex.BaseUpsertEntryZapZapAsync(data);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u2) == 0);
 
-            await metaIndex.UpdateEntryZapZapPassAlongAsync(driveId, f1, uniqueId: u3);
+            data.uniqueId = u3;
+            await metaIndex.BaseUpsertEntryZapZapAsync(data);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u3) == 0);
 
@@ -2977,7 +2984,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.groupId = theguid;
             r.userDate = new UnixTimeUtc(42);
             r.requiredSecurityGroup = 333;
-            await metaIndex.BaseUpdateEntryZapZapAsync(r, null, null);
+            await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
             //UpdateEntryZapZapPassAlong(myc, driveId, fileId[420], fileType: 5, dataType: 6, senderId: conversationId[42].ToByteArray(), groupId: theguid, userDate: new UnixTimeUtc(42), requiredSecurityGroup: 333);
 
             // Now check that we can find the one modified item with our cursor timestamp
