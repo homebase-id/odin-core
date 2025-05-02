@@ -135,16 +135,18 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             };
 
             var prevTag = newVersionTag;
-            var tag = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
+            var (status, tag) = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
 
-
-            if (tag.HasValue)
+            if (status == 200)
             {
+                ClassicAssert.IsTrue(tag.HasValue);
                 newVersionTag = tag.GetValueOrDefault();
                 ClassicAssert.IsTrue(prevTag != newVersionTag, "version tag did not change");
             }
             else
             {
+                ClassicAssert.IsTrue(status == (int)HttpStatusCode.Conflict);
+
                 // we must presume there was a version tag mismatch, let's see if we can get back in the race
                 var getHeader = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
                 newVersionTag = getHeader.Content.FileMetadata.VersionTag;
@@ -159,7 +161,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         return (fileByteLength, timers);
     }
 
-    private async Task<Guid?> UploadAndValidatePayload(ExternalFileIdentifier targetFile,
+    private async Task<(int, Guid?)> UploadAndValidatePayload(ExternalFileIdentifier targetFile,
         Guid targetVersionTag,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> testPayloads)
@@ -171,16 +173,10 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             _successCount++;
             // if it 
             ClassicAssert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
-            return uploadPayloadResponse.Content!.NewVersionTag;
+            return (200, uploadPayloadResponse.Content!.NewVersionTag);
         }
 
-        if (uploadPayloadResponse.StatusCode == HttpStatusCode.BadRequest)
-        {
-            _badRequestCount++;
-            //what to expect in this case?
-        }
-
-        return null;
+        return ((int) uploadPayloadResponse.StatusCode, null);
     }
 
     private async Task<UploadResult> PrepareFile(TestIdentity identity, TargetDrive targetDrive)
