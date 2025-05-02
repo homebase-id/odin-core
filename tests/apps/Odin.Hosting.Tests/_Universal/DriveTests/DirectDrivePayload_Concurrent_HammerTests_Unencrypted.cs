@@ -99,6 +99,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         long[] timers = new long[iterations];
         var sw = new Stopwatch();
         int fileByteLength = 0;
+        Random random = new Random();
 
         Guid newVersionTag = _initialVersionTag;
         //
@@ -142,11 +143,17 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
                 newVersionTag = tag.GetValueOrDefault();
                 ClassicAssert.IsTrue(prevTag != newVersionTag, "version tag did not change");
             }
-            
+            else
+            {
+                // we must presume there was a version tag mismatch, let's see if we can get back in the race
+                var getHeader = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
+                newVersionTag = getHeader.Content.FileMetadata.VersionTag;
+            }
+
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
 
-            //await Task.Delay(100);
+            await Task.Delay(random.Next(5, 51));
         }
 
         return (fileByteLength, timers);
