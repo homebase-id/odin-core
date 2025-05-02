@@ -16,7 +16,6 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
@@ -66,51 +65,59 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPatch("update")]
         public async Task<PeerTransferResponse> ReceiveIncomingUpdate()
         {
-            await AssertIsValidCaller();
-
-            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            try
             {
-                throw new OdinClientException("Data is not multi-part content");
-            }
+                await AssertIsValidCaller();
 
-            var boundary = GetBoundary(HttpContext.Request.ContentType);
-            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
-            var updateInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
-
-            //Optimizations - the caller can't write to the drive, no need to accept any more of the file
-
-            //S0100
-            _fileSystem = ResolveFileSystem(updateInstructionSet.FileSystemType);
-
-            //S1000, S2000 - can the sender write the content to the target drive?
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(updateInstructionSet.Request.File.TargetDrive);
-            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
-            //End Optimizations
-
-            //
-
-            var metadata = await Initialize(updateInstructionSet, reader);
-
-            //
-
-            var section = await reader.ReadNextSectionAsync();
-            while (null != section)
-            {
-                if (IsPayloadPart(section))
+                if (!IsMultipartContentType(HttpContext.Request.ContentType))
                 {
-                    await ProcessPayloadSection(section, metadata);
+                    throw new OdinClientException("Data is not multi-part content");
                 }
 
-                if (IsThumbnail(section))
+                var boundary = GetBoundary(HttpContext.Request.ContentType);
+                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+                var updateInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
+
+                //Optimizations - the caller can't write to the drive, no need to accept any more of the file
+
+                //S0100
+                _fileSystem = ResolveFileSystem(updateInstructionSet.FileSystemType);
+
+                //S1000, S2000 - can the sender write the content to the target drive?
+                var driveId = WebOdinContext.PermissionsContext.GetDriveId(updateInstructionSet.Request.File.TargetDrive);
+                await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
+                //End Optimizations
+
+                //
+
+                var metadata = await Initialize(updateInstructionSet, reader);
+
+                //
+
+                var section = await reader.ReadNextSectionAsync();
+                while (null != section)
                 {
-                    await ProcessThumbnailSection(section, metadata);
+                    if (IsPayloadPart(section))
+                    {
+                        await ProcessPayloadSection(section, metadata);
+                    }
+
+                    if (IsThumbnail(section))
+                    {
+                        await ProcessThumbnailSection(section, metadata);
+                    }
+
+                    section = await reader.ReadNextSectionAsync();
                 }
 
-                section = await reader.ReadNextSectionAsync();
+                return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext);
             }
-
-            return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext);
+            catch
+            {
+                await _fileUpdateService.CleanupTempFiles(WebOdinContext);
+                throw;
+            }
         }
 
         private async Task<FileMetadata> Initialize(
@@ -120,7 +127,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             AssertIsPart(metadataSection, MultipartHostTransferParts.Metadata);
             var json = await new StreamReader(metadataSection!.Body).ReadToEndAsync();
             var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
-            
+
             _fileUpdateService = GetPerimeterService(_fileSystem);
             await _fileUpdateService.InitializeIncomingTransfer(updateInstructionSet, metadata, WebOdinContext);
 

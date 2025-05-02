@@ -24,7 +24,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
     public abstract class PeerSenderControllerBase(
-        ILogger logger, PeerOutgoingTransferService peerOutgoingTransferService)
+        ILogger logger,
+        PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveUploadControllerBase(logger)
     {
         /// <summary>
@@ -42,16 +43,53 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
             var fileSystemWriter = this.GetHttpFileSystemResolver().ResolveFileSystemWriter();
 
+            try
+            {
+                return await ProcessUpload(fileSystemWriter, reader);
+            }
+            catch
+            {
+                await fileSystemWriter.CleanupTempFiles(WebOdinContext);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Sends a Delete Linked File Request to recipients
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/senddeleterequest")]
+        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
+        {
+            OdinValidationUtils.AssertNotNull(request, nameof(request));
+            OdinValidationUtils.AssertValidRecipientList(request?.Recipients ?? [], false);
+            OdinValidationUtils.AssertNotNull(request!.GlobalTransitIdFileIdentifier, nameof(request.GlobalTransitIdFileIdentifier));
+            OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.TargetDrive.IsValid(), "Target Drive is invalid");
+            OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.GlobalTransitId != Guid.Empty,
+                "GlobalTransitId is empty (cannot be Guid.Empty)");
+
+            //send the deleted file
+            var map = await peerOutgoingTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
+                new FileTransferOptions()
+                {
+                    FileSystemType = request.FileSystemType,
+                    TransferFileType = TransferFileType.Normal
+                },
+                request.Recipients, WebOdinContext);
+
+            return new JsonResult(map);
+        }
+
+        private async Task<TransitResult> ProcessUpload(FileSystemStreamWriterBase fileSystemWriter, MultipartReader reader)
+        {
             // Note: comparing this to a drive upload - 
             // We receive TransitInstructionSet from the client then
             // map it to a UploadInstructionSet using a hard-coded internal
             // drive to allow apps to send files directly
 
             // Post alpha we can consider a more direct operation w/ot he temp-transient-drive
-
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
 
@@ -80,8 +118,10 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
                 if (IsThumbnail(section))
                 {
-                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out var contentTypeFromMultipartSection);
-                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
+                    AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey,
+                        out var contentTypeFromMultipartSection);
+                    await fileSystemWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream,
+                        WebOdinContext);
                 }
 
                 section = await reader.ReadNextSectionAsync();
@@ -91,6 +131,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information
+            
             return new TransitResult()
             {
                 RemoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
@@ -101,33 +142,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
                 RecipientStatus = uploadResult.RecipientStatus
             };
         }
-        
-        /// <summary>
-        /// Sends a Delete Linked File Request to recipients
-        /// </summary>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("files/senddeleterequest")]
-        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
-        {
-            OdinValidationUtils.AssertNotNull(request, nameof(request));
-            OdinValidationUtils.AssertValidRecipientList(request?.Recipients ?? [], false);
-            OdinValidationUtils.AssertNotNull(request!.GlobalTransitIdFileIdentifier, nameof(request.GlobalTransitIdFileIdentifier));
-            OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.TargetDrive.IsValid(), "Target Drive is invalid");
-            OdinValidationUtils.AssertIsTrue(request.GlobalTransitIdFileIdentifier.GlobalTransitId != Guid.Empty,
-                "GlobalTransitId is empty (cannot be Guid.Empty)");
-
-            //send the deleted file
-            var map = await peerOutgoingTransferService.SendDeleteFileRequest(request.GlobalTransitIdFileIdentifier,
-                new FileTransferOptions()
-                {
-                    FileSystemType = request.FileSystemType,
-                    TransferFileType = TransferFileType.Normal
-                },
-                request.Recipients, WebOdinContext);
-
-            return new JsonResult(map);
-        }
-
 
         /// <summary>
         /// Map the client's transit instructions to an upload instruction set so we

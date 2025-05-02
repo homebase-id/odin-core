@@ -153,6 +153,11 @@ public abstract class PayloadStreamWriterBase
         };
     }
 
+    public async Task CleanupTempFiles(IOdinContext odinContext)
+    {
+        await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.TempFile.AsTempFileUpload(), odinContext);
+    }
+    
     /// <summary>
     /// Validates the new attachments against the existing header
     /// </summary>
@@ -200,4 +205,5 @@ public abstract class PayloadStreamWriterBase
             DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
+    
 }

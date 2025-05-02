@@ -416,6 +416,11 @@ public abstract class FileSystemStreamWriterBase
         return recipientStatus;
     }
 
+    public async Task CleanupTempFiles(IOdinContext odinContext)
+    {
+        await FileSystem.Storage.CleanupUploadTemporaryFiles(Package.InternalFile.AsTempFileUpload(), odinContext);
+    }
+    
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(
         FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
