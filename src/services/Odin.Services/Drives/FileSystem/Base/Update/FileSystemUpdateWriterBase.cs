@@ -211,10 +211,16 @@ public abstract class FileSystemUpdateWriterBase
                 keyHeader,
                 odinContext);
 
-            return new FileUpdateResult()
+            return new FileUpdateResult
             {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = metadata.File.FileId,
+                    TargetDrive = Package.InstructionSet.File.TargetDrive
+                },
+                GlobalTransitId = metadata.GlobalTransitId,
                 NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
-                RecipientStatus = recipientStatus
+                RecipientStatus = recipientStatus,
             };
         }
 
@@ -239,6 +245,16 @@ public abstract class FileSystemUpdateWriterBase
 
             return new FileUpdateResult()
             {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = Guid.Empty,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = GuidId.Empty,
+                        Type = GuidId.Empty
+                    }
+                },
+                GlobalTransitId = metadata.GlobalTransitId,
                 NewVersionTag = Package.NewVersionTag,
                 RecipientStatus = recipientStatus
             };

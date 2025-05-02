@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
@@ -835,7 +836,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             {
                 await metaIndex.BaseUpsertEntryZapZapAsync(rec);
             }
-            catch (OdinDatabaseException)
+            catch (OdinClientException)
             {
                 // All good, we got an exception
                 ok = true;

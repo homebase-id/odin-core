@@ -26,6 +26,7 @@ public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
             package.TempFile.AsTempFileUpload(),
             targetFile: package.InternalFile,
             incomingPayloads: package.GetFinalPayloadDescriptors(),
-            odinContext);
+            odinContext,
+            package.InstructionSet.VersionTag.GetValueOrDefault());
     }
 }
