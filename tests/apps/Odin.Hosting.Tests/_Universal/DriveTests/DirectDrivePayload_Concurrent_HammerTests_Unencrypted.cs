@@ -146,7 +146,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
 
-            await Task.Delay(100);
+            //await Task.Delay(100);
         }
 
         return (fileByteLength, timers);
