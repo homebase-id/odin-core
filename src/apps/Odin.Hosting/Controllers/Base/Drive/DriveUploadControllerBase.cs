@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage;
+using Odin.Hosting.ApiExceptions.Client;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
@@ -118,8 +120,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await writer.FinalizeUpload(WebOdinContext);
-            return status;
+            try
+            {
+                var status = await writer.FinalizeUpload(WebOdinContext);
+                return status;
+            }
+            catch (OdinDatabaseVersionTagMismatchException e)
+            {
+                throw new ConflictException(e.Message);
+            }
         }
 
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
