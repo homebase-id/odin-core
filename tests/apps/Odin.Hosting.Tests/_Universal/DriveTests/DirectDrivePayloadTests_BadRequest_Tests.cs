@@ -58,8 +58,8 @@ public class DirectDrivePayloadTests_BadRequest_Tests
     
     public static IEnumerable OwnerAndAppBadRequest()
     {
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
-        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
+        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Conflict };
+        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.Conflict };
     }
     
     public static IEnumerable GuestForbidden()

@@ -328,6 +328,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             var header = await this.GetServerFileHeader(file, odinContext);
             DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, targetVersionTag);
 
+            header.FileMetadata.VersionTag = targetVersionTag;
+
             var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => p.KeyEquals(key)) ?? -1;
 
             if (descriptorIndex == -1)
@@ -337,10 +339,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var descriptor = header.FileMetadata.Payloads![descriptorIndex];
 
-            await DeletePayloadFromDiskInternal(file, descriptor);
 
             header.FileMetadata.Payloads!.RemoveAt(descriptorIndex);
             await UpdateActiveFileHeader(file, header, odinContext);
+            await DeletePayloadFromDiskInternal(file, descriptor); // Delete the payloads from disk AFTER we update the header successfully
+
             return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because we pass header all the way
         }
 
@@ -576,7 +579,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
-
+                
                 newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
                 newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
                 newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
@@ -640,13 +643,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             TempFile originFile,
             InternalDriveFileId targetFile,
             List<PayloadDescriptor> incomingPayloads,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            Guid expectedVersionTag)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
+
             if (null == existingServerHeader)
             {
                 throw new OdinClientException("Invalid target file", OdinClientErrorCode.FileNotFound);
@@ -673,13 +678,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var allPayloads = incomingPayloads.Concat(payloadsToKeep).ToList();
 
                 existingServerHeader.FileMetadata.Payloads = allPayloads;
+                existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
 
                 await WriteFileHeaderInternal(existingServerHeader);
+                await DeleteZombiePayloads(targetFile, zombiePayloads); // Only remove the replaced payloads if successful
             }
             finally
             {
-                await DeleteZombiePayloads(targetFile, zombiePayloads);
-                await uploadStorageManager.EnsureDeleted(originFile);
+                await uploadStorageManager.EnsureDeleted(originFile); // Clean up the temp uploaded files
             }
 
             if (await ShouldRaiseDriveEventAsync(targetFile))
