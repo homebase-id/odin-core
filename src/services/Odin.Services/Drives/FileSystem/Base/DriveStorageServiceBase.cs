@@ -1113,7 +1113,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
+            DriveFileUtility.AssertLocalVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
 
             var newVersionTag = DriveFileUtility.CreateVersionTag();
 
@@ -1159,7 +1159,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
+            DriveFileUtility.AssertLocalVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
 
 
             if (header.FileMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(initVector))

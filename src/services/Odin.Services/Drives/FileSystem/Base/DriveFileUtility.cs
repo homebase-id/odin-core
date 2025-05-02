@@ -224,6 +224,13 @@ public static class DriveFileUtility
         var instant = (Instant)lastModified.GetValueOrDefault();
         return instant.ToDateTimeUtc().ToString("R");
     }
+    public static void AssertLocalVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
+    {
+        if (currentVersionTag != versionTagToCompare)
+        {
+            throw new OdinClientException($"Invalid local version tag {versionTagToCompare}", OdinClientErrorCode.VersionTagMismatch);
+        }
+    }
 
     public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
     {
