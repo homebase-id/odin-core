@@ -241,7 +241,7 @@ public class TableDriveMainIndex(
             }
             else
             {
-                throw new OdinClientException($"Invalid version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+                throw new OdinDatabaseException(DatabaseType.Sqlite, $"Mismatching version tag {item.hdrVersionTag}");
             }
         }
 
