@@ -232,16 +232,6 @@ public static class DriveFileUtility
         }
     }
 
-    public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
-    {
-        return; // This is now checked in the DB, not possible to check reliably in the code
-        /*
-        if (currentVersionTag != versionTagToCompare)
-        {
-            throw new OdinClientException($"Invalid version tag {versionTagToCompare}", OdinClientErrorCode.VersionTagMismatch);
-        }*/
-    }
-
     public static string GetPayloadFileExtensionStarStar()
     {
         var bn = TenantPathManager.CreateBasePayloadSearchMask();

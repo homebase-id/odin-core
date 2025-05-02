@@ -326,7 +326,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             //Note: calling to get the file header, so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext);
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, targetVersionTag);
 
             header.FileMetadata.VersionTag = targetVersionTag;
 
@@ -578,8 +577,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
                 }
 
-                DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
-                
                 newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
                 newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
                 newMetadata.OriginalAuthor = existingServerHeader.FileMetadata.OriginalAuthor;
@@ -1040,8 +1037,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
                 }
-
-                DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
 
                 if (existingHeader.FileMetadata.IsEncrypted)
                 {

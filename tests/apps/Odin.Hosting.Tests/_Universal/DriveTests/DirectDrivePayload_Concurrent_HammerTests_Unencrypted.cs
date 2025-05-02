@@ -28,7 +28,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
     private ExternalFileIdentifier _targetFile;
 
     private int _successCount;
-    private int _badRequestCount;
+    private int _ConflictCount;
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -91,7 +91,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         await PerformanceFramework.ThreadedTestAsync(maxThreads: 12, iterations: 100, OverwritePayload);
 
         Console.WriteLine($"Success Count: {_successCount}");
-        Console.WriteLine($"Bad Request Count: {_badRequestCount}");
+        Console.WriteLine($"Conflict Count: {_ConflictCount}");
     }
 
     private async Task<(long, long[])> OverwritePayload(int threadNumber, int iterations)
@@ -145,6 +145,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             }
             else
             {
+                _ConflictCount++;
                 ClassicAssert.IsTrue(status == (int)HttpStatusCode.Conflict);
 
                 // we must presume there was a version tag mismatch, let's see if we can get back in the race
