@@ -122,6 +122,7 @@ public interface IScopedConnectionFactory
 public interface IConnectionWrapper : IDisposable, IAsyncDisposable
 {
     DbConnection DangerousInstance { get; }
+    DatabaseType DatabaseType { get; }
     int RefCount { get; }
     bool HasTransaction { get; }
     Task<ITransactionWrapper> BeginStackedTransactionAsync(
@@ -133,6 +134,7 @@ public interface IConnectionWrapper : IDisposable, IAsyncDisposable
 public interface ITransactionWrapper : IDisposable, IAsyncDisposable
 {
     DbTransaction DangerousInstance { get; }
+    DatabaseType DatabaseType { get; }
     int RefCount { get; }
     void Commit();
 }
@@ -140,6 +142,7 @@ public interface ITransactionWrapper : IDisposable, IAsyncDisposable
 public interface ICommandWrapper : IDisposable, IAsyncDisposable
 {
     DbCommand DangerousInstance { get; }
+    DatabaseType DatabaseType { get; }
     string CommandText { get; set; }
     int CommandTimeout { get; set; }
     CommandType CommandType { get; set; }
@@ -300,6 +303,7 @@ public class ScopedConnectionFactory<T>(
     {
         private bool _disposed;
         public DbConnection DangerousInstance => instance._connection!;
+        public DatabaseType DatabaseType => instance.DatabaseType;
         public int RefCount => instance._connectionRefCount;
         public bool HasTransaction => instance.HasTransaction;
 
@@ -440,6 +444,7 @@ public class ScopedConnectionFactory<T>(
     {
         private bool _disposed;
         public DbTransaction DangerousInstance => instance._transaction!;
+        public DatabaseType DatabaseType => instance.DatabaseType;
         public int RefCount => instance._transactionRefCount;
 
         //
@@ -567,6 +572,7 @@ public class ScopedConnectionFactory<T>(
         private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromSeconds(10);
         private bool _disposed;
         public DbCommand DangerousInstance => command;
+        public DatabaseType DatabaseType => instance.DatabaseType;
 
         //
 

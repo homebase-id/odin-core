@@ -3,9 +3,8 @@ using System.Data;
 using System.Data.Common;
 using NUnit.Framework;
 using Odin.Core.Storage.Extensions;
-
 using Microsoft.Data.Sqlite;
-
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Extensions;
 
@@ -33,7 +32,7 @@ public class DbCommandExtensionsTests
         param2.Value = "Active";
         command.Parameters.Add(param2);
 
-        var sql = command.RenderSqlForDebugging();
+        var sql = command.RenderSqlForDebugging(DatabaseType.Sqlite);
         Assert.That(sql, Is.EqualTo("SELECT * FROM Users WHERE UserId = 123 AND Status = 'Active'"));
     }
 
@@ -59,9 +58,8 @@ public class DbCommandExtensionsTests
         param2.Value = DBNull.Value;
         command.Parameters.Add(param2);
 
-        var sql = command.RenderSqlForDebugging();
+        var sql = command.RenderSqlForDebugging(DatabaseType.Sqlite);
         Assert.That(sql, Is.EqualTo("SELECT * FROM Users WHERE UserId = 123 OR Status IS NULL"));
     }
-
 }
 

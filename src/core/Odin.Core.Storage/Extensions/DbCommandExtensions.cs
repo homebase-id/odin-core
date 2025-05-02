@@ -12,7 +12,7 @@ public static class DbCommandExtensions
     /// Very simple method to render the SQL for debugging purposes. It will NOT get everything right. In particular,
     /// you will need to set the correct DbType on the individual parameters.
     /// </summary>
-    public static string RenderSqlForDebugging(this IDbCommand command)
+    public static string RenderSqlForDebugging(this IDbCommand command, DatabaseType databaseType)
     {
         var sql = new StringBuilder(command.CommandText);
 
@@ -21,7 +21,7 @@ public static class DbCommandExtensions
             var parameterName = parameter.ParameterName;
             var parameterValue = parameter.Value == DBNull.Value
                 ? "NULL"
-                : FormatParameterValue(parameter.Value, parameter.DbType);
+                : FormatParameterValue(parameter.Value, parameter.DbType, databaseType);
 
             sql = sql.Replace(parameterName, parameterValue);
         }
@@ -37,12 +37,12 @@ public static class DbCommandExtensions
     /// </summary>
     public static string RenderSqlForDebugging(this ICommandWrapper command)
     {
-        return RenderSqlForDebugging(command.DangerousInstance);
+        return RenderSqlForDebugging(command.DangerousInstance, command.DatabaseType);
     }
 
     //
 
-    private static string FormatParameterValue(object value, DbType dbType)
+    private static string FormatParameterValue(object value, DbType dbType, DatabaseType databaseType)
     {
         if (value == null)
         {
@@ -60,6 +60,8 @@ public static class DbCommandExtensions
             case DbType.DateTime2:
             case DbType.DateTimeOffset:
                 return $"'{value}'";
+            case DbType.Binary:
+                return ((byte[])value).ToSql(databaseType);
             default:
                 return value.ToString();
         }
