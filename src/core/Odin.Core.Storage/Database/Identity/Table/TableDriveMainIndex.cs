@@ -241,7 +241,8 @@ public class TableDriveMainIndex(
             }
             else
             {
-                throw new OdinDatabaseVersionTagMismatchException(DatabaseType.Unknown, $"Mismatching version tag {item.hdrVersionTag}");
+                throw new OdinClientException($"Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+                // throw new OdinDatabaseVersionTagMismatchException(DatabaseType.Unknown, $"Mismatching version tag {item.hdrVersionTag}");
             }
         }
 

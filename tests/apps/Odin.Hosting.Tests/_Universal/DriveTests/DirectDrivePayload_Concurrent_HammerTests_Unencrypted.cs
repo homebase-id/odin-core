@@ -14,6 +14,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.Performance;
+using Odin.Core.Exceptions;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 
@@ -135,9 +136,9 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             };
 
             var prevTag = newVersionTag;
-            var (status, tag) = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
+            var (status, oce, tag) = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
 
-            if (status == 200)
+            if (status == HttpStatusCode.OK)
             {
                 ClassicAssert.IsTrue(tag.HasValue);
                 newVersionTag = tag.GetValueOrDefault();
@@ -146,7 +147,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             else
             {
                 _ConflictCount++;
-                ClassicAssert.IsTrue(status == (int)HttpStatusCode.Conflict);
+                ClassicAssert.IsTrue(oce == OdinClientErrorCode.VersionTagMismatch);
 
                 // we must presume there was a version tag mismatch, let's see if we can get back in the race
                 var getHeader = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
@@ -162,7 +163,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         return (fileByteLength, timers);
     }
 
-    private async Task<(int, Guid?)> UploadAndValidatePayload(ExternalFileIdentifier targetFile,
+    private async Task<(HttpStatusCode, OdinClientErrorCode, Guid?)> UploadAndValidatePayload(ExternalFileIdentifier targetFile,
         Guid targetVersionTag,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> testPayloads)
@@ -174,10 +175,13 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             _successCount++;
             // if it 
             ClassicAssert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
-            return (200, uploadPayloadResponse.Content!.NewVersionTag);
+            return (HttpStatusCode.OK, OdinClientErrorCode.NoErrorCode, uploadPayloadResponse.Content!.NewVersionTag);
         }
+        ClassicAssert.IsTrue(uploadPayloadResponse.StatusCode == HttpStatusCode.BadRequest);
 
-        return ((int) uploadPayloadResponse.StatusCode, null);
+        var oce = TestUtils.ParseProblemDetails(uploadPayloadResponse.Error);
+        
+        return (HttpStatusCode.BadRequest, oce, null);
     }
 
     private async Task<UploadResult> PrepareFile(TestIdentity identity, TargetDrive targetDrive)

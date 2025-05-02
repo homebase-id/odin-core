@@ -120,15 +120,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 section = await reader.ReadNextSectionAsync();
             }
 
-            try
-            {
-                var status = await writer.FinalizeUpload(WebOdinContext);
-                return status;
-            }
-            catch (OdinDatabaseVersionTagMismatchException e)
-            {
-                throw new ConflictException(e.Message);
-            }
+            var status = await writer.FinalizeUpload(WebOdinContext);
+            return status;
         }
 
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
