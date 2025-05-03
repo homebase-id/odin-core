@@ -156,12 +156,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             {
                 try
                 {
-                    await _incomingTransferService.CleanupTempFiles(WebOdinContext);
-
+                    if (null != _incomingTransferService)
+                    {
+                        await _incomingTransferService.CleanupTempFiles(WebOdinContext);
+                    }
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError(e, "Error uduring file cleanup");
+                    _logger.LogError(e, "Error during file cleanup");
                 }
                 throw;
             }

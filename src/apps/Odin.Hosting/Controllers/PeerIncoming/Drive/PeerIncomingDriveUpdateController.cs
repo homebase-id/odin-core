@@ -120,7 +120,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             {
                 try
                 {
-                    await _fileUpdateService.CleanupTempFiles(WebOdinContext);
+                    if (null != _fileUpdateService)
+                    {
+                        await _fileUpdateService.CleanupTempFiles(WebOdinContext);
+                    }
                 }
                 catch (Exception e)
                 {

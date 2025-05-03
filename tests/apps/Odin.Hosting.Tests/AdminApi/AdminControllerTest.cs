@@ -162,7 +162,8 @@ public class AdminControllerTest
     //
 
     [Test]
-    public async Task ItShouldDeleteTenant()
+    public async Task 
+        ItShouldDeleteTenant()
     {
         await CreatePayload(TestIdentities.Frodo);
 
