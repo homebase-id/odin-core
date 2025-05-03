@@ -1201,10 +1201,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task CleanupUploadTemporaryFiles(TempFile tempFile, IOdinContext odinContext)
         {
-            await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
-            await uploadStorageManager.EnsureDeleted(tempFile);
+            if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
+            {
+                await uploadStorageManager.EnsureDeleted(tempFile);
+            }
         }
-        
+
         private async Task WriteFileHeaderInternal(ServerFileHeader header, Guid? useThisVersionTag = null)
         {
             await AssertPayloadsExistOnFileSystem(header.FileMetadata);
