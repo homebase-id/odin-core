@@ -89,7 +89,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         ClassicAssert.IsNotNull(headerBeforeUpload);
 
-        await PerformanceFramework.ThreadedTestAsync(maxThreads: 12, iterations: 100, OverwritePayload);
+        await PerformanceFramework.ThreadedTestAsync(maxThreads: 50, iterations: 100, OverwritePayload);
 
         Console.WriteLine($"Success Count: {_successCount}");
         Console.WriteLine($"Conflict Count: {_ConflictCount}");

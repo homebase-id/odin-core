@@ -139,7 +139,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
             catch
             {
-                await writer.CleanupTempFiles(WebOdinContext);
+                try
+                {
+                    await writer.CleanupTempFiles(WebOdinContext);
+                }
+                catch(Exception e) 
+                {
+                    // Console.WriteLine("HERE--->> {0}", e.Message);
+                    logger.LogError(e, " HERE -->");
+                }
                 throw;
             }
         }
