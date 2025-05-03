@@ -39,7 +39,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
             catch
             {
-                await driveUploadService.CleanupTempFiles(WebOdinContext);
+                try
+                {
+                    await driveUploadService.CleanupTempFiles(WebOdinContext);
+                }
+                catch(Exception e) 
+                {
+                    logger.LogError(e, " Failure during file cleanup");
+                }
+                
                 throw;
             }
         }
@@ -145,8 +153,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 }
                 catch(Exception e) 
                 {
-                    // Console.WriteLine("HERE--->> {0}", e.Message);
-                    logger.LogError(e, " HERE -->");
+                    logger.LogError(e, " Failure during file cleanup");
                 }
                 throw;
             }

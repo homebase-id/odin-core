@@ -287,7 +287,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task CleanupTempFiles(IOdinContext odinContext)
         {
-            await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.TempFile, odinContext);
+            if (_transferState?.TempFile != null)
+            {
+                await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.TempFile, odinContext);
+            }
         }
 
         //
@@ -471,6 +474,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             return false;
         }
-        
     }
 }

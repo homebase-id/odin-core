@@ -39,6 +39,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     {
         private readonly ILoggerFactory _loggerFactory;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
+        private readonly ILogger<PeerIncomingDriveUpdateController> _logger;
         private readonly DriveManager _driveManager;
 
         private readonly FileSystemResolver _fileSystemResolver;
@@ -50,7 +51,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         /// <summary />
         public PeerIncomingDriveUpdateController(DriveManager driveManager,
             IMediator mediator, FileSystemResolver fileSystemResolver, PushNotificationService pushNotificationService,
-            ILoggerFactory loggerFactory, TransitInboxBoxStorage transitInboxBoxStorage)
+            ILoggerFactory loggerFactory, TransitInboxBoxStorage transitInboxBoxStorage,
+            ILogger<PeerIncomingDriveUpdateController> logger)
         {
             _driveManager = driveManager;
 
@@ -59,6 +61,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _pushNotificationService = pushNotificationService;
             _loggerFactory = loggerFactory;
             _transitInboxBoxStorage = transitInboxBoxStorage;
+            _logger = logger;
         }
 
 
@@ -115,7 +118,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
             catch
             {
-                await _fileUpdateService.CleanupTempFiles(WebOdinContext);
+                try
+                {
+                    await _fileUpdateService.CleanupTempFiles(WebOdinContext);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Error during file cleanup");
+                }
                 throw;
             }
         }

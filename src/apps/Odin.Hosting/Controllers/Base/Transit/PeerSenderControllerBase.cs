@@ -24,7 +24,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// Note: In alpha, this is done by using a temporary transient drive 🤢
     /// </remarks>
     public abstract class PeerSenderControllerBase(
-        ILogger logger,
+        ILogger<PeerSenderControllerBase> logger,
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveUploadControllerBase(logger)
     {
@@ -51,7 +51,14 @@ namespace Odin.Hosting.Controllers.Base.Transit
             }
             catch
             {
-                await fileSystemWriter.CleanupTempFiles(WebOdinContext);
+                try
+                {
+                    await fileSystemWriter.CleanupTempFiles(WebOdinContext);
+                }
+                catch(Exception e) 
+                {
+                    logger.LogError(e, " Failure during file cleanup");
+                }
                 throw;
             }
         }

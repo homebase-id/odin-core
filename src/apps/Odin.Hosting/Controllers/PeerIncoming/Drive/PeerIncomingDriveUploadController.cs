@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +16,6 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
@@ -49,6 +47,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly OdinConfiguration _odinConfiguration;
+        private readonly ILogger<PeerIncomingDriveUploadController> _logger;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly DriveManager _driveManager;
 
@@ -68,6 +67,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             IOdinHttpClientFactory odinHttpClientFactory,
             CircleNetworkService circleNetworkService,
             OdinConfiguration odinConfiguration,
+            ILogger<PeerIncomingDriveUploadController> logger,
             TransitInboxBoxStorage transitInboxBoxStorage)
         {
             _driveManager = driveManager;
@@ -80,6 +80,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _odinHttpClientFactory = odinHttpClientFactory;
             _circleNetworkService = circleNetworkService;
             _odinConfiguration = odinConfiguration;
+            _logger = logger;
             _transitInboxBoxStorage = transitInboxBoxStorage;
         }
 
@@ -153,7 +154,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             }
             catch
             {
-                await _incomingTransferService.CleanupTempFiles(WebOdinContext);
+                try
+                {
+                    await _incomingTransferService.CleanupTempFiles(WebOdinContext);
+
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Error uduring file cleanup");
+                }
                 throw;
             }
         }
