@@ -155,7 +155,10 @@ public abstract class PayloadStreamWriterBase
 
     public async Task CleanupTempFiles(IOdinContext odinContext)
     {
-        await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.TempFile.AsTempFileUpload(), odinContext);
+        if (_package?.TempFile != null)
+        {
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.TempFile.AsTempFileUpload(), odinContext);
+        }
     }
     
     /// <summary>
