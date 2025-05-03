@@ -21,7 +21,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("upload")]
         public async Task<UploadResult> Upload()
         {
-            
             return await base.ReceiveFileStream();
         }
 
@@ -32,7 +31,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("uploadpayload")]
         public async Task<UploadPayloadResult> UploadPayload()
         {
-            
             return await base.ReceivePayloadStream();
         }
     }

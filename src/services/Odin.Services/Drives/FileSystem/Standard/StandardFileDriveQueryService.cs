@@ -36,6 +36,17 @@ namespace Odin.Services.Drives.FileSystem.Standard
                 odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
+    
+        public override async Task<bool> CanWriteToDrive(Guid driveId, IOdinContext odinContext)
+        {
+            var drive = await DriveManager.GetDriveAsync(driveId, true);
+            if (!drive.AllowAnonymousReads)
+            {
+                return odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);
+            }
+
+            return true;
+        }
 
         public override async Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext)
         {
