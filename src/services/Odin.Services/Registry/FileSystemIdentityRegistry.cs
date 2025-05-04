@@ -148,13 +148,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
-        /*
-        string TenantDataRootPath = Env.ExpandEnvironmentVariablesCrossPlatform(_config("Host:TenantDataRootPath"));
-        string SystemDataRootPath = Env.ExpandEnvironmentVariablesCrossPlatform(_config.Required<string>("Host:SystemDataRootPath"));
-        string SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
-        string DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "tmp", "data-protection-keys");
-        */
-
         var tenantPathManager = new TenantPathManager(storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, idReg.Id);
 
         var tc = new TenantContext(
