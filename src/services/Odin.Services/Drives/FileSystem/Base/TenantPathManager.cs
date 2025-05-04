@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Util;
+using Serilog;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -33,10 +34,16 @@ namespace Odin.Services.Drives.FileSystem.Base
         public readonly string PayloadStoragePath;
         public readonly string HeaderDataStoragePath;
 
-        public readonly string TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
-        public readonly string TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
-        public static readonly string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-        public static readonly string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        public readonly string TenantDataRootPath;
+        public readonly string TenantSystemDataRootPath;
+        public readonly string ConfigRoot;
+        public readonly string CurrentEnvironment;
+
+        private static readonly string TestTenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
+        private static readonly string TestTenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
+        private static readonly string TestConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
+        private static readonly string TestCurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+
 
         public static readonly string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
         public static readonly string FileNameSectionDelimiter = "-";
@@ -68,6 +75,27 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
             TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
+            ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
+            CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+
+            if (TenantDataRootPath.Substring(0, 5) != TestTenantDataRootPath.Substring(0, 5))
+                throw new Exception("Incorrect core swapping of TenantDataRootPath");
+            if (TenantSystemDataRootPath.Substring(0, 5) != TestTenantSystemDataRootPath.Substring(0, 5))
+                throw new Exception("Incorrect core swapping of TenantSystemDataRootPath");
+            if (ConfigRoot.Substring(0, 5) != TestConfigRoot.Substring(0, 5))
+                throw new Exception("Incorrect core swapping of ConfigRoot");
+            if (CurrentEnvironment.Substring(0, 5) != TestCurrentEnvironment.Substring(0, 5))
+                throw new Exception("Incorrect core swapping of CurrentEnvironment");
+
+            if (TenantDataRootPath != TestTenantDataRootPath)
+                Log.Error("Alternating TenantDataRootPath");
+            if (TenantSystemDataRootPath != TestTenantSystemDataRootPath)
+                Log.Error("Alternating TenantSystemDataRootPath");
+            if (ConfigRoot != TestConfigRoot)
+                Log.Error("Alternating ConfigRoot");
+            if (CurrentEnvironment != TestCurrentEnvironment)
+                Log.Error("Alternating CurrentEnvironment");
+
 
             TenantId = tenantId;
             TenantShard = payloadShardKey;
