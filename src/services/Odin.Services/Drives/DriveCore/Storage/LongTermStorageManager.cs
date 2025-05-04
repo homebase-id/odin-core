@@ -49,18 +49,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.SaveFileHeaderAsync(drive, header, useThisVersionTag);
         }
 
-        public async Task SaveLocalMetadataAsync(InternalDriveFileId file, LocalAppMetadata metadata)
+        public async Task SaveLocalMetadataAsync(InternalDriveFileId file, LocalAppMetadata metadata, Guid newVersionTag)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
             var json = OdinSystemSerializer.Serialize(metadata);
-            await driveQuery.SaveLocalMetadataAsync(file.DriveId, file.FileId, metadata.VersionTag, json);
+            await driveQuery.SaveLocalMetadataAsync(file.DriveId, file.FileId, metadata.VersionTag, json, newVersionTag);
         }
 
-        public async Task SaveLocalMetadataTagsAsync(InternalDriveFileId file, LocalAppMetadata metadata)
+        public async Task SaveLocalMetadataTagsAsync(InternalDriveFileId file, LocalAppMetadata metadata, Guid newVersionTag)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
-            await driveQuery.SaveLocalMetadataTagsAsync(file.DriveId, file.FileId, metadata);
+            await driveQuery.SaveLocalMetadataTagsAsync(file.DriveId, file.FileId, metadata, newVersionTag);
         }
 
         public async Task SoftDeleteFileHeader(ServerFileHeader header)

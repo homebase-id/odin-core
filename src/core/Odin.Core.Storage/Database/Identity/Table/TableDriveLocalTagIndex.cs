@@ -1,11 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
+using Minio.DataModel;
+using Minio.DataModel.Notification;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
+using Odin.Core.Util;
+using StackExchange.Redis;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -31,46 +37,115 @@ public class TableDriveLocalTagIndex(
         tx.Commit();
     }
 
-    public async Task<int> UpdateLocalAppMetadataAsync(Guid driveId, Guid fileId, Guid newVersionTag, string localMetadataJson)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="driveId"></param>
+    /// <param name="fileId"></param>
+    /// <param name="oldVersionTag"></param>
+    /// <param name="newVersionTag"></param>
+    /// <param name="localMetadataJson"></param>
+    /// <returns>Returns false if the row doesn't exist, throws exception on versionTag mismatch and returns true if updated successfully</returns>
+    public async Task<bool> UpdateLocalAppMetadataAsync(Guid driveId, Guid fileId, Guid oldVersionTag, Guid newVersionTag, string localMetadataJson)
     {
+        newVersionTag.AssertGuidNotEmpty();
+
+        if (oldVersionTag == newVersionTag)
+            throw new ArgumentException("newVersionTag==oldVersionTag : Fy fy, skamme skamme, man må ikke snyde");
+
+
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var updateCommand = cn.CreateCommand();
+        await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
 
         string sqlNowStr;
+        string forUpdate;
         if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+        {
             sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+            forUpdate = "";
+        }
         else
+        {
             sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-        
-        updateCommand.CommandText = $"UPDATE driveMainIndex " +
-                                    $"SET hdrLocalVersionTag=@hdrLocalVersionTag,hdrLocalAppData=@hdrLocalAppData,modified={sqlNowStr} " +
-                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+            forUpdate = "FOR UPDATE";
+        }
+
+        using (var selectCommand = cn.CreateCommand())
+        {
+            selectCommand.CommandText = $"SELECT 1 FROM driveMainIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
+
+            var param1 = selectCommand.CreateParameter();
+            var param2 = selectCommand.CreateParameter();
+            var param3 = selectCommand.CreateParameter();
+            param1.ParameterName = "@identityId";
+            param2.ParameterName = "@driveId";
+            param3.ParameterName = "@fileId";
+            selectCommand.Parameters.Add(param1);
+            selectCommand.Parameters.Add(param2);
+            selectCommand.Parameters.Add(param3);
+            param1.Value = odinIdentity.IdAsByteArray();
+            param2.Value = driveId.ToByteArray();
+            param3.Value = fileId.ToByteArray();
+
+            var result = await selectCommand.ExecuteScalarAsync();
+            bool rowExists = result != null && ((Int64)result > 0);
+
+            if (rowExists == false)
+                return false; // The item doesn't exist
+        }
+
+
+        await using var updateCommand = cn.CreateCommand();
+        // We unfortunately need the row_check to differentiate between not-found and version tag mismatch
+        updateCommand.CommandText =
+            $"""
+            UPDATE driveMainIndex
+            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {sqlNowStr}
+            WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId
+                  AND COALESCE(hdrLocalVersionTag, @emptyGuid) = @hdrLocalVersionTag
+            """;
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
         var sparam3 = updateCommand.CreateParameter();
-        var versionTagParam = updateCommand.CreateParameter();
+        var sparam4 = updateCommand.CreateParameter();
+        var sparam5 = updateCommand.CreateParameter();
+        var newVersionTagParam = updateCommand.CreateParameter();
         var contentParam = updateCommand.CreateParameter();
 
         sparam1.ParameterName = "@identityId";
         sparam2.ParameterName = "@driveId";
         sparam3.ParameterName = "@fileId";
-        versionTagParam.ParameterName = "@hdrLocalVersionTag";
+        sparam4.ParameterName = "@hdrLocalVersionTag";
+        sparam5.ParameterName = "@emptyGuid";
+        newVersionTagParam.ParameterName = "@newVersionTag";
         contentParam.ParameterName = "@hdrLocalAppData";
+
 
         updateCommand.Parameters.Add(sparam1);
         updateCommand.Parameters.Add(sparam2);
         updateCommand.Parameters.Add(sparam3);
-        updateCommand.Parameters.Add(versionTagParam);
+        updateCommand.Parameters.Add(sparam4);
+        updateCommand.Parameters.Add(sparam5);
+        updateCommand.Parameters.Add(newVersionTagParam);
         updateCommand.Parameters.Add(contentParam);
 
         sparam1.Value = odinIdentity.IdAsByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
-        versionTagParam.Value = newVersionTag.ToByteArray();
+        sparam4.Value = oldVersionTag.ToByteArray();
+        sparam5.Value = Guid.Empty.ToByteArray();
+        newVersionTagParam.Value = newVersionTag.ToByteArray();
         contentParam.Value = localMetadataJson;
 
-        return await updateCommand.ExecuteNonQueryAsync();
+        int rows = await updateCommand.ExecuteNonQueryAsync();
+
+        if (rows < 1)
+            throw new OdinClientException($"Mismatching version tag {oldVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+
+        tx.Commit();
+
+        return true;
     }
 
     public new async Task<DriveLocalTagIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid tagId)
