@@ -464,7 +464,7 @@ public class LinkPreviewService(
         return b;
     }
 
-    private StringBuilder PrepareNoscriptBuilder(string title, string description, string siteType)
+    private StringBuilder PrepareNoscriptBuilder(string title, string description, string siteType, string imageUrl, PersonSchema person)
     {
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
@@ -472,9 +472,16 @@ public class LinkPreviewService(
         StringBuilder b = new StringBuilder(500);
 
         b.Append($"<h1>{title}</h1>\n");
-        b.Append($"<p>You need to enable JavaScript to run this app.</p>");
         b.Append($"<p>{description}</p>");
-
+        b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
+        b.Append($"<img src='{imageUrl}'/>\n");
+        b.Append($"<p>{person?.GivenName} {person?.FamilyName}</p>\n");
+        b.Append($"<p>{person?.Description}</p>\n");
+        b.Append($"<p>{person?.Image}</p>\n");
+        b.Append($"<p>{person?.JobTitle}</p>\n");
+        b.Append($"<p>{person?.WorksFor?.Name}</p>\n");
+        b.Append($"<p>{person?.Bio}</p>\n");
+        b.Append($"<p>{person?.BioSummary}</p>\n");
         return b;
     }
 
@@ -530,7 +537,7 @@ public class LinkPreviewService(
             _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
             TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
 
-        var noScriptContent = PrepareNoscriptBuilder(title, description, siteType);
+        var noScriptContent = PrepareNoscriptBuilder(title, description, siteType, imageUrl, person);
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString())
             .Replace(NoScriptPlaceholder, noScriptContent.ToString());
 
@@ -597,6 +604,8 @@ public class LinkPreviewService(
             FamilyName = profile?.FamilyName,
             Email = null,
             Description = profile?.BioSummary ?? profile?.Bio,
+            Bio = profile?.Bio,
+            BioSummary = profile?.BioSummary,
             BirthDate = null,
             JobTitle = null,
             Image = AppendJpgIfNoExtension(profile?.Image ?? ""),
