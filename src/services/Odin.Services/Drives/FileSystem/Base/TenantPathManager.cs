@@ -77,7 +77,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
             ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
             CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-
+            /*
             if (TenantDataRootPath.Substring(0, 5) != TestTenantDataRootPath.Substring(0, 5))
                 throw new Exception("Incorrect core swapping of TenantDataRootPath");
             if (TenantSystemDataRootPath.Substring(0, 5) != TestTenantSystemDataRootPath.Substring(0, 5))
@@ -86,7 +86,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new Exception("Incorrect core swapping of ConfigRoot");
             if (CurrentEnvironment.Substring(0, 5) != TestCurrentEnvironment.Substring(0, 5))
                 throw new Exception("Incorrect core swapping of CurrentEnvironment");
-
+            */
+            /*
             if (TenantDataRootPath != TestTenantDataRootPath)
                 Log.Error("Alternating TenantDataRootPath");
             if (TenantSystemDataRootPath != TestTenantSystemDataRootPath)
@@ -95,7 +96,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 Log.Error("Alternating ConfigRoot");
             if (CurrentEnvironment != TestCurrentEnvironment)
                 Log.Error("Alternating CurrentEnvironment");
-
+            */
 
             TenantId = tenantId;
             TenantShard = payloadShardKey;
