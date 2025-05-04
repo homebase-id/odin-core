@@ -47,5 +47,7 @@ public class PersonSchema
 
     [JsonPropertyName("sameAs")]
     public List<string> SameAs { get; set; } // Social media or reference URLs
-    
+
+    public string Bio { get; set; }
+    public string BioSummary { get; set; }
 }
