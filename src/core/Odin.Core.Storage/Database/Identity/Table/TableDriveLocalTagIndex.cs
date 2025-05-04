@@ -38,14 +38,16 @@ public class TableDriveLocalTagIndex(
     }
 
     /// <summary>
-    /// 
+    /// Updates local app metadata in the driveMainIndex table.
     /// </summary>
-    /// <param name="driveId"></param>
-    /// <param name="fileId"></param>
-    /// <param name="oldVersionTag"></param>
-    /// <param name="newVersionTag"></param>
-    /// <param name="localMetadataJson"></param>
-    /// <returns>Returns false if the row doesn't exist, throws exception on versionTag mismatch and returns true if updated successfully</returns>
+    /// <param name="driveId">The drive ID.</param>
+    /// <param name="fileId">The file ID.</param>
+    /// <param name="oldVersionTag">The expected current version tag.</param>
+    /// <param name="newVersionTag">The new version tag to set.</param>
+    /// <param name="localMetadataJson">The new metadata JSON.</param>
+    /// <returns>Returns false if the row doesn't exist, throws an exception on version tag mismatch, and returns true if updated successfully.</returns>
+    /// <exception cref="OdinClientException">Thrown if the version tag mismatches.</exception>
+    /// <exception cref="ArgumentException">Thrown if newVersionTag equals oldVersionTag or is empty.</exception>
     public async Task<bool> UpdateLocalAppMetadataAsync(Guid driveId, Guid fileId, Guid oldVersionTag, Guid newVersionTag, string localMetadataJson)
     {
         newVersionTag.AssertGuidNotEmpty();
@@ -88,7 +90,7 @@ public class TableDriveLocalTagIndex(
             param3.Value = fileId.ToByteArray();
 
             var result = await selectCommand.ExecuteScalarAsync();
-            bool rowExists = result != null && ((Int64)result > 0);
+            bool rowExists = result != null;
 
             if (rowExists == false)
                 return false; // The item doesn't exist
