@@ -91,6 +91,7 @@ public class TableDriveMainIndex(
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var upsertCommand = cn.CreateCommand();
+        await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
 
         string sqlNowStr;
         if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
@@ -224,6 +225,7 @@ public class TableDriveMainIndex(
 
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
         {
+            tx.Commit();
             if (await rdr.ReadAsync())
             {
                 long created = (long)rdr[0];
