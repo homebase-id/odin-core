@@ -104,7 +104,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             HeaderDataStoragePath = headerDataStoragePath;
 
             var s = TempStoragePath;
-            var r = Path.Combine(TenantDataRootPath, TempFolder, TenantId.ToString());
+            var r = Path.Combine(TenantDataRootPath, "registrations", TenantId.ToString(), TempFolder);
             if (s != r)
                 throw new Exception("boom2");
 
