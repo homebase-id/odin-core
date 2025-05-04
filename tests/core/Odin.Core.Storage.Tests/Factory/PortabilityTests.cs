@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Extensions;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Factory;
@@ -64,17 +65,20 @@ public class PortabilityTests : IocTestBase
         var p2 = cmd.CreateParameter();
         p2.ParameterName = "@along";
         p2.Value = 9999999999;
+        p2.DbType = System.Data.DbType.Int64;
         cmd.Parameters.Add(p2);
 
         var p3 = cmd.CreateParameter();
         p3.ParameterName = "@abool";
         p3.Value = true;
+        p3.DbType = System.Data.DbType.Boolean;
         cmd.Parameters.Add(p3);
 
         cmd.CommandText = "INSERT INTO test (atext, along, abool) VALUES (@atext, @along, @abool);";
-        await cmd.ExecuteNonQueryAsync();
+        Assert.That(cmd.RenderSqlForDebugging(), Is.EqualTo("INSERT INTO test (atext, along, abool) VALUES ('test', 9999999999, True);"));
 
         cmd.CommandText = "SELECT * FROM test;";
+        Assert.That(cmd.RenderSqlForDebugging(), Is.EqualTo("SELECT * FROM test;"));
 
         var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())

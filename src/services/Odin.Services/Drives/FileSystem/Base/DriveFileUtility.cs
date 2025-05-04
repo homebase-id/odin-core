@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using NodaTime;
 using Odin.Core;
@@ -222,14 +223,6 @@ public static class DriveFileUtility
     {
         var instant = (Instant)lastModified.GetValueOrDefault();
         return instant.ToDateTimeUtc().ToString("R");
-    }
-
-    public static void AssertVersionTagMatch(Guid? currentVersionTag, Guid? versionTagToCompare)
-    {
-        if (currentVersionTag != versionTagToCompare)
-        {
-            throw new OdinClientException($"Invalid version tag {versionTagToCompare}", OdinClientErrorCode.VersionTagMismatch);
-        }
     }
 
     public static string GetPayloadFileExtensionStarStar()

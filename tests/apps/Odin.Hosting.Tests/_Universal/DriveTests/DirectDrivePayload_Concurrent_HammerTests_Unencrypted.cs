@@ -14,6 +14,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.Performance;
+using Odin.Core.Exceptions;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 
@@ -28,7 +29,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
     private ExternalFileIdentifier _targetFile;
 
     private int _successCount;
-    private int _badRequestCount;
+    private int _ConflictCount;
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -88,10 +89,10 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         ClassicAssert.IsNotNull(headerBeforeUpload);
 
-        await PerformanceFramework.ThreadedTestAsync(maxThreads: 12, iterations: 100, OverwritePayload);
+        await PerformanceFramework.ThreadedTestAsync(maxThreads: 50, iterations: 100, OverwritePayload);
 
         Console.WriteLine($"Success Count: {_successCount}");
-        Console.WriteLine($"Bad Request Count: {_badRequestCount}");
+        Console.WriteLine($"Conflict Count: {_ConflictCount}");
     }
 
     private async Task<(long, long[])> OverwritePayload(int threadNumber, int iterations)
@@ -99,6 +100,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         long[] timers = new long[iterations];
         var sw = new Stopwatch();
         int fileByteLength = 0;
+        Random random = new Random();
 
         Guid newVersionTag = _initialVersionTag;
         //
@@ -134,25 +136,34 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             };
 
             var prevTag = newVersionTag;
-            var tag = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
+            var (status, oce, tag) = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
 
-
-            if (tag.HasValue)
+            if (status == HttpStatusCode.OK)
             {
+                ClassicAssert.IsTrue(tag.HasValue);
                 newVersionTag = tag.GetValueOrDefault();
                 ClassicAssert.IsTrue(prevTag != newVersionTag, "version tag did not change");
             }
-            
+            else
+            {
+                _ConflictCount++;
+                ClassicAssert.IsTrue(oce == OdinClientErrorCode.VersionTagMismatch);
+
+                // we must presume there was a version tag mismatch, let's see if we can get back in the race
+                var getHeader = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
+                newVersionTag = getHeader.Content.FileMetadata.VersionTag;
+            }
+
             // Finished doing all the work
             timers[count] = sw.ElapsedMilliseconds;
 
-            await Task.Delay(100);
+            await Task.Delay(random.Next(5, 51));
         }
 
         return (fileByteLength, timers);
     }
 
-    private async Task<Guid?> UploadAndValidatePayload(ExternalFileIdentifier targetFile,
+    private async Task<(HttpStatusCode, OdinClientErrorCode, Guid?)> UploadAndValidatePayload(ExternalFileIdentifier targetFile,
         Guid targetVersionTag,
         UploadManifest uploadManifest,
         List<TestPayloadDefinition> testPayloads)
@@ -164,16 +175,13 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             _successCount++;
             // if it 
             ClassicAssert.IsTrue(uploadPayloadResponse.Content!.NewVersionTag != targetVersionTag, "Version tag should have changed");
-            return uploadPayloadResponse.Content!.NewVersionTag;
+            return (HttpStatusCode.OK, OdinClientErrorCode.NoErrorCode, uploadPayloadResponse.Content!.NewVersionTag);
         }
+        ClassicAssert.IsTrue(uploadPayloadResponse.StatusCode == HttpStatusCode.BadRequest);
 
-        if (uploadPayloadResponse.StatusCode == HttpStatusCode.BadRequest)
-        {
-            _badRequestCount++;
-            //what to expect in this case?
-        }
-
-        return null;
+        var oce = TestUtils.ParseProblemDetails(uploadPayloadResponse.Error);
+        
+        return (HttpStatusCode.BadRequest, oce, null);
     }
 
     private async Task<UploadResult> PrepareFile(TestIdentity identity, TargetDrive targetDrive)

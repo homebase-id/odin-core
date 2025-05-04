@@ -2,6 +2,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -90,6 +91,7 @@ public class TableDriveMainIndex(
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var upsertCommand = cn.CreateCommand();
+        await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
 
         string sqlNowStr;
         if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
@@ -223,6 +225,7 @@ public class TableDriveMainIndex(
 
         using (var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
         {
+            tx.Commit();
             if (await rdr.ReadAsync())
             {
                 long created = (long)rdr[0];
@@ -240,7 +243,8 @@ public class TableDriveMainIndex(
             }
             else
             {
-                throw new OdinDatabaseException(DatabaseType.Sqlite, "Mismatching version tag");
+                throw new OdinClientException($"Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+                // throw new OdinDatabaseVersionTagMismatchException(DatabaseType.Unknown, $"Mismatching version tag {item.hdrVersionTag}");
             }
         }
 

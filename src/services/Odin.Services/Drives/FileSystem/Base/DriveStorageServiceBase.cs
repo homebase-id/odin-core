@@ -326,7 +326,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             //Note: calling to get the file header, so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext);
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.VersionTag, targetVersionTag);
+
+            header.FileMetadata.VersionTag = targetVersionTag;
 
             var descriptorIndex = header.FileMetadata.Payloads?.FindIndex(p => p.KeyEquals(key)) ?? -1;
 
@@ -337,10 +338,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var descriptor = header.FileMetadata.Payloads![descriptorIndex];
 
-            await DeletePayloadFromDiskInternal(file, descriptor);
 
             header.FileMetadata.Payloads!.RemoveAt(descriptorIndex);
             await UpdateActiveFileHeader(file, header, odinContext);
+            await DeletePayloadFromDiskInternal(file, descriptor); // Delete the payloads from disk AFTER we update the header successfully
+
             return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because we pass header all the way
         }
 
@@ -527,7 +529,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 // set the version tag null on a new file sine it will be handled by the
                 // db and this stops conflicts if someone passes in useThisVersionTag 
-                newMetadata.VersionTag = null; 
+                newMetadata.VersionTag = null;
                 serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
                 await WriteNewFileHeader(targetFile, serverHeader, odinContext, useThisVersionTag: useThisVersionTag);
             }
@@ -574,8 +576,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
                 }
-
-                DriveFileUtility.AssertVersionTagMatch(existingServerHeader.FileMetadata.VersionTag, newMetadata.VersionTag);
 
                 newMetadata.TransitCreated = existingServerHeader.FileMetadata.TransitCreated;
                 newMetadata.TransitUpdated = existingServerHeader.FileMetadata.TransitUpdated;
@@ -640,13 +640,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             TempFile originFile,
             InternalDriveFileId targetFile,
             List<PayloadDescriptor> incomingPayloads,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            Guid expectedVersionTag)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
+
             if (null == existingServerHeader)
             {
                 throw new OdinClientException("Invalid target file", OdinClientErrorCode.FileNotFound);
@@ -673,13 +675,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var allPayloads = incomingPayloads.Concat(payloadsToKeep).ToList();
 
                 existingServerHeader.FileMetadata.Payloads = allPayloads;
+                existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
 
                 await WriteFileHeaderInternal(existingServerHeader);
+                await DeleteZombiePayloads(targetFile, zombiePayloads); // Only remove the replaced payloads if successful
             }
             finally
             {
-                await DeleteZombiePayloads(targetFile, zombiePayloads);
-                await uploadStorageManager.EnsureDeleted(originFile);
+                await uploadStorageManager.EnsureDeleted(originFile); // Clean up the temp uploaded files
             }
 
             if (await ShouldRaiseDriveEventAsync(targetFile))
@@ -1035,8 +1038,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
                 }
 
-                DriveFileUtility.AssertVersionTagMatch(metadata.VersionTag, existingHeader.FileMetadata.VersionTag);
-
                 if (existingHeader.FileMetadata.IsEncrypted)
                 {
                     var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
@@ -1113,19 +1114,17 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
-
             var newVersionTag = DriveFileUtility.CreateVersionTag();
 
             var mergedMetadata = new LocalAppMetadata
             {
                 Iv = header.FileMetadata.LocalAppData?.Iv,
-                VersionTag = newVersionTag,
+                VersionTag = targetVersionTag,
                 Content = header.FileMetadata.LocalAppData?.Content,
                 Tags = newTags,
             };
 
-            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata);
+            await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata, newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
             if (await ShouldRaiseDriveEventAsync(file))
@@ -1159,9 +1158,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
 
-            DriveFileUtility.AssertVersionTagMatch(header.FileMetadata.LocalAppData?.VersionTag ?? Guid.Empty, targetVersionTag);
-
-
             if (header.FileMetadata.IsEncrypted && !ByteArrayUtil.IsStrongKey(initVector))
             {
                 throw new OdinClientException("A string IV is required when the target file is encrypted");
@@ -1171,7 +1167,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var mergedMetadata = new LocalAppMetadata
             {
-                VersionTag = newVersionTag,
+                VersionTag = targetVersionTag,
                 Iv = initVector,
                 Content = newContent,
                 Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
@@ -1179,7 +1175,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             mergedMetadata.Validate();
 
-            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata);
+            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
             if (await ShouldRaiseDriveEventAsync(file))
@@ -1196,6 +1192,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 NewLocalVersionTag = newVersionTag
             };
+        }
+
+        public async Task CleanupUploadTemporaryFiles(TempFile tempFile, IOdinContext odinContext)
+        {
+            if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
+            {
+                await uploadStorageManager.EnsureDeleted(tempFile);
+            }
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, Guid? useThisVersionTag = null)

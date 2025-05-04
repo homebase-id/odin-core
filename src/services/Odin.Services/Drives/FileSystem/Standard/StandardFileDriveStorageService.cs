@@ -7,7 +7,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
-using Odin.Services.Concurrency;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -38,6 +37,11 @@ namespace Odin.Services.Drives.FileSystem.Standard
         {
             odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             return Task.CompletedTask;
+        }
+
+        public override Task<bool> CanWriteToDrive(Guid driveId, IOdinContext odinContext)
+        {
+            return Task.FromResult(odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write));
         }
 
         public override async Task AssertCanReadOrWriteToDriveAsync(Guid driveId, IOdinContext odinContext)

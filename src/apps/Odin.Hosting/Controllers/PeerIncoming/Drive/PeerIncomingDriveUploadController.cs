@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +16,6 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
@@ -49,6 +47,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly OdinConfiguration _odinConfiguration;
+        private readonly ILogger<PeerIncomingDriveUploadController> _logger;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly DriveManager _driveManager;
 
@@ -68,6 +67,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             IOdinHttpClientFactory odinHttpClientFactory,
             CircleNetworkService circleNetworkService,
             OdinConfiguration odinConfiguration,
+            ILogger<PeerIncomingDriveUploadController> logger,
             TransitInboxBoxStorage transitInboxBoxStorage)
         {
             _driveManager = driveManager;
@@ -80,6 +80,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _odinHttpClientFactory = odinHttpClientFactory;
             _circleNetworkService = circleNetworkService;
             _odinConfiguration = odinConfiguration;
+            _logger = logger;
             _transitInboxBoxStorage = transitInboxBoxStorage;
         }
 
@@ -87,67 +88,85 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("upload")]
         public async Task<PeerTransferResponse> ReceiveIncomingTransfer()
         {
-            WebOdinContext.Caller.AssertCallerIsConnected();
-
-            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            try
             {
-                throw new OdinClientException("Data is not multi-part content");
-            }
+                WebOdinContext.Caller.AssertCallerIsConnected();
 
-            var boundary = GetBoundary(HttpContext.Request.ContentType);
-            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-
-            var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
-
-            OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
-            OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(),
-                "Invalid data deserialized when creating the TransferInstructionSet");
-
-            //Optimizations - the caller can't write to the drive, no need to accept any more of the file
-
-            //S0100
-            _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
-
-            //S1000, S2000 - can the sender write the content to the target drive?
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
-
-            await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
-
-            var drive = await _driveManager.GetDriveAsync(transferInstructionSet.TargetDrive);
-            if ((transferInstructionSet.AppNotificationOptions?.Recipients?.Any() ?? false) && !drive.AllowSubscriptions)
-            {
-                throw new OdinSecurityException("Attempt to distribute app notifications to drive which does not allow subscriptions");
-            }
-            
-            // await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
-            //End Optimizations
-
-            var metadata = await Initialize(transferInstructionSet, reader);
-
-            //
-
-            var shouldExpectPayload = transferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
-            if (shouldExpectPayload)
-            {
-                var section = await reader.ReadNextSectionAsync();
-                while (null != section)
+                if (!IsMultipartContentType(HttpContext.Request.ContentType))
                 {
-                    if (IsPayloadPart(section))
-                    {
-                        await ProcessPayloadSection(section, metadata);
-                    }
-
-                    if (IsThumbnail(section))
-                    {
-                        await ProcessThumbnailSection(section, metadata);
-                    }
-
-                    section = await reader.ReadNextSectionAsync();
+                    throw new OdinClientException("Data is not multi-part content");
                 }
+
+                var boundary = GetBoundary(HttpContext.Request.ContentType);
+                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+                var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
+
+                OdinValidationUtils.AssertNotNull(transferInstructionSet, nameof(transferInstructionSet));
+                OdinValidationUtils.AssertIsTrue(transferInstructionSet.IsValid(),
+                    "Invalid data deserialized when creating the TransferInstructionSet");
+
+                //Optimizations - the caller can't write to the drive, no need to accept any more of the file
+
+                //S0100
+                _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
+
+                //S1000, S2000 - can the sender write the content to the target drive?
+                var driveId = WebOdinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+
+                await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
+
+                var drive = await _driveManager.GetDriveAsync(transferInstructionSet.TargetDrive);
+                if ((transferInstructionSet.AppNotificationOptions?.Recipients?.Any() ?? false) && !drive.AllowSubscriptions)
+                {
+                    throw new OdinSecurityException("Attempt to distribute app notifications to drive which does not allow subscriptions");
+                }
+
+                // await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
+                //End Optimizations
+
+                var metadata = await Initialize(transferInstructionSet, reader);
+
+                //
+
+                var shouldExpectPayload = transferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
+                if (shouldExpectPayload)
+                {
+                    var section = await reader.ReadNextSectionAsync();
+                    while (null != section)
+                    {
+                        if (IsPayloadPart(section))
+                        {
+                            await ProcessPayloadSection(section, metadata);
+                        }
+
+                        if (IsThumbnail(section))
+                        {
+                            await ProcessThumbnailSection(section, metadata);
+                        }
+
+                        section = await reader.ReadNextSectionAsync();
+                    }
+                }
+
+
+                return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext);
             }
-
-
-            return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext);
+            catch
+            {
+                try
+                {
+                    if (null != _incomingTransferService)
+                    {
+                        await _incomingTransferService.CleanupTempFiles(WebOdinContext);
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Error during file cleanup");
+                }
+                throw;
+            }
         }
 
         private async Task<FileMetadata> Initialize(

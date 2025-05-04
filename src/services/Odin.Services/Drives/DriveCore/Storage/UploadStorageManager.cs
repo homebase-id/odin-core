@@ -84,41 +84,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetFileDirectory(StorageDrive drive, TempFile tempFile, bool ensureExists = false)
         {
-            //07e5070f-173b-473b-ff03-ffec2aa1b7b8
-            //The positions in the time guid are hex values as follows
-            //from new DateTimeOffset(2021, 7, 21, 23, 59, 59, TimeSpan.Zero);
-            //07e5=year,07=month,0f=day,17=hour,3b=minute
-
-            var parts = tempFile.File.FileId.ToString().Split("-");
-            var yearMonthDay = parts[0];
-            var year = yearMonthDay.Substring(0, 4);
-            var month = yearMonthDay.Substring(4, 2);
-            var day = yearMonthDay.Substring(6, 2);
-            var hourMinute = parts[1];
-            var hour = hourMinute[..2];
-
-            var r = Path.Combine(year, month, day, hour);
-            var s = TenantPathManager.GetPayloadDirectoryFromGuid(tempFile.File.FileId);
-
-            if (r != s)
-            {
-                logger.LogError($"GetFileDirectory mismatch {r} vs {s}");
-                Debug.Assert(s == r);
-            }
-
-            string path = drive.GetTempStoragePath(tempFile.StorageType);
-
-            // need tenantPathManager injection
-            // var t = tenantPathManager.GetDriveTempStoragePath(drive.Id, tempFile.StorageType);
-
-            string dir = Path.Combine(path, year, month, day, hour);
+            var path = drive.GetTempStoragePath(tempFile.StorageType);
 
             if (ensureExists)
             {
-                Directory.CreateDirectory(dir);
+                Directory.CreateDirectory(path);
             }
 
-            return dir;
+            return path;
         }
 
         private async Task<string> GetTempFilenameAndPathInternal(TempFile tempFile, string extension, bool ensureExists = false)

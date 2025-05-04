@@ -27,7 +27,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()
         {
-            
             return await base.ReceiveFileStream();
         }
         

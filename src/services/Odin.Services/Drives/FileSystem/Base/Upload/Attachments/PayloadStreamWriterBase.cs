@@ -153,6 +153,14 @@ public abstract class PayloadStreamWriterBase
         };
     }
 
+    public async Task CleanupTempFiles(IOdinContext odinContext)
+    {
+        if (_package?.TempFile != null)
+        {
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.TempFile.AsTempFileUpload(), odinContext);
+        }
+    }
+    
     /// <summary>
     /// Validates the new attachments against the existing header
     /// </summary>
@@ -176,12 +184,10 @@ public abstract class PayloadStreamWriterBase
             throw new OdinClientException("FileId is specified but file does not exist", OdinClientErrorCode.InvalidFile);
         }
 
-        if (_package.InstructionSet.VersionTag == null)
+        if (_package.InstructionSet.VersionTag.GetValueOrDefault() == Guid.Empty)
         {
             throw new OdinClientException("Missing version tag for add payload operation", OdinClientErrorCode.MissingVersionTag);
         }
-
-        DriveFileUtility.AssertVersionTagMatch(existingServerFileHeader.FileMetadata.VersionTag, _package.InstructionSet.VersionTag);
 
         if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())
         {
@@ -202,4 +208,5 @@ public abstract class PayloadStreamWriterBase
             DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
+    
 }
