@@ -3,6 +3,7 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
+using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Base
 {
@@ -16,13 +17,21 @@ namespace Odin.Services.Base
 
         public SensitiveByteArray TemporalEncryptionKey { get; } = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
         
-        public TenantContext(Guid dotYouRegistryId, OdinId hostOdinId, string sslRoot, TenantStorageConfig storageConfig, Guid? firstRunToken,
-            bool isPreconfigured, UnixTimeUtc? markedForDeletionDate)
+        public TenantContext(
+            Guid dotYouRegistryId,
+            OdinId hostOdinId,
+            string sslRoot,
+            TenantStorageConfig storageConfig, // SEB:TODO delete this, it is handled by TenantPathManager
+            TenantPathManager tenantPathManager,
+            Guid? firstRunToken,
+            bool isPreconfigured,
+            UnixTimeUtc? markedForDeletionDate)
         {
             this.DotYouRegistryId = dotYouRegistryId;
             this.HostOdinId = hostOdinId;
             this.SslRoot = sslRoot;
             this.StorageConfig = storageConfig;
+            this.TenantPathManager = tenantPathManager;
             this.FirstRunToken = firstRunToken;
             this.IsPreconfigured = isPreconfigured;
             this.MarkedForDeletionDate = markedForDeletionDate;
@@ -40,7 +49,12 @@ namespace Odin.Services.Base
         /// <summary>
         /// Specifies the storage locations for various pieces of data for this <see cref="HostOdinId"/>.
         /// </summary>
-        public TenantStorageConfig StorageConfig { get; private set; }
+        public TenantStorageConfig StorageConfig { get; private set; } // SEB:TODO delete this, it is handled by TenantPathManager
+
+        /// <summary>
+        /// Specifies the storage locations for various pieces of data for this <see cref="HostOdinId"/>.
+        /// </summary>
+        public TenantPathManager TenantPathManager { get; private set; }
 
         /// <summary>
         /// Configuration set by the tenant indicating various settings
@@ -65,6 +79,7 @@ namespace Odin.Services.Base
             this.StorageConfig = source.StorageConfig;
             this.FirstRunToken = source.FirstRunToken;
             this.IsPreconfigured = source.IsPreconfigured;
+            this.TenantPathManager = source.TenantPathManager;
         }
         
         public void UpdateSystemConfig(TenantSettings newConfig)

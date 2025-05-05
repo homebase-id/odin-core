@@ -1,17 +1,14 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using Odin.Core.Exceptions;
 using System.Text.RegularExpressions;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
-using Odin.Core.Trie;
 using Odin.Services.Base;
-using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Tenant;
+using Odin.Services.Configuration;
 using Odin.Services.Util;
+using Serilog;
 
-namespace Odin.Services.Drives.DriveCore.Storage
+namespace Odin.Services.Drives.FileSystem.Base
 {
     public record ParsedPayloadFileRecord
     {
@@ -30,34 +27,67 @@ namespace Odin.Services.Drives.DriveCore.Storage
     }
 
     // public class TenantPathManager(Guid tenantId, string tenantShard)
-    public class TenantPathManager(TenantContext tenantContext)
+    public class TenantPathManager
     {
-        private readonly TenantContext _tenantContext = tenantContext;
-        public readonly Guid TenantId = tenantContext.DotYouRegistryId;
-        public readonly string TenantShard = tenantContext.StorageConfig.PayloadShardKey;
+        public readonly Guid TenantId;
 
-        public static string ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-        public static string CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        public readonly string TenantShard;
+        public readonly string TempStoragePath;
+        public readonly string PayloadStoragePath;
+        public readonly string HeaderDataStoragePath;
+        public readonly string StaticFileStoragePath;
 
-        public static readonly string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
-        public static readonly string FileNameSectionDelimiter = "-";
-        public static readonly string PayloadExtension = ".payload";
-        public static readonly string ThumbnailExtension = ".thumb";
-        public static readonly string ThumbnailSizeDelimiter = "x";
-        public static readonly string DriveFolder = "drives";
-        public static readonly string StorageFolder = "storage";
-        public static readonly string HeadersFolder = "headers";
-        public static readonly string TempFolder = "temp";
-        public static readonly string PayloadsFolder = "payloads";
-        public static readonly string StaticFolder = "static";
-        public static readonly string UploadFolder = "uploads";
-        public static readonly string InboxFolder = "inbox";
-        public static readonly string FilesFolder = "files";
-        public static readonly string DeletePayloadExtension = ".p-deleted";
-        public static readonly string DeletedThumbExtension = ".t-deleted";
-        public static readonly string PayloadDelimiter = "-";
-        public static readonly string TransitThumbnailKeyDelimiter = "|";
+        public readonly string TenantDataRootPath;
+        public readonly string TenantSystemDataRootPath;
+        public readonly string ConfigRoot;
+        public readonly string CurrentEnvironment;
 
+        public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
+        public const string FileNameSectionDelimiter = "-";
+        public const string PayloadExtension = ".payload";
+        public const string ThumbnailExtension = ".thumb";
+        public const string ThumbnailSizeDelimiter = "x";
+        public const string DriveFolder = "drives";
+        public const string StorageFolder = "storage";
+        public const string RegistrationsFolder = "registrations";
+        public const string HeadersFolder = "headers";
+        public const string TempFolder = "temp";
+        public const string PayloadsFolder = "payloads";
+        public const string StaticFolder = "static";
+        public const string UploadFolder = "uploads";
+        public const string InboxFolder = "inbox";
+        public const string FilesFolder = "files";
+        public const string DeletePayloadExtension = ".p-deleted";
+        public const string DeletedThumbExtension = ".t-deleted";
+        public const string PayloadDelimiter = "-";
+        public const string TransitThumbnailKeyDelimiter = "|";
+
+        public TenantPathManager(OdinConfiguration config, string payloadShardKey, Guid tenantId)
+        {
+            TenantId = tenantId;
+            TenantShard = payloadShardKey;
+            ArgumentException.ThrowIfNullOrEmpty(nameof(TenantShard));
+
+            TenantDataRootPath = config.Host.TenantDataRootPath;
+            ArgumentException.ThrowIfNullOrEmpty(nameof(TenantDataRootPath));
+
+            TenantSystemDataRootPath = config.Host.SystemDataRootPath;
+            ArgumentException.ThrowIfNullOrEmpty(nameof(TenantSystemDataRootPath));
+
+            ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
+            ArgumentException.ThrowIfNullOrEmpty(nameof(ConfigRoot));
+
+            CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            ArgumentException.ThrowIfNullOrEmpty(nameof(CurrentEnvironment));
+
+            var registrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
+            var rootPath = Path.Combine(registrationRoot, tenantId.ToString());
+
+            HeaderDataStoragePath = Path.Combine(rootPath, HeadersFolder);
+            TempStoragePath  = Path.Combine(rootPath, TempFolder);
+            StaticFileStoragePath = Path.Combine(rootPath, StaticFolder);
+            PayloadStoragePath = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
+        }
 
         //
         // File String Ops
@@ -79,8 +109,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public string GetTenantRootBasePath()
             => Path.Combine(ConfigRoot, StorageFolder, CurrentEnvironment.ToLowerInvariant(), TenantId.ToString());
 
-        // MS TODO: public string GetTenantRootBasePath(BaseStorageType storageType) -> make a case for the below, but understand if this path is long term or temp.
-
         public string GetHeaderDataStorageBasePath()
             => Path.Combine(GetTenantRootBasePath(), HeadersFolder);
 
@@ -96,15 +124,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public string GetDriveTempStoragePath(Guid driveId)
         {
             // StorageDrive._tempDataRootPath
-            var s1 = Path.Combine(_tenantContext.StorageConfig.TempStoragePath, DriveFolder);
-            var _driveFolderName = GuidToPathSafeString(driveId);
-            return Path.Combine(s1, _driveFolderName);
+            var s1 = Path.Combine(TempStoragePath, DriveFolder);
+            var driveFolderName = GuidToPathSafeString(driveId);
+            return Path.Combine(s1, driveFolderName);
         }
 
         public string GetDriveLongTermStoragePath(Guid driveId)
         {
             // StorageDrive._longTermPayloadPath + "files" = GetLongTermPayloadStoragePath();
-            var s2 = Path.Combine(_tenantContext.StorageConfig.PayloadStoragePath, DriveFolder);
+            var s2 = Path.Combine(PayloadStoragePath, DriveFolder);
             var _driveFolderName = GuidToPathSafeString(driveId);
             return Path.Combine(s2, _driveFolderName, FilesFolder);
         }
@@ -131,7 +159,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 case TempStorageType.Inbox:
                     return Path.Combine(tempBase, InboxFolder);
                 default:
-                    throw new Exception($"Unknown storage type: {storageType}");
+                    throw new OdinSystemException($"Unknown storage type: {storageType}");
             }
         }
 
@@ -283,7 +311,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public string GetIdentityDatabasePath()
         {
-            return Path.Combine(_tenantContext.StorageConfig.HeaderDataStoragePath, "identity.db");
+            return Path.Combine(HeaderDataStoragePath, "identity.db");
+        }
+
+        public string GetSysDatabasePath()
+        {
+            return Path.Combine(TenantSystemDataRootPath, "sys.db");
         }
 
         //
