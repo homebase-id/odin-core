@@ -155,7 +155,7 @@ public class CircleNetworkVerificationService(
 
                     case PeerRequestIssueType.ServiceUnavailable:
                     case PeerRequestIssueType.InternalServerError:
-                        throw new OdinSystemException("Cannot verify connection.");
+                        throw new OdinClientException("Cannot verify connection.  Remote identity offline or unavailable", OdinClientErrorCode.RemoteServerOfflineOrUnavailable);
 
                     case PeerRequestIssueType.Unhandled:
                         throw new OdinSystemException("Cannot verify connection. Issue type unhandled.");
