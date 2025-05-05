@@ -12,15 +12,15 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Services.Background;
-using Odin.Services.Background.Services;
+using Odin.Services.Background.BackgroundServices;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
 
-namespace Odin.Services.Tests.Background;
+namespace Odin.Services.Tests.BackgroundServices;
 
 public class BackgroundServiceManagerTest
 {
-    private readonly Services.Tenant.Tenant _tenant = new ("frodo.hobbit");
+    private readonly Odin.Services.Tenant.Tenant _tenant = new ("frodo.hobbit");
 
     private ILifetimeScope _container = null!;
     private LogEventMemoryStore _logEventMemoryStore = null!;
