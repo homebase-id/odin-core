@@ -97,6 +97,8 @@ public enum OdinClientErrorCode
     FileDoesNotHaveSender = 7902,
     MissingGlobalTransitId = 7903,
     RemoteServerIsNotAnOdinServer = 7904,
+    RemoteServerOfflineOrUnavailable = 7905,
+    
 
     RegistrationStatusNotReadyForFinalization = 8001,
 

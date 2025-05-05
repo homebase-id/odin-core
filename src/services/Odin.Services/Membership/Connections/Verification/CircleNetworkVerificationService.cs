@@ -103,9 +103,15 @@ public class CircleNetworkVerificationService(
                 async () => await VerifyPeerConnection(clientAuthToken),
                 cancellationToken);
 
+            
+            if (executionResult.IssueType != PeerRequestIssueType.None)
+            {
+                logger.LogDebug("Failure detected while making request to {identity}.  issue type: {it}", recipient, executionResult.IssueType);
+            }
+            
             // Only compare if we get back a good code, so we don't kill
             // an ICR because the remote server is not responding
-            if (executionResult.Response.IsSuccessStatusCode)
+            if (executionResult.Response?.IsSuccessStatusCode ?? false)
             {
                 var remoteHash = executionResult.Response.Content;
                 if (remoteHash == null)
@@ -149,7 +155,7 @@ public class CircleNetworkVerificationService(
 
                     case PeerRequestIssueType.ServiceUnavailable:
                     case PeerRequestIssueType.InternalServerError:
-                        throw new OdinSystemException("Cannot verify connection.");
+                        throw new OdinClientException("Cannot verify connection.  Remote identity offline or unavailable", OdinClientErrorCode.RemoteServerOfflineOrUnavailable);
 
                     case PeerRequestIssueType.Unhandled:
                         throw new OdinSystemException("Cannot verify connection. Issue type unhandled.");
@@ -314,6 +320,17 @@ public class CircleNetworkVerificationService(
         {
             var executionResult = await ExecuteRequestAsync(async () => await UpdatePeer(), cancellationToken);
 
+            if (executionResult.IssueType != PeerRequestIssueType.None)
+            {
+                logger.LogDebug("Failure detected while calling UpdatePeer to {identity}.  issue type: {it}", recipient, 
+                    executionResult.IssueType.ToString());
+
+                return new SyncRemoteVerificationHashResult()
+                {
+                    RemoteWasUpdated = false
+                };
+            }
+            
             return executionResult.Response.Content;
         }
         catch (TryRetryException e)
