@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Util;
 using Serilog;
@@ -34,17 +35,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         public readonly string TempStoragePath;
         public readonly string PayloadStoragePath;
         public readonly string HeaderDataStoragePath;
+        public readonly string StaticFileStoragePath;
 
         public readonly string TenantDataRootPath;
         public readonly string TenantSystemDataRootPath;
         public readonly string ConfigRoot;
         public readonly string CurrentEnvironment;
-
-        private static readonly string TestTenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
-        private static readonly string TestTenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
-        private static readonly string TestConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-        private static readonly string TestCurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-
 
         public static readonly string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
         public static readonly string FileNameSectionDelimiter = "-";
@@ -67,6 +63,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public TenantPathManager(OdinConfiguration config, string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
         {
+            TenantId = tenantId;
+            TenantShard = payloadShardKey;
+
             TenantDataRootPath = config.Host.TenantDataRootPath;
             if (TenantDataRootPath == null)
                 throw new ArgumentNullException(nameof(TenantDataRootPath));
@@ -83,29 +82,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             if (CurrentEnvironment == null)
                 throw new ArgumentNullException(nameof(CurrentEnvironment));
 
-            /*
-                        if (TenantDataRootPath.Substring(0, 5) != TestTenantDataRootPath.Substring(0, 5))
-                            throw new Exception("Incorrect core swapping of TenantDataRootPath");
-                        if (TenantSystemDataRootPath.Substring(0, 5) != TestTenantSystemDataRootPath.Substring(0, 5))
-                            throw new Exception("Incorrect core swapping of TenantSystemDataRootPath");
-                        if (ConfigRoot.Substring(0, 5) != TestConfigRoot.Substring(0, 5))
-                            throw new Exception("Incorrect core swapping of ConfigRoot");
-                        if (CurrentEnvironment.Substring(0, 5) != TestCurrentEnvironment.Substring(0, 5))
-                            throw new Exception("Incorrect core swapping of CurrentEnvironment");
-            */
-            /*
-            if (TenantDataRootPath != TestTenantDataRootPath)
-                Log.Error("Alternating TenantDataRootPath");
-            if (TenantSystemDataRootPath != TestTenantSystemDataRootPath)
-                Log.Error("Alternating TenantSystemDataRootPath");
-            if (ConfigRoot != TestConfigRoot)
-                Log.Error("Alternating ConfigRoot");
-            if (CurrentEnvironment != TestCurrentEnvironment)
-                Log.Error("Alternating CurrentEnvironment");
-            */
+            var regIdFolder = tenantId.ToString();
+            var RegistrationRoot = Path.Combine(TenantDataRootPath, "registrations");
+            var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
 
-            TenantId = tenantId;
-            TenantShard = payloadShardKey;
+            HeaderDataStoragePath = Path.Combine(rootPath, HeadersFolder);
+            TempStoragePath  = Path.Combine(rootPath, TempFolder);
+            StaticFileStoragePath = Path.Combine(rootPath, StaticFolder);
+            PayloadStoragePath = Path.Combine(Path.Combine(TenantDataRootPath, PayloadsFolder), payloadShardKey, regIdFolder);
+
             TempStoragePath = tempStoragePath;
             PayloadStoragePath = payloadStoragePath;
             HeaderDataStoragePath = headerDataStoragePath;
