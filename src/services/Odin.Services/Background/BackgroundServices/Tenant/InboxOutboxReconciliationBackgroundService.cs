@@ -3,12 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Time;
-using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-namespace Odin.Services.Background.Services.Tenant;
+namespace Odin.Services.Background.BackgroundServices.Tenant;
 
 public class InboxOutboxReconciliationBackgroundService(
     ILogger<InboxOutboxReconciliationBackgroundService> logger,

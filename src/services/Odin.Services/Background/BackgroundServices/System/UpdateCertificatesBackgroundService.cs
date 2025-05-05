@@ -7,7 +7,7 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 
-namespace Odin.Services.Background.Services.System;
+namespace Odin.Services.Background.BackgroundServices.System;
 
 public class UpdateCertificatesBackgroundService(
     ILogger<UpdateCertificatesBackgroundService> logger,

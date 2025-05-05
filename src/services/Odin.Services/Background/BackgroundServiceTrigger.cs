@@ -1,4 +1,4 @@
-using Odin.Services.Background.Services;
+using Odin.Services.Background.BackgroundServices;
 
 namespace Odin.Services.Background;
 

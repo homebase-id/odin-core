@@ -10,7 +10,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Tasks;
 using Odin.Core.Util;
-using Odin.Services.Background.Services;
+using Odin.Services.Background.BackgroundServices;
 
 namespace Odin.Services.Background;
 
