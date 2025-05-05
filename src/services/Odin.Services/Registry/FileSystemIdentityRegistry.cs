@@ -148,7 +148,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
-        var tenantPathManager = new TenantPathManager(_config, storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, idReg.Id);
+        var tenantPathManager = new TenantPathManager(_config, idReg.PayloadShardKey, idReg.Id);
 
         var tc = new TenantContext(
             idReg.Id,

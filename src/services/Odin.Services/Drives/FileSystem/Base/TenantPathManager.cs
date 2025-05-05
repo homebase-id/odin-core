@@ -49,6 +49,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public static readonly string ThumbnailSizeDelimiter = "x";
         public static readonly string DriveFolder = "drives";
         public static readonly string StorageFolder = "storage";
+        public static readonly string RegistrationsFolder = "registrations";
         public static readonly string HeadersFolder = "headers";
         public static readonly string TempFolder = "temp";
         public static readonly string PayloadsFolder = "payloads";
@@ -61,7 +62,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public static readonly string PayloadDelimiter = "-";
         public static readonly string TransitThumbnailKeyDelimiter = "|";
 
-        public TenantPathManager(OdinConfiguration config, string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
+        public TenantPathManager(OdinConfiguration config, string payloadShardKey, Guid tenantId)
         {
             TenantId = tenantId;
             TenantShard = payloadShardKey;
@@ -83,7 +84,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new ArgumentNullException(nameof(CurrentEnvironment));
 
             var regIdFolder = tenantId.ToString();
-            var RegistrationRoot = Path.Combine(TenantDataRootPath, "registrations");
+            var RegistrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
             var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
 
             HeaderDataStoragePath = Path.Combine(rootPath, HeadersFolder);
@@ -91,29 +92,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             StaticFileStoragePath = Path.Combine(rootPath, StaticFolder);
             PayloadStoragePath = Path.Combine(Path.Combine(TenantDataRootPath, PayloadsFolder), payloadShardKey, regIdFolder);
 
-            TempStoragePath = tempStoragePath;
-            PayloadStoragePath = payloadStoragePath;
-            HeaderDataStoragePath = headerDataStoragePath;
-
-            var s = TempStoragePath;
-            var r = Path.Combine(TenantDataRootPath, "registrations", TenantId.ToString(), TempFolder);
-            if (s != r)
-                throw new Exception("boom2");
-
-            s = PayloadStoragePath;
-            r = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
-            if (s != r)
-                throw new Exception("boom3");
-
-            s = HeaderDataStoragePath;
-            r = Path.Combine(TenantDataRootPath, "registrations", TenantId.ToString(), HeadersFolder);
-            if (s != r)
-                throw new Exception("boom4");
-
-            s = GetTenantRootBasePath();
-            r = Path.Combine(ConfigRoot, StorageFolder, CurrentEnvironment.ToLower(), TenantId.ToString());
-            if (s != r)
-                throw new Exception("boom1");
+            TempStoragePath = Path.Combine(TenantDataRootPath, RegistrationsFolder, TenantId.ToString(), TempFolder);
+            PayloadStoragePath = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
+            HeaderDataStoragePath = Path.Combine(TenantDataRootPath, RegistrationsFolder, TenantId.ToString(), HeadersFolder);
         }
 
         //
@@ -135,8 +116,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public string GetTenantRootBasePath()
             => Path.Combine(ConfigRoot, StorageFolder, CurrentEnvironment.ToLowerInvariant(), TenantId.ToString());
-
-        // MS TODO: public string GetTenantRootBasePath(BaseStorageType storageType) -> make a case for the below, but understand if this path is long term or temp.
 
         public string GetHeaderDataStorageBasePath()
             => Path.Combine(GetTenantRootBasePath(), HeadersFolder);
