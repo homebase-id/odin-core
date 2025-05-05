@@ -2,9 +2,9 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Services.Background.Services;
-using Odin.Services.Background.Services.System;
-using Odin.Services.Background.Services.Tenant;
+using Odin.Services.Background.BackgroundServices;
+using Odin.Services.Background.BackgroundServices.System;
+using Odin.Services.Background.BackgroundServices.Tenant;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
@@ -65,6 +65,7 @@ public static class BackgroundServiceExtensions
         // cb.RegisterBackgroundService<DummyTenantBackgroundService>();
         cb.RegisterBackgroundService<InboxOutboxReconciliationBackgroundService>();
         cb.RegisterBackgroundService<PeerOutboxProcessorBackgroundService>();
+        cb.RegisterBackgroundService<TempFolderCleanUpBackgroundService>();
 
         // Add more tenant background services here
         // ...
@@ -80,6 +81,7 @@ public static class BackgroundServiceExtensions
         // await bsm.StartAsync<DummyTenantBackgroundService>("dummy-tenant-background-service");
         await bsm.StartAsync<PeerOutboxProcessorBackgroundService>();
         await bsm.StartAsync<InboxOutboxReconciliationBackgroundService>();
+        await bsm.StartAsync<TempFolderCleanUpBackgroundService>();
     }
     
     //

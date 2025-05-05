@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Background.Services;
+using Odin.Services.Background.BackgroundServices;
 using Odin.Services.Configuration;
 
 namespace Odin.Services.JobManagement;
