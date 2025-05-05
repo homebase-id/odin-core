@@ -64,20 +64,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         public static readonly string PayloadDelimiter = "-";
         public static readonly string TransitThumbnailKeyDelimiter = "|";
 
-        public static void AssertEqualPaths(string path1, string path2)
-        {
-            if (path1 != path2)
-                throw new ArgumentException($"Paths are not equal {path1} vs {path2}");
-        }
-
-
         public TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
         {
             TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
             TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
             ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
             CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-            /*
+/*
             if (TenantDataRootPath.Substring(0, 5) != TestTenantDataRootPath.Substring(0, 5))
                 throw new Exception("Incorrect core swapping of TenantDataRootPath");
             if (TenantSystemDataRootPath.Substring(0, 5) != TestTenantSystemDataRootPath.Substring(0, 5))
@@ -86,7 +79,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new Exception("Incorrect core swapping of ConfigRoot");
             if (CurrentEnvironment.Substring(0, 5) != TestCurrentEnvironment.Substring(0, 5))
                 throw new Exception("Incorrect core swapping of CurrentEnvironment");
-            */
+*/
             /*
             if (TenantDataRootPath != TestTenantDataRootPath)
                 Log.Error("Alternating TenantDataRootPath");
