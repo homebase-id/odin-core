@@ -3,27 +3,43 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
-using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Util;
-using Serilog;
+
+#nullable enable
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public record ParsedPayloadFileRecord
     {
-        public string Filename { get; set; }
-        public string Key { get; init; }
+        public string Filename { get; set; } = "";
+        public string Key { get; init; }  = "";
         public UnixTimeUtcUnique Uid { get; init; }
     }
 
     public record ParsedThumbnailFileRecord
     {
-        public string Filename { get; set; }
-        public string Key { get; init; }
+        public string Filename { get; set; } = "";
+        public string Key { get; init; } = "";
         public UnixTimeUtcUnique Uid { get; init; }
         public int Width { get; init; }
         public int Height { get; init; }
+    }
+
+    public class SystemPathManager
+    {
+        public readonly string SystemDataRootPath;
+
+        public SystemPathManager(OdinConfiguration config)
+        {
+            SystemDataRootPath = config.Host.SystemDataRootPath;
+            ArgumentException.ThrowIfNullOrEmpty(nameof(SystemDataRootPath));
+        }
+
+        public string GetSysDatabasePath()
+        {
+            return Path.Combine(SystemDataRootPath, "sys.db");
+        }
     }
 
     // public class TenantPathManager(Guid tenantId, string tenantShard)
@@ -38,11 +54,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         public readonly string StaticFileStoragePath;
 
         public readonly string TenantDataRootPath;
-        public readonly string TenantSystemDataRootPath;
-        public readonly string ConfigRoot;
-        public readonly string CurrentEnvironment;
 
-        public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
+        public const string ValidPayloadKeyRegex = "^[a-z0-9_]{8,10}$";
         public const string FileNameSectionDelimiter = "-";
         public const string PayloadExtension = ".payload";
         public const string ThumbnailExtension = ".thumb";
@@ -71,15 +84,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             TenantDataRootPath = config.Host.TenantDataRootPath;
             ArgumentException.ThrowIfNullOrEmpty(nameof(TenantDataRootPath));
 
-            TenantSystemDataRootPath = config.Host.SystemDataRootPath;
-            ArgumentException.ThrowIfNullOrEmpty(nameof(TenantSystemDataRootPath));
-
-            ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-            ArgumentException.ThrowIfNullOrEmpty(nameof(ConfigRoot));
-
-            CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-            ArgumentException.ThrowIfNullOrEmpty(nameof(CurrentEnvironment));
-
             var registrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
             var rootPath = Path.Combine(registrationRoot, tenantId.ToString());
 
@@ -94,7 +98,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         //
 
         public static string GuidToPathSafeString(Guid fileId)
-            => $"{fileId.ToString("N")}";  // .ToLower() not needed - "N" means lowercase
+            => $"{fileId:N}";  // .ToLower() not needed - "N" means lowercase
 
         public static string GetFilename(Guid fileId, string extension)
         {
@@ -107,7 +111,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         // ----------------------
 
         public string GetTenantRootBasePath()
-            => Path.Combine(ConfigRoot, StorageFolder, CurrentEnvironment.ToLowerInvariant(), TenantId.ToString());
+            => Path.Combine(TenantDataRootPath, TenantId.ToString());
 
         public string GetHeaderDataStorageBasePath()
             => Path.Combine(GetTenantRootBasePath(), HeadersFolder);
@@ -133,8 +137,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             // StorageDrive._longTermPayloadPath + "files" = GetLongTermPayloadStoragePath();
             var s2 = Path.Combine(PayloadStoragePath, DriveFolder);
-            var _driveFolderName = GuidToPathSafeString(driveId);
-            return Path.Combine(s2, _driveFolderName, FilesFolder);
+            var driveFolderName = GuidToPathSafeString(driveId);
+            return Path.Combine(s2, driveFolderName, FilesFolder);
         }
 
         public string GetStorageDriveBasePath(Guid driveId)
@@ -314,10 +318,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             return Path.Combine(HeaderDataStoragePath, "identity.db");
         }
 
-        public string GetSysDatabasePath()
-        {
-            return Path.Combine(TenantSystemDataRootPath, "sys.db");
-        }
 
         //
         // Parsing
