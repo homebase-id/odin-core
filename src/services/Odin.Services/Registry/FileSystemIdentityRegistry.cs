@@ -48,7 +48,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainerAccessor _tenantContainer;
     private readonly Action<ContainerBuilder, IdentityRegistration, TenantStorageConfig, OdinConfiguration> _tenantContainerBuilder;
-    public readonly OdinConfiguration _config;
+    private readonly OdinConfiguration _config;
     private readonly bool _useCertificateAuthorityProductionServers;
     private readonly string _tempFolderRoot;
 
