@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
+using Odin.Services.Configuration;
 using Odin.Services.Util;
 using Serilog;
 
@@ -64,13 +65,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         public static readonly string PayloadDelimiter = "-";
         public static readonly string TransitThumbnailKeyDelimiter = "|";
 
-        public TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
+        public TenantPathManager(OdinConfiguration config, string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
         {
-            TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
+            TenantDataRootPath = config.Host.TenantDataRootPath;
             if (TenantDataRootPath == null)
                 throw new ArgumentNullException(nameof(TenantDataRootPath));
 
-            TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
+            TenantSystemDataRootPath = config.Host.SystemDataRootPath;
             if (TenantSystemDataRootPath == null)
                 throw new ArgumentNullException(nameof(TenantSystemDataRootPath));
 
