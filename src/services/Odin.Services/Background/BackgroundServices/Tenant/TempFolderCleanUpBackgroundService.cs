@@ -17,7 +17,7 @@ public sealed class TempFolderCleanUpBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var uploadAgeThreshold = TimeSpan.FromHours(24);
-        var inboxAgeThreshold = TimeSpan.MaxValue; // NOTE: we currently never expire inbox files
+        var inboxAgeThreshold = TimeSpan.FromDays(365 * 100); // NOTE: we currently never expire inbox files
 
         // Delay initial run with some random time, so we don't all run at the same time, doing lots of synchronous IO
         await SleepAsync(TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(120), stoppingToken);
@@ -75,18 +75,35 @@ public static class TempFolderCleanUp
             throw new OdinSystemException($"Temp folder {tempFolder} does not exist");
         }
 
-        if (!stoppingToken.IsCancellationRequested)
+        var drivesFolder = Path.Combine(tempFolder, "drives"); // SEB:TODO get this path from PathManager
+        if (!Directory.Exists(drivesFolder))
         {
-            var uploadsPath = Path.Combine(tempFolder, "uploads"); // SEB:TODO get this path from PathManager
-            CleanUp(logger, uploadsPath, uploadAgeThreshold, stoppingToken);
+            return;
         }
 
-        if (!stoppingToken.IsCancellationRequested)
+        var drives = Directory.GetDirectories(drivesFolder);
+        foreach (var drive in drives)
         {
-            var inboxPath = Path.Combine(tempFolder, "inbox"); // SEB:TODO get this path from PathManager
-            CleanUp(logger, inboxPath, inboxAgeThreshold, stoppingToken);
+            if (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                var uploadsPath = Path.Combine(drive, "uploads"); // SEB:TODO get this path from PathManager
+                CleanUp(logger, uploadsPath, uploadAgeThreshold, stoppingToken);
+            }
+
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                var inboxPath = Path.Combine(drive, "inbox"); // SEB:TODO get this path from PathManager
+                CleanUp(logger, inboxPath, inboxAgeThreshold, stoppingToken);
+            }
         }
     }
+
+    //
 
     private static void CleanUp(ILogger logger, string folder, TimeSpan threshold, CancellationToken stoppingToken)
     {
