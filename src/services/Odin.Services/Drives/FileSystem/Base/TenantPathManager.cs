@@ -42,59 +42,51 @@ namespace Odin.Services.Drives.FileSystem.Base
         public readonly string ConfigRoot;
         public readonly string CurrentEnvironment;
 
-        public static readonly string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
-        public static readonly string FileNameSectionDelimiter = "-";
-        public static readonly string PayloadExtension = ".payload";
-        public static readonly string ThumbnailExtension = ".thumb";
-        public static readonly string ThumbnailSizeDelimiter = "x";
-        public static readonly string DriveFolder = "drives";
-        public static readonly string StorageFolder = "storage";
-        public static readonly string RegistrationsFolder = "registrations";
-        public static readonly string HeadersFolder = "headers";
-        public static readonly string TempFolder = "temp";
-        public static readonly string PayloadsFolder = "payloads";
-        public static readonly string StaticFolder = "static";
-        public static readonly string UploadFolder = "uploads";
-        public static readonly string InboxFolder = "inbox";
-        public static readonly string FilesFolder = "files";
-        public static readonly string DeletePayloadExtension = ".p-deleted";
-        public static readonly string DeletedThumbExtension = ".t-deleted";
-        public static readonly string PayloadDelimiter = "-";
-        public static readonly string TransitThumbnailKeyDelimiter = "|";
+        public const string ValidPayloadKeyRegex = @"^[a-z0-9_]{8,10}$";
+        public const string FileNameSectionDelimiter = "-";
+        public const string PayloadExtension = ".payload";
+        public const string ThumbnailExtension = ".thumb";
+        public const string ThumbnailSizeDelimiter = "x";
+        public const string DriveFolder = "drives";
+        public const string StorageFolder = "storage";
+        public const string RegistrationsFolder = "registrations";
+        public const string HeadersFolder = "headers";
+        public const string TempFolder = "temp";
+        public const string PayloadsFolder = "payloads";
+        public const string StaticFolder = "static";
+        public const string UploadFolder = "uploads";
+        public const string InboxFolder = "inbox";
+        public const string FilesFolder = "files";
+        public const string DeletePayloadExtension = ".p-deleted";
+        public const string DeletedThumbExtension = ".t-deleted";
+        public const string PayloadDelimiter = "-";
+        public const string TransitThumbnailKeyDelimiter = "|";
 
         public TenantPathManager(OdinConfiguration config, string payloadShardKey, Guid tenantId)
         {
             TenantId = tenantId;
             TenantShard = payloadShardKey;
+            ArgumentException.ThrowIfNullOrEmpty(nameof(TenantShard));
 
             TenantDataRootPath = config.Host.TenantDataRootPath;
-            if (TenantDataRootPath == null)
-                throw new ArgumentNullException(nameof(TenantDataRootPath));
+            ArgumentException.ThrowIfNullOrEmpty(nameof(TenantDataRootPath));
 
             TenantSystemDataRootPath = config.Host.SystemDataRootPath;
-            if (TenantSystemDataRootPath == null)
-                throw new ArgumentNullException(nameof(TenantSystemDataRootPath));
+            ArgumentException.ThrowIfNullOrEmpty(nameof(TenantSystemDataRootPath));
 
             ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
-            if (ConfigRoot == null)
-                throw new ArgumentNullException(nameof(ConfigRoot));
+            ArgumentException.ThrowIfNullOrEmpty(nameof(ConfigRoot));
 
             CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-            if (CurrentEnvironment == null)
-                throw new ArgumentNullException(nameof(CurrentEnvironment));
+            ArgumentException.ThrowIfNullOrEmpty(nameof(CurrentEnvironment));
 
-            var regIdFolder = tenantId.ToString();
-            var RegistrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
-            var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
+            var registrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
+            var rootPath = Path.Combine(registrationRoot, tenantId.ToString());
 
             HeaderDataStoragePath = Path.Combine(rootPath, HeadersFolder);
             TempStoragePath  = Path.Combine(rootPath, TempFolder);
             StaticFileStoragePath = Path.Combine(rootPath, StaticFolder);
-            PayloadStoragePath = Path.Combine(Path.Combine(TenantDataRootPath, PayloadsFolder), payloadShardKey, regIdFolder);
-
-            TempStoragePath = Path.Combine(TenantDataRootPath, RegistrationsFolder, TenantId.ToString(), TempFolder);
             PayloadStoragePath = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
-            HeaderDataStoragePath = Path.Combine(TenantDataRootPath, RegistrationsFolder, TenantId.ToString(), HeadersFolder);
         }
 
         //
