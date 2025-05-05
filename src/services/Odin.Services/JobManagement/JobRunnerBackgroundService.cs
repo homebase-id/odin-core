@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.System.Table;
-using Odin.Services.Background.Services;
+using Odin.Services.Background.BackgroundServices;
 
 namespace Odin.Services.JobManagement;
 
