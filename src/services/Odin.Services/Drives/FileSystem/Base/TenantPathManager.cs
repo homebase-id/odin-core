@@ -125,8 +125,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             // StorageDrive._tempDataRootPath
             var s1 = Path.Combine(TempStoragePath, DriveFolder);
-            var _driveFolderName = GuidToPathSafeString(driveId);
-            return Path.Combine(s1, _driveFolderName);
+            var driveFolderName = GuidToPathSafeString(driveId);
+            return Path.Combine(s1, driveFolderName);
         }
 
         public string GetDriveLongTermStoragePath(Guid driveId)
@@ -159,7 +159,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 case TempStorageType.Inbox:
                     return Path.Combine(tempBase, InboxFolder);
                 default:
-                    throw new Exception($"Unknown storage type: {storageType}");
+                    throw new OdinSystemException($"Unknown storage type: {storageType}");
             }
         }
 
