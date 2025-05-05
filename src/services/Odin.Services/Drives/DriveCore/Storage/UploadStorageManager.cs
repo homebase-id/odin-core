@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.DriveCore.Storage

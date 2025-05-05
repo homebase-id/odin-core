@@ -13,6 +13,15 @@ public class FileUpdateResult
     /// </summary>
     public Guid? GlobalTransitId { get; init; }
     
+    public GlobalTransitIdFileIdentifier GlobalTransitIdFileIdentifier =>
+        GlobalTransitId.HasValue
+            ? new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = this.GlobalTransitId.GetValueOrDefault(),
+                TargetDrive = this.File.TargetDrive
+            }
+            : null;
+    
     public Dictionary<string, TransferStatus> RecipientStatus { get; init; } = new();
     
     /// <summary>

@@ -22,10 +22,12 @@ using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
@@ -135,9 +137,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var regIdFolder = idReg.Id.ToString();
         var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
         var sslRoot = Path.Combine(rootPath, "ssl");
-        var storageConfig = GetStorageConfig(idReg);
+        var storageConfig = GetStorageConfig(idReg); // SEB:TODO redo this to satisfy TenantPathManager ctor
 
-        // IO is slow, so make it optional
         if (updateFileSystem)
         {
             Directory.CreateDirectory(sslRoot);
@@ -146,8 +147,19 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
-        var tc = new TenantContext(idReg.Id, (OdinId)idReg.PrimaryDomainName, sslRoot, storageConfig, idReg.FirstRunToken, isPreconfigured,
+
+        var tenantPathManager = new TenantPathManager(_config, idReg.PayloadShardKey, idReg.Id);
+
+        var tc = new TenantContext(
+            idReg.Id,
+            (OdinId)idReg.PrimaryDomainName,
+            sslRoot,
+            storageConfig,
+            tenantPathManager,
+            idReg.FirstRunToken,
+            isPreconfigured,
             idReg.MarkedForDeletionDate);
+
         return tc;
     }
 
