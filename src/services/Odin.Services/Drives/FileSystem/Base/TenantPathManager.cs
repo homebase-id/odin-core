@@ -67,19 +67,31 @@ namespace Odin.Services.Drives.FileSystem.Base
         public TenantPathManager(string payloadShardKey, string tempStoragePath, string payloadStoragePath, string headerDataStoragePath, Guid tenantId)
         {
             TenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath");
+            if (TenantDataRootPath == null)
+                throw new ArgumentNullException(nameof(TenantDataRootPath));
+
             TenantSystemDataRootPath = Environment.GetEnvironmentVariable("Host__SystemDataRootPath");
+            if (TenantSystemDataRootPath == null)
+                throw new ArgumentNullException(nameof(TenantSystemDataRootPath));
+
             ConfigRoot = Environment.GetEnvironmentVariable("ODIN_CONFIG_PATH") ?? Directory.GetCurrentDirectory();
+            if (ConfigRoot == null)
+                throw new ArgumentNullException(nameof(ConfigRoot));
+
             CurrentEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-/*
-            if (TenantDataRootPath.Substring(0, 5) != TestTenantDataRootPath.Substring(0, 5))
-                throw new Exception("Incorrect core swapping of TenantDataRootPath");
-            if (TenantSystemDataRootPath.Substring(0, 5) != TestTenantSystemDataRootPath.Substring(0, 5))
-                throw new Exception("Incorrect core swapping of TenantSystemDataRootPath");
-            if (ConfigRoot.Substring(0, 5) != TestConfigRoot.Substring(0, 5))
-                throw new Exception("Incorrect core swapping of ConfigRoot");
-            if (CurrentEnvironment.Substring(0, 5) != TestCurrentEnvironment.Substring(0, 5))
-                throw new Exception("Incorrect core swapping of CurrentEnvironment");
-*/
+            if (CurrentEnvironment == null)
+                throw new ArgumentNullException(nameof(CurrentEnvironment));
+
+            /*
+                        if (TenantDataRootPath.Substring(0, 5) != TestTenantDataRootPath.Substring(0, 5))
+                            throw new Exception("Incorrect core swapping of TenantDataRootPath");
+                        if (TenantSystemDataRootPath.Substring(0, 5) != TestTenantSystemDataRootPath.Substring(0, 5))
+                            throw new Exception("Incorrect core swapping of TenantSystemDataRootPath");
+                        if (ConfigRoot.Substring(0, 5) != TestConfigRoot.Substring(0, 5))
+                            throw new Exception("Incorrect core swapping of ConfigRoot");
+                        if (CurrentEnvironment.Substring(0, 5) != TestCurrentEnvironment.Substring(0, 5))
+                            throw new Exception("Incorrect core swapping of CurrentEnvironment");
+            */
             /*
             if (TenantDataRootPath != TestTenantDataRootPath)
                 Log.Error("Alternating TenantDataRootPath");
