@@ -136,24 +136,22 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var regIdFolder = idReg.Id.ToString();
         var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
-        var sslRoot = Path.Combine(rootPath, "ssl");
         var storageConfig = GetStorageConfig(idReg); // SEB:TODO redo this to satisfy TenantPathManager ctor
-
-        if (updateFileSystem)
-        {
-            Directory.CreateDirectory(sslRoot);
-            storageConfig.CreateDirectories();
-        }
 
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
         var tenantPathManager = new TenantPathManager(_config, idReg.PayloadShardKey, idReg.Id);
 
+        if (updateFileSystem)
+        {
+            tenantPathManager.CreateDirectories();
+            tenantPathManager.CreateSslRootDirectory();
+        }
+
         var tc = new TenantContext(
             idReg.Id,
             (OdinId)idReg.PrimaryDomainName,
-            sslRoot,
             storageConfig,
             tenantPathManager,
             idReg.FirstRunToken,
@@ -198,9 +196,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PayloadShardKey = GetNextShard()
         };
 
+
+
+
         // Create directories
-        var storageConfig = GetStorageConfig(registration);
-        storageConfig.CreateDirectories();
+        var tenantPathManager = new TenantPathManager(_config, registration.PayloadShardKey, registration.Id);
+        tenantPathManager.CreateDirectories();
+        //var storageConfig = GetStorageConfig(registration);
+        //storageConfig.CreateDirectories();
 
         // Create database on isolated scope
         await using var scope = GetOrCreateMultiTenantScope(registration)
@@ -221,7 +224,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
             var tenantContext = CreateTenantContext(request.OdinId, true);
 
-            var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
+            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslStoragePath);
             tc.SaveSslCertificate(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
@@ -467,8 +470,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     continue;
                 }
 
-                var storageConfig = GetStorageConfig(registration);
-                storageConfig.CreateDirectories();
+                var tenantPathManger = new TenantPathManager(_config, registration.PayloadShardKey, registration.Id);
+                tenantPathManger.CreateDirectories();
+                //var storageConfig = GetStorageConfig(registration);
+                //storageConfig.CreateDirectories();
 
                 // Sanity: create database if missing (can be necessary when switching dev from sqlite to postgres)
                 await using var scope = GetOrCreateMultiTenantScope(registration)
@@ -618,7 +623,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var tenantContext = this.CreateTenantContext(idReg);
         var domain = idReg.PrimaryDomainName;
-        var sslRoot = tenantContext.SslRoot;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
 
         // SEB:NOTE
@@ -634,7 +638,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };
 
-            var tc = _certificateServiceFactory.Create(sslRoot);
+            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslStoragePath);
             var x509 = tc.GetSslCertificate(domain);
             if (x509 != null)
             {
@@ -697,7 +701,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
         var tenantContext = scope.Resolve<TenantContext>();
         var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
-        var certificateService = certificateServiceFactory.Create(tenantContext.SslRoot);
+        var certificateService = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslStoragePath);
         var certificate = certificateService.ResolveCertificate(registration.PrimaryDomainName);
         if (certificate != null)
         {
