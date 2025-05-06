@@ -36,8 +36,11 @@ public class TenantPathManager
     public readonly string PayloadStoragePath;
     public readonly string HeaderDataStoragePath;
     public readonly string StaticFileStoragePath;
+    public readonly string SslStoragePath;
 
     public readonly string TenantDataRootPath;
+
+    protected readonly string RootPath;
 
     public const string ValidPayloadKeyRegex = "^[a-z0-9_]{8,10}$";
     public const string FileNameSectionDelimiter = "-";
@@ -45,6 +48,7 @@ public class TenantPathManager
     public const string ThumbnailExtension = ".thumb";
     public const string ThumbnailSizeDelimiter = "x";
     public const string DriveFolder = "drives";
+    public const string SslFolder = "ssl";
     public const string StorageFolder = "storage";
     public const string RegistrationsFolder = "registrations";
     public const string HeadersFolder = "headers";
@@ -69,12 +73,13 @@ public class TenantPathManager
         ArgumentException.ThrowIfNullOrEmpty(TenantDataRootPath, nameof(TenantDataRootPath));
 
         var registrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
-        var rootPath = Path.Combine(registrationRoot, tenantId.ToString());
+        RootPath = Path.Combine(registrationRoot, tenantId.ToString());
 
-        HeaderDataStoragePath = Path.Combine(rootPath, HeadersFolder);
-        TempStoragePath  = Path.Combine(rootPath, TempFolder);
-        StaticFileStoragePath = Path.Combine(rootPath, StaticFolder);
+        HeaderDataStoragePath = Path.Combine(RootPath, HeadersFolder);
+        TempStoragePath  = Path.Combine(RootPath, TempFolder);
+        StaticFileStoragePath = Path.Combine(RootPath, StaticFolder);
         PayloadStoragePath = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
+        SslStoragePath = Path.Combine(RootPath, SslFolder);
     }
 
     //
@@ -283,6 +288,22 @@ public class TenantPathManager
         return Path.Combine(dir, fileName);
     }
 
+    // ----------------------
+    // Directories
+    // ----------------------
+
+    public void CreateDirectories()
+    {
+        Directory.CreateDirectory(HeaderDataStoragePath);
+        Directory.CreateDirectory(TempStoragePath);
+        Directory.CreateDirectory(PayloadStoragePath);
+        Directory.CreateDirectory(StaticFileStoragePath);
+    }
+
+    public void CreateSslRootDirectory()
+    {
+        Directory.CreateDirectory(SslStoragePath);
+    }
 
     // ----------------------
     // Database paths

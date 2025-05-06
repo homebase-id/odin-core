@@ -20,7 +20,6 @@ namespace Odin.Services.Base
         public TenantContext(
             Guid dotYouRegistryId,
             OdinId hostOdinId,
-            string sslRoot,
             TenantStorageConfig storageConfig, // SEB:TODO delete this, it is handled by TenantPathManager
             TenantPathManager tenantPathManager,
             Guid? firstRunToken,
@@ -29,7 +28,6 @@ namespace Odin.Services.Base
         {
             this.DotYouRegistryId = dotYouRegistryId;
             this.HostOdinId = hostOdinId;
-            this.SslRoot = sslRoot;
             this.StorageConfig = storageConfig;
             this.TenantPathManager = tenantPathManager;
             this.FirstRunToken = firstRunToken;
@@ -43,8 +41,6 @@ namespace Odin.Services.Base
         /// Specifies the OdinId of the host
         /// </summary>
         public OdinId HostOdinId { get; private set; }
-
-        public string SslRoot { get; private set; }
 
         /// <summary>
         /// Specifies the storage locations for various pieces of data for this <see cref="HostOdinId"/>.
@@ -75,7 +71,6 @@ namespace Odin.Services.Base
         {
             this.DotYouRegistryId = source.DotYouRegistryId;
             this.HostOdinId = source.HostOdinId;
-            this.SslRoot = source.SslRoot;
             this.StorageConfig = source.StorageConfig;
             this.FirstRunToken = source.FirstRunToken;
             this.IsPreconfigured = source.IsPreconfigured;
