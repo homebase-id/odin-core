@@ -47,7 +47,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainerAccessor _tenantContainer;
-    private readonly Action<ContainerBuilder, IdentityRegistration, TenantStorageConfig, OdinConfiguration> _tenantContainerBuilder;
+    private readonly Action<ContainerBuilder, IdentityRegistration, OdinConfiguration> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
     private readonly bool _useCertificateAuthorityProductionServers;
     private readonly string _tempFolderRoot;
@@ -58,7 +58,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainerAccessor tenantContainer,
-        Action<ContainerBuilder, IdentityRegistration, TenantStorageConfig, OdinConfiguration> tenantContainerBuilder,
+        Action<ContainerBuilder, IdentityRegistration, OdinConfiguration> tenantContainerBuilder,
         OdinConfiguration config
     )
     {
@@ -119,24 +119,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return this.CreateTenantContext(idReg, updateFileSystem);
     }
 
-    private TenantStorageConfig GetStorageConfig(IdentityRegistration idReg)
-    {
-        var regIdFolder = idReg.Id.ToString();
-        var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
-        return new TenantStorageConfig(
-            headerDataStoragePath: Path.Combine(rootPath, "headers"),
-            tempStoragePath: Path.Combine(rootPath, "temp"),
-            payloadStoragePath: Path.Combine(this.ShardablePayloadRoot, idReg.PayloadShardKey, regIdFolder),
-            staticFileStoragePath: Path.Combine(rootPath, "static"),
-            idReg.PayloadShardKey
-        );
-    }
-
     public TenantContext CreateTenantContext(IdentityRegistration idReg, bool updateFileSystem = false)
     {
         var regIdFolder = idReg.Id.ToString();
         var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
-        var storageConfig = GetStorageConfig(idReg); // SEB:TODO redo this to satisfy TenantPathManager ctor
 
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
@@ -152,7 +138,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tc = new TenantContext(
             idReg.Id,
             (OdinId)idReg.PrimaryDomainName,
-            storageConfig,
             tenantPathManager,
             idReg.FirstRunToken,
             isPreconfigured,
@@ -747,10 +732,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private ILifetimeScope GetOrCreateMultiTenantScope(IdentityRegistration registration)
     {
-        var storageConfig = GetStorageConfig(registration);
         var scope = _tenantContainer.Container().GetOrAddTenantScope(
             registration.PrimaryDomainName,
-            cb => _tenantContainerBuilder(cb, registration, storageConfig, _config));
+            cb => _tenantContainerBuilder(cb, registration, _config));
 
         return scope;
     }
