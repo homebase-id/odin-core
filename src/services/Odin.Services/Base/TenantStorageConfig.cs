@@ -19,17 +19,5 @@ namespace Odin.Services.Base
         public string TempStoragePath { get; } = tempStoragePath;
         public string StaticFileStoragePath { get; } = staticFileStoragePath;
 
-        public void CreateDirectories()
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(HeaderDataStoragePath);
-            ArgumentException.ThrowIfNullOrWhiteSpace(TempStoragePath);
-            ArgumentException.ThrowIfNullOrWhiteSpace(PayloadStoragePath);
-            ArgumentException.ThrowIfNullOrWhiteSpace(StaticFileStoragePath);
-
-            Directory.CreateDirectory(HeaderDataStoragePath);
-            Directory.CreateDirectory(TempStoragePath);
-            Directory.CreateDirectory(PayloadStoragePath);
-            Directory.CreateDirectory(StaticFileStoragePath);
-        }
     }*/
 }
