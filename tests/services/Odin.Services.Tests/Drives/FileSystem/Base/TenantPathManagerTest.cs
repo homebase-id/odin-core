@@ -8,34 +8,20 @@ namespace Odin.Services.Tests.Drives.FileSystem.Base;
 
 public class TenantPathManagerTests
 {
-    private string _testRoot = "";
     private OdinConfiguration _config = null!;
 
     [SetUp]
     public void Setup()
     {
-        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testRoot);
-
+        var testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         _config = new OdinConfiguration
         {
             Host = new OdinConfiguration.HostSection
             {
-                SystemDataRootPath = Path.Combine(_testRoot, "system"),
-                TenantDataRootPath = Path.Combine(_testRoot, "tenants")
+                SystemDataRootPath = Path.Combine(testRoot, "system"),
+                TenantDataRootPath = Path.Combine(testRoot, "tenants")
             }
         };
-    }
-
-    //
-
-    [TearDown]
-    public void TearDown()
-    {
-        if (Directory.Exists(_testRoot))
-        {
-            Directory.Delete(_testRoot, true);
-        }
     }
 
     //
