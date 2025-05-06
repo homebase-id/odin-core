@@ -35,6 +35,38 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.GetIdentityDatabasePath(), Is.EqualTo(expected));
     }
 
+    //
+
+    [Test]
+    public void DoesThrowIfTenantDataRootPathIsEmpty()
+    {
+        var tenantId = Guid.NewGuid();
+
+        {
+            var badConfig = new OdinConfiguration();
+            var exception = Assert.Throws<NullReferenceException>(() =>
+            {
+                _ = new TenantPathManager(badConfig, "shard1", tenantId);
+            });
+            Assert.That(exception?.Message, Is.EqualTo("Object reference not set to an instance of an object."));
+        }
+
+        {
+            var badConfig = new OdinConfiguration
+            {
+                Host = new OdinConfiguration.HostSection()
+            };
+            var exception = Assert.Throws<ArgumentNullException>(() =>
+            {
+                _ = new TenantPathManager(badConfig, "shard1", tenantId);
+            });
+            Assert.That(exception?.Message, Is.EqualTo("Value cannot be null. (Parameter 'TenantDataRootPath')"));
+        }
+    }
+
+    //
+
+
 
 /*
     private (TenantContext, TenantPathManager) Setup()

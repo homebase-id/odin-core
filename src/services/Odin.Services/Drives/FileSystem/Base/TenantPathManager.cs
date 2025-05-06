@@ -63,10 +63,10 @@ public class TenantPathManager
     {
         TenantId = tenantId;
         TenantShard = payloadShardKey;
-        ArgumentException.ThrowIfNullOrEmpty(nameof(TenantShard));
+        ArgumentException.ThrowIfNullOrEmpty(TenantShard, nameof(TenantShard));
 
         TenantDataRootPath = config.Host.TenantDataRootPath;
-        ArgumentException.ThrowIfNullOrEmpty(nameof(TenantDataRootPath));
+        ArgumentException.ThrowIfNullOrEmpty(TenantDataRootPath, nameof(TenantDataRootPath));
 
         var registrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
         var rootPath = Path.Combine(registrationRoot, tenantId.ToString());
