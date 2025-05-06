@@ -1,6 +1,10 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
+using Odin.Core.Identity;
+using Odin.Core.Time;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 
@@ -30,7 +34,7 @@ public class TenantPathManagerTests
     public void GetIdentityDatabasePath_ReturnsCorrectPath()
     {
         var tenantId = Guid.NewGuid();
-        var tenantPathManager = new TenantPathManager(_config, "shard1", tenantId);
+        var tenantPathManager = new TenantPathManager(_config, tenantId);
         var expected = Path.Combine(_config.Host.TenantDataRootPath, "registrations", tenantId.ToString(), "headers", "identity.db");
         Assert.That(tenantPathManager.GetIdentityDatabasePath(), Is.EqualTo(expected));
     }
@@ -46,7 +50,7 @@ public class TenantPathManagerTests
             var badConfig = new OdinConfiguration();
             var exception = Assert.Throws<NullReferenceException>(() =>
             {
-                _ = new TenantPathManager(badConfig, "shard1", tenantId);
+                _ = new TenantPathManager(badConfig, tenantId);
             });
             Assert.That(exception?.Message, Is.EqualTo("Object reference not set to an instance of an object."));
         }
@@ -58,7 +62,7 @@ public class TenantPathManagerTests
             };
             var exception = Assert.Throws<ArgumentNullException>(() =>
             {
-                _ = new TenantPathManager(badConfig, "shard1", tenantId);
+                _ = new TenantPathManager(badConfig, tenantId);
             });
             Assert.That(exception?.Message, Is.EqualTo("Value cannot be null. (Parameter 'TenantDataRootPath')"));
         }
@@ -67,33 +71,22 @@ public class TenantPathManagerTests
     //
 
 
-
-/*
-    private (TenantContext, TenantPathManager) Setup()
+    private (TenantContext, TenantPathManager) Zetup()
     {
         TenantContext _context;
         TenantPathManager _manager;
 
-
-        var storageConfig = new TenantStorageConfig(
-            headerDataStoragePath: "/header",
-            tempStoragePath: "/temp",
-            payloadStoragePath: "/payload",
-            staticFileStoragePath: "/static",
-            payloadShardKey: "shard1");
 
         var dotYouRegistryId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         Environment.SetEnvironmentVariable("Host__TenantDataRootPath", "");
         Environment.SetEnvironmentVariable("Host__SystemDataRootPath", "");
 
-        _manager = new TenantPathManager(storageConfig.PayloadShardKey, storageConfig.TempStoragePath, storageConfig.PayloadStoragePath, storageConfig.HeaderDataStoragePath, dotYouRegistryId);
+        _manager = new TenantPathManager(_config, dotYouRegistryId);
 
         _context = new TenantContext(
             dotYouRegistryId,
             hostOdinId: new OdinId("frodo.baggins.demo.rocks"),
-            sslRoot: "sslRoot",
-            storageConfig: storageConfig,
             tenantPathManager: _manager,
             firstRunToken: null,
             isPreconfigured: true,
@@ -105,16 +98,17 @@ public class TenantPathManagerTests
     [Test]
     public void GetTenantRootBasePath_ReturnsCorrectPath()
     {
-        var (_context,  _manager) = Setup();
+        var (_context,  _manager) = Zetup();
 
-        var expected = Path.Combine(TenantPathManager.ConfigRoot, "storage", "production", "11111111-1111-1111-1111-111111111111");
-        ClassicAssert.AreEqual(expected, _manager.GetTenantRootBasePath());
+        var expected = Path.Combine(_manager.TenantDataRootPath, "11111111-1111-1111-1111-111111111111");
+        var r = _manager.GetTenantRootBasePath();
+        ClassicAssert.AreEqual(expected, r);
     }
 
     [Test]
     public void GetPayloadFilePath_ReturnsCorrectPath()
     {
-        var (_context, _manager) = Setup();
+        var (_context, _manager) = Zetup();
 
         var driveId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var fileId = Guid.Parse("33333333-3333-3333-3333-333333333333");
@@ -131,7 +125,7 @@ public class TenantPathManagerTests
     [Test]
     public void GetThumbnailFilePath_ReturnsCorrectPath()
     {
-        var (_context, _manager) = Setup();
+        var (_context, _manager) = Zetup();
 
         var driveId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var fileId = Guid.Parse("33333333-3333-3333-3333-333333333333");
@@ -144,5 +138,4 @@ public class TenantPathManagerTests
         );
         ClassicAssert.AreEqual(expected, _manager.GetThumbnailDirectoryandFileName(driveId, fileId, payloadKey, payloadUid, 100, 200));
     }
-*/
 }

@@ -127,7 +127,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
-        var tenantPathManager = new TenantPathManager(_config, idReg.PayloadShardKey, idReg.Id);
+        var tenantPathManager = new TenantPathManager(_config, idReg.Id);
 
         if (updateFileSystem)
         {
@@ -163,13 +163,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task<Guid> AddRegistration(IdentityRegistrationRequest request)
     {
-        string GetNextShard()
-        {
-            //TODO: read folders under this.ShardablePayloadRoot and choose a folder; wisely (maybe round robin?)
-            const string shard1 = "shard1";
-            return shard1;
-        }
-
         var registration = new IdentityRegistration()
         {
             Id = Guid.NewGuid(),
@@ -177,15 +170,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PlanId = request.PlanId,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
-            FirstRunToken = Guid.NewGuid(),
-            PayloadShardKey = GetNextShard()
+            FirstRunToken = Guid.NewGuid()
         };
 
 
 
 
         // Create directories
-        var tenantPathManager = new TenantPathManager(_config, registration.PayloadShardKey, registration.Id);
+        var tenantPathManager = new TenantPathManager(_config, registration.Id);
         tenantPathManager.CreateDirectories();
         //var storageConfig = GetStorageConfig(registration);
         //storageConfig.CreateDirectories();
@@ -455,7 +447,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     continue;
                 }
 
-                var tenantPathManger = new TenantPathManager(_config, registration.PayloadShardKey, registration.Id);
+                var tenantPathManger = new TenantPathManager(_config, registration.Id);
                 tenantPathManger.CreateDirectories();
                 //var storageConfig = GetStorageConfig(registration);
                 //storageConfig.CreateDirectories();
