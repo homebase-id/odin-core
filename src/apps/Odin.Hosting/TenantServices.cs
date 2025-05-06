@@ -346,7 +346,7 @@ public static class TenantServices
             case DatabaseType.Sqlite:
             {
                 var tenantPathManager = new TenantPathManager(config, registration.PayloadShardKey, registration.Id);
-                    cb.AddSqliteIdentityDatabaseServices(registration.Id, tenantPathManager.GetIdentityDatabasePath());
+                cb.AddSqliteIdentityDatabaseServices(registration.Id, tenantPathManager.GetIdentityDatabasePath());
                 break;
             }
             case DatabaseType.Postgres:
