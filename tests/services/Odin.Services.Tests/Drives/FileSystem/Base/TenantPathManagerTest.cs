@@ -1,20 +1,55 @@
-using Microsoft.Extensions.DependencyInjection;
-using NUnit.Framework;
-using Odin.Core.Time;
-using Odin.Services.Base;
-using Odin.Services.Configuration;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Email;
-using System.IO;
 using System;
-using Odin.Core.Identity;
-using NUnit.Framework.Legacy;
+using System.IO;
+using NUnit.Framework;
+using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 
-namespace Odin.Services.Tests.Config;
+namespace Odin.Services.Tests.Drives.FileSystem.Base;
 
-public class OdinPathManagerTest
+public class TenantPathManagerTests
 {
+    private string _testRoot = "";
+    private OdinConfiguration _config = null!;
+
+    [SetUp]
+    public void Setup()
+    {
+        _testRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_testRoot);
+
+        _config = new OdinConfiguration
+        {
+            Host = new OdinConfiguration.HostSection
+            {
+                SystemDataRootPath = Path.Combine(_testRoot, "system"),
+                TenantDataRootPath = Path.Combine(_testRoot, "tenants")
+            }
+        };
+    }
+
+    //
+
+    [TearDown]
+    public void TearDown()
+    {
+        if (Directory.Exists(_testRoot))
+        {
+            Directory.Delete(_testRoot, true);
+        }
+    }
+
+    //
+
+    [Test]
+    public void GetIdentityDatabasePath_ReturnsCorrectPath()
+    {
+        var tenantId = Guid.NewGuid();
+        var tenantPathManager = new TenantPathManager(_config, "shard1", tenantId);
+        var expected = Path.Combine(_config.Host.TenantDataRootPath, "registrations", tenantId.ToString(), "headers", "identity.db");
+        Assert.That(tenantPathManager.GetIdentityDatabasePath(), Is.EqualTo(expected));
+    }
+
+
 /*
     private (TenantContext, TenantPathManager) Setup()
     {
