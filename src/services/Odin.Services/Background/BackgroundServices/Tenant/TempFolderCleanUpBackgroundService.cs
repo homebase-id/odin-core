@@ -137,6 +137,7 @@ public static class TempFolderCleanUp
                     var fileInfo = new FileInfo(file);
                     if (fileInfo.LastWriteTimeUtc < cutoffTime)
                     {
+                        logger.LogDebug("TempFolderCleanUp: deleting file {file}", file);
                         File.Delete(file);
                     }
                 }
