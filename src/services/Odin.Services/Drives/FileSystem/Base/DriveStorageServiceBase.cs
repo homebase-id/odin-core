@@ -556,6 +556,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                     });
                 }
             }
+            catch (OdinSecurityException)
+            {
+                throw;
+            }
+            catch (OdinClientException)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 _logger.LogError(e, "Error occured");
@@ -648,6 +656,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                         OdinContext = odinContext,
                     });
                 }
+            }
+            catch (OdinSecurityException)
+            {
+                throw;
             }
             catch (OdinClientException)
             {
@@ -849,6 +861,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                     });
                 }
             }
+            catch (OdinSecurityException)
+            {
+                throw;
+            }
             catch (OdinClientException)
             {
                 throw;
@@ -857,7 +873,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 _logger.LogError(e, "Error occured");
             }
-            
+
             return success;
         }
 
@@ -1151,6 +1167,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                     });
                 }
             }
+            catch (OdinSecurityException)
+            {
+                throw;
+            }
+            catch (OdinClientException)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 _logger.LogError(e, "Error occured");
@@ -1361,6 +1385,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                     });
                 }
             }
+            catch (OdinSecurityException)
+            {
+                throw;
+            }
+            catch (OdinClientException)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 _logger.LogError(e, "Error occured");
@@ -1545,6 +1577,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 var drive = await DriveManager.GetDriveAsync(file.DriveId);
                 longTermStorageManager.HardDeleteDeadPayloadFiles(drive, file.FileId, deadPayloads);
+            }
+            catch (OdinSecurityException)
+            {
+                throw;
+            }
+            catch (OdinClientException)
+            {
+                throw;
             }
             catch (Exception e)
             {
