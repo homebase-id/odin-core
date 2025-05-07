@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
@@ -26,7 +27,6 @@ public record ParsedThumbnailFileRecord
     public int Height { get; init; }
 }
 
-// public class TenantPathManager(Guid tenantId, string tenantShard)
 public class TenantPathManager
 {
     public readonly Guid TenantId;
@@ -40,8 +40,6 @@ public class TenantPathManager
     public readonly string TenantDataRootPath;
 
     protected readonly string RootPath;
-
-    protected const string TenantShard = "shard1";
 
     public const string ValidPayloadKeyRegex = "^[a-z0-9_]{8,10}$";
     public const string FileNameSectionDelimiter = "-";
@@ -77,7 +75,7 @@ public class TenantPathManager
         HeaderDataStoragePath = Path.Combine(RootPath, HeadersFolder);
         TempStoragePath  = Path.Combine(RootPath, TempFolder);
         StaticFileStoragePath = Path.Combine(RootPath, StaticFolder);
-        PayloadStoragePath = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
+        PayloadStoragePath = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantId.ToString());
         SslStoragePath = Path.Combine(RootPath, SslFolder);
     }
 
@@ -108,7 +106,7 @@ public class TenantPathManager
         => Path.Combine(GetTenantRootBasePath(), TempFolder);
 
     public string GetPayloadStorageBasePath()
-        => Path.Combine(GetTenantRootBasePath(), PayloadsFolder, TenantShard);
+        => Path.Combine(GetTenantRootBasePath(), PayloadsFolder);
 
     public string GetStaticFileStorageBasePath()
         => Path.Combine(GetTenantRootBasePath(), StaticFolder);
@@ -187,15 +185,8 @@ public class TenantPathManager
 
     public static string GetPayloadDirectoryFromGuid(Guid fileId)
     {
-        var id = GuidToPathSafeString(fileId);
-        var year = id.Substring(0, 4);
-        var month = id.Substring(4, 2);
-        var day = id.Substring(6, 2);
-        var hour = id.Substring(8, 2);
-
-        var path = Path.Combine(year, month, day, hour);
-
-        return path;
+        var (lowNibble, highNibble) = GuidHelper.GetLastTwoNibbles(fileId);
+        return $"{highNibble}/{lowNibble}";
     }
 
     public string GetPayloadDirectory(Guid  driveId, Guid fileId, bool ensureExists = false)
