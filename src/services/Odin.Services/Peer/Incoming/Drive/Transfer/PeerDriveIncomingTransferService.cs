@@ -285,11 +285,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task CleanupTempFiles(IOdinContext odinContext)
+        public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
         {
             if (_transferState?.TempFile != null)
             {
-                await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.TempFile, odinContext);
+                // use the descriptors from the package as they would have been uploaded to the upload folder
+                await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.TempFile, descriptors, odinContext);
             }
         }
 

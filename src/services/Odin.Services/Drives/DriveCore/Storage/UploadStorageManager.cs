@@ -1,8 +1,10 @@
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
@@ -14,14 +16,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
     public class UploadStorageManager(
         DriveFileReaderWriter driveFileReaderWriter,
         DriveManager driveManager,
-        ILogger<UploadStorageManager> logger)
+        ILogger<UploadStorageManager> logger,
+        TenantContext tenantContext)
     {
+        private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
+
         public async Task<bool> TempFileExists(TempFile tempFile, string extension)
         {
             string path = await GetTempFilenameAndPathInternal(tempFile, extension);
             return driveFileReaderWriter.FileExists(path);
         }
-        
+
         /// <summary>
         /// Gets a stream of data for the specified file
         /// </summary>
@@ -62,15 +67,38 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Deletes all files matching <param name="tempFile"></param> regardless of extension
         /// </summary>
-        public async Task EnsureDeleted(TempFile tempFile)
+        public async Task CleanupTempFiles(TempFile tempFile, List<PayloadDescriptor> descriptors)
         {
-            var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
+            try
+            {
+                if (!descriptors?.Any() ?? false)
+                {
+                    return;
+                }
 
-            var dir = GetFileDirectory(drive, tempFile);
-            var pattern = TenantPathManager.GetFilename(tempFile.File.FileId, "*");
+                var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
 
-            logger.LogDebug("Delete temp files in dir: {filePath} using searchPattern: {pattern}", dir, pattern);
-            driveFileReaderWriter.DeleteFilesInDirectory(dir, pattern);
+                var dir = GetFileDirectory(drive, tempFile);
+                var targetFiles = new List<string>();
+                descriptors!.ForEach(descriptor =>
+                {
+                    var payloadFilename = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
+                    targetFiles.Add(Path.Combine(dir, payloadFilename));
+
+                    descriptor.Thumbnails?.ForEach(thumb =>
+                    {
+                        var thumbnailFilename = TenantPathManager.CreateThumbnailFileNameAndExtension(descriptor.Key, descriptor.Uid,
+                            thumb.PixelWidth, thumb.PixelHeight);
+                        targetFiles.Add(Path.Combine(dir, thumbnailFilename));
+                    });
+                });
+
+                driveFileReaderWriter.DeleteFiles(targetFiles);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failure while cleaning up temp files");
+            }
         }
 
         /// <summary>
@@ -100,10 +128,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var fileId = tempFile.File.FileId;
 
             string dir = GetFileDirectory(drive, tempFile, ensureExists);
-            var r =  Path.Combine(dir, TenantPathManager.GetFilename(fileId, extension));
+            var r = Path.Combine(dir, TenantPathManager.GetFilename(fileId, extension));
 
             return r;
         }
-        
     }
 }

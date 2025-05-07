@@ -127,9 +127,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             throw new OdinSystemException("Unhandled Routing");
         }
 
-        public async Task CleanupTempFiles(IOdinContext odinContext)
+        public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
         {
-            await fileSystem.Storage.CleanupUploadTemporaryFiles(this._tempFile, odinContext);
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(this._tempFile, descriptors, odinContext);
         }
 
         //
@@ -268,6 +268,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             await Task.CompletedTask;
             return false;
         }
-
     }
 }

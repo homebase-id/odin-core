@@ -73,7 +73,8 @@ public abstract class PayloadStreamWriterBase
         }
     }
 
-    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data, IOdinContext odinContext)
+    public virtual async Task AddThumbnail(string thumbnailUploadKey, string contentTypeFromMultipartSection, Stream data,
+        IOdinContext odinContext)
     {
         // Note: this assumes you've validated the manifest; so i wont check for duplicates etc
 
@@ -157,10 +158,11 @@ public abstract class PayloadStreamWriterBase
     {
         if (_package?.TempFile != null)
         {
-            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.TempFile.AsTempFileUpload(), odinContext);
+            var uploadedPayloads = _package.GetFinalPayloadDescriptors();
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.TempFile.AsTempFileUpload(), uploadedPayloads, odinContext);
         }
     }
-    
+
     /// <summary>
     /// Validates the new attachments against the existing header
     /// </summary>
@@ -191,12 +193,14 @@ public abstract class PayloadStreamWriterBase
 
         if (!existingServerFileHeader.FileMetadata.IsEncrypted && _package.GetPayloadsWithValidIVs().Any())
         {
-            throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted", OdinClientErrorCode.InvalidUpload);
+            throw new OdinClientException("All payload IVs must be 0 bytes when server file header is not encrypted",
+                OdinClientErrorCode.InvalidUpload);
         }
 
         if (existingServerFileHeader.FileMetadata.IsEncrypted && !_package.Payloads.All(p => p.HasStrongIv()))
         {
-            throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes", OdinClientErrorCode.InvalidUpload);
+            throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes",
+                OdinClientErrorCode.InvalidUpload);
         }
     }
 
@@ -208,5 +212,4 @@ public abstract class PayloadStreamWriterBase
             DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
-    
 }

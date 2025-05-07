@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
@@ -89,6 +90,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("upload")]
         public async Task<PeerTransferResponse> ReceiveIncomingTransfer()
         {
+            List<PayloadDescriptor> uploadedPayloads = new();
             try
             {
                 WebOdinContext.Caller.AssertCallerIsConnected();
@@ -138,7 +140,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                     {
                         if (IsPayloadPart(section))
                         {
-                            await ProcessPayloadSection(section, metadata);
+                            var descriptor= await ProcessPayloadSection(section, metadata);
+                            uploadedPayloads.Add(descriptor);
                         }
 
                         if (IsThumbnail(section))
@@ -159,7 +162,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 {
                     if (null != _incomingTransferService)
                     {
-                        await _incomingTransferService.CleanupTempFiles(WebOdinContext);
+                        await _incomingTransferService.CleanupTempFiles(uploadedPayloads, WebOdinContext);
                     }
                 }
                 catch (Exception e)
@@ -271,10 +274,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return transferInstructionSet;
         }
 
-        private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata)
+        private async Task<PayloadDescriptor> ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata)
         {
-            
-
             AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
 
             // Validate the payload key is defined in the set being sent
@@ -286,12 +287,11 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             string extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
             await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext);
+            return payloadDescriptor;
         }
 
         private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata)
         {
-            
-
             AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey, out _);
 
             var parts = thumbnailUploadKey.Split(TenantPathManager.TransitThumbnailKeyDelimiter);

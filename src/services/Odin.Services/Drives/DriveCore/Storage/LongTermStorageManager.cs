@@ -440,9 +440,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Moves the specified <param name="sourceFile"></param> to long term storage.  Returns the storage UID used in the filename
         /// </summary>
-        public void MovePayloadToLongTerm(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
+        public void CopyPayloadToLongTerm(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
-            Benchmark.Milliseconds(logger, "MovePayloadToLongTerm", () =>
+            Benchmark.Milliseconds(logger, nameof(CopyPayloadToLongTerm), () =>
             {
                 if (!File.Exists(sourceFile))
                 {
@@ -450,12 +450,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
 
                 var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid, ensureExists: true);
-                driveFileReaderWriter.MoveFile(sourceFile, destinationFile);
-                logger.LogDebug("Payload: moved {sourceFile} to {destinationFile}", sourceFile, destinationFile);
+                driveFileReaderWriter.CopyFile(sourceFile, destinationFile);
+                logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
             });
         }
 
-        public void MoveThumbnailToLongTerm(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
+        public void CopyThumbnailToLongTerm(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
@@ -477,7 +477,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
                 driveFileReaderWriter.CreateDirectory(dir);
 
-                driveFileReaderWriter.MoveFile(sourceThumbnailFilePath, destinationFile);
+                driveFileReaderWriter.CopyFile(sourceThumbnailFilePath, destinationFile);
                 logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                     sourceThumbnailFilePath, destinationFile);
             });

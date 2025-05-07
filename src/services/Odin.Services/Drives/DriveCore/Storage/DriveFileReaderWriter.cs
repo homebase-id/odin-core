@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -183,6 +184,38 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
+    public void CopyFile(string sourceFilePath, string destinationFilePath)
+    {
+        try
+        {
+            TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .Execute(() =>
+                {
+                    try
+                    {
+                        File.Copy(sourceFilePath, destinationFilePath, true);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "MoveFile (TryRetry) {message}", e.Message);
+                        throw;
+                    }
+                });
+        }
+        catch (TryRetryException e)
+        {
+            throw e.InnerException!;
+        }
+
+        if (!File.Exists(destinationFilePath))
+        {
+            throw new OdinSystemException(
+                $"Error during file copy operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
+        }
+    }
+    
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
@@ -261,7 +294,7 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public void DeleteFiles(string[] paths)
+    public void DeleteFiles(IEnumerable<string> paths)
     {
         foreach (var path in paths)
         {
