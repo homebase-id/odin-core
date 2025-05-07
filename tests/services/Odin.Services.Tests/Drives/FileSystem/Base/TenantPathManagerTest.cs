@@ -111,13 +111,13 @@ public class TenantPathManagerTests
         var (_context, _manager) = Zetup();
 
         var driveId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var fileId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var fileId = Guid.Parse("33333333-3333-3333-3333-3333333333ab");
         var payloadKey = "key1";
         var payloadUid = new UnixTimeUtcUnique(1234567890);
         var expected = Path.Combine(
             _manager.GetStorageDriveBasePath(driveId),
-            "3333", "33", "33", "33",
-            "33333333333333333333333333333333-key1-1234567890.payload"
+            "a", "b",
+            "333333333333333333333333333333ab-key1-1234567890.payload"
         );
         ClassicAssert.AreEqual(expected, _manager.GetPayloadDirectoryAndFileName(driveId, fileId, payloadKey, payloadUid));
     }
@@ -128,13 +128,13 @@ public class TenantPathManagerTests
         var (_context, _manager) = Zetup();
 
         var driveId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        var fileId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var fileId = Guid.Parse("33333333-3333-3333-3333-3333333333ab");
         var payloadKey = "thumb1";
         var payloadUid = new UnixTimeUtcUnique(1234567890);
         var expected = Path.Combine(
             _manager.GetStorageDriveBasePath(driveId),
-            "3333", "33", "33", "33",
-            "33333333333333333333333333333333-thumb1-1234567890-100x200.thumb"
+            "a", "b",
+            "333333333333333333333333333333ab-thumb1-1234567890-100x200.thumb"
         );
         ClassicAssert.AreEqual(expected, _manager.GetThumbnailDirectoryandFileName(driveId, fileId, payloadKey, payloadUid, 100, 200));
     }
