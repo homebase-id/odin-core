@@ -16,6 +16,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
     [ApiController]
     public abstract class DriveFileUpdateControllerBase(ILogger logger) : DriveUploadControllerBase(logger)
     {
+        private readonly ILogger _logger = logger;
+
         /// <summary>
         /// Uploads a file using multi-part form data
         /// </summary>
@@ -84,7 +86,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Failure during file cleanup");
+                    _logger.LogError(e, "Failure during file cleanup");
                 }
             }
         }
