@@ -16,7 +16,7 @@ namespace Odin.Services.Drives.Reactions;
 /// </summary>
 public class ReactionContentService(DriveManager driveManager, DriveQuery driveQuery, IMediator mediator)
 {
-    public async Task AddReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext)
+    public async Task<bool> AddReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
@@ -34,9 +34,11 @@ public class ReactionContentService(DriveManager driveManager, DriveQuery driveQ
             },
             OdinContext = odinContext,
         });
+        
+        return true;
     }
 
-    public async Task DeleteReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext)
+    public async Task<bool> DeleteReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
@@ -54,6 +56,8 @@ public class ReactionContentService(DriveManager driveManager, DriveQuery driveQ
             },
             OdinContext = odinContext,
         });
+
+        return true;
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFileAsync(InternalDriveFileId file, IOdinContext odinContext)

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -64,10 +65,32 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return bytesWritten;
         }
 
+        public async Task CleanupInboxFiles(TempFile tempFile, List<PayloadDescriptor> descriptors)
+        {
+            if (tempFile.StorageType != TempStorageType.Inbox)
+            {
+                logger.LogDebug("{method} ignoring call to cleanup {type} files", nameof(CleanupInboxFiles), tempFile.StorageType);
+                return;
+            }
+
+            await CleanupTempFilesInternal(tempFile, descriptors);
+        }
+
         /// <summary>
         /// Deletes all files matching <param name="tempFile"></param> regardless of extension
         /// </summary>
-        public async Task CleanupTempFiles(TempFile tempFile, List<PayloadDescriptor> descriptors)
+        public async Task CleanupUploadedTempFiles(TempFile tempFile, List<PayloadDescriptor> descriptors)
+        {
+            if (tempFile.StorageType != TempStorageType.Upload)
+            {
+                logger.LogDebug("{method} ignoring call to cleanup {type} files", nameof(CleanupUploadedTempFiles), tempFile.StorageType);
+                return;
+            }
+
+            await CleanupTempFilesInternal(tempFile, descriptors);
+        }
+
+        private async Task CleanupTempFilesInternal(TempFile tempFile, List<PayloadDescriptor> descriptors)
         {
             try
             {
@@ -78,18 +101,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
 
-                var dir = GetFileDirectory(drive, tempFile);
                 var targetFiles = new List<string>();
                 descriptors!.ForEach(descriptor =>
                 {
-                    var payloadFilename = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-                    targetFiles.Add(Path.Combine(dir, payloadFilename));
+                    var payloadExtension = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
+                    string payloadDirectoryAndFilename = GetTempFilenameAndPathInternal(drive, tempFile, payloadExtension);
+                    targetFiles.Add(payloadDirectoryAndFilename);
 
                     descriptor.Thumbnails?.ForEach(thumb =>
                     {
-                        var thumbnailFilename = TenantPathManager.CreateThumbnailFileNameAndExtension(descriptor.Key, descriptor.Uid,
-                            thumb.PixelWidth, thumb.PixelHeight);
-                        targetFiles.Add(Path.Combine(dir, thumbnailFilename));
+                        var thumbnailExtension = TenantPathManager.CreateThumbnailFileNameAndExtension(descriptor.Key,
+                            descriptor.Uid,
+                            thumb.PixelWidth,
+                            thumb.PixelHeight);
+                        string thumbnailDirectoryAndFilename = GetTempFilenameAndPathInternal(drive, tempFile, thumbnailExtension);
+                        targetFiles.Add(thumbnailDirectoryAndFilename);
                     });
                 });
 
@@ -125,6 +151,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         private async Task<string> GetTempFilenameAndPathInternal(TempFile tempFile, string extension, bool ensureExists = false)
         {
             var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
+            return GetTempFilenameAndPathInternal(drive, tempFile, extension, ensureExists);
+        }
+
+        private string GetTempFilenameAndPathInternal(StorageDrive drive, TempFile tempFile, string extension, bool ensureExists = false)
+        {
             var fileId = tempFile.File.FileId;
 
             string dir = GetFileDirectory(drive, tempFile, ensureExists);
