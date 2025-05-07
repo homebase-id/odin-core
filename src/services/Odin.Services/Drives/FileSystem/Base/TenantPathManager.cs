@@ -31,7 +31,6 @@ public class TenantPathManager
 {
     public readonly Guid TenantId;
 
-    public readonly string TenantShard;
     public readonly string TempStoragePath;
     public readonly string PayloadStoragePath;
     public readonly string HeaderDataStoragePath;
@@ -41,6 +40,8 @@ public class TenantPathManager
     public readonly string TenantDataRootPath;
 
     protected readonly string RootPath;
+
+    protected const string TenantShard = "shard1";
 
     public const string ValidPayloadKeyRegex = "^[a-z0-9_]{8,10}$";
     public const string FileNameSectionDelimiter = "-";
@@ -63,11 +64,9 @@ public class TenantPathManager
     public const string PayloadDelimiter = "-";
     public const string TransitThumbnailKeyDelimiter = "|";
 
-    public TenantPathManager(OdinConfiguration config, string payloadShardKey, Guid tenantId)
+    public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
         TenantId = tenantId;
-        TenantShard = payloadShardKey;
-        ArgumentException.ThrowIfNullOrEmpty(TenantShard, nameof(TenantShard));
 
         TenantDataRootPath = config.Host.TenantDataRootPath;
         ArgumentException.ThrowIfNullOrEmpty(TenantDataRootPath, nameof(TenantDataRootPath));

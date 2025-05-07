@@ -68,6 +68,7 @@ using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
+using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Hosting;
 
@@ -79,7 +80,6 @@ public static class TenantServices
     internal static void ConfigureTenantServices(
         ContainerBuilder cb,
         IdentityRegistration registration,
-        TenantStorageConfig storageConfig,
         OdinConfiguration odinConfig)
     {
         //
@@ -318,7 +318,7 @@ public static class TenantServices
         cb.AddTenantBackgroundServices(registration);
 
         // Tenant database services
-        cb.ConfigureDatabaseServices(registration, storageConfig, odinConfig);
+        cb.ConfigureDatabaseServices(registration, odinConfig);
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
@@ -338,7 +338,6 @@ public static class TenantServices
     private static void ConfigureDatabaseServices(
         this ContainerBuilder cb,
         IdentityRegistration registration,
-        TenantStorageConfig storageConfig,
         OdinConfiguration config)
     {
         cb.AddDatabaseCacheServices();
@@ -346,9 +345,8 @@ public static class TenantServices
         {
             case DatabaseType.Sqlite:
             {
-                cb.AddSqliteIdentityDatabaseServices(
-                    registration.Id,
-                    Path.Combine(storageConfig.HeaderDataStoragePath, "identity.db"));
+                var tenantPathManager = new TenantPathManager(config, registration.Id);
+                cb.AddSqliteIdentityDatabaseServices(registration.Id, tenantPathManager.GetIdentityDatabasePath());
                 break;
             }
             case DatabaseType.Postgres:
