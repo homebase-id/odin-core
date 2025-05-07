@@ -49,17 +49,16 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 return await ProcessUpload(fileSystemWriter, reader);
             }
-            catch
+            finally
             {
                 try
                 {
                     await fileSystemWriter.CleanupTempFiles(WebOdinContext);
                 }
-                catch(Exception e) 
+                catch (Exception e)
                 {
-                    logger.LogError(e, " Failure during file cleanup");
+                    logger.LogError(e, "Failure during file cleanup");
                 }
-                throw;
             }
         }
 
@@ -138,7 +137,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information
-            
+
             return new TransitResult()
             {
                 RemoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()

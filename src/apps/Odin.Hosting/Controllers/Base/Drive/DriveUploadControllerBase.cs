@@ -38,18 +38,16 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 return await ProcessUpload(reader, driveUploadService);
             }
-            catch
+            finally
             {
                 try
                 {
                     await driveUploadService.CleanupTempFiles(WebOdinContext);
                 }
-                catch(Exception e) 
+                catch (Exception e)
                 {
-                    logger.LogError(e, " Failure during file cleanup");
+                    logger.LogError(e, "Failure during file cleanup");
                 }
-                
-                throw;
             }
         }
 

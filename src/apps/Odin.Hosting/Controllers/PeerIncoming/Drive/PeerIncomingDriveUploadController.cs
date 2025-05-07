@@ -156,7 +156,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
                 return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext);
             }
-            catch
+            finally
             {
                 try
                 {
@@ -169,7 +169,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 {
                     _logger.LogError(e, "Error during file cleanup");
                 }
-                throw;
             }
         }
 

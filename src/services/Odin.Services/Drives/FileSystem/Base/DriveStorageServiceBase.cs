@@ -541,10 +541,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     await longTermStorageManager.DeleteUnassociatedTargetFiles(targetFile);
                     throw;
                 }
-                finally
-                {
-                    await uploadStorageManager.CleanupUploadedTempFiles(originFile, newMetadata.Payloads);
-                }
 
                 if (serverHeader != null && await ShouldRaiseDriveEventAsync(targetFile))
                 {
@@ -618,33 +614,27 @@ namespace Odin.Services.Drives.FileSystem.Base
                 serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
                 payloads = newMetadata.Payloads ?? [];
-                try
+
+                if (!ignorePayload.GetValueOrDefault(false))
                 {
-                    if (!ignorePayload.GetValueOrDefault(false))
-                    {
-                        await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive);
-                    }
-
-                    serverHeader = new ServerFileHeader()
-                    {
-                        EncryptedKeyHeader = await EncryptKeyHeader(originFile.File.DriveId, keyHeader, odinContext),
-                        FileMetadata = newMetadata,
-                        ServerMetadata = serverMetadata
-                    };
-
-                    await WriteFileHeaderInternal(serverHeader);
-                    success = true;
-
-                    if (!ignorePayload.GetValueOrDefault(false))
-                    {
-                        //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
-                        var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
-                        await DeleteZombiePayloads(targetFile, zombiePayloads);
-                    }
+                    await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive);
                 }
-                finally
+
+                serverHeader = new ServerFileHeader()
                 {
-                    await uploadStorageManager.CleanupUploadedTempFiles(originFile, payloads);
+                    EncryptedKeyHeader = await EncryptKeyHeader(originFile.File.DriveId, keyHeader, odinContext),
+                    FileMetadata = newMetadata,
+                    ServerMetadata = serverMetadata
+                };
+
+                await WriteFileHeaderInternal(serverHeader);
+                success = true;
+
+                if (!ignorePayload.GetValueOrDefault(false))
+                {
+                    //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
+                    var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
+                    await DeleteZombiePayloads(targetFile, zombiePayloads);
                 }
 
                 if (serverHeader != null && await ShouldRaiseDriveEventAsync(targetFile))
@@ -700,27 +690,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             var zombiePayloads = existingServerHeader.FileMetadata.Payloads
                 .Where(existingPayload => incomingPayloads.Any(incomingPayload => incomingPayload.KeyEquals(existingPayload))).ToList();
 
-            try
-            {
-                //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive);
+            //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
+            await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive);
 
-                // get all the existing payloads that are not in the incoming list, we'll keep these
-                var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
-                    existingPayload => incomingPayloads.All(incomingPayload => !incomingPayload.KeyEquals(existingPayload)));
+            // get all the existing payloads that are not in the incoming list, we'll keep these
+            var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
+                existingPayload => incomingPayloads.All(incomingPayload => !incomingPayload.KeyEquals(existingPayload)));
 
-                var allPayloads = incomingPayloads.Concat(payloadsToKeep).ToList();
+            var allPayloads = incomingPayloads.Concat(payloadsToKeep).ToList();
 
-                existingServerHeader.FileMetadata.Payloads = allPayloads;
-                existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
+            existingServerHeader.FileMetadata.Payloads = allPayloads;
+            existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
 
-                await WriteFileHeaderInternal(existingServerHeader);
-                await DeleteZombiePayloads(targetFile, zombiePayloads); // Only remove the replaced payloads if successful
-            }
-            finally
-            {
-                await uploadStorageManager.CleanupUploadedTempFiles(originFile, incomingPayloads); // Clean up the temp uploaded files
-            }
+            await WriteFileHeaderInternal(existingServerHeader);
+            await DeleteZombiePayloads(targetFile, zombiePayloads); // Only remove the replaced payloads if successful
 
             if (await ShouldRaiseDriveEventAsync(targetFile))
             {
@@ -1137,24 +1120,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
                 var zombies = new List<PayloadDescriptor>();
 
-                try
-                {
-                    zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
-                    zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
+                zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
+                zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
 
-                    // inbox item must be marked failure; no matter what
-                    await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
-                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+                // inbox item must be marked failure; no matter what
+                await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
+                    manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
 
-                    success = true;
+                success = true;
 
-                    // inbox item must be marked complete; no matter what
-                    await DeleteZombiePayloads(targetFile, zombies);
-                }
-                finally
-                {
-                    await uploadStorageManager.CleanupUploadedTempFiles(originFile, uploadedPayloads);
-                }
+                // inbox item must be marked complete; no matter what
+                await DeleteZombiePayloads(targetFile, zombies);
+
 
                 if (await ShouldRaiseDriveEventAsync(targetFile))
                 {
