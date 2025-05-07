@@ -153,7 +153,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                     }
                 }
 
-
                 return await _incomingTransferService.FinalizeTransfer(metadata, WebOdinContext);
             }
             finally
