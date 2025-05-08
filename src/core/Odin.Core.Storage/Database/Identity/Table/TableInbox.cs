@@ -323,7 +323,7 @@ public class TableInbox(
     /// Commits (removes) the items previously popped with the supplied 'popstamp'
     /// </summary>
     /// <param name="popstamp"></param>
-    public async Task PopCommitListAsync(Guid popstamp, Guid driveId, List<Guid> listFileId)
+    public async Task<int> PopCommitListAsync(Guid popstamp, Guid driveId, List<Guid> listFileId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
@@ -346,14 +346,18 @@ public class TableInbox(
         param1.Value = popstamp.ToByteArray();
         param3.Value = odinIdentity.IdAsByteArray();
 
+        int n = 0;
+
         // I'd rather not do a TEXT statement, this seems safer but slower.
         foreach (var id in listFileId)
         {
             param2.Value = id.ToByteArray();
-            await cmd.ExecuteNonQueryAsync();
+            n += await cmd.ExecuteNonQueryAsync();
         }
 
         tx.Commit();
+
+        return n;
     }
 
 

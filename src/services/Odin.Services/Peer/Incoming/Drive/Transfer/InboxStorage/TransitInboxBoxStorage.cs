@@ -81,7 +81,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public async Task MarkCompleteAsync(InternalDriveFileId file, Guid marker)
         {
-            await tableInbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
+            int r = await tableInbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
+
+            // TODO TODD, you need to throw an exception here is r != 1.
             
             PerformanceCounter.IncrementCounter("Inbox Mark Complete");
         }
