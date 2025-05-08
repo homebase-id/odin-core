@@ -284,7 +284,7 @@ namespace Odin.Hosting
             if (idReg != null)
             {
                 var tenantContext = registry.CreateTenantContext(idReg);
-                sslRoot = tenantContext.TenantPathManager.SslStoragePath;
+                sslRoot = tenantContext.TenantPathManager.SslPath;
                 domain = idReg.PrimaryDomainName;
 
                 // Require client certificate if domain prefix is "capi"

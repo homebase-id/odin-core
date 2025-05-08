@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
+using Odin.Services.Drives.FileSystem.Base;
 using Directory = System.IO.Directory;
 
 namespace Odin.Services.Background.BackgroundServices.Tenant;
@@ -30,7 +31,7 @@ public sealed class TempFolderCleanUpBackgroundService(
             {
                 TempFolderCleanUp.Execute(
                     logger,
-                    tenantContext.TenantPathManager.TempStoragePath,
+                    tenantContext.TenantPathManager.TempPath,
                     uploadAgeThreshold,
                     inboxAgeThreshold,
                     stoppingToken);
@@ -75,7 +76,7 @@ public static class TempFolderCleanUp
             throw new OdinSystemException($"Temp folder {tempFolder} does not exist");
         }
 
-        var drivesFolder = Path.Combine(tempFolder, "drives"); // SEB:TODO get this path from PathManager
+        var drivesFolder = Path.Combine(tempFolder, TenantPathManager.DrivesFolder);
         if (!Directory.Exists(drivesFolder))
         {
             return;
@@ -91,13 +92,13 @@ public static class TempFolderCleanUp
 
             if (!stoppingToken.IsCancellationRequested)
             {
-                var uploadsPath = Path.Combine(drive, "uploads"); // SEB:TODO get this path from PathManager
+                var uploadsPath = Path.Combine(drive, TenantPathManager.UploadFolder);
                 CleanUp(logger, uploadsPath, uploadAgeThreshold, stoppingToken);
             }
 
             if (!stoppingToken.IsCancellationRequested)
             {
-                var inboxPath = Path.Combine(drive, "inbox"); // SEB:TODO get this path from PathManager
+                var inboxPath = Path.Combine(drive, TenantPathManager.InboxFolder);
                 CleanUp(logger, inboxPath, inboxAgeThreshold, stoppingToken);
             }
         }

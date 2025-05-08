@@ -357,10 +357,10 @@ public class DriveManager
     private StorageDrive ToStorageDrive(StorageDriveBase sdb)
     {
         //TODO: this should probably go in config
-        const string driveFolder = "drives";
         return new StorageDrive(
-            Path.Combine(_tenantContext.TenantPathManager.TempStoragePath, driveFolder),
-            Path.Combine(_tenantContext.TenantPathManager.PayloadStoragePath, driveFolder), sdb);
+            _tenantContext.TenantPathManager.TempDrivesPath,
+            _tenantContext.TenantPathManager.PayloadsDrivesPath,
+            sdb);
     }
 
     private void CacheDrive(StorageDrive drive)

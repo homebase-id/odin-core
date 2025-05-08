@@ -181,7 +181,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 //var dir =  GetPayloadDirectory(drive, fileId, FilePart.Thumb);
                 //var path = Path.Combine(dir, fileName);
 
-                var path = _tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, fileId, payloadKey, payloadUid, width, height);
+                var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, width, height);
 
                 //if (s != path)
                 //{
@@ -300,7 +300,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public bool ThumbnailExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
-            var path = _tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, fileId, descriptor.Key,descriptor.Uid,
+            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key,descriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
             return driveFileReaderWriter.FileExists(path);
@@ -375,7 +375,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var result = Benchmark.Milliseconds(logger, "GetThumbnailStream", () =>
             {
-                var fileName = _tenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
+                var fileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
                 var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
                 var path = Path.Combine(dir, fileName);
 
@@ -470,7 +470,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var payloadKey = payloadDescriptor.Key;
 
                 TenantPathManager.AssertValidPayloadKey(payloadKey);
-                var destinationFile = _tenantPathManager.GetThumbnailDirectoryandFileName(drive.Id, targetFileId, payloadKey, payloadDescriptor.Uid,
+                var destinationFile = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, targetFileId, payloadKey, payloadDescriptor.Uid,
                     thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
                 var dir = Path.GetDirectoryName(destinationFile) ??
