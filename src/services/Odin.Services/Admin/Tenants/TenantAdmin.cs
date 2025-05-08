@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -12,31 +11,22 @@ using Odin.Services.Registry;
 namespace Odin.Services.Admin.Tenants;
 #nullable enable
 
-public class TenantAdmin : ITenantAdmin
+public class TenantAdmin(
+    ILogger<TenantAdmin> logger,
+    ILoggerFactory loggerFactory,
+    IJobManager jobManager,
+    IIdentityRegistry identityRegistry)
+    : ITenantAdmin
 {
-    private readonly ILogger<TenantAdmin> _logger;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly IJobManager _jobManager;
-    private readonly IIdentityRegistry _identityRegistry;
-
-    public TenantAdmin(
-        ILogger<TenantAdmin> logger,
-        ILoggerFactory loggerFactory,
-        IJobManager jobManager,
-        IIdentityRegistry identityRegistry)
-    {
-        _logger = logger;
-        _loggerFactory = loggerFactory;
-        _jobManager = jobManager;
-        _identityRegistry = identityRegistry;
-    }
+    private readonly ILogger<TenantAdmin> _logger = logger;
+    private readonly ILoggerFactory _loggerFactory = loggerFactory;
 
     //
 
     public async Task<List<TenantModel>> GetTenants(bool includePayload)
     {
         var result = new List<TenantModel>();
-        var identities = await _identityRegistry.GetList();
+        var identities = await identityRegistry.GetList();
         foreach (var identityRegistration in identities.Results)
         {
             result.Add(await Map(identityRegistration, includePayload));
@@ -48,7 +38,7 @@ public class TenantAdmin : ITenantAdmin
 
     public async Task<TenantModel?> GetTenantAsync(string domain, bool includePayload)
     {
-        var identity = await _identityRegistry.GetAsync(domain);
+        var identity = await identityRegistry.GetAsync(domain);
         return identity == null ? null : await Map(identity, includePayload);
     }
 
@@ -56,15 +46,15 @@ public class TenantAdmin : ITenantAdmin
 
     public async Task<string> EnqueueDeleteTenant(string domain)
     {
-        if (!await _identityRegistry.IsIdentityRegistered(domain))
+        if (!await identityRegistry.IsIdentityRegistered(domain))
         {
             throw new OdinClientException($"{domain} not found");
         }
 
-        var job = _jobManager.NewJob<DeleteTenantJob>();
+        var job = jobManager.NewJob<DeleteTenantJob>();
         job.Data.Domain = domain;
 
-        var jobId = await _jobManager.ScheduleJobAsync(job, new JobSchedule
+        var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = 3,
             RetryDelay = TimeSpan.FromSeconds(5),
@@ -80,15 +70,15 @@ public class TenantAdmin : ITenantAdmin
 
     public async Task<string> EnqueueExportTenant(string domain)
     {
-        if (!await _identityRegistry.IsIdentityRegistered(domain))
+        if (!await identityRegistry.IsIdentityRegistered(domain))
         {
             throw new OdinClientException($"{domain} not found");
         }
-        
-        var job = _jobManager.NewJob<ExportTenantJob>();
+
+        var job = jobManager.NewJob<ExportTenantJob>();
         job.Data.Domain = domain;
 
-        var jobId = await _jobManager.ScheduleJobAsync(job, new JobSchedule
+        var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             MaxAttempts = 3,
             RetryDelay = TimeSpan.FromSeconds(5),
@@ -99,26 +89,26 @@ public class TenantAdmin : ITenantAdmin
 
         return jobId.ToString();
     }
-    
+
     //
 
     public async Task<bool> TenantExists(string domain)
     {
-        return await _identityRegistry.IsIdentityRegistered(domain);
+        return await identityRegistry.IsIdentityRegistered(domain);
     }
 
     //
 
     public async Task EnableTenant(string domain)
     {
-        await _identityRegistry.ToggleDisabled(domain, false);
+        await identityRegistry.ToggleDisabled(domain, false);
     }
 
     //
 
     public async Task DisableTenant(string domain)
     {
-        await _identityRegistry.ToggleDisabled(domain, true);
+        await identityRegistry.ToggleDisabled(domain, true);
     }
 
     //
@@ -132,46 +122,17 @@ public class TenantAdmin : ITenantAdmin
             Enabled = !identityRegistration.Disabled
         };
 
-        if (_identityRegistry is FileSystemIdentityRegistry fsir)
+        if (identityRegistry is FileSystemIdentityRegistry fsir)
         {
             result.RegistrationPath = Path.Combine(fsir.RegistrationRoot, result.Id);
             result.RegistrationSize = await GetDirectoryByteSizeAsync(result.RegistrationPath);
 
             if (includePayload)
             {
-                var shards = await GetPayloadShards(fsir.ShardablePayloadRoot, result.Id);
-                result.PayloadShards = shards;
-                result.PayloadSize = shards.Sum(p => p.Size);
+                result.PayloadPath = Path.Combine(fsir.PayloadRoot, result.Id);
+                result.PayloadSize = await GetDirectoryByteSizeAsync(result.PayloadPath);
             }
         }
-
-        return result;
-    }
-
-    //
-
-    private static async Task<List<TenantModel.PayloadShard>> GetPayloadShards(string payloadRootPath, string tenantId)
-    {
-        var result = new List<TenantModel.PayloadShard>();
-
-        var shards = Directory.GetDirectories(payloadRootPath);
-        foreach (var shard in shards)
-        {
-            var tenantPayloadPath = Path.Combine(shard, tenantId);
-            if (Directory.Exists(tenantPayloadPath))
-            {
-                result.Add(new TenantModel.PayloadShard()
-                {
-                    Name = Path.GetRelativePath(payloadRootPath, shard).Trim('/', '\\'),
-                    Path = tenantPayloadPath,
-                    Size = await GetDirectoryByteSizeAsync(tenantPayloadPath)
-                });
-            }
-        }
-        result.Sort((a, b) => string.Compare(
-            a.Path,
-            b.Path,
-            StringComparison.CurrentCulture));
 
         return result;
     }

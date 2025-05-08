@@ -110,12 +110,7 @@ public sealed class ListTenantsCommand : AsyncCommand<ListTenantsCommand.Setting
             if (settings.IncludePayload)
             {
                 var size = tenant.PayloadSize?.HumanReadableBytes() ?? "n/a";
-                var p = t.AddNode($"[blue]Payload Size:[/] {size}");
-                foreach (var payload in tenant.PayloadShards!)
-                {
-                    var s = p.AddNode($"[blue]{payload.Name}[/]");
-                    s.AddNode($"[blue]Size:[/] {payload.Size.HumanReadableBytes()}");
-                }
+                t.AddNode($"[blue]Payload Size:[/] {size}");
             }
         }
 
