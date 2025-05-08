@@ -38,7 +38,7 @@ namespace Odin.Services.Registry;
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
     public string RegistrationRoot { get; private set; }
-    public string ShardablePayloadRoot { get; private set; }
+    public string PayloadRoot { get; private set; }
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
@@ -64,7 +64,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
         RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
-        ShardablePayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
+        PayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
         _tempFolderRoot = tenantDataRootPath;
 
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
@@ -265,7 +265,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var targetPayloadsPath = Path.Combine(targetPath, "payloads");
             Directory.CreateDirectory(targetPayloadsPath);
 
-            var shards = Directory.GetDirectories(ShardablePayloadRoot);
+            var shards = Directory.GetDirectories(PayloadRoot);
             foreach (var shard in shards)
             {
                 var payloadSourcePath = Path.Combine(shard, registrationId);
@@ -419,7 +419,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
         }
 
-        Directory.CreateDirectory(ShardablePayloadRoot);
+        Directory.CreateDirectory(PayloadRoot);
         if (!Directory.Exists(RegistrationRoot))
         {
             throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
@@ -642,7 +642,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         return Task.Run(() =>
         {
-            var shards = Directory.GetDirectories(ShardablePayloadRoot);
+            var shards = Directory.GetDirectories(PayloadRoot);
             foreach (var shard in shards)
             {
                 var id = identity.Id.ToString();
