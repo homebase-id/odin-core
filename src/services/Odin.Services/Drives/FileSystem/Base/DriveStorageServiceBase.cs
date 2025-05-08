@@ -202,6 +202,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        public async Task<string> GetTempFilePath(TempFile tempFile, string extension)
+        {
+            return await uploadStorageManager.GetPath(tempFile, extension);
+        }
+
         public async Task<uint> WriteTempStream(TempFile tempFile, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
@@ -1255,7 +1260,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task CleanupUploadTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors, IOdinContext odinContext)
+        public async Task CleanupUploadTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors,
+            IOdinContext odinContext)
         {
             if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
             {
@@ -1263,7 +1269,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task CleanupInboxTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors, IOdinContext odinContext)
+        public async Task CleanupInboxTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors, IOdinContext odinContext,
+            string[] additionalFiles = null)
         {
             if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
             {

@@ -451,7 +451,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 //}
 
                 var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid, ensureExists: true);
-                driveFileReaderWriter.CopyFileSafely(sourceFile, destinationFile);
+                driveFileReaderWriter.CopyPayloadFile(sourceFile, destinationFile);
                 logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
             });
         }
@@ -478,7 +478,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
                 driveFileReaderWriter.CreateDirectory(dir);
 
-                driveFileReaderWriter.CopyFileSafely(sourceThumbnailFilePath, destinationFile);
+                driveFileReaderWriter.CopyPayloadFile(sourceThumbnailFilePath, destinationFile);
                 logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                     sourceThumbnailFilePath, destinationFile);
             });

@@ -28,6 +28,10 @@ public record ParsedThumbnailFileRecord
 
 public class TenantPathManager
 {
+ 
+    public static readonly string TransferInstructionSetExtension = "transferkeyheader";
+    public const string MetadataExtension = "metadata";
+    
     public const string ValidPayloadKeyRegex = "^[a-z0-9_]{8,10}$";
     public const string FileNameSectionDelimiter = "-";
     public const string PayloadExtension = ".payload";

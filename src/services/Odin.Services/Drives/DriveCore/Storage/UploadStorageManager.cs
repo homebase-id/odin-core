@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -74,6 +73,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
 
             await CleanupTempFilesInternal(tempFile, descriptors);
+            
+            //TODO: the extensions should be centralized
+            string[] additionalFiles =
+            [
+                await GetTempFilenameAndPathInternal(tempFile, TenantPathManager.MetadataExtension),
+                await GetTempFilenameAndPathInternal(tempFile, TenantPathManager.TransferInstructionSetExtension)
+            ];
+
+            // clean up the transfer header and metadata since we keep those in the inbox
+            driveFileReaderWriter.DeleteFiles(additionalFiles);
         }
 
         /// <summary>
@@ -102,6 +111,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
 
                 var targetFiles = new List<string>();
+
+                // add in transfer history and metadata
+
+
                 descriptors!.ForEach(descriptor =>
                 {
                     var payloadExtension = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);

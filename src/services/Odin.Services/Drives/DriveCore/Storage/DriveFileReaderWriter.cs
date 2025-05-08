@@ -217,10 +217,13 @@ public sealed class DriveFileReaderWriter(
     //    }
     //}
 
-    public void CopyFileSafely(string sourcePath, string targetPath)
+    /// <summary>
+    /// Valid only when copying a payload or a thumbnail that uses our special design for Uids
+    /// </summary>
+    public void CopyPayloadFile(string sourcePath, string targetPath)
     {
         // Ensure the source file exists
-        FileInfo sourceInfo = new FileInfo(sourcePath);
+        FileInfo sourceInfo = new FileInfo(sourcePath); 
         if (!sourceInfo.Exists)
         {
             throw new OdinSystemException($"Source file '{sourcePath}' does not exist.");   
@@ -232,7 +235,7 @@ public sealed class DriveFileReaderWriter(
         FileInfo targetInfo = new FileInfo(targetPath);
         if (targetInfo.Exists)
         {        
-            // If sizes match, assume it’s valid and skip the copy
+            // If sizes match, assume itï¿½s valid and skip the copy
             if (targetInfo.Length == sourceInfo.Length)
             {
                 logger.LogDebug($"CopyFile: Target file '{targetPath}' already exists and is valid. No action needed.");
@@ -240,7 +243,7 @@ public sealed class DriveFileReaderWriter(
             }
             else
             {
-                // If sizes don’t match, it’s corrupt—delete it
+                // If sizes donï¿½t match, itï¿½s corruptï¿½delete it
                 logger.LogDebug($"CopyFile: Target file '{targetPath}' is corrupt. Deleting it.");
                 File.Delete(targetPath);        
             }    
@@ -274,7 +277,7 @@ public sealed class DriveFileReaderWriter(
             targetInfo = new FileInfo(targetPath);
             if (targetInfo.Exists)
             {
-                // If sizes match, assume it’s valid and skip the copy
+                // If sizes match, assume itï¿½s valid and skip the copy
                 if (targetInfo.Length == sourceInfo.Length)
                 {
                     return;
