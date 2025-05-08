@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Intrinsics.X86;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -184,37 +185,110 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public void CopyFile(string sourceFilePath, string destinationFilePath)
+    //public void CopyFile(string sourceFilePath, string destinationFilePath)
+    //{
+    //    try
+    //    {
+    //        TryRetry.Create()
+    //            .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+    //            .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+    //            .Execute(() =>
+    //            {
+    //                try
+    //                {
+    //                    File.Copy(sourceFilePath, destinationFilePath, true);
+    //                }
+    //                catch (Exception e)
+    //                {
+    //                    logger.LogDebug(e, "MoveFile (TryRetry) {message}", e.Message);
+    //                    throw;
+    //                }
+    //            });
+    //    }
+    //    catch (TryRetryException e)
+    //    {
+    //        throw e.InnerException!;
+    //    }
+
+    //    if (!File.Exists(destinationFilePath))
+    //    {
+    //        throw new OdinSystemException(
+    //            $"Error during file copy operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
+    //    }
+    //}
+
+    public void CopyFileSafely(string sourcePath, string targetPath)
     {
+        // Ensure the source file exists
+        FileInfo sourceInfo = new FileInfo(sourcePath);
+        if (!sourceInfo.Exists)
+        {
+            throw new OdinSystemException($"Source file '{sourcePath}' does not exist.");   
+        }
+        
+        // Check if the target file exists. If it does it is either already live
+        // due to a bug, or a previous copy attempt copied some files but not all
+        // let's not copy them again, the disk/network is likely slow then
+        FileInfo targetInfo = new FileInfo(targetPath);
+        if (targetInfo.Exists)
+        {        
+            // If sizes match, assume it’s valid and skip the copy
+            if (targetInfo.Length == sourceInfo.Length)
+            {
+                logger.LogDebug($"CopyFile: Target file '{targetPath}' already exists and is valid. No action needed.");
+                return;
+            }
+            else
+            {
+                // If sizes don’t match, it’s corrupt—delete it
+                logger.LogDebug($"CopyFile: Target file '{targetPath}' is corrupt. Deleting it.");
+                File.Delete(targetPath);        
+            }    
+        }
+
         try
         {
             TryRetry.Create()
                 .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
                 .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
                 .Execute(() =>
+            {
+                try
                 {
-                    try
-                    {
-                        File.Copy(sourceFilePath, destinationFilePath, true);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogDebug(e, "MoveFile (TryRetry) {message}", e.Message);
-                        throw;
-                    }
-                });
+                    File.Copy(sourcePath, targetPath, overwrite: false);
+                }
+                catch (IOException ex) when (ex.Message.Contains("already exists"))
+                {
+                    // If the copy fails because the file now exists, assume a competing thread created it
+                    throw new OdinSystemException($"Target file '{targetPath}' was created by another thread during the operation.");
+                }
+                catch (Exception ex)
+                {
+                    // Handle other potential errors (e.g., permissions or disk issues)
+                    logger.LogDebug(ex, "CopyFile (TryRetry) {message}", ex.Message);
+                    throw new OdinSystemException($"Failed to copy file: {ex.Message}", ex);
+                }
+            });
+
+            // This seems unnecessary
+            targetInfo = new FileInfo(targetPath);
+            if (targetInfo.Exists)
+            {
+                // If sizes match, assume it’s valid and skip the copy
+                if (targetInfo.Length == sourceInfo.Length)
+                {
+                    return;
+                }
+            }
+            throw new OdinSystemException(
+                $"Error during file copy operation.  FileCopy reported success but destination file does not exist or is incorrect size. [source file: {sourcePath}] [destination: {targetPath}]");
         }
         catch (TryRetryException e)
         {
             throw e.InnerException!;
         }
-
-        if (!File.Exists(destinationFilePath))
-        {
-            throw new OdinSystemException(
-                $"Error during file copy operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
-        }
     }
+
     
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.

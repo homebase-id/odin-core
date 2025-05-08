@@ -438,19 +438,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Moves the specified <param name="sourceFile"></param> to long term storage.  Returns the storage UID used in the filename
+        /// Moves the specified <param name="sourceFile"></param> to long term storage.
+        /// Returns the storage UID used in the filename
         /// </summary>
         public void CopyPayloadToLongTerm(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
             Benchmark.Milliseconds(logger, nameof(CopyPayloadToLongTerm), () =>
             {
-                if (!File.Exists(sourceFile))
-                {
-                    throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
-                }
+                //if (!File.Exists(sourceFile))
+                //{
+                //    throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
+                //}
 
                 var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid, ensureExists: true);
-                driveFileReaderWriter.CopyFile(sourceFile, destinationFile);
+                driveFileReaderWriter.CopyFileSafely(sourceFile, destinationFile);
                 logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
             });
         }
@@ -461,10 +462,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             Benchmark.Milliseconds(logger, "MoveThumbnailToLongTerm", () =>
             {
-                if (!File.Exists(sourceThumbnailFilePath))
-                {
-                    throw new OdinSystemException($"Thumbnail: source file does not exist: {sourceThumbnailFilePath}");
-                }
+                //if (!File.Exists(sourceThumbnailFilePath))
+                //{
+                //    throw new OdinSystemException($"Thumbnail: source file does not exist: {sourceThumbnailFilePath}");
+                //}
 
                 var payloadKey = payloadDescriptor.Key;
 
@@ -477,7 +478,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
                 driveFileReaderWriter.CreateDirectory(dir);
 
-                driveFileReaderWriter.CopyFile(sourceThumbnailFilePath, destinationFile);
+                driveFileReaderWriter.CopyFileSafely(sourceThumbnailFilePath, destinationFile);
                 logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                     sourceThumbnailFilePath, destinationFile);
             });
