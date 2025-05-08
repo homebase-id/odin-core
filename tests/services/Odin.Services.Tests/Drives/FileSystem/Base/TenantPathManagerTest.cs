@@ -96,13 +96,11 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.PayloadsPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString())));
 
         Assert.That(tenantPathManager.PayloadsDrivesPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives")));
     }
@@ -184,7 +182,6 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.GetDrivePayloadPath(driveId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives",
             "11111111abcdabcd1111111111111111",
@@ -226,7 +223,6 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.GetPayloadDirectory(driveId, fileId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives",
             "11111111abcdabcd1111111111111111",
@@ -297,7 +293,6 @@ public class TenantPathManagerTests
             Is.EqualTo(Path.Combine(
                 _config.Host.TenantDataRootPath,
                 "payloads",
-                "shard1", // SEB:TODO delete me after flattening
                 tenantId.ToString(),
                 "drives",
                 "11111111abcdabcd1111111111111111",
@@ -344,7 +339,6 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.GetThumbnailDirectory(driveId, fileId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives",
             "11111111abcdabcd1111111111111111",
@@ -381,7 +375,6 @@ public class TenantPathManagerTests
             Is.EqualTo(Path.Combine(
                 _config.Host.TenantDataRootPath,
                 "payloads",
-                "shard1", // SEB:TODO delete me after flattening
                 tenantId.ToString(),
                 "drives",
                 "11111111abcdabcd1111111111111111",

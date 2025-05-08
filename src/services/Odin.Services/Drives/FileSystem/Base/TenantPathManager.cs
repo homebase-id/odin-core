@@ -48,7 +48,6 @@ public class TenantPathManager
     public const string PayloadDelimiter = "-";
     public const string TransitThumbnailKeyDelimiter = "|";
     public const string RegJson = "reg.json";
-    public const string PayloadShard = "shard1"; // SEB:TODO delete me after flattening
 
     public readonly string RootPath; // e.g. /data/tenants
     public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
@@ -72,7 +71,7 @@ public class TenantPathManager
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
-        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder, PayloadShard);
+        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder);
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
