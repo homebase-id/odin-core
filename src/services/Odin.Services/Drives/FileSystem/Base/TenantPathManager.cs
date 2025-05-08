@@ -151,7 +151,7 @@ public class TenantPathManager
     public static string GetPayloadDirectoryFromGuid(Guid fileId)
     {
         var (highNibble, lowNibble) = GuidHelper.GetLastTwoNibbles(fileId);
-        return $"{highNibble}/{lowNibble}";
+        return Path.Combine(highNibble.ToString(), lowNibble.ToString());
     }
 
     public string GetPayloadDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
