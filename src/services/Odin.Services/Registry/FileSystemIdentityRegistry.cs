@@ -201,7 +201,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
             var tenantContext = CreateTenantContext(request.OdinId, true);
 
-            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslStoragePath);
+            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
             tc.SaveSslCertificate(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
@@ -615,7 +615,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };
 
-            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslStoragePath);
+            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
             var x509 = tc.GetSslCertificate(domain);
             if (x509 != null)
             {
@@ -678,7 +678,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
         var tenantContext = scope.Resolve<TenantContext>();
         var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
-        var certificateService = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslStoragePath);
+        var certificateService = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
         var certificate = certificateService.ResolveCertificate(registration.PrimaryDomainName);
         if (certificate != null)
         {
