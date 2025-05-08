@@ -50,22 +50,24 @@ public class TenantPathManager
     public const string RegJson = "reg.json";
     public const string PayloadShard = "shard1"; // SEB:TODO delete me after flattening
 
-    private string RootPath { get; }  // e.g. /data/tenants
-    private string RootRegistrationsPath { get; }  // e.g. /data/tenants/registrations
-    private string RootPayloadsPath { get; }  // e.g. /data/tenants/payloads
+    public readonly string RootPath; // e.g. /data/tenants
+    public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
+    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads
 
-    public string RegistrationPath { get; }  // e.g. /data/tenants/registrations/<tenant-id>/
-    public string HeadersPath { get; }  // e.g. /data/tenants/registrations/<tenant-id>/headers
-    public string SslPath { get; } // e.g. /data/tenants/registrations/<tenant-id>/ssl
-    public string StaticPath { get; }  // e.g. /data/tenants/registrations/<tenant-id>/static
-    public string TempPath { get; }  // e.g. /data/tenants/registrations/<tenant-id>/temp
-    public string TempDrivesPath { get; }  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
+    public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
+    public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
+    public readonly string SslPath; // e.g. /data/tenants/registrations/<tenant-id>/ssl
+    public readonly string StaticPath;  // e.g. /data/tenants/registrations/<tenant-id>/static
+    public readonly string TempPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
+    public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
 
-    public string PayloadsPath { get; }  // e.g. /data/tenants/payloads/<tenant-id>/
-    public string PayloadsDrivesPath { get; }  // e.g. /data/tenants/payloads/<tenant-id>/drives
+    public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
+    public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives
 
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(config.Host.TenantDataRootPath, nameof(config.Host.TenantDataRootPath));
+
         var tenant = tenantId.ToString();
 
         RootPath = config.Host.TenantDataRootPath;
