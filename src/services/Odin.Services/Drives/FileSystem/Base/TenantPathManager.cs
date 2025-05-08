@@ -26,31 +26,15 @@ public record ParsedThumbnailFileRecord
     public int Height { get; init; }
 }
 
-// public class TenantPathManager(Guid tenantId, string tenantShard)
 public class TenantPathManager
 {
-    public readonly Guid TenantId;
-
-    public readonly string TempStoragePath;
-    public readonly string PayloadStoragePath;
-    public readonly string HeaderDataStoragePath;
-    public readonly string StaticFileStoragePath;
-    public readonly string SslStoragePath;
-
-    public readonly string TenantDataRootPath;
-
-    protected readonly string RootPath;
-
-    protected const string TenantShard = "shard1";
-
     public const string ValidPayloadKeyRegex = "^[a-z0-9_]{8,10}$";
     public const string FileNameSectionDelimiter = "-";
     public const string PayloadExtension = ".payload";
     public const string ThumbnailExtension = ".thumb";
     public const string ThumbnailSizeDelimiter = "x";
-    public const string DriveFolder = "drives";
+    public const string DrivesFolder = "drives";
     public const string SslFolder = "ssl";
-    public const string StorageFolder = "storage";
     public const string RegistrationsFolder = "registrations";
     public const string HeadersFolder = "headers";
     public const string TempFolder = "temp";
@@ -63,22 +47,42 @@ public class TenantPathManager
     public const string DeletedThumbExtension = ".t-deleted";
     public const string PayloadDelimiter = "-";
     public const string TransitThumbnailKeyDelimiter = "|";
+    public const string RegJson = "reg.json";
+    public const string PayloadShard = "shard1"; // SEB:TODO delete me after flattening
+
+    public readonly string RootPath; // e.g. /data/tenants
+    public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
+    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads
+
+    public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
+    public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
+    public readonly string SslPath; // e.g. /data/tenants/registrations/<tenant-id>/ssl
+    public readonly string StaticPath;  // e.g. /data/tenants/registrations/<tenant-id>/static
+    public readonly string TempPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
+    public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
+
+    public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
+    public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives
 
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
-        TenantId = tenantId;
+        ArgumentException.ThrowIfNullOrWhiteSpace(config.Host.TenantDataRootPath, nameof(config.Host.TenantDataRootPath));
 
-        TenantDataRootPath = config.Host.TenantDataRootPath;
-        ArgumentException.ThrowIfNullOrEmpty(TenantDataRootPath, nameof(TenantDataRootPath));
+        var tenant = tenantId.ToString();
 
-        var registrationRoot = Path.Combine(TenantDataRootPath, RegistrationsFolder);
-        RootPath = Path.Combine(registrationRoot, tenantId.ToString());
+        RootPath = config.Host.TenantDataRootPath;
+        RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
+        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder, PayloadShard);
 
-        HeaderDataStoragePath = Path.Combine(RootPath, HeadersFolder);
-        TempStoragePath  = Path.Combine(RootPath, TempFolder);
-        StaticFileStoragePath = Path.Combine(RootPath, StaticFolder);
-        PayloadStoragePath = Path.Combine(TenantDataRootPath, PayloadsFolder, TenantShard, TenantId.ToString());
-        SslStoragePath = Path.Combine(RootPath, SslFolder);
+        RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
+        HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
+        TempPath = Path.Combine(RegistrationPath, TempFolder);
+        TempDrivesPath = Path.Combine(TempPath, DrivesFolder);
+        SslPath = Path.Combine(RegistrationPath, SslFolder);
+        StaticPath = Path.Combine(RegistrationPath, StaticFolder);
+
+        PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
+        PayloadsDrivesPath = Path.Combine(PayloadsPath, DrivesFolder);
     }
 
     //
@@ -90,7 +94,7 @@ public class TenantPathManager
 
     public static string GetFilename(Guid fileId, string extension)
     {
-        string fileStr = TenantPathManager.GuidToPathSafeString(fileId);
+        var fileStr = GuidToPathSafeString(fileId);
         return string.IsNullOrEmpty(extension) ? fileStr : $"{fileStr}.{extension.ToLower()}";
     }
 
@@ -98,69 +102,23 @@ public class TenantPathManager
     // Disk root locations
     // ----------------------
 
-    public string GetTenantRootBasePath()
-        => Path.Combine(TenantDataRootPath, TenantId.ToString());
-
-    public string GetHeaderDataStorageBasePath()
-        => Path.Combine(GetTenantRootBasePath(), HeadersFolder);
-
-    public string GetTempStorageBasePath()
-        => Path.Combine(GetTenantRootBasePath(), TempFolder);
-
-    public string GetPayloadStorageBasePath()
-        => Path.Combine(GetTenantRootBasePath(), PayloadsFolder, TenantShard);
-
-    public string GetStaticFileStorageBasePath()
-        => Path.Combine(GetTenantRootBasePath(), StaticFolder);
-
-    public string GetDriveTempStoragePath(Guid driveId)
+    // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/inbox
+    public string GetDriveInboxStoragePath(Guid driveId)
     {
-        // StorageDrive._tempDataRootPath
-        var s1 = Path.Combine(TempStoragePath, DriveFolder);
-        var driveFolderName = GuidToPathSafeString(driveId);
-        return Path.Combine(s1, driveFolderName);
+        return Path.Combine(TempDrivesPath, GuidToPathSafeString(driveId), InboxFolder);
     }
 
-    public string GetDriveLongTermStoragePath(Guid driveId)
+    // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/uploads
+    public string GetDriveUploadStoragePath(Guid driveId)
     {
-        // StorageDrive._longTermPayloadPath + "files" = GetLongTermPayloadStoragePath();
-        var s2 = Path.Combine(PayloadStoragePath, DriveFolder);
-        var driveFolderName = GuidToPathSafeString(driveId);
-        return Path.Combine(s2, driveFolderName, FilesFolder);
+        return Path.Combine(TempDrivesPath, GuidToPathSafeString(driveId), UploadFolder);
     }
 
-    public string GetStorageDriveBasePath(Guid driveId)
+    // e.g. /data/tenants/payloads/<tenant-id>/drives/<drive-id>/files
+    public string GetDrivePayloadPath(Guid driveId)
     {
-        // var r = drive.GetLongTermPayloadStoragePath();
-
-        return GetDriveLongTermStoragePath(driveId);
+        return Path.Combine(PayloadsDrivesPath, GuidToPathSafeString(driveId), FilesFolder);
     }
-
-    // ----------------------
-    // Drive-specific paths
-    // ----------------------
-
-    public string GetDriveTempStoragePath(Guid driveId, TempStorageType storageType)
-    {
-        var driveFolderName = GuidToPathSafeString(driveId);
-        var tempBase = Path.Combine(GetTempStorageBasePath(), DriveFolder, driveFolderName);
-        switch (storageType)
-        {
-            case TempStorageType.Upload:
-                return Path.Combine(tempBase, UploadFolder);
-            case TempStorageType.Inbox:
-                return Path.Combine(tempBase, InboxFolder);
-            default:
-                throw new OdinSystemException($"Unknown storage type: {storageType}");
-        }
-    }
-
-    public string GetDriveLongTermPayloadPath(Guid driveId)
-    {
-        var driveFolderName = GuidToPathSafeString(driveId);
-        return Path.Combine(GetPayloadStorageBasePath(), DriveFolder, driveFolderName, FilesFolder);
-    }
-
 
     // ----------------------
     // Payload-specific paths
@@ -169,6 +127,7 @@ public class TenantPathManager
     {
         if (!IsValidPayloadKey(payloadKey))
         {
+            // SEB:TODO this should be a validation exception, mapped to a 400 in upper layers
             throw new OdinClientException($"Missing payload key.  It must match pattern {ValidPayloadKeyRegex}.",
                 OdinClientErrorCode.InvalidPayloadNameOrKey);
         }
@@ -176,12 +135,12 @@ public class TenantPathManager
 
     public static bool IsValidPayloadKey(string payloadKey)
     {
-        if (string.IsNullOrEmpty(payloadKey?.Trim()))
+        if (string.IsNullOrWhiteSpace(payloadKey))
         {
             return false;
         }
 
-        bool isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
+        var isMatch = Regex.IsMatch(payloadKey, ValidPayloadKeyRegex);
         return isMatch;
     }
 
@@ -198,9 +157,9 @@ public class TenantPathManager
         return path;
     }
 
-    public string GetPayloadDirectory(Guid  driveId, Guid fileId, bool ensureExists = false)
+    public string GetPayloadDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
     {
-        var root = GetStorageDriveBasePath(driveId);
+        var root = GetDrivePayloadPath(driveId);
         var subdir = GetPayloadDirectoryFromGuid(fileId);
         var path = Path.Combine(root, subdir);
         if (ensureExists) Directory.CreateDirectory(path);
@@ -234,7 +193,7 @@ public class TenantPathManager
         return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{CreateBasePayloadFileName(key, uid)}{PayloadExtension}";
     }
 
-    public string GetPayloadDirectoryAndFileName(Guid  driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
+    public string GetPayloadDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
     {
         var fileName = GetPayloadFileName(fileId, payloadKey, payloadUid);
         var dir = GetPayloadDirectory(driveId, fileId, ensureExists);
@@ -252,7 +211,6 @@ public class TenantPathManager
         return r;
     }
 
-
     public static string CreateThumbnailFileNameAndExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
     {
         OdinValidationUtils.AssertIsTrue(width > 0, "Thumbnail width must be > 0");
@@ -267,12 +225,12 @@ public class TenantPathManager
     }
 
 
-    public string GetThumbnailDirectory(Guid  driveId, Guid fileId, bool ensureExists = false)
+    public string GetThumbnailDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
     {
         return GetPayloadDirectory(driveId, fileId, ensureExists);
     }
 
-    public string GetThumbnailFileName(Guid fileId, string key, UnixTimeUtcUnique uid, int width, int height)
+    public static string GetThumbnailFileName(Guid fileId, string key, UnixTimeUtcUnique uid, int width, int height)
     {
         OdinValidationUtils.AssertIsTrue(width > 0, "Thumbnail width must be > 0");
         OdinValidationUtils.AssertIsTrue(height > 0, "Thumbnail height must be > 0");
@@ -280,7 +238,7 @@ public class TenantPathManager
         return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{key.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}{FileNameSectionDelimiter}{size}{ThumbnailExtension}";
     }
 
-    public string GetThumbnailDirectoryandFileName(Guid  driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int thumbWidth, int thumbHeight)
+    public string GetThumbnailDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int thumbWidth, int thumbHeight)
     {
         var fileName = GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbWidth, thumbHeight);
         var dir = GetThumbnailDirectory(driveId, fileId, false);
@@ -293,35 +251,25 @@ public class TenantPathManager
 
     public void CreateDirectories()
     {
-        Directory.CreateDirectory(HeaderDataStoragePath);
-        Directory.CreateDirectory(TempStoragePath);
-        Directory.CreateDirectory(PayloadStoragePath);
-        Directory.CreateDirectory(StaticFileStoragePath);
+        Directory.CreateDirectory(HeadersPath);
+        Directory.CreateDirectory(TempPath);
+        Directory.CreateDirectory(PayloadsPath);
+        Directory.CreateDirectory(StaticPath);
     }
 
     public void CreateSslRootDirectory()
     {
-        Directory.CreateDirectory(SslStoragePath);
+        Directory.CreateDirectory(SslPath);
     }
 
     // ----------------------
     // Database paths
     // ----------------------
 
-    public string GetHeaderDbPath()
-        => Path.Combine(GetHeaderDataStorageBasePath(), "header.db");
-
-    public string GetIndexDbPath()
-        => Path.Combine(GetHeaderDataStorageBasePath(), "index.db");
-
-    public string GetDriveTransferDbPath()
-        => Path.Combine(GetHeaderDataStorageBasePath(), "drive_transfer.db");
-
     public string GetIdentityDatabasePath()
     {
-        return Path.Combine(HeaderDataStoragePath, "identity.db");
+        return Path.Combine(HeadersPath, "identity.db");
     }
-
 
     //
     // Parsing

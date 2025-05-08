@@ -29,7 +29,7 @@ public class UpdateCertificatesBackgroundService(
             foreach (var identity in identities.Results)
             {
                 var tenantContext = registry.CreateTenantContext(identity);
-                var tc = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslStoragePath);
+                var tc = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
                 var task = tc.RenewIfAboutToExpire(identity);
                 tasks.Add(task);
             }

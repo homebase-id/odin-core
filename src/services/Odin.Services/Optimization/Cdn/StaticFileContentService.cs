@@ -223,7 +223,7 @@ public class StaticFileContentService
     {
         
         var config = await _staticFileConfigStorage.GetAsync<StaticFileConfiguration>(_tableKeyValue, GetConfigKey(filename));
-        var targetFile = Path.Combine(_tenantContext.TenantPathManager.StaticFileStoragePath, filename);
+        var targetFile = Path.Combine(_tenantContext.TenantPathManager.StaticPath, filename);
 
         if (config == null || !File.Exists(targetFile))
         {
@@ -245,7 +245,7 @@ public class StaticFileContentService
 
     private string EnsurePath()
     {
-        string targetFolder = _tenantContext.TenantPathManager.StaticFileStoragePath;
+        string targetFolder = _tenantContext.TenantPathManager.StaticPath;
         _driveFileReaderWriter.CreateDirectory(targetFolder);
         return targetFolder;
     }
