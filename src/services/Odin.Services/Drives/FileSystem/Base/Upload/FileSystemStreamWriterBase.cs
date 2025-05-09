@@ -185,7 +185,7 @@ public abstract class FileSystemStreamWriterBase
 
             throw new OdinSystemException("Failed while writing temp file during upload");
         }
-        
+
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
             PixelHeight = result.ThumbnailDescriptor.PixelHeight,
@@ -224,6 +224,7 @@ public abstract class FileSystemStreamWriterBase
                 throw new OdinClientException("OverwriteFileId is specified but file does not exist",
                     OdinClientErrorCode.CannotOverwriteNonExistentFile);
             }
+
             _logger.LogDebug("FinalizeUploadAsync check-point D");
 
             if (metadata.VersionTag == null)
@@ -241,12 +242,14 @@ public abstract class FileSystemStreamWriterBase
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
-                    var existingFile =
-                        await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
+                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId,
+                        odinContext);
                     _logger.LogDebug("FinalizeUploadAsync check-point F");
 
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
+                        _logger.LogDebug(
+                            $"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}] TargetFileId: [{existingFileHeader.FileMetadata.File.FileId}] Existing fileId:{existingFile.FileId}");
                         throw new OdinClientException(
                             $"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}]",
                             OdinClientErrorCode.ExistingFileWithUniqueId);
@@ -263,12 +266,15 @@ public abstract class FileSystemStreamWriterBase
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile =
-                    await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId, odinContext);
+                var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId,
+                    odinContext);
                 _logger.LogDebug("FinalizeUploadAsync check-point H");
 
                 if (null != existingFile && existingFile.FileState != FileState.Deleted)
                 {
+                    _logger.LogDebug(
+                        $"File already exists with ClientUniqueId: [{incomingClientUniqueId}] Existing fileId:{existingFile.FileId}");
+
                     throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
                         OdinClientErrorCode.ExistingFileWithUniqueId);
                 }
@@ -349,7 +355,7 @@ public abstract class FileSystemStreamWriterBase
         // var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(
         //     package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), odinContext);
         //
-        
+
         var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());
 
@@ -425,7 +431,7 @@ public abstract class FileSystemStreamWriterBase
             await FileSystem.Storage.CleanupUploadTemporaryFiles(Package.InternalFile.AsTempFileUpload(), descriptors, odinContext);
         }
     }
-    
+
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(
         FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
