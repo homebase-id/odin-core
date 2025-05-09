@@ -258,9 +258,9 @@ public sealed class DriveFileReaderWriter(
             {
                 try
                 {
-                    Random rand = new Random();
-                    int testDelay = rand.Next(0, 11);
-                    Task.Delay(testDelay).Wait();
+                    //Random rand = new Random();
+                    //int testDelay = rand.Next(0, 11);
+                    //Task.Delay(testDelay).Wait();
                     File.Copy(sourcePath, targetPath, overwrite: false);
                 }
                 catch (IOException ex) when (ex.Message.Contains("already exists"))
