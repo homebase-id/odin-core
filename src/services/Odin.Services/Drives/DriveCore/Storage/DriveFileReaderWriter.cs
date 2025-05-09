@@ -222,6 +222,8 @@ public sealed class DriveFileReaderWriter(
     /// </summary>
     public void CopyPayloadFile(string sourcePath, string targetPath)
     {
+        logger.LogDebug($"CopyPayloadFile: XXX Source '{sourcePath}', Target '{targetPath}'");
+
         // Ensure the source file exists
         FileInfo sourceInfo = new FileInfo(sourcePath); 
         if (!sourceInfo.Exists)
@@ -251,16 +253,11 @@ public sealed class DriveFileReaderWriter(
 
         try
         {
-            TryRetry.Create()
-                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
-                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
-                .Execute(async () =>
-            {
                 try
                 {
                     Random rand = new Random();
                     int testDelay = rand.Next(0, 11);
-                    await Task.Delay(testDelay);
+                    Task.Delay(testDelay);
                     File.Copy(sourcePath, targetPath, overwrite: false);
                 }
                 catch (IOException ex) when (ex.Message.Contains("already exists"))
@@ -274,20 +271,21 @@ public sealed class DriveFileReaderWriter(
                     logger.LogDebug(ex, "CopyFile (TryRetry) {message}", ex.Message);
                     throw new OdinSystemException($"Failed to copy file: {ex.Message}", ex);
                 }
-            });
 
             // This seems unnecessary
             targetInfo = new FileInfo(targetPath);
-            if (targetInfo.Exists)
+            if (!targetInfo.Exists)
             {
-                // If sizes match, assume it�s valid and skip the copy
-                if (targetInfo.Length == sourceInfo.Length)
-                {
-                    return;
-                }
+                throw new OdinSystemException(
+                    $"Error during file copy operation.  FileCopy reported success but destination file does not exist [source file: {sourcePath}] [destination: {targetPath}]");
             }
-            throw new OdinSystemException(
-                $"Error during file copy operation.  FileCopy reported success but destination file does not exist or is incorrect size. [source file: {sourcePath}] [destination: {targetPath}]");
+
+            // If sizes match, assume it�s valid and skip the copy
+            if (targetInfo.Exists && targetInfo.Length != sourceInfo.Length)
+            {
+                throw new OdinSystemException(
+                    $"Error during file copy operation.  FileCopy reported success but destination file length differs [source file: {sourcePath}] [destination: {targetPath}]");
+            }
         }
         catch (TryRetryException e)
         {
