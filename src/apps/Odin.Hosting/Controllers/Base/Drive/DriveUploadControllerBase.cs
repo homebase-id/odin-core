@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
@@ -38,18 +37,16 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 return await ProcessUpload(reader, driveUploadService);
             }
-            catch
+            finally
             {
                 try
                 {
                     await driveUploadService.CleanupTempFiles(WebOdinContext);
                 }
-                catch(Exception e) 
+                catch (Exception e)
                 {
-                    logger.LogError(e, " Failure during file cleanup");
+                    logger.LogError(e, "Failure during file cleanup");
                 }
-                
-                throw;
             }
         }
 
@@ -146,7 +143,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 var status = await writer.FinalizeUpload(WebOdinContext);
                 return status;
             }
-            catch
+            finally
             {
                 try
                 {
@@ -156,7 +153,6 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 {
                     logger.LogError(e, " Failure during file cleanup");
                 }
-                throw;
             }
         }
 

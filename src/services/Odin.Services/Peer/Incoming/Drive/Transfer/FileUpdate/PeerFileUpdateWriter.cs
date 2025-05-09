@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -24,12 +25,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// </summary>
     public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
     {
-        public async Task UpsertFileAsync(TempFile tempFile,
+        public async Task<(bool success, List<PayloadDescriptor> payloads)> UpsertFileAsync(TempFile tempFile,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             IOdinContext odinContext)
         {
+            bool success = false;
+            List<PayloadDescriptor> payloads = [];
             var fileSystemType = instructionSet.FileSystemType;
             var fs = fileSystemResolver.ResolveFileSystem(fileSystemType);
             var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext);
@@ -61,7 +64,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter WriteNewFile",
                     async () =>
                     {
-                        await fs.Storage.CommitNewFile(tempFile,
+                        (success, payloads) = await fs.Storage.CommitNewFile(tempFile,
                             decryptedKeyHeader,
                             incomingMetadata,
                             serverMetadata,
@@ -70,7 +73,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                             useThisVersionTag: instructionSet.Request.NewVersionTag);
                     });
 
-                return;
+
+                return (success, payloads);
             }
 
             //Update existing file
@@ -100,8 +104,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext);
             });
+
+            return (success, payloads);
         }
 
         private async Task<FileMetadata> LoadMetadataFromTemp(

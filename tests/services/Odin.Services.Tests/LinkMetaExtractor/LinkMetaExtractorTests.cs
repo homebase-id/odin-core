@@ -27,6 +27,7 @@ public class LinkMetaExtractorTests
 
 #if !CI_GITHUB
     [Test]
+    [Explicit]
     public async Task TestGithubUrl()
     {
         var logStore = new LogEventMemoryStore();

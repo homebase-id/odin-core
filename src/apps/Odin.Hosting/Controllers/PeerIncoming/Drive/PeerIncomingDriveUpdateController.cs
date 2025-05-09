@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
@@ -69,6 +70,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPatch("update")]
         public async Task<PeerTransferResponse> ReceiveIncomingUpdate()
         {
+            List<PayloadDescriptor> uploadedPayloads = new();
+
             try
             {
                 await AssertIsValidCaller();
@@ -104,7 +107,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 {
                     if (IsPayloadPart(section))
                     {
-                        await ProcessPayloadSection(section, metadata);
+                        var descriptor = await ProcessPayloadSection(section, metadata);
+                        uploadedPayloads.Add(descriptor);
                     }
 
                     if (IsThumbnail(section))
@@ -117,20 +121,19 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
                 return await _fileUpdateService.FinalizeTransfer(metadata, WebOdinContext);
             }
-            catch
+            finally
             {
                 try
                 {
                     if (null != _fileUpdateService)
                     {
-                        await _fileUpdateService.CleanupTempFiles(WebOdinContext);
+                        await _fileUpdateService.CleanupTempFiles(uploadedPayloads, WebOdinContext);
                     }
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError(e, "Error during file cleanup");
+                    _logger.LogError(e, "Failure during file cleanup");
                 }
-                throw;
             }
         }
 
@@ -204,7 +207,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return transferInstructionSet;
         }
 
-        private async Task ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata)
+        private async Task<PayloadDescriptor> ProcessPayloadSection(MultipartSection section, FileMetadata fileMetadata)
         {
             AssertIsPayloadPart(section, out var fileSection, out var payloadKey);
 
@@ -217,6 +220,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             string extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
             await _fileUpdateService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext);
+            return payloadDescriptor;
         }
 
         private async Task ProcessThumbnailSection(MultipartSection section, FileMetadata fileMetadata)

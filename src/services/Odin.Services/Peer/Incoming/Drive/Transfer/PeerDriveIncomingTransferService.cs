@@ -19,6 +19,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
@@ -67,11 +68,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream,
+            await fileSystem.Storage.WriteTempStream(file, TenantPathManager.TransferInstructionSetExtension, stream,
                 odinContext);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(metadata)));
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, "metadata", metadataStream, odinContext);
+            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, TenantPathManager.MetadataExtension, metadataStream,
+                odinContext);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
@@ -285,11 +287,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task CleanupTempFiles(IOdinContext odinContext)
+        public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
         {
             if (_transferState?.TempFile != null)
             {
-                await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.TempFile, odinContext);
+                // use the descriptors from the package as they would have been uploaded to the upload folder
+                await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.TempFile, descriptors, odinContext);
             }
         }
 

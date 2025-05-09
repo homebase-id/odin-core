@@ -420,7 +420,9 @@ public abstract class FileSystemStreamWriterBase
     {
         if (Package?.InternalFile != null)
         {
-            await FileSystem.Storage.CleanupUploadTemporaryFiles(Package.InternalFile.AsTempFileUpload(), odinContext);
+            // use the descriptors from the package as they would have been uploaded to the upload folder
+            var descriptors = Package.GetFinalPayloadDescriptors();
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(Package.InternalFile.AsTempFileUpload(), descriptors, odinContext);
         }
     }
     

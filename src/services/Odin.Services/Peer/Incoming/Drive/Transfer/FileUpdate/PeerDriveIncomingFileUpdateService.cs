@@ -16,6 +16,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
@@ -54,16 +55,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             _updateInstructionSet = transferInstructionSet;
 
-
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(_tempFile, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream,
+            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
                 odinContext);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(metadata)));
-            await fileSystem.Storage.WriteTempStream(_tempFile, "metadata", metadataStream, odinContext);
+            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
+            
         }
-
+        
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
@@ -127,9 +128,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             throw new OdinSystemException("Unhandled Routing");
         }
 
-        public async Task CleanupTempFiles(IOdinContext odinContext)
+        public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
         {
-            await fileSystem.Storage.CleanupUploadTemporaryFiles(this._tempFile, odinContext);
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(this._tempFile, descriptors, odinContext);
         }
 
         //
@@ -268,6 +269,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             await Task.CompletedTask;
             return false;
         }
-
     }
 }

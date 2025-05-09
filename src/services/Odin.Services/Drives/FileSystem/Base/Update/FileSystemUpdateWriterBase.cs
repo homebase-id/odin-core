@@ -433,4 +433,15 @@ public abstract class FileSystemUpdateWriterBase
 
         metadata.AppData?.Validate();
     }
+
+    public async Task CleanupTempFiles(IOdinContext odinContext)
+    {
+        if (Package?.Payloads?.Any() ?? false)
+        {
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(
+                Package.InternalFile.AsTempFileUpload(), 
+                Package.GetFinalPayloadDescriptors(), 
+                odinContext);
+        }
+    }
 }
