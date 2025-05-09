@@ -266,12 +266,12 @@ public sealed class DriveFileReaderWriter(
                 catch (IOException ex) when (ex.Message.Contains("already exists"))
                 {
                     // If the copy fails because the file now exists, assume a competing thread created it
-                    throw new OdinSystemException($"Target file '{targetPath}' was created by another thread during the operation.");
+                    throw new OdinSystemException($"CopyPayloadFile: Target file '{targetPath}' was created by another thread during the operation.");
                 }
                 catch (Exception ex)
                 {
                     // Handle other potential errors (e.g., permissions or disk issues)
-                    logger.LogDebug(ex, "CopyPayloadFile (TryRetry) {message}", ex.Message);
+                    logger.LogDebug(ex, "CopyPayloadFile: (TryRetry) {message}", ex.Message);
                     throw new OdinSystemException($"Failed to copy file: {ex.Message}", ex);
                 }
             });
@@ -281,14 +281,14 @@ public sealed class DriveFileReaderWriter(
             if (!targetInfo.Exists)
             {
                 throw new OdinSystemException(
-                    $"Error during file copy operation.  FileCopy reported success but destination file does not exist [source file: {sourcePath}] [destination: {targetPath}]");
+                    $"CopyPayloadFile: Error during file copy operation.  FileCopy reported success but destination file does not exist [source file: {sourcePath}] [destination: {targetPath}]");
             }
 
             // If sizes match, assume it�s valid and skip the copy
             if (targetInfo.Exists && targetInfo.Length != sourceInfo.Length)
             {
                 throw new OdinSystemException(
-                    $"Error during file copy operation.  FileCopy reported success but destination file length differs [source file: {sourcePath}] [destination: {targetPath}]");
+                    $"CopyPayloadFile: Error during file copy operation.  FileCopy reported success but destination file length differs [source file: {sourcePath}] [destination: {targetPath}]");
             }
         }
         catch (TryRetryException e)
