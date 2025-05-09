@@ -1008,162 +1008,195 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
+
+
         public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(TempFile originFile,
             InternalDriveFileId targetFile, BatchUpdateManifest manifest,
             IOdinContext odinContext)
         {
             bool success = false;
-            List<PayloadDescriptor> uploadedPayloads = new();
 
-            // var lockName = $"{targetFile.FileId}-{targetFile.DriveId}";
-            // await using (await nodeLock.LockAsync(lockName, forcedRelease: TimeSpan.FromSeconds(ForceReleaseSeconds)))
+            // First prepare by copying everything needed
+            var (header, uploadedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext);
+
             try
             {
-                var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-
-                List<PayloadDescriptor> DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
-                {
-                    var zombies = new List<PayloadDescriptor>();
-
-                    // Delete operations are for existing payloads, so we need to update the existing header
-                    foreach (var op in manifest.PayloadInstruction.Where(op =>
-                                 op.OperationType == PayloadUpdateOperationType.DeletePayload))
-                    {
-                        var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
-                        if (descriptor != null)
-                        {
-                            existingHeader1.FileMetadata.Payloads.RemoveAll(pk => pk.KeyEquals(op.Key));
-                            zombies.Add(descriptor);
-                        }
-                    }
-
-                    return zombies;
-                }
-
-                async Task<List<PayloadDescriptor>> ProcessAppendOrOverwrite(StorageDrive storageDrive, ServerFileHeader serverFileHeader)
-                {
-                    var zombies = new List<PayloadDescriptor>();
-                    foreach (var op in manifest.PayloadInstruction
-                                 .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
-                    {
-                        // Here look at the incoming payloads because we're adding a new one or overwriting
-                        var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
-                            $"with key {op.Key} in FileMetadata to " +
-                            $"perform operation {op.OperationType}");
-
-                        // Copy the payload from the temp folder to the long term folder
-                        await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, storageDrive, descriptor);
-
-                        // keep a list of payloads that would have been uploaded for the append or overwrite operation
-                        uploadedPayloads.Add(descriptor);
-
-                        //
-                        // Upsert the descriptor in the existing header
-                        //
-                        var idx = serverFileHeader.FileMetadata.Payloads.FindIndex(p => p.KeyEquals(op.Key));
-
-                        if (idx == -1)
-                        {
-                            // item was new (appended)
-                            serverFileHeader.FileMetadata.Payloads.Add(descriptor);
-                        }
-                        else
-                        {
-                            // payload was overwritten so this means we need to
-                            // mark the old one as a zombie
-                            zombies.Add(serverFileHeader.FileMetadata.Payloads[idx]);
-                            serverFileHeader.FileMetadata.Payloads[idx] = descriptor;
-                        }
-                    }
-
-                    return zombies;
-                }
-
-                OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
-                var metadata = manifest.FileMetadata;
-                metadata.AppData?.Validate();
-
-                //
-                // Validations
-                //
-                if (null == existingHeader)
-                {
-                    throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
-                }
-
-                if (existingHeader.FileMetadata.IsEncrypted)
-                {
-                    var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
-                    var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-
-                    if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
-                    {
-                        throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
-                                                      "invalidate one or more payloads.  Re-upload the entire file if you wish " +
-                                                      "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
-                    }
-
-                    if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
-                    {
-                        throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
-                    }
-                }
-
-                //
-                // For the payloads, we have two sources and one set of operations
-                // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
-                // 2. existingHeader.FileMetadata.Payloads - indicates the payload descriptors in current state on the server
-                // 3. manifest.PayloadInstruction - this indicates what to do with the payloads on the file
-
-                // now - each PayloadInstruction needs to be applied
-                // to delete a payload, remove from disk and remove from the existingHeader.FileMetadata.Payloads
-                // to add or append a payload, save on disk then upsert the value in existingHeader.FileMetadata.Payloads
-                // 
-                // Note: I have separated the payload instructions for readability
-                // 
-
-                var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-                var zombies = new List<PayloadDescriptor>();
-
-                zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
-                zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
-
-                // inbox item must be marked failure; no matter what
-                await OverwriteMetadataInternal(manifest.KeyHeader.Iv, existingHeader, manifest.FileMetadata,
-                    manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
-
+                // Now commit the header to the database
+                await UpdateBatchDatabaseAsync(header, manifest, odinContext);
                 success = true;
 
-                // inbox item must be marked complete; no matter what
-                await DeleteZombiePayloads(targetFile, zombies);
+                // And publish the event
+                await UpdateBatchPublishFilesAsync(targetFile, odinContext);
+            }
+            finally
+            {
+                // Cleanup zombied payloads
+                await UpdateBatchCleanupFilesAsync(targetFile, zombies);
+            }
+
+            // TODD TODO: Check this change, I return null if success is false.
+            return (success, success ? uploadedPayloads : null);
+        }
 
 
-                if (await ShouldRaiseDriveEventAsync(targetFile))
+        public async Task<(ServerFileHeader success, List<PayloadDescriptor> uploadedPayloads, List<PayloadDescriptor> zombies)> UpdateBatchCopyFilesAsync(TempFile originFile,
+                        InternalDriveFileId targetFile, BatchUpdateManifest manifest,
+                        IOdinContext odinContext)
+        {
+            List<PayloadDescriptor> uploadedPayloads = new();
+
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+
+            List<PayloadDescriptor> DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
+            {
+                var zombies = new List<PayloadDescriptor>();
+
+                // Delete operations are for existing payloads, so we need to update the existing header
+                foreach (var op in manifest.PayloadInstruction.Where(op =>
+                                op.OperationType == PayloadUpdateOperationType.DeletePayload))
                 {
-                    await mediator.Publish(new DriveFileChangedNotification
+                    var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
+                    if (descriptor != null)
                     {
-                        File = targetFile,
-                        ServerFileHeader = existingHeader,
-                        OdinContext = odinContext,
-                        IgnoreFeedDistribution = false
-                    });
+                        existingHeader1.FileMetadata.Payloads.RemoveAll(pk => pk.KeyEquals(op.Key));
+                        zombies.Add(descriptor);
+                    }
+                }
+
+                return zombies;
+            }
+
+            async Task<List<PayloadDescriptor>> ProcessAppendOrOverwrite(StorageDrive storageDrive, ServerFileHeader serverFileHeader)
+            {
+                var zombies = new List<PayloadDescriptor>();
+                foreach (var op in manifest.PayloadInstruction
+                                .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                {
+                    // Here look at the incoming payloads because we're adding a new one or overwriting
+                    var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
+                        $"with key {op.Key} in FileMetadata to " +
+                        $"perform operation {op.OperationType}");
+
+                    // Copy the payload from the temp folder to the long term folder
+                    await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, storageDrive, descriptor);
+
+                    // keep a list of payloads that would have been uploaded for the append or overwrite operation
+                    uploadedPayloads.Add(descriptor);
+
+                    //
+                    // Upsert the descriptor in the existing header
+                    //
+                    var idx = serverFileHeader.FileMetadata.Payloads.FindIndex(p => p.KeyEquals(op.Key));
+
+                    if (idx == -1)
+                    {
+                        // item was new (appended)
+                        serverFileHeader.FileMetadata.Payloads.Add(descriptor);
+                    }
+                    else
+                    {
+                        // payload was overwritten so this means we need to
+                        // mark the old one as a zombie
+                        zombies.Add(serverFileHeader.FileMetadata.Payloads[idx]);
+                        serverFileHeader.FileMetadata.Payloads[idx] = descriptor;
+                    }
+                }
+
+                return zombies;
+            }
+
+            OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
+            var metadata = manifest.FileMetadata;
+            metadata.AppData?.Validate();
+
+            //
+            // Validations
+            //
+            if (null == existingHeader)
+            {
+                throw new OdinClientException("File being updated does not exist", OdinClientErrorCode.InvalidFile);
+            }
+
+            if (existingHeader.FileMetadata.IsEncrypted)
+            {
+                var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(existingHeader.FileMetadata.File.DriveId);
+                var existingKeyHeader = existingHeader.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+
+                if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
+                {
+                    throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
+                                                    "invalidate one or more payloads.  Re-upload the entire file if you wish " +
+                                                    "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
+                }
+
+                if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
+                {
+                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
                 }
             }
-            catch (OdinSecurityException)
-            {
-                throw;
-            }
-            catch (OdinClientException)
-            {
-                throw;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Error occured");
-            }
 
-            return (success, uploadedPayloads);
+            //
+            // For the payloads, we have two sources and one set of operations
+            // 1. manifest.FileMetadata.Payloads - indicates the payloads uploaded by the client for this batch update
+            // 2. existingHeader.FileMetadata.Payloads - indicates the payload descriptors in current state on the server
+            // 3. manifest.PayloadInstruction - this indicates what to do with the payloads on the file
+
+            // now - each PayloadInstruction needs to be applied
+            // to delete a payload, remove from disk and remove from the existingHeader.FileMetadata.Payloads
+            // to add or append a payload, save on disk then upsert the value in existingHeader.FileMetadata.Payloads
+            // 
+            // Note: I have separated the payload instructions for readability
+            // 
+
+            var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
+            var zombies = new List<PayloadDescriptor>();
+
+            zombies.AddRange(await ProcessAppendOrOverwrite(drive, existingHeader));
+            zombies.AddRange(DeleteFileReferencesFromHeader(existingHeader));
+
+            // At this point we have now copied all the files successfully and return
+            // the payloads that must be cleaned up. The caller can now do its DB
+            // stuff and then call cleanup
+
+            return (existingHeader, uploadedPayloads, zombies);
         }
+
+
+        // We probably don't want this function here, instead we'll just write
+        // this header record up in the inbox
+        public async Task UpdateBatchDatabaseAsync(ServerFileHeader header,
+                        BatchUpdateManifest manifest,
+                        IOdinContext odinContext)
+        {
+            await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
+            manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+
+        }
+
+        public async Task UpdateBatchCleanupFilesAsync(InternalDriveFileId targetFile, List<PayloadDescriptor> zombies)
+        {
+            await DeleteZombiePayloads(targetFile, zombies);
+        }
+
+        public async Task UpdateBatchPublishFilesAsync(InternalDriveFileId targetFile, IOdinContext odinContext)
+        {
+            // Is it important that it's the same version published that we updated? Someone might have raced us
+            // and now this might be newer even
+
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+
+            if (await ShouldRaiseDriveEventAsync(targetFile))
+            {
+                await mediator.Publish(new DriveFileChangedNotification
+                {
+                    File = targetFile,
+                    ServerFileHeader = existingHeader,
+                    OdinContext = odinContext,
+                    IgnoreFeedDistribution = false
+                });
+            }
+        }
+
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
             Guid targetVersionTag,
