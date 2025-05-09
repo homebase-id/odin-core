@@ -222,13 +222,11 @@ public sealed class DriveFileReaderWriter(
     /// </summary>
     public void CopyPayloadFile(string sourcePath, string targetPath)
     {
-        logger.LogDebug($"CopyPayloadFile: XXX Source '{sourcePath}', Target '{targetPath}'");
-
         // Ensure the source file exists
         FileInfo sourceInfo = new FileInfo(sourcePath); 
         if (!sourceInfo.Exists)
         {
-            throw new OdinSystemException($"Source file '{sourcePath}' does not exist.");   
+            throw new OdinSystemException($"CopyPayloadFile: Source file '{sourcePath}' does not exist.");   
         }
         
         // Check if the target file exists. If it does it is either already live
@@ -240,24 +238,29 @@ public sealed class DriveFileReaderWriter(
             // If sizes match, assume it�s valid and skip the copy
             if (targetInfo.Length == sourceInfo.Length)
             {
-                logger.LogDebug($"CopyFile: Target file '{targetPath}' already exists and is valid. No action needed.");
+                logger.LogDebug($"CopyPayloadFile: Target file '{targetPath}' already exists and is valid. No action needed.");
                 return;
             }
             else
             {
                 // If sizes don�t match, it�s corrupt�delete it
-                logger.LogDebug($"CopyFile: Target file '{targetPath}' is corrupt. Deleting it.");
+                logger.LogDebug($"CopyPayloadFile: Target file '{targetPath}' is corrupt. Deleting it.");
                 File.Delete(targetPath);        
             }    
         }
 
         try
         {
+            TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+                .Execute(() =>
+            {
                 try
                 {
                     Random rand = new Random();
                     int testDelay = rand.Next(0, 11);
-                    Task.Delay(testDelay);
+                    Task.Delay(testDelay).Wait();
                     File.Copy(sourcePath, targetPath, overwrite: false);
                 }
                 catch (IOException ex) when (ex.Message.Contains("already exists"))
@@ -268,9 +271,10 @@ public sealed class DriveFileReaderWriter(
                 catch (Exception ex)
                 {
                     // Handle other potential errors (e.g., permissions or disk issues)
-                    logger.LogDebug(ex, "CopyFile (TryRetry) {message}", ex.Message);
+                    logger.LogDebug(ex, "CopyPayloadFile (TryRetry) {message}", ex.Message);
                     throw new OdinSystemException($"Failed to copy file: {ex.Message}", ex);
                 }
+            });
 
             // This seems unnecessary
             targetInfo = new FileInfo(targetPath);
