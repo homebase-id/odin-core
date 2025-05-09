@@ -254,10 +254,13 @@ public sealed class DriveFileReaderWriter(
             TryRetry.Create()
                 .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
                 .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
-                .Execute(() =>
+                .Execute(async () =>
             {
                 try
                 {
+                    Random rand = new Random();
+                    int testDelay = rand.Next(0, 11);
+                    await Task.Delay(testDelay);
                     File.Copy(sourcePath, targetPath, overwrite: false);
                 }
                 catch (IOException ex) when (ex.Message.Contains("already exists"))
