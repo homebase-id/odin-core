@@ -22,14 +22,19 @@ def transform_directory_structure(source_dir, target_dir, move_files=False):
     Transform the directory structure from source to target.
     If move_files is True, files are moved; otherwise, they are copied.
     Starts by looping over tenant directories directly in the source directory.
+    Tracks statistics for files processed and skipped.
     """
     source_path = Path(source_dir)
     target_path = Path(target_dir)
 
+    # Statistics counters
+    files_processed = 0  # Count of files copied or moved
+    files_skipped = 0    # Count of files skipped due to invalid UUID
+
     # Ensure source directory exists
     if not source_path.exists():
         print(f"Error: Source directory '{source_dir}' does not exist.")
-        return
+        return files_processed, files_skipped
 
     # Create target directory if it doesn't exist
     target_path.mkdir(parents=True, exist_ok=True)
@@ -83,8 +88,12 @@ def transform_directory_structure(source_dir, target_dir, move_files=False):
                         else:
                             print(f"    Copying {file_path} to {target_file_path}")
                             shutil.copy2(file_path, target_file_path)
+                        files_processed += 1
                     else:
                         print(f"    Skipping {filename}: Invalid UUID format")
+                        files_skipped += 1
+
+    return files_processed, files_skipped
 
 def main():
     parser = argparse.ArgumentParser(description="Transform directory structure.")
@@ -93,7 +102,16 @@ def main():
     parser.add_argument("--move", action="store_true", help="Move files instead of copying")
     args = parser.parse_args()
 
-    transform_directory_structure(args.source_dir, args.target_dir, move_files=args.move)
+    # Run the transformation and get statistics
+    files_processed, files_skipped = transform_directory_structure(
+        args.source_dir, args.target_dir, move_files=args.move
+    )
+
+    # Display statistics
+    action = "Moved" if args.move else "Copied"
+    print("\nTransformation Complete. Statistics:")
+    print(f"  Files {action}: {files_processed}")
+    print(f"  Files Skipped (Invalid UUID): {files_skipped}")
 
 if __name__ == "__main__":
     main()
