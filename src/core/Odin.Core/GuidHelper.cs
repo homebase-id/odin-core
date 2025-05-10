@@ -23,10 +23,10 @@ public static class GuidHelper
         const string hexDigits = "0123456789abcdef";
 
         // Get the hex character for each nibble
-        var x = hexDigits[lowNibble];
-        var y = hexDigits[highNibble];
+        var high = hexDigits[highNibble];
+        var low = hexDigits[lowNibble];
 
-        return (x,y);
+        return (high,low);
     }
 }
 

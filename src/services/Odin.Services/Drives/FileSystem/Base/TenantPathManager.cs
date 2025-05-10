@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
@@ -52,7 +53,6 @@ public class TenantPathManager
     public const string PayloadDelimiter = "-";
     public const string TransitThumbnailKeyDelimiter = "|";
     public const string RegJson = "reg.json";
-    public const string PayloadShard = "shard1"; // SEB:TODO delete me after flattening
 
     public readonly string RootPath; // e.g. /data/tenants
     public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
@@ -76,7 +76,7 @@ public class TenantPathManager
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
-        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder, PayloadShard);
+        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder);
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
@@ -150,15 +150,8 @@ public class TenantPathManager
 
     public static string GetPayloadDirectoryFromGuid(Guid fileId)
     {
-        var id = GuidToPathSafeString(fileId);
-        var year = id.Substring(0, 4);
-        var month = id.Substring(4, 2);
-        var day = id.Substring(6, 2);
-        var hour = id.Substring(8, 2);
-
-        var path = Path.Combine(year, month, day, hour);
-
-        return path;
+        var (highNibble, lowNibble) = GuidHelper.GetLastTwoNibbles(fileId);
+        return Path.Combine(highNibble.ToString(), lowNibble.ToString());
     }
 
     public string GetPayloadDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
