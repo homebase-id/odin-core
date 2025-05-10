@@ -470,7 +470,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         private string GetFilePath(StorageDrive drive, Guid fileId, FilePart filePart, bool ensureExists = false)
         {
             var path = filePart is FilePart.Payload or FilePart.Thumb
-                ? drive.GetLongTermPayloadStoragePath()
+                ? drive.GetDrivePayloadPath()
                 : throw new OdinSystemException($"Invalid FilePart {filePart}");
 
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8

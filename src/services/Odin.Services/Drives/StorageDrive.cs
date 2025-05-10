@@ -6,7 +6,9 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives
 {
@@ -16,24 +18,15 @@ namespace Odin.Services.Drives
     [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
     public sealed class StorageDrive : StorageDriveBase
     {
-        private readonly string _tempDataRootPath;
-        private readonly string _driveFolderName;
-        private readonly string _longTermPayloadPath;
+        private readonly TenantPathManager _tenantPathManager;
 
         private readonly StorageDriveBase _inner;
 
-        public StorageDrive(string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
+        public StorageDrive(TenantPathManager tenantPathManager, StorageDriveBase inner)
         {
             _inner = inner;
-            _driveFolderName = this.Id.ToString("N");
-            _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
-
-            // value = \data\tenant\payloads\p1\{driveId}\
-            // note: p1 is the CIFS mapped drive.
-            _longTermPayloadPath = Path.Combine(longTermPayloadPath, _driveFolderName);
+            _tenantPathManager = tenantPathManager;
         }
-
-        public string DriveFolderName => _driveFolderName;
 
         public override Guid Id
         {
@@ -107,32 +100,25 @@ namespace Odin.Services.Drives
             set { }
         }
 
-        public string GetLongTermPayloadStoragePath()
+        public string GetDrivePayloadPath()
         {
-            var r = Path.Combine(_longTermPayloadPath, "files");
-            // var s = TenantPathManager.GetDriveLongTermPayloadPath(Id);
-            return r;
+            return _tenantPathManager.GetDrivePayloadPath(Id);
         }
 
-        public string GetTempStoragePath(TempStorageType storageType)
+        public string GetDriveUploadStoragePath()
         {
-            switch (storageType)
-            {
-                case TempStorageType.Upload:
-                    return Path.Combine(_tempDataRootPath, "uploads");
+            return _tenantPathManager.GetDriveUploadStoragePath(Id);
+        }
 
-                case TempStorageType.Inbox:
-                    return Path.Combine(_tempDataRootPath, "inbox");
-
-                default:
-                    throw new OdinSystemException($"Unknown storage type:[{storageType}]");
-            }
+        public string GetDriveInboxStoragePath()
+        {
+            return _tenantPathManager.GetDriveInboxStoragePath(Id);
         }
 
         public void EnsureDirectories()
         {
-            Directory.CreateDirectory(this.GetTempStoragePath(TempStorageType.Upload));
-            Directory.CreateDirectory(this.GetTempStoragePath(TempStorageType.Inbox));
+            Directory.CreateDirectory(GetDriveUploadStoragePath());
+            Directory.CreateDirectory(GetDriveInboxStoragePath());
         }
 
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
