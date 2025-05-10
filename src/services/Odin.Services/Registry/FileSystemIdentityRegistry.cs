@@ -62,8 +62,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
-        RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
-        PayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
+        RegistrationRoot = Path.Combine(tenantDataRootPath, TenantPathManager.RegistrationsFolder);
+        PayloadRoot = Path.Combine(tenantDataRootPath, TenantPathManager.PayloadsFolder);
         _tempFolderRoot = tenantDataRootPath;
 
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
@@ -254,14 +254,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
 
             var registrationId = registration.Id.ToString();
-            var targetRegistrationsPath = Path.Combine(targetPath, "registrations", registrationId);
+            var targetRegistrationsPath = Path.Combine(targetPath, TenantPathManager.RegistrationsFolder, registrationId);
             Directory.CreateDirectory(targetRegistrationsPath);
 
             _logger.LogInformation("Copying {domain} registration to {targetRegistrationsPath}", domain, targetRegistrationsPath);
             var source = new DirectoryInfo(Path.Combine(RegistrationRoot, registrationId));
             await Task.Run(() => source.CopyTo(targetRegistrationsPath));
 
-            var targetPayloadsPath = Path.Combine(targetPath, "payloads");
+            var targetPayloadsPath = Path.Combine(targetPath, TenantPathManager.PayloadsFolder);
             Directory.CreateDirectory(targetPayloadsPath);
 
             var shards = Directory.GetDirectories(PayloadRoot);

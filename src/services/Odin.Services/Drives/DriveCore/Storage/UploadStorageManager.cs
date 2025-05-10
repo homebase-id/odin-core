@@ -151,7 +151,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetFileDirectory(StorageDrive drive, TempFile tempFile, bool ensureExists = false)
         {
-            var path = drive.GetTempStoragePath(tempFile.StorageType);
+            string path;
+
+            if (tempFile.StorageType == TempStorageType.Upload)
+                path = drive.GetDriveUploadStoragePath();
+            else
+                path = drive.GetDriveInboxStoragePath();
 
             if (ensureExists)
             {
