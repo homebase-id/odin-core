@@ -166,7 +166,10 @@ public class DriveQuery(
 
         try
         {
-            await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag);
+            int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag);
+            if (n != 1)
+                throw new OdinClientException($"SaveFileHeaderAsync() didn't write database record, n is {n}");
+
             header.FileMetadata.SetCreatedModifiedWithDatabaseValue(driveMainIndexRecord.created, driveMainIndexRecord.modified);
             header.FileMetadata.VersionTag = driveMainIndexRecord.hdrVersionTag;
         }

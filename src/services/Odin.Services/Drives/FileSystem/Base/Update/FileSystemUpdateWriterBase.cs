@@ -292,7 +292,11 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
-        await FileSystem.Storage.UpdateBatchAsync(package.InternalFile.AsTempFileUpload(), package.InternalFile, manifest, odinContext);
+        // TODO what is success is false?
+        var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(package.InternalFile.AsTempFileUpload(), package.InternalFile, manifest, odinContext);
+
+        if (success == false)
+            throw new OdinClientException("No, I couldn't do it, success is false");
     }
 
     /// <summary>

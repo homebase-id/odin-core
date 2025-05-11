@@ -1017,35 +1017,48 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool success = false;
 
             // First prepare by copying everything needed
-            var (header, uploadedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext);
+            var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext);
 
             try
             {
                 // Now commit the header to the database
-                await UpdateBatchDatabaseAsync(header, manifest, odinContext);
+                // We probably don't want this function here, instead we'll just write
+                // this header record up in the inbox
+                await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
+                                                manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+
                 success = true;
 
                 // And publish the event
-                await UpdateBatchPublishFilesAsync(targetFile, odinContext);
+                if (await ShouldRaiseDriveEventAsync(targetFile))
+                {
+                    await mediator.Publish(new DriveFileChangedNotification
+                    {
+                        File = targetFile,
+                        ServerFileHeader = header,
+                        OdinContext = odinContext,
+                        IgnoreFeedDistribution = false
+                    });
+                }
             }
             finally
             {
-                // Cleanup zombied payloads
-                await UpdateBatchCleanupFilesAsync(targetFile, zombies);
+                if (success)
+                {
+                    // Cleanup zombied payloads only if the file got moved and committed
+                    await DeleteZombiePayloads(targetFile, zombies);
+                }
             }
 
-            // TODD TODO: Check this change, I return null if success is false.
-            return (success, success ? uploadedPayloads : null);
+            return (success, success ? copiedPayloads : null);
         }
 
 
-        public async Task<(ServerFileHeader success, List<PayloadDescriptor> uploadedPayloads, List<PayloadDescriptor> zombies)> UpdateBatchCopyFilesAsync(TempFile originFile,
+        public async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)> UpdateBatchCopyFilesAsync(TempFile originFile,
                         InternalDriveFileId targetFile, BatchUpdateManifest manifest,
                         IOdinContext odinContext)
         {
-            List<PayloadDescriptor> uploadedPayloads = new();
-
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+            List<PayloadDescriptor> copiedPayloads = new();
 
             List<PayloadDescriptor> DeleteFileReferencesFromHeader(ServerFileHeader existingHeader1)
             {
@@ -1081,7 +1094,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, storageDrive, descriptor);
 
                     // keep a list of payloads that would have been uploaded for the append or overwrite operation
-                    uploadedPayloads.Add(descriptor);
+                    copiedPayloads.Add(descriptor);
 
                     //
                     // Upsert the descriptor in the existing header
@@ -1108,6 +1121,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
             var metadata = manifest.FileMetadata;
             metadata.AppData?.Validate();
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
 
             //
             // Validations
@@ -1158,44 +1172,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             // the payloads that must be cleaned up. The caller can now do its DB
             // stuff and then call cleanup
 
-            return (existingHeader, uploadedPayloads, zombies);
+            return (existingHeader, copiedPayloads, zombies);
         }
 
 
-        // We probably don't want this function here, instead we'll just write
-        // this header record up in the inbox
-        public async Task UpdateBatchDatabaseAsync(ServerFileHeader header,
-                        BatchUpdateManifest manifest,
-                        IOdinContext odinContext)
-        {
-            await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
-            manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
-
-        }
-
-        public async Task UpdateBatchCleanupFilesAsync(InternalDriveFileId targetFile, List<PayloadDescriptor> zombies)
-        {
-            await DeleteZombiePayloads(targetFile, zombies);
-        }
-
-        public async Task UpdateBatchPublishFilesAsync(InternalDriveFileId targetFile, IOdinContext odinContext)
-        {
-            // Is it important that it's the same version published that we updated? Someone might have raced us
-            // and now this might be newer even
-
-            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-
-            if (await ShouldRaiseDriveEventAsync(targetFile))
-            {
-                await mediator.Publish(new DriveFileChangedNotification
-                {
-                    File = targetFile,
-                    ServerFileHeader = existingHeader,
-                    OdinContext = odinContext,
-                    IgnoreFeedDistribution = false
-                });
-            }
-        }
 
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
@@ -1293,6 +1273,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
+        // TODO I think this should be in the upload manager
         public async Task CleanupUploadTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors,
             IOdinContext odinContext)
         {
@@ -1302,6 +1283,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        // TODO I think this should be in the inbox manager
         public async Task CleanupInboxTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors, IOdinContext odinContext,
             string[] additionalFiles = null)
         {
