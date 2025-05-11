@@ -1012,8 +1012,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
 
         public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(TempFile originFile,
-            InternalDriveFileId targetFile, BatchUpdateManifest manifest,
-            IOdinContext odinContext, WriteSecondDatabaseRowBase f)
+                                InternalDriveFileId targetFile, 
+                                BatchUpdateManifest manifest,
+                                IOdinContext odinContext, 
+                                WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
 
@@ -1030,9 +1032,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // this header record up in the inbox
                 await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
                                                 manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
-                if (f != null)
+                if (markComplete != null)
                 {
-                    int n = await f.ExecuteAsync();
+                    int n = await markComplete.ExecuteAsync();
                     if (n != 1)
                         throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
                 }

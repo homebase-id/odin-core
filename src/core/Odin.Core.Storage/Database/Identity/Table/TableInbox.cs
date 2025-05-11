@@ -259,7 +259,7 @@ public class TableInbox(
         return await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task PopCancelListAsync(Guid popstamp, Guid driveId, List<Guid> listFileId)
+    public async Task<int> PopCancelListAsync(Guid popstamp, Guid driveId, List<Guid> listFileId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
@@ -282,13 +282,17 @@ public class TableInbox(
         param1.Value = popstamp.ToByteArray();
         param3.Value = odinIdentity.IdAsByteArray();
 
+        int n = 0;
+
         foreach (var id in listFileId)
         {
             param2.Value = id.ToByteArray();
-            await cmd.ExecuteNonQueryAsync();
+            n += await cmd.ExecuteNonQueryAsync();
         }
 
         tx.Commit();
+
+        return n;
     }
 
 

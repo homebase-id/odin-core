@@ -30,7 +30,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             IOdinContext odinContext, 
-            WriteSecondDatabaseRowBase f)
+            WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
@@ -105,7 +105,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                (success, payloads) = await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext, f);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext, markComplete);
             });
 
             return (success, payloads);

@@ -90,10 +90,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             return r;
         }
 
-        public async Task MarkFailureAsync(InternalDriveFileId file, Guid marker)
+        public async Task<int> MarkFailureAsync(InternalDriveFileId file, Guid marker)
         {
-            await tableInbox.PopCancelListAsync(marker, file.DriveId, [file.FileId]);
+            int n = await tableInbox.PopCancelListAsync(marker, file.DriveId, [file.FileId]);
             PerformanceCounter.IncrementCounter("Inbox Mark Failure");
+            return n;
         }
 
         public async Task<int> RecoverDeadAsync(UnixTimeUtc time)

@@ -40,6 +40,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public MarkInboxComplete(TransitInboxBoxStorage s, InternalDriveFileId t, Guid m)
         {
+            _storage = s;
             _file = t;
             _marker = m;
         }
@@ -105,26 +106,29 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
 
-                var f = new MarkInboxComplete(transitInboxBoxStorage, tempFile.File, inboxItem.Marker);
+                var markComplete = new MarkInboxComplete(transitInboxBoxStorage, tempFile.File, inboxItem.Marker);
 
-                var (success, payloads) = await ProcessInboxItemAsync(tempFile, inboxItem, writer, odinContext, f);
-
+                var (success, payloads) = await ProcessInboxItemAsync(tempFile, inboxItem, writer, odinContext, markComplete);
 
                 if (success)
                 {
-                    await transitInboxBoxStorage.MarkCompleteAsync(tempFile.File, inboxItem.Marker);
+                    int n = await transitInboxBoxStorage.MarkCompleteAsync(tempFile.File, inboxItem.Marker);
+                    if (n != 1)
+                        logger.LogError("Inbox: Unable to MarkCompleteAsync.");
                     try
                     {
                         await writer.CleanupInboxFiles(tempFile, payloads, odinContext);
                     }
                     catch (Exception e)
                     {
-                        logger.LogError(e, "Failure while cleaning up inbox files.");
+                        logger.LogError(e, "Inbox: Failure while cleaning up inbox files.");
                     }
                 }
                 else
                 {
-                    await transitInboxBoxStorage.MarkFailureAsync(tempFile.File, inboxItem.Marker);
+                    int n = await transitInboxBoxStorage.MarkFailureAsync(tempFile.File, inboxItem.Marker);
+                    if (n != 1)
+                        logger.LogError("Inbox: Unable to MarkFailureAsync.");
                 }
             }
 
@@ -141,7 +145,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         private async Task<(bool success, List<PayloadDescriptor> payloads)> ProcessInboxItemAsync(TempFile tempFile,
             TransferInboxItem inboxItem, PeerFileWriter writer,
-            IOdinContext odinContext, WriteSecondDatabaseRowBase f)
+            IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             correlationContext.Id = inboxItem.CorrelationId ?? FallbackCorrelationId;
             logger.LogDebug("Begin processing Inbox item");
@@ -152,7 +156,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
-                    return await HandleUpdateFileAsync(tempFile, inboxItem, odinContext, f);
+                    return await HandleUpdateFileAsync(tempFile, inboxItem, odinContext, markComplete);
                 }
 
                 if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
@@ -336,7 +340,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         private async Task<(bool success, List<PayloadDescriptor> payloadDescriptors)> HandleUpdateFileAsync(TempFile tempFile,
-            TransferInboxItem inboxItem, IOdinContext odinContext, WriteSecondDatabaseRowBase f)
+            TransferInboxItem inboxItem, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
 
@@ -346,7 +350,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 
-            return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, f);
+            return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, markComplete);
         }
 
         private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext)
