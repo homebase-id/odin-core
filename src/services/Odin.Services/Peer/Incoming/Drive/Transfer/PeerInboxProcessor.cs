@@ -27,6 +27,29 @@ using Odin.Services.Peer.Outgoing.Drive.Reactions;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
+    public abstract class WriteSecondDatabaseRowBase
+    {
+        public abstract Task<int> ExecuteAsync();
+    }
+
+    public class MarkInboxComplete : WriteSecondDatabaseRowBase
+    {
+        private TransitInboxBoxStorage _storage;
+        private InternalDriveFileId _file;
+        private Guid _marker;
+
+        public MarkInboxComplete(TransitInboxBoxStorage s, InternalDriveFileId t, Guid m)
+        {
+            _file = t;
+            _marker = m;
+        }
+
+        public async override Task<int> ExecuteAsync()
+        {
+            return await _storage.MarkCompleteAsync(_file, _marker);
+        }
+    }
+
     public class PeerInboxProcessor(
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
@@ -81,7 +104,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 };
 
                 PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
-                var (success, payloads) = await ProcessInboxItemAsync(tempFile, inboxItem, writer, odinContext);
+
+                var f = new MarkInboxComplete(transitInboxBoxStorage, tempFile.File, inboxItem.Marker);
+
+                var (success, payloads) = await ProcessInboxItemAsync(tempFile, inboxItem, writer, odinContext, f);
+
 
                 if (success)
                 {
@@ -114,7 +141,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// </summary>
         private async Task<(bool success, List<PayloadDescriptor> payloads)> ProcessInboxItemAsync(TempFile tempFile,
             TransferInboxItem inboxItem, PeerFileWriter writer,
-            IOdinContext odinContext)
+            IOdinContext odinContext, WriteSecondDatabaseRowBase f)
         {
             correlationContext.Id = inboxItem.CorrelationId ?? FallbackCorrelationId;
             logger.LogDebug("Begin processing Inbox item");
@@ -125,7 +152,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
-                    return await HandleUpdateFileAsync(tempFile, inboxItem, odinContext);
+                    return await HandleUpdateFileAsync(tempFile, inboxItem, odinContext, f);
                 }
 
                 if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
@@ -309,7 +336,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         }
 
         private async Task<(bool success, List<PayloadDescriptor> payloadDescriptors)> HandleUpdateFileAsync(TempFile tempFile,
-            TransferInboxItem inboxItem, IOdinContext odinContext)
+            TransferInboxItem inboxItem, IOdinContext odinContext, WriteSecondDatabaseRowBase f)
         {
             var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
 
@@ -319,7 +346,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 
-            return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext);
+            return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, f);
         }
 
         private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext)

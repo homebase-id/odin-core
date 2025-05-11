@@ -12,6 +12,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -22,6 +23,8 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.FileSystem.Base
@@ -1008,11 +1011,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-
-
         public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(TempFile originFile,
             InternalDriveFileId targetFile, BatchUpdateManifest manifest,
-            IOdinContext odinContext)
+            IOdinContext odinContext, WriteSecondDatabaseRowBase f)
         {
             bool success = false;
 
@@ -1021,11 +1022,21 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
+                await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+                await using var tx = await cn.BeginStackedTransactionAsync();
+
                 // Now commit the header to the database
                 // We probably don't want this function here, instead we'll just write
                 // this header record up in the inbox
                 await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
                                                 manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+                if (f != null)
+                {
+                    int n = await f.ExecuteAsync();
+                    if (n != 1)
+                        throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
+                }
+                await tx.Commit();
 
                 success = true;
 
@@ -1046,6 +1057,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 if (success)
                 {
                     // Cleanup zombied payloads only if the file got moved and committed
+                    // Otherwise leave them be as orphaned, maybe the next attempt can reuse
+                    // some of the files already copied.
                     await DeleteZombiePayloads(targetFile, zombies);
                 }
             }

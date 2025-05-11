@@ -165,7 +165,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext);
+                await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null);
                 return true;
             }
 
@@ -179,7 +179,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 if (hasStorageKey)
                 {
                     //S1205
-                    await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext);
+                    await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null);
                     return true;
                 }
 
