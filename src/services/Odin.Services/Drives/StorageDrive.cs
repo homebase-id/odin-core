@@ -105,20 +105,20 @@ namespace Odin.Services.Drives
             return _tenantPathManager.GetDrivePayloadPath(Id);
         }
 
-        public string GetDriveUploadStoragePath()
+        public string GetDriveUploadPath()
         {
-            return _tenantPathManager.GetDriveUploadStoragePath(Id);
+            return _tenantPathManager.GetDriveUploadPath(Id);
         }
 
-        public string GetDriveInboxStoragePath()
+        public string GetDriveInboxPath()
         {
-            return _tenantPathManager.GetDriveInboxStoragePath(Id);
+            return _tenantPathManager.GetDriveInboxPath(Id);
         }
 
         public void EnsureDirectories()
         {
-            Directory.CreateDirectory(GetDriveUploadStoragePath());
-            Directory.CreateDirectory(GetDriveInboxStoragePath());
+            Directory.CreateDirectory(GetDriveUploadPath());
+            Directory.CreateDirectory(GetDriveInboxPath());
         }
 
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
