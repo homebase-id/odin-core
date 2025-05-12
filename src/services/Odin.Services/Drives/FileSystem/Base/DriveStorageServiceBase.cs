@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Util;
+using Serilog.Core;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -1012,9 +1014,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
 
         public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(TempFile originFile,
-                                InternalDriveFileId targetFile, 
+                                InternalDriveFileId targetFile,
                                 BatchUpdateManifest manifest,
-                                IOdinContext odinContext, 
+                                IOdinContext odinContext,
                                 WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
@@ -1038,34 +1040,50 @@ namespace Odin.Services.Drives.FileSystem.Base
                             throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
                     }
                     tx.Commit();
+                    success = true;
+                    // After success has been set to true we really should return TRUE.
+                    // If an exception occurs it will be caught in the exception handler of
+                    // e.g. the Inbox, which will then likely mark the inbox item for "try again",
+                    // which will then fail because the inbox item is gone. Which is not terrible,
+                    // but it's better not to get in that situation :-) 
                 }
 
-                success = true;
-
                 // And publish the event
-                if (await ShouldRaiseDriveEventAsync(targetFile))
+                if (await TryShouldRaiseDriveEventAsync(targetFile))
                 {
-                    await mediator.Publish(new DriveFileChangedNotification
-                    {
-                        File = targetFile,
-                        ServerFileHeader = header,
-                        OdinContext = odinContext,
-                        IgnoreFeedDistribution = false
-                    });
+                    await TryPublish(new DriveFileChangedNotification   // TODO remove await
+                            {
+                                File = targetFile,
+                                ServerFileHeader = header,
+                                OdinContext = odinContext,
+                                IgnoreFeedDistribution = false
+                            });
                 }
             }
             finally
             {
                 if (success)
                 {
-                    // Cleanup zombied payloads only if the file got moved and committed
-                    // Otherwise leave them be as orphaned, maybe the next attempt can reuse
-                    // some of the files already copied.
-                    await DeleteZombiePayloads(targetFile, zombies);
+                    // Cleanup zombied payloads only if the file got moved and 
+                    await TryDeleteZombiePayloadsAsync(targetFile, zombies);  // TODO remove await
                 }
             }
 
-            return (success, success ? copiedPayloads : null);
+            // No need to return success, if we are here, it is true
+            return (success, copiedPayloads);
+        }
+
+
+        private async Task TryPublish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
+        {
+            try
+            {
+                await mediator.Publish(notification, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete zombie payloads");
+            }
         }
 
 
@@ -1353,6 +1371,19 @@ namespace Odin.Services.Drives.FileSystem.Base
             return file.DriveId != (await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive));
         }
 
+        private async Task<bool> TryShouldRaiseDriveEventAsync(InternalDriveFileId file)
+        {
+            try
+            {
+                return await ShouldRaiseDriveEventAsync(file);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Publish Error occured");
+                return false;
+            }
+        }
+
         private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext)
         {
             bool success = false;
@@ -1603,6 +1634,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             catch (Exception e)
             {
                 _logger.LogError(e, "Failed to delete zombie payloads");
+            }
+        }
+
+        private async Task TryDeleteZombiePayloadsAsync(InternalDriveFileId file, List<PayloadDescriptor> deadPayloads)
+        {
+            try
+            {
+                await DeleteZombiePayloads(file, deadPayloads);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete zombie payloads");
             }
         }
     }
