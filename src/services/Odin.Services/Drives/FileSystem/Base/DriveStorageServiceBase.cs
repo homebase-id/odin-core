@@ -1028,9 +1028,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
-                    // Now commit the header to the database
-                    // We probably don't want this function here, instead we'll just write
-                    // this header record up in the inbox
+                    // Now commit the file header to the database and the inbox record in one transaction
                     await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
                         manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
                     if (markComplete != null)
@@ -1082,7 +1080,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to delete zombie payloads");
+                _logger.LogError(ex, "Failed to Publish() notification");
             }
         }
 
