@@ -229,7 +229,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         int n = await markComplete.ExecuteAsync(); // XXX
                         if (n == 1)
-                            return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.DeleteFromInbox, payloadDescriptors);
+                            return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.DeleteFromInbox, []);
                     }
                     return (InboxReturnTypes.TryAgainLater, []);
                 }
