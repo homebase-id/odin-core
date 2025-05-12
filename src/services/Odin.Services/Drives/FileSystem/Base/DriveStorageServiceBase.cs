@@ -1024,21 +1024,21 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
-                await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-                await using var tx = await cn.BeginStackedTransactionAsync();
-
-                // Now commit the header to the database
-                // We probably don't want this function here, instead we'll just write
-                // this header record up in the inbox
-                await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
-                                                manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
-                if (markComplete != null)
+                await using (var tx = await db.BeginStackedTransactionAsync())
                 {
-                    int n = await markComplete.ExecuteAsync();
-                    if (n != 1)
-                        throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
+                    // Now commit the header to the database
+                    // We probably don't want this function here, instead we'll just write
+                    // this header record up in the inbox
+                    await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
+                        manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+                    if (markComplete != null)
+                    {
+                        int n = await markComplete.ExecuteAsync();
+                        if (n != 1)
+                            throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
+                    }
+                    tx.Commit();
                 }
-                await tx.Commit();
 
                 success = true;
 
