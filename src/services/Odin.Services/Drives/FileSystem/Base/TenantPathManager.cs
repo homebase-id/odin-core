@@ -1,10 +1,14 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
 using Odin.Services.Util;
+
+[assembly: InternalsVisibleTo("Odin.Services.Tests")]
 
 #nullable enable
 
@@ -52,7 +56,6 @@ public class TenantPathManager
     public const string PayloadDelimiter = "-";
     public const string TransitThumbnailKeyDelimiter = "|";
     public const string RegJson = "reg.json";
-    public const string PayloadShard = "shard1"; // SEB:TODO delete me after flattening
 
     public readonly string RootPath; // e.g. /data/tenants
     public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
@@ -76,7 +79,7 @@ public class TenantPathManager
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
-        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder, PayloadShard);
+        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder);
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
@@ -107,13 +110,13 @@ public class TenantPathManager
     // ----------------------
 
     // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/inbox
-    public string GetDriveInboxStoragePath(Guid driveId)
+    public string GetDriveInboxPath(Guid driveId)
     {
         return Path.Combine(TempDrivesPath, GuidToPathSafeString(driveId), InboxFolder);
     }
 
     // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/uploads
-    public string GetDriveUploadStoragePath(Guid driveId)
+    public string GetDriveUploadPath(Guid driveId)
     {
         return Path.Combine(TempDrivesPath, GuidToPathSafeString(driveId), UploadFolder);
     }
@@ -148,17 +151,10 @@ public class TenantPathManager
         return isMatch;
     }
 
-    public static string GetPayloadDirectoryFromGuid(Guid fileId)
+    internal static string GetPayloadDirectoryFromGuid(Guid fileId)
     {
-        var id = GuidToPathSafeString(fileId);
-        var year = id.Substring(0, 4);
-        var month = id.Substring(4, 2);
-        var day = id.Substring(6, 2);
-        var hour = id.Substring(8, 2);
-
-        var path = Path.Combine(year, month, day, hour);
-
-        return path;
+        var (highNibble, lowNibble) = GuidHelper.GetLastTwoNibbles(fileId);
+        return Path.Combine(highNibble.ToString(), lowNibble.ToString());
     }
 
     public string GetPayloadDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
@@ -170,31 +166,26 @@ public class TenantPathManager
         return path;
     }
 
-    private static string CreateBasePayloadFileName(string payloadKey, string uid)
+    private static string GetBasePayloadFileName(string payloadKey, string uid)
     {
         return $"{payloadKey.ToLower()}{FileNameSectionDelimiter}{uid}";
     }
 
-    public static string CreateBasePayloadFileName(string payloadKey, UnixTimeUtcUnique uid)
+    private static string GetBasePayloadFileName(string payloadKey, UnixTimeUtcUnique uid)
     {
-        return CreateBasePayloadFileName(payloadKey, uid.ToString());
-    }
-
-    public static string CreateBasePayloadSearchMask()
-    {
-        return CreateBasePayloadFileName("*", "*");
+        return GetBasePayloadFileName(payloadKey, uid.ToString());
     }
 
 
-    public static string CreateBasePayloadFileNameAndExtension(string payloadKey, UnixTimeUtcUnique uid)
+    public static string GetBasePayloadFileNameAndExtension(string payloadKey, UnixTimeUtcUnique uid)
     {
-        return $"{payloadKey.ToLower()}{FileNameSectionDelimiter}{uid.ToString()}{PayloadExtension}";
+        return $"{GetBasePayloadFileName(payloadKey, uid)}{PayloadExtension}";
     }
 
 
-    public string GetPayloadFileName(Guid fileId, string key, UnixTimeUtcUnique uid)
+    internal static string GetPayloadFileName(Guid fileId, string key, UnixTimeUtcUnique uid)
     {
-        return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{CreateBasePayloadFileName(key, uid)}{PayloadExtension}";
+        return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{GetBasePayloadFileNameAndExtension(key, uid)}";
     }
 
     public string GetPayloadDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
@@ -204,32 +195,32 @@ public class TenantPathManager
         return Path.Combine(dir, fileName);
     }
 
+    public static string GetBasePayloadSearchMask()
+    {
+        return GetBasePayloadFileName("*", "*");
+    }
+
     // ----------------------
     // Thumbnail-specific paths
     // ----------------------
 
-    private static string CreateThumbnailFileNameAndExtension(string payloadKey, string payloadUid, string width, string height)
+    private static string GetThumbnailFileNameAndExtension(string payloadKey, string payloadUid, string width, string height)
     {
-        var bn = CreateBasePayloadFileName(payloadKey, payloadUid);
+        var bn = GetBasePayloadFileName(payloadKey, payloadUid);
         var r = $"{bn}{FileNameSectionDelimiter}{width}x{height}{ThumbnailExtension}";
         return r;
     }
 
-    public static string CreateThumbnailFileNameAndExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
+    public static string GetThumbnailFileNameAndExtension(string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
     {
         OdinValidationUtils.AssertIsTrue(width > 0, "Thumbnail width must be > 0");
         OdinValidationUtils.AssertIsTrue(height > 0, "Thumbnail height must be > 0");
 
-        return CreateThumbnailFileNameAndExtension(payloadKey, payloadUid.ToString(), width.ToString(), height.ToString());
-    }
-
-    public static string CreateThumbnailFileExtensionStarStar(string payloadKey, UnixTimeUtcUnique payloadUid)
-    {
-        return CreateThumbnailFileNameAndExtension(payloadKey, payloadUid.ToString(), "*", "*");
+        return GetThumbnailFileNameAndExtension(payloadKey, payloadUid.ToString(), width.ToString(), height.ToString());
     }
 
 
-    public string GetThumbnailDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
+    internal string GetThumbnailDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
     {
         return GetPayloadDirectory(driveId, fileId, ensureExists);
     }
@@ -247,6 +238,11 @@ public class TenantPathManager
         var fileName = GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbWidth, thumbHeight);
         var dir = GetThumbnailDirectory(driveId, fileId, false);
         return Path.Combine(dir, fileName);
+    }
+
+    public static string GetThumbnailFileExtensionStarStar(string payloadKey, UnixTimeUtcUnique payloadUid)
+    {
+        return GetThumbnailFileNameAndExtension(payloadKey, payloadUid.ToString(), "*", "*");
     }
 
     // ----------------------

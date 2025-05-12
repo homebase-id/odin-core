@@ -9,6 +9,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.Certificate;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Email;
 using Odin.Services.Registry.Registration;
 
@@ -200,7 +201,7 @@ namespace Odin.Services.Configuration
                 SystemDataRootPath =                 
                     Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:SystemDataRootPath"));
 
-                SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
+                SystemSslRootPath = Path.Combine(SystemDataRootPath, TenantPathManager.SslFolder);
 
                 DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "tmp", "data-protection-keys");
 

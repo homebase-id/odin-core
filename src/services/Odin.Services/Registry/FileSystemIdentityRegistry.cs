@@ -27,7 +27,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
-using static Org.BouncyCastle.Math.EC.ECCurve;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
@@ -38,7 +37,7 @@ namespace Odin.Services.Registry;
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
     public string RegistrationRoot { get; private set; }
-    public string ShardablePayloadRoot { get; private set; }
+    public string PayloadRoot { get; private set; }
 
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
@@ -63,8 +62,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
-        RegistrationRoot = Path.Combine(tenantDataRootPath, "registrations");
-        ShardablePayloadRoot = Path.Combine(tenantDataRootPath, "payloads");
+        RegistrationRoot = Path.Combine(tenantDataRootPath, TenantPathManager.RegistrationsFolder);
+        PayloadRoot = Path.Combine(tenantDataRootPath, TenantPathManager.PayloadsFolder);
         _tempFolderRoot = tenantDataRootPath;
 
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
@@ -255,17 +254,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
 
             var registrationId = registration.Id.ToString();
-            var targetRegistrationsPath = Path.Combine(targetPath, "registrations", registrationId);
+            var targetRegistrationsPath = Path.Combine(targetPath, TenantPathManager.RegistrationsFolder, registrationId);
             Directory.CreateDirectory(targetRegistrationsPath);
 
             _logger.LogInformation("Copying {domain} registration to {targetRegistrationsPath}", domain, targetRegistrationsPath);
             var source = new DirectoryInfo(Path.Combine(RegistrationRoot, registrationId));
             await Task.Run(() => source.CopyTo(targetRegistrationsPath));
 
-            var targetPayloadsPath = Path.Combine(targetPath, "payloads");
+            var targetPayloadsPath = Path.Combine(targetPath, TenantPathManager.PayloadsFolder);
             Directory.CreateDirectory(targetPayloadsPath);
 
-            var shards = Directory.GetDirectories(ShardablePayloadRoot);
+            var shards = Directory.GetDirectories(PayloadRoot);
             foreach (var shard in shards)
             {
                 var payloadSourcePath = Path.Combine(shard, registrationId);
@@ -419,7 +418,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
         }
 
-        Directory.CreateDirectory(ShardablePayloadRoot);
+        Directory.CreateDirectory(PayloadRoot);
         if (!Directory.Exists(RegistrationRoot))
         {
             throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
@@ -642,7 +641,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         return Task.Run(() =>
         {
-            var shards = Directory.GetDirectories(ShardablePayloadRoot);
+            var shards = Directory.GetDirectories(PayloadRoot);
             foreach (var shard in shards)
             {
                 var id = identity.Id.ToString();
