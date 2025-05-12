@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
@@ -96,13 +97,11 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.PayloadsPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString())));
 
         Assert.That(tenantPathManager.PayloadsDrivesPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives")));
     }
@@ -143,7 +142,7 @@ public class TenantPathManagerTests
         var tenantPathManager = new TenantPathManager(_config, tenantId);
         var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
 
-        Assert.That(tenantPathManager.GetDriveInboxStoragePath(driveId),  Is.EqualTo(Path.Combine(
+        Assert.That(tenantPathManager.GetDriveInboxPath(driveId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "registrations",
             tenantId.ToString(),
@@ -162,7 +161,7 @@ public class TenantPathManagerTests
         var tenantPathManager = new TenantPathManager(_config, tenantId);
         var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
 
-        Assert.That(tenantPathManager.GetDriveUploadStoragePath(driveId),  Is.EqualTo(Path.Combine(
+        Assert.That(tenantPathManager.GetDriveUploadPath(driveId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "registrations",
             tenantId.ToString(),
@@ -184,7 +183,6 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.GetDrivePayloadPath(driveId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives",
             "11111111abcdabcd1111111111111111",
@@ -205,12 +203,10 @@ public class TenantPathManagerTests
     [Test]
     public void GetPayloadDirectoryFromGuid_ReturnsCorrectPath()
     {
-        var fileId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
+        var fileId = Guid.Parse("11111111-abcd-ABCD-1111-1111111111ab");
         Assert.That(TenantPathManager.GetPayloadDirectoryFromGuid(fileId), Is.EqualTo(Path.Combine(
-            "1111",
-            "11",
-            "11",
-            "ab")));
+            "a",
+            "b")));
     }
 
     //
@@ -221,20 +217,17 @@ public class TenantPathManagerTests
         var tenantId = Guid.NewGuid();
         var tenantPathManager = new TenantPathManager(_config, tenantId);
         var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
-        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-111111111112");
+        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-1111111111ab");
 
         Assert.That(tenantPathManager.GetPayloadDirectory(driveId, fileId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives",
             "11111111abcdabcd1111111111111111",
             "files",
-            "2111",
-            "11",
-            "11",
-            "ab")));
+            "a",
+            "b")));
     }
 
     //
@@ -248,14 +241,6 @@ public class TenantPathManagerTests
         Assert.That(tenantPathManager.GetIdentityDatabasePath(), Is.EqualTo(expected));
     }
 
-    //
-
-    [Test]
-    public void CreateBasePayloadFileName_ReturnsCorrectFileName()
-    {
-        var uid = UnixTimeUtcUnique.ZeroTime;
-        Assert.That(TenantPathManager.CreateBasePayloadFileName("ABC", uid), Is.EqualTo("abc-0"));
-    }
 
     //
 
@@ -264,7 +249,7 @@ public class TenantPathManagerTests
     {
         var uid = UnixTimeUtcUnique.ZeroTime;
         Assert.That(
-            TenantPathManager.CreateBasePayloadFileNameAndExtension("ABC", uid),
+            TenantPathManager.GetBasePayloadFileNameAndExtension("ABC", uid),
             Is.EqualTo("abc-0.payload"));
     }
 
@@ -278,7 +263,7 @@ public class TenantPathManagerTests
         var fileId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
         var uid = UnixTimeUtcUnique.ZeroTime;
         Assert.That(
-            tenantPathManager.GetPayloadFileName(fileId, "key", uid),
+            TenantPathManager.GetPayloadFileName(fileId, "key", uid),
             Is.EqualTo("11111111abcdabcd1111111111111111-key-0.payload"));
     }
 
@@ -290,23 +275,20 @@ public class TenantPathManagerTests
         var tenantId = Guid.NewGuid();
         var tenantPathManager = new TenantPathManager(_config, tenantId);
         var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
-        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-111111111112");
+        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-1111111111ab");
         var uid = UnixTimeUtcUnique.ZeroTime;
         Assert.That(
             tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, "key", uid),
             Is.EqualTo(Path.Combine(
                 _config.Host.TenantDataRootPath,
                 "payloads",
-                "shard1", // SEB:TODO delete me after flattening
-                tenantId.ToString(),
+                    tenantId.ToString(),
                 "drives",
                 "11111111abcdabcd1111111111111111",
                 "files",
-                "2111",
-                "11",
-                "11",
-                "ab",
-                "21111111abcdabcd1111111111111112-key-0.payload")));
+                "a",
+                "b",
+                "21111111abcdabcd11111111111111ab-key-0.payload")));
     }
 
     //
@@ -316,7 +298,7 @@ public class TenantPathManagerTests
     {
         var uid = UnixTimeUtcUnique.ZeroTime;
         Assert.That(
-            TenantPathManager.CreateThumbnailFileNameAndExtension("abc", uid, 100, 200),
+            TenantPathManager.GetThumbnailFileNameAndExtension("abc", uid, 100, 200),
             Is.EqualTo("abc-0-100x200.thumb"));
     }
 
@@ -327,7 +309,7 @@ public class TenantPathManagerTests
     {
         var uid = UnixTimeUtcUnique.ZeroTime;
         Assert.That(
-            TenantPathManager.CreateThumbnailFileExtensionStarStar("abc", uid),
+            TenantPathManager.GetThumbnailFileExtensionStarStar("abc", uid),
             Is.EqualTo("abc-0-*x*.thumb"));
     }
 
@@ -339,20 +321,17 @@ public class TenantPathManagerTests
         var tenantId = Guid.NewGuid();
         var tenantPathManager = new TenantPathManager(_config, tenantId);
         var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
-        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-111111111112");
+        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-1111111111ab");
 
         Assert.That(tenantPathManager.GetThumbnailDirectory(driveId, fileId),  Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "payloads",
-            "shard1", // SEB:TODO delete me after flattening
             tenantId.ToString(),
             "drives",
             "11111111abcdabcd1111111111111111",
             "files",
-            "2111",
-            "11",
-            "11",
-            "ab")));
+            "a",
+            "b")));
     }
 
     //
@@ -374,23 +353,20 @@ public class TenantPathManagerTests
         var tenantId = Guid.NewGuid();
         var tenantPathManager = new TenantPathManager(_config, tenantId);
         var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
-        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-111111111112");
+        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-1111111111ab");
         var uid = UnixTimeUtcUnique.ZeroTime;
 
         Assert.That(tenantPathManager.GetThumbnailDirectoryAndFileName(driveId, fileId, "key", uid, 10, 20),
             Is.EqualTo(Path.Combine(
                 _config.Host.TenantDataRootPath,
                 "payloads",
-                "shard1", // SEB:TODO delete me after flattening
-                tenantId.ToString(),
+                    tenantId.ToString(),
                 "drives",
                 "11111111abcdabcd1111111111111111",
                 "files",
-                "2111",
-                "11",
-                "11",
-                "ab",
-                "21111111abcdabcd1111111111111112-key-0-10x20.thumb")));
+                "a",
+                "b",
+                "21111111abcdabcd11111111111111ab-key-0-10x20.thumb")));
     }
 
     //

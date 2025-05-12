@@ -283,7 +283,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
+            string extension = TenantPathManager.GetBasePayloadFileNameAndExtension(payloadKey, payloadDescriptor.Uid);
             await _incomingTransferService.AcceptPayload(payloadKey, extension, fileSection.FileStream, WebOdinContext);
             return payloadDescriptor;
         }
@@ -309,7 +309,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 throw new OdinClientException($"Payload sent with key that is not defined in the metadata header: {payloadKey}");
             }
 
-            string extension = TenantPathManager.CreateThumbnailFileNameAndExtension(payloadKey, payloadDescriptor.Uid, width, height);
+            string extension = TenantPathManager.GetThumbnailFileNameAndExtension(payloadKey, payloadDescriptor.Uid, width, height);
             await _incomingTransferService.AcceptThumbnail(payloadKey, thumbnailUploadKey, extension,
                 fileSection.FileStream,
                 WebOdinContext);

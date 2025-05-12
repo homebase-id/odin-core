@@ -670,7 +670,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetThumbnailSearchMask(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = TenantPathManager.CreateThumbnailFileExtensionStarStar(payloadKey, payloadUid);
+            var extension = TenantPathManager.GetThumbnailFileExtensionStarStar(payloadKey, payloadUid);
             return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 

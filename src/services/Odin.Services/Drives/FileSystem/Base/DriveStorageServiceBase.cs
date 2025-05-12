@@ -207,11 +207,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<string> GetTempFilePath(TempFile tempFile, string extension)
-        {
-            return await uploadStorageManager.GetPath(tempFile, extension);
-        }
-
         public async Task<uint> WriteTempStream(TempFile tempFile, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
@@ -1564,13 +1559,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             StorageDrive drive,
             PayloadDescriptor descriptor)
         {
-            var payloadExtension = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
+            var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = await uploadStorageManager.GetPath(originFile, payloadExtension);
             longTermStorageManager.CopyPayloadToLongTerm(drive, targetFile.FileId, descriptor, sourceFilePath);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
-                var thumbExt = TenantPathManager.CreateThumbnailFileNameAndExtension(
+                var thumbExt = TenantPathManager.GetThumbnailFileNameAndExtension(
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
                 var sourceThumbnail = await uploadStorageManager.GetPath(originFile, thumbExt);
