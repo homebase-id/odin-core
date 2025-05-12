@@ -117,13 +117,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 descriptors!.ForEach(descriptor =>
                 {
-                    var payloadExtension = TenantPathManager.CreateBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
+                    var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
                     string payloadDirectoryAndFilename = GetTempFilenameAndPathInternal(drive, tempFile, payloadExtension);
                     targetFiles.Add(payloadDirectoryAndFilename);
 
                     descriptor.Thumbnails?.ForEach(thumb =>
                     {
-                        var thumbnailExtension = TenantPathManager.CreateThumbnailFileNameAndExtension(descriptor.Key,
+                        var thumbnailExtension = TenantPathManager.GetThumbnailFileNameAndExtension(descriptor.Key,
                             descriptor.Uid,
                             thumb.PixelWidth,
                             thumb.PixelHeight);
@@ -149,9 +149,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return path;
         }
 
-        private string GetFileDirectory(StorageDrive drive, TempFile tempFile, bool ensureExists = false)
+        private string GetUploadOrInboxFileDirectory(StorageDrive drive, TempFile tempFile, bool ensureExists = false)
         {
-            var path = drive.GetTempStoragePath(tempFile.StorageType);
+            string path;
+
+            if (tempFile.StorageType == TempStorageType.Upload)
+                path = drive.GetDriveUploadPath();
+            else
+                path = drive.GetDriveInboxPath();
 
             if (ensureExists)
             {
@@ -171,7 +176,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var fileId = tempFile.File.FileId;
 
-            string dir = GetFileDirectory(drive, tempFile, ensureExists);
+            string dir = GetUploadOrInboxFileDirectory(drive, tempFile, ensureExists);
             var r = Path.Combine(dir, TenantPathManager.GetFilename(fileId, extension));
 
             return r;

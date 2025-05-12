@@ -227,7 +227,7 @@ public static class DriveFileUtility
 
     public static string GetPayloadFileExtensionStarStar()
     {
-        var bn = TenantPathManager.CreateBasePayloadSearchMask();
+        var bn = TenantPathManager.GetBasePayloadSearchMask();
         var r = $"{bn}{TenantPathManager.PayloadExtension}";
 
         return r;
