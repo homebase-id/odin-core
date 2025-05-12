@@ -114,7 +114,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
                 var markComplete = new MarkInboxComplete(transitInboxBoxStorage, tempFile.File, inboxItem.Marker);
                 var payloads = new List<PayloadDescriptor>();
-                var success = InboxReturnTypes.TryAgainLater;
+                var success = InboxReturnTypes.DeleteFromInbox;
 
                 try
                 {
@@ -176,18 +176,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         logger.LogInformation(
                             "Found inbox item of type CommandMessage; these are now obsolete (gtid: {gtid} InstructionType:{it}); Action: Marking Complete",
                             inboxItem.GlobalTransitId, inboxItem.InstructionType);
-                        int n = await markComplete.ExecuteAsync();
-                        return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.DeleteFromInbox, []);
+                        return (InboxReturnTypes.DeleteFromInbox, []);
                     }
 
                     if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeedViaTransit)
                     {
                         //this was a file sent over transit (fully encrypted for connected identities but targeting the feed drive)
                         var (success, payloadDescriptors) = await ProcessFeedItemViaTransit(inboxItem, odinContext, writer, tempFile, fs);
+
                         if (success)
                         {
-                            int n = await markComplete.ExecuteAsync(); // XXX
-                            return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, payloadDescriptors);
+                            int n = await markComplete.ExecuteAsync(); // XXX 
+                            if (n == 1)
+                                return (InboxReturnTypes.HasBeenMarkedComplete, payloadDescriptors);
                         }
                         return (InboxReturnTypes.TryAgainLater, payloadDescriptors);
                     }
@@ -198,7 +199,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         if (success)
                         {
                             int n = await markComplete.ExecuteAsync(); // XXX
-                            return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, payloadDescriptors);
+                            if (n == 1)
+                                return (InboxReturnTypes.HasBeenMarkedComplete, payloadDescriptors);
                         }
                         return (InboxReturnTypes.TryAgainLater, payloadDescriptors);
                     }
@@ -209,7 +211,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         if (success)
                         {
                             int n = await markComplete.ExecuteAsync(); // XXX
-                            return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, payloadDescriptors);
+                            if (n == 1)
+                                return (InboxReturnTypes.HasBeenMarkedComplete, payloadDescriptors);
                         }
                         return (InboxReturnTypes.TryAgainLater, payloadDescriptors);
                     }
@@ -225,7 +228,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     if (success)
                     {
                         int n = await markComplete.ExecuteAsync(); // XXX
-                        return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, []);
+                        if (n == 1)
+                            return (InboxReturnTypes.HasBeenMarkedComplete, []);
                     }
                     return (InboxReturnTypes.TryAgainLater, []);
                 }
@@ -240,12 +244,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         inboxItem.AddedTimestamp.milliseconds);
 
                     var success = await writer.MarkFileAsRead(fs, inboxItem, odinContext);
-                    logger.LogDebug(ReadReceiptItemMarkedComplete);
 
                     if (success)
                     {
+                        logger.LogDebug(ReadReceiptItemMarkedComplete);
                         int n = await markComplete.ExecuteAsync(); // XXX
-                        return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, []);
+                        if (n == 1)
+                            return (InboxReturnTypes.HasBeenMarkedComplete, []);
                     }
                     return (InboxReturnTypes.TryAgainLater, []);
                 }
@@ -256,7 +261,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     if (success)
                     {
                         int n = await markComplete.ExecuteAsync(); // XXX
-                        return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, []);
+                        if (n == 1)
+                            return (InboxReturnTypes.HasBeenMarkedComplete, []);
                     }
                     return (InboxReturnTypes.TryAgainLater, []);
                 }
@@ -273,7 +279,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogError(ofwe,
                     "Issue Writing a file.  Action: Marking Complete. marker/popStamp: [{marker}]",
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
-                return (InboxReturnTypes.TryAgainLater, []);
+                return (InboxReturnTypes.DeleteFromInbox, []);
             }
             catch (OdinAcquireLockException te)
             {
@@ -304,7 +310,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
                 }
 
-                return (InboxReturnTypes.TryAgainLater, []);
+                return (InboxReturnTypes.DeleteFromInbox, []);
             }
             catch (OdinSecurityException securityException)
             {
@@ -323,7 +329,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                return (InboxReturnTypes.TryAgainLater, []);
+                return (InboxReturnTypes.DeleteFromInbox, []);
             }
             catch (Exception e)
             {
@@ -338,7 +344,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                return (InboxReturnTypes.TryAgainLater, []); // TODD - SHOULD PROBABLY BE FLASE - BUT NOT UNTIL WE HAVE A RETRY COUNT ON THE INBOX
+                return (InboxReturnTypes.DeleteFromInbox, []); // TODD - SHOULD PROBABLY BE FLASE - BUT NOT UNTIL WE HAVE A RETRY COUNT ON THE INBOX
             }
         }
 
