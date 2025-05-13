@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
@@ -20,7 +22,12 @@ namespace Odin.Services.Drives.Reactions;
 /// <summary>
 /// Manages reactions to files
 /// </summary>
-public class ReactionContentService(DriveManager driveManager, DriveQuery driveQuery, IMediator mediator)
+public class ReactionContentService(
+    ILogger<ReactionContentService> logger,
+    IdentityDatabase database,
+    DriveManager driveManager,
+    DriveQuery driveQuery,
+    IMediator mediator)
 {
     public async Task<bool> AddReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
     {
@@ -46,7 +53,8 @@ public class ReactionContentService(DriveManager driveManager, DriveQuery driveQ
         }
         catch (Exception ex)
         {
-            _logger.Log(...);
+            woooot
+            logger.LogError(ex, "STUFF IS SUPER BROKEN");
         }
 
 
@@ -61,7 +69,7 @@ public class ReactionContentService(DriveManager driveManager, DriveQuery driveQ
 
         bool success = false;
 
-        await using (var tx = await db.BeginStackedTransactionAsync())
+        await using (var tx = await database.BeginStackedTransactionAsync())
         {
             await driveQuery.DeleteReactionAsync(drive, senderId, file.FileId, reactionContent);
             if (markComplete != null)
@@ -92,7 +100,8 @@ public class ReactionContentService(DriveManager driveManager, DriveQuery driveQ
         }
         catch (Exception ex) 
         {
-            _logger.Log(...);
+            woooot
+            logger.LogError(ex, "STUFF IS SUPER BROKEN");
         }
 
         return true;
