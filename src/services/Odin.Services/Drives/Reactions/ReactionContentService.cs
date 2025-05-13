@@ -53,8 +53,7 @@ public class ReactionContentService(
         }
         catch (Exception ex)
         {
-            woooot
-            logger.LogError(ex, "STUFF IS SUPER BROKEN");
+            logger.LogError(ex, "mediator.Publish threw an error");
         }
 
 
@@ -67,11 +66,11 @@ public class ReactionContentService(
 
         var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
 
-        bool success = false;
-
         await using (var tx = await database.BeginStackedTransactionAsync())
         {
             await driveQuery.DeleteReactionAsync(drive, senderId, file.FileId, reactionContent);
+            // We could check here if 1 row was deleted ...
+
             if (markComplete != null)
             {
                 var n = await markComplete.ExecuteAsync();
@@ -100,8 +99,7 @@ public class ReactionContentService(
         }
         catch (Exception ex) 
         {
-            woooot
-            logger.LogError(ex, "STUFF IS SUPER BROKEN");
+            logger.LogError(ex, "mediator.Publish threw an error");
         }
 
         return true;
