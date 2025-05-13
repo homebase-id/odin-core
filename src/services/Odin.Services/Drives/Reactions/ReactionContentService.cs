@@ -46,7 +46,7 @@ public class ReactionContentService(DriveManager driveManager, DriveQuery driveQ
         }
         catch (Exception ex)
         {
-            // XXX how do I log?
+            _logger.Log(...);
         }
 
 
@@ -91,8 +91,8 @@ public class ReactionContentService(DriveManager driveManager, DriveQuery driveQ
             });
         }
         catch (Exception ex) 
-        { 
-            // How do I log ?
+        {
+            _logger.Log(...);
         }
 
         return true;
