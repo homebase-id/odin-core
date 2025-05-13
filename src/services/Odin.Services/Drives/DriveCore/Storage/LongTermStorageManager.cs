@@ -655,7 +655,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             });
         }
 
-        public async Task DeleteUnassociatedTargetFiles(InternalDriveFileId targetFile)
+        public async Task TryDeleteUnassociatedTargetFiles(InternalDriveFileId targetFile)
         {
             try
             {

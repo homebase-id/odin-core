@@ -108,11 +108,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1); // Oldest chat item
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1); // Newest chat item
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1); // Oldest chat item
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1); // Newest chat item
 
             QueryBatchCursor cursor = null;
 
@@ -174,11 +174,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
@@ -241,11 +241,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
@@ -267,8 +267,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c7 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c6 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c7 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Later we do a new query, with a NULL startFromCursor, because then we'll get the newest items first.
             // But stop at stopAtBoundaryCursor: pagingCursor
@@ -318,11 +318,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
 
@@ -342,8 +342,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(moreRows == false);
 
             // Add two more items
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 1, null, null, 1);
 
             // How you'd get the latest items (in chuinks) since your last update
             c = 0;
@@ -359,11 +359,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(moreRows == false);
 
             // Add five more items
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null, 1);
 
             // How you'd get the latest items (in chuinks) since your last update
             c = 0;
@@ -404,13 +404,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
             var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(2001));
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
-            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
+            var c3 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
             await Task.Delay(10);
-            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            var c4 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
             await Task.Delay(10);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(c4);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, sortOrder: QueryBatchOrdering.OldestFirst, queryType: QueryBatchType.CreatedDate, requiredSecurityGroup: allIntRange);
@@ -450,11 +450,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1999), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1999), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000), true);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, sortOrder: QueryBatchOrdering.OldestFirst, queryType: QueryBatchType.UserDate, requiredSecurityGroup: allIntRange);
@@ -492,14 +492,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
             var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
             await Task.Delay(10);
             var c4 = UnixTimeUtc.Now();
             await Task.Delay(10);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(c4); // Behaves differently now
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, sortOrder: QueryBatchOrdering.NewestFirst, queryType: QueryBatchType.CreatedDate, requiredSecurityGroup: allIntRange);
@@ -538,11 +538,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1001), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-999), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1001), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-999), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000), true);
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, sortOrder: QueryBatchOrdering.NewestFirst, queryType: QueryBatchType.UserDate, requiredSecurityGroup: allIntRange);
@@ -581,11 +581,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, gtid1, 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, null, uid1, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, null, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, gtid1, 1, 1, s1, null, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, null, uid1, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, null, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
 
             var r = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, gtid1);
             ClassicAssert.IsTrue(r != null);
@@ -620,11 +620,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1, fileState: 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1, fileState: 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1, fileState: 2);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1, fileState: 3);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 0 });
@@ -685,12 +685,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, cursor, requiredSecurityGroup: allIntRange);
@@ -774,11 +774,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            var c1= await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            var c1= await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 100, cursor, requiredSecurityGroup: allIntRange);
@@ -791,8 +791,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c7 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c6 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c7 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now there should be no more items (recursive call in QueryBatch())
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 10, refCursor, requiredSecurityGroup: allIntRange);
@@ -849,11 +849,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
 
             // Add five items to the chat database
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
@@ -881,9 +881,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
             var f8 = SequentialGuid.CreateGuid();
-            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c7 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c8 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c6 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c7 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c8 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now we get two of the three new items, we get the newest first f8 & f7
             (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 2, refCursor, requiredSecurityGroup: allIntRange);
@@ -899,8 +899,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Now add two more items
             var f9 = SequentialGuid.CreateGuid();
             var f10 = SequentialGuid.CreateGuid();
-            var c9 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c10 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c9 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c10 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
             // because there is only 1 left in the previous range. A second request will get the
@@ -950,9 +950,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.NewestFirst, requiredSecurityGroup: allIntRange);
@@ -990,9 +990,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.NewestFirst, queryType: QueryBatchType.UserDate, requiredSecurityGroup: allIntRange);
@@ -1030,9 +1030,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.OldestFirst, requiredSecurityGroup: allIntRange);
@@ -1070,9 +1070,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.OldestFirst, queryType: QueryBatchType.UserDate, requiredSecurityGroup: allIntRange);
@@ -1109,9 +1109,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.NewestFirst, requiredSecurityGroup: allIntRange);
@@ -1151,9 +1151,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.NewestFirst, queryType: QueryBatchType.UserDate, requiredSecurityGroup: allIntRange);
@@ -1194,9 +1194,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             await Task.Delay(10);
             await tblDriveMainIndex.TestTouchAsync(driveId, f1);
@@ -1243,11 +1243,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
             await Task.Delay(10);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
             await Task.Delay(10);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
             await Task.Delay(10);
 
             await Task.Delay(10);
@@ -1290,9 +1290,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c3 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.OldestFirst, requiredSecurityGroup: allIntRange);
@@ -1333,9 +1333,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-            var c3 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
+            var c3 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 2, cursor, sortOrder: QueryBatchOrdering.OldestFirst, queryType: QueryBatchType.UserDate, requiredSecurityGroup: allIntRange);
@@ -1378,9 +1378,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Check we get the oldest and newest items
 
@@ -1417,15 +1417,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
             await Task.Delay(10);
             var c3 = UnixTimeUtc.Now();
             ClassicAssert.IsTrue(c1.milliseconds < c3.milliseconds);
             await Task.Delay(10);
-            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             ClassicAssert.IsTrue(c4.milliseconds > c3.milliseconds);
 
             // Set the start point to f3 (which we didn't put in the DB)
@@ -1477,16 +1477,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             Thread.Sleep(10);
             var t3 = UnixTimeUtc.Now();
             Thread.Sleep(10);
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
@@ -1539,14 +1539,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5000), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5000), 1, null, null, 1);
             Thread.Sleep(10);
             var t3 = UnixTimeUtc.Now();
             Thread.Sleep(10);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4000), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3000), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3000), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 2, null, null, 1);
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
@@ -1598,14 +1598,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
             await Task.Delay(10);
             var c3 = UnixTimeUtc.Now();
             await Task.Delay(10);
-            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor(c3);
@@ -1666,14 +1666,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
-            var c1 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            var c2 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var c1 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            var c2 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
             Thread.Sleep(10);
             var t3 = UnixTimeUtc.Now();
             Thread.Sleep(10);
-            var c4 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c5 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            var c6 = await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c4 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c5 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            var c6 = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor(t3, false);
@@ -1736,11 +1736,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             var cursor = new QueryBatchCursor();
             var (result, moreRows, outCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, sortOrder: QueryBatchOrdering.OldestFirst, queryType: QueryBatchType.ModifiedDate, requiredSecurityGroup: allIntRange);
@@ -1781,11 +1781,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
 
             QueryBatchCursor cursor = null;
@@ -1833,11 +1833,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor cursor = null;
 
@@ -1901,11 +1901,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
             QueryBatchCursor inCursor = null;
             var (result, moreRows, outCursor) = await metaIndex.QueryBatchAsync(driveId, 400, inCursor, sortOrder: QueryBatchOrdering.OldestFirst, queryType: QueryBatchType.ModifiedDate, requiredSecurityGroup: allIntRange);
@@ -1977,11 +1977,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var a3 = SequentialGuid.CreateGuid();
             var a4 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
 
             QueryBatchCursor cursor = null;
 
@@ -2059,11 +2059,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var a4 = SequentialGuid.CreateGuid();
             var a5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
 
             QueryBatchCursor cursor = null;
 
@@ -2209,11 +2209,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var a4 = SequentialGuid.CreateGuid();
             var a5 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null, 1);
 
 
             await tblDriveMainIndex.TestTouchAsync(driveId, f1);
@@ -2357,7 +2357,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -2389,11 +2389,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var f2 = SequentialGuid.CreateGuid();
             var g2 = Guid.NewGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
@@ -2429,12 +2429,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid();
             var t1 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1.ToString(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1.ToString(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             try
             {
                 var f2 = SequentialGuid.CreateGuid();
-                await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, g1, 1, 1, s1.ToString(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, g1, 1, 1, s1.ToString(), t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
                 Assert.Fail();
             }
             catch
@@ -2464,7 +2464,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -2498,7 +2498,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -2543,7 +2543,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
@@ -2582,7 +2582,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -2614,11 +2614,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var f2 = SequentialGuid.CreateGuid();
             var u2 = Guid.NewGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAutoAsync(driveId, 400, cursor, requiredSecurityGroup: allIntRange);
@@ -2654,12 +2654,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid();
             var t1 = SequentialGuid.CreateGuid();
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1.ToString(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1.ToString(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             try
             {
                 var f2 = SequentialGuid.CreateGuid();
-                await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, null, 1, 1, s1.ToString(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, null, 1, 1, s1.ToString(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
                 Assert.Fail();
             }
             catch
@@ -2689,7 +2689,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -2723,7 +2723,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -2771,7 +2771,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var s1 = SequentialGuid.CreateGuid().ToString();
             var t1 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null, 1);
 
             var data = await tblDriveMainIndex.GetAsync(driveId, f1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
@@ -2821,11 +2821,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var a3 = SequentialGuid.CreateGuid();
             var a4 = SequentialGuid.CreateGuid();
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1, a2 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a3, a4 }, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: null, null, 1);
 
             await tblDriveLocalTagIndex.InsertRowsAsync(driveId, f1, new List<Guid>() { a1 });
             await tblDriveLocalTagIndex.InsertRowsAsync(driveId, f2, new List<Guid>() { a2 });
@@ -3180,7 +3180,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             tmpLocalTaglist.Add(tags[2]);
             tmpLocalTaglist.Add(tags[3]);
 
-            await metaIndex.AddEntryPassalongToUpsertAsync(driveId, fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
 
             // Insert a lot of random data
             for (var i = 0 + 1; i < fileId.Count; i++)
@@ -3207,7 +3207,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                     countTags++;
                 }
 
-                await metaIndex.AddEntryPassalongToUpsertAsync(driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
+                await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToString(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist, 1);
 
                 tmpLocalTaglist = new List<Guid>();
 

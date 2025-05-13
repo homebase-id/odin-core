@@ -227,6 +227,6 @@ public class UpdateRemoteFileOutboxWorker(
         };
 
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, null);
     }
 }

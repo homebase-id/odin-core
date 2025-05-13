@@ -218,7 +218,7 @@ public abstract class OutboxWorkerBase(
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);
 
         var fs = fileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, null);
 
         logger.LogDebug("Success: UpdateTransferHistory: {file} to {recipient} " +
                         "with gtid: {gtid}", FileItem.File, FileItem.Recipient, globalTransitId);

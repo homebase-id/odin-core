@@ -6,6 +6,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 
 namespace Odin.Services.Drives.DriveCore.Query
 {
@@ -53,7 +54,7 @@ namespace Odin.Services.Drives.DriveCore.Query
         /// </summary>
         Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file);
 
-        Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction);
+        Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete);
 
         Task DeleteReactionsAsync(StorageDrive drive, OdinId odinId, Guid fileId);
 
