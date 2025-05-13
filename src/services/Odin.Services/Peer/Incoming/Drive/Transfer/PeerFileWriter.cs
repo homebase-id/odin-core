@@ -125,7 +125,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
-        public async Task<bool> DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext)
+        public async Task<bool> DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext);
 
@@ -144,10 +144,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = item.DriveId,
             };
 
-            return await fs.Storage.SoftDeleteLongTermFile(file, odinContext);
+            return await fs.Storage.SoftDeleteLongTermFile(file, odinContext, markComplete);
         }
 
-        public async Task<bool> MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext)
+        public async Task<bool> MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(item.DriveId,
                 item.GlobalTransitId,
@@ -182,7 +182,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 file,
                 item.Sender,
                 update,
-                odinContext);
+                odinContext,
+                markComplete);
         }
 
         private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext)

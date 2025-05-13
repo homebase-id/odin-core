@@ -409,7 +409,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 result.RecipientStatus = responses;
             }
 
-            await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext);
+            await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null);
             result.LocalFileDeleted = true;
             return result;
         }

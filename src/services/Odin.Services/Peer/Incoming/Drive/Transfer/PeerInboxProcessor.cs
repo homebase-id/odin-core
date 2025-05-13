@@ -224,14 +224,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     logger.LogDebug("Processing Inbox -> DeleteFile marker/popstamp:[{maker}]",
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
-                    var success = await writer.DeleteFile(fs, inboxItem, odinContext);
-                    if (success)
-                    {
-                        int n = await markComplete.ExecuteAsync(); // XXX
-                        if (n == 1)
-                            return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.DeleteFromInbox, []);
-                    }
-                    return (InboxReturnTypes.TryAgainLater, []);
+                    var success = await writer.DeleteFile(fs, inboxItem, odinContext, markComplete);
+                    return (success ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, []);
                 }
 
                 if (inboxItem.InstructionType == TransferInstructionType.ReadReceipt)
@@ -243,21 +237,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                         inboxItem.AddedTimestamp.milliseconds);
 
-                    var success = await writer.MarkFileAsRead(fs, inboxItem, odinContext);
+                    var success = await writer.MarkFileAsRead(fs, inboxItem, odinContext, markComplete);
 
                     if (success)
-                    {
-                        logger.LogDebug(ReadReceiptItemMarkedComplete);
-                        int n = await markComplete.ExecuteAsync(); // XXX
-                        if (n == 1)
-                            return (n == 1 ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.DeleteFromInbox, []);
-                    }
-                    return (InboxReturnTypes.TryAgainLater, []);
+                        logger.LogDebug(ReadReceiptItemMarkedComplete); // Used in a TEST
+
+                    return (success ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, []);
                 }
 
                 if (inboxItem.InstructionType is TransferInstructionType.AddReaction or TransferInstructionType.DeleteReaction)
                 {
-                    var success = await HandleReaction(inboxItem, fs, odinContext);
+                    var success = await HandleReaction(inboxItem, fs, odinContext, markComplete);
                     if (success)
                     {
                         int n = await markComplete.ExecuteAsync(); // XXX
@@ -404,7 +394,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, markComplete);
         }
 
-        private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext)
+        private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(inboxItem.DriveId, inboxItem.GlobalTransitId, odinContext);
             if (header == null)

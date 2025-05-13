@@ -481,13 +481,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await longTermStorageManager.HeaderFileExists(drive, file.FileId, GetFileSystemType());
         }
 
-        public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
+        public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext);
 
-            return await WriteDeletedFileHeader(existingHeader, odinContext);
+            return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
         }
 
         public async Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
@@ -804,7 +804,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<bool> UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
-            IOdinContext odinContext)
+            IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
 
@@ -828,18 +828,29 @@ namespace Odin.Services.Drives.FileSystem.Base
                     updateData.IsInOutbox,
                     updateData.IsReadByRecipient);
 
-                var (updatedHistory, modifiedTime) = await longTermStorageManager.SaveTransferHistoryAsync(
-                    drive.Id, file.FileId, recipient, updateData);
-
-                success = true;
-
-                // note: I'm just avoiding re-reading the file.
-                header.ServerMetadata.TransferHistory = updatedHistory;
-                header.FileMetadata.SetCreatedModifiedWithDatabaseValue(header.FileMetadata.Created, modifiedTime);
-
-                if (await ShouldRaiseDriveEventAsync(file))
+                await using (var tx = await db.BeginStackedTransactionAsync())
                 {
-                    await mediator.Publish(new DriveFileChangedNotification
+                    var (updatedHistory, modifiedTime) = await longTermStorageManager.SaveTransferHistoryAsync(
+                        drive.Id, file.FileId, recipient, updateData);
+                    if (markComplete != null)
+                    {
+                        int n = await markComplete.ExecuteAsync();
+                        if (n != 1)
+                            throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
+                    }
+
+                    tx.Commit();
+                    success = true;
+
+                    // note: I'm just avoiding re-reading the file.
+                    header.ServerMetadata.TransferHistory = updatedHistory;
+                    header.FileMetadata.SetCreatedModifiedWithDatabaseValue(header.FileMetadata.Created, modifiedTime);
+                }
+
+
+                if (await TryShouldRaiseDriveEventAsync(file))
+                {
+                    await TryPublish(new DriveFileChangedNotification
                     {
                         File = file,
                         ServerFileHeader = header,
@@ -964,7 +975,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinSecurityException("Invalid caller");
             }
 
-            await WriteDeletedFileHeader(header, odinContext);
+            await WriteDeletedFileHeader(header, odinContext, null);
         }
 
         public async Task UpdateReactionPreviewOnFeedDrive(InternalDriveFileId targetFile, ReactionSummary summary,
@@ -1067,7 +1078,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        private async Task TryPublish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
+        public async Task TryPublish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
         {
             try
             {
@@ -1377,42 +1388,47 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext)
+        private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
-            bool success = false;
             var file = existingHeader.FileMetadata.File;
 
+            var deletedServerFileHeader = new ServerFileHeader()
+            {
+                EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
+                FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
+                {
+                    FileState = FileState.Deleted,
+                    Updated = UnixTimeUtc.Now().milliseconds,
+                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
+                    VersionTag = existingHeader.FileMetadata.VersionTag
+                },
+                ServerMetadata = existingHeader.ServerMetadata
+            };
+
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+
+            bool success = false;
             try
             {
-                var deletedServerFileHeader = new ServerFileHeader()
-                {
-                    EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
-                    FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
-                    {
-                        FileState = FileState.Deleted,
-                        Updated = UnixTimeUtc.Now().milliseconds,
-                        GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
-                        VersionTag = existingHeader.FileMetadata.VersionTag
-                    },
-                    ServerMetadata = existingHeader.ServerMetadata
-                };
-
-                var drive = await DriveManager.GetDriveAsync(file.DriveId);
-
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     await WriteFileHeaderInternal(deletedServerFileHeader);
                     await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                     await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+                    if (markComplete != null)
+                    {
+                        int n = await markComplete.ExecuteAsync();
+                        if (n != 1)
+                            throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
+                    }
                     tx.Commit();
                 }
 
                 success = true;
-                longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
 
-                if (await ShouldRaiseDriveEventAsync(file))
+                if (await TryShouldRaiseDriveEventAsync(file))
                 {
-                    await mediator.Publish(new DriveFileDeletedNotification
+                    await TryPublish(new DriveFileDeletedNotification
                     {
                         PreviousServerFileHeader = existingHeader,
                         IsHardDelete = false,
@@ -1434,6 +1450,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             catch (Exception e)
             {
                 _logger.LogError(e, "Error occured");
+            }
+            finally
+            {
+                if (success)
+                    longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
             }
 
             return success;
