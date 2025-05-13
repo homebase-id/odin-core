@@ -15,6 +15,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 
 namespace Odin.Services.Drives.DriveCore.Query;
@@ -284,17 +285,41 @@ public class DriveQuery(
         await metaIndex.DeleteEntryAsync(drive.Id, file.FileId);
     }
 
-    public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction)
+    public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete)
     {
-        var reactionAdded = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
-        {
-            driveId = drive.Id,
-            identity = odinId,
-            postId = fileId,
-            singleReaction = reaction
-        });
+        bool success = false;
 
-        if (!reactionAdded)
+        await using (var tx = await db.BeginStackedTransactionAsync())
+        {
+            success = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
+            {
+                driveId = drive.Id,
+                identity = odinId,
+                postId = fileId,
+                singleReaction = reaction
+            });
+
+            if (success)
+            {
+                if (markComplete != null)
+                {
+                    var n = await markComplete.ExecuteAsync();
+
+                    if (n != 1)
+                        throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
+                }
+            }
+
+            if (success)
+                tx.Commit();
+        }
+
+        // Both these exception need to be scrutinized. Look up in the inbox handler. We need to 
+        // be very deliberate about when we remove it from the inbox and when we try again. If for
+        // example we fail to markComplete, but the reaction insert was successful, we should try again,
+        // but otherwise we should delete from inbox !!
+
+        if (!success)
         {
             throw new OdinClientException("Cannot add duplicate reaction");
         }
