@@ -1077,7 +1077,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        public async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
+        private async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
         {
             try
             {
@@ -1091,7 +1091,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
 
 
-        public async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)> UpdateBatchCopyFilesAsync(TempFile originFile,
+        private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)> UpdateBatchCopyFilesAsync(TempFile originFile,
                         InternalDriveFileId targetFile, BatchUpdateManifest manifest,
                         IOdinContext odinContext)
         {
