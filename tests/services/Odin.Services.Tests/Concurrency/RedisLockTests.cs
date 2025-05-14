@@ -72,7 +72,7 @@ public class RedisLockTests
     {
         await RegisterServicesAsync();
 
-        var lockKey = "testlock1";
+        var lockKey = NodeLockKey.Create("testlock1");
         var redisKey = "odin:lock:" + lockKey;
 
         var connectionMultiplexer = _services!.Resolve<IConnectionMultiplexer>();
@@ -101,7 +101,7 @@ public class RedisLockTests
     {
         await RegisterServicesAsync();
 
-        var lockKey = "testlock1";
+        var lockKey = NodeLockKey.Create("testlock1");
         var redisLock = _services!.Resolve<INodeLock>();
 
         // Acquire the lock and hold it.
@@ -130,7 +130,7 @@ public class RedisLockTests
     {
         await RegisterServicesAsync();
 
-        var lockKey = "testlock3";
+        var lockKey = NodeLockKey.Create("testlock1");
         var redisKey = "odin:lock:" + lockKey;
 
         var connectionMultiplexer = _services!.Resolve<IConnectionMultiplexer>();
@@ -158,7 +158,7 @@ public class RedisLockTests
     {
         await RegisterServicesAsync();
 
-        var lockKey = "testlock4";
+        var lockKey = NodeLockKey.Create("testlock1");
         var redisLock = _services!.Resolve<INodeLock>();
 
         // Acquire the lock so that the next attempt will have to wait.

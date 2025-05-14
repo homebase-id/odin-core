@@ -20,7 +20,7 @@ public sealed class RedisLock(IConnectionMultiplexer connectionMultiplexer) : IN
     //
 
     public async Task<IAsyncDisposable> LockAsync(
-        string key,
+        NodeLockKey key,
         TimeSpan? timeout = null,         // Timeout after timespan. Only used for distributed locks.
         TimeSpan? forcedRelease = null,   // Force release lock after timespan. Only used for distributed locks.
         CancellationToken cancellationToken = default)
@@ -32,20 +32,20 @@ public sealed class RedisLock(IConnectionMultiplexer connectionMultiplexer) : IN
         var value = Guid.NewGuid().ToString();
         var redis = _connectionMultiplexer.GetDatabase();
 
-        key = Prefix + key;
+        var redisKey = Prefix + key;
 
         while (DateTimeOffset.UtcNow < timeoutTime)
         {
-            var didLock = await redis.StringSetAsync(key, value, forcedRelease, When.NotExists);
+            var didLock = await redis.StringSetAsync(redisKey, value, forcedRelease, When.NotExists);
             if (didLock)
             {
-                return new Releaser(this, key, value);
+                return new Releaser(this, redisKey, value);
             }
 
             await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
         }
 
-        throw new RedisLockException($"Could not acquire lock '{key}'. Timeout after {timeout?.TotalSeconds}s.");
+        throw new RedisLockException($"Could not acquire lock '{redisKey}'. Timeout after {timeout?.TotalSeconds}s.");
     }
     
     //

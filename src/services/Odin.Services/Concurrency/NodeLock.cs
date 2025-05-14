@@ -12,7 +12,7 @@ public sealed class NodeLock : INodeLock
     private readonly KeyedAsyncLock _lock = new ();
 
     public async Task<IAsyncDisposable> LockAsync(
-        string key,
+        NodeLockKey key,
         TimeSpan? timeout = null,        // ignored in this lock
         TimeSpan? forcedRelease = null,  // ignored in this lock
         CancellationToken cancellationToken = default)
