@@ -33,6 +33,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         DriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
+        OrphanTestUtil orphanTestUtil,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -238,7 +239,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             odinContext.Caller.AssertCallerIsOwner();
             var originalHeader = await this.GetServerFileHeaderInternal(file, odinContext);
             var metadata = originalHeader.FileMetadata;
-            return await longTermStorageManager.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
+            return await orphanTestUtil.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
         }
 
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
@@ -495,7 +496,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            await longTermStorageManager.HardDeleteAsync(drive, file.FileId);
+            var fileHeader = await GetServerFileHeaderInternal(file, odinContext);
+
+            if (fileHeader == null)
+            {
+                return;
+            }
+            
+            await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads);
 
             if (await ShouldRaiseDriveEventAsync(file))
             {
@@ -1026,8 +1034,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var zombies = new List<PayloadDescriptor>();
 
                     // Delete operations are for existing payloads, so we need to update the existing header
-                    foreach (var op in manifest.PayloadInstruction.Where(op =>
-                                 op.OperationType == PayloadUpdateOperationType.DeletePayload))
+                    foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType ==
+                                                                               PayloadUpdateOperationType.DeletePayload))
                     {
                         var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
                         if (descriptor != null)
@@ -1354,7 +1362,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 success = true;
-                longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
+                longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId, existingHeader.FileMetadata.Payloads);
 
                 if (await ShouldRaiseDriveEventAsync(file))
                 {
@@ -1489,7 +1497,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // Delete the payload file
-            longTermStorageManager.HardDeletePayloadFile(drive, file.FileId, descriptor.Key, descriptor.Uid);
+            longTermStorageManager.HardDeletePayloadFile(drive, file.FileId, descriptor);
         }
 
         private async Task CopyPayloadsAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
