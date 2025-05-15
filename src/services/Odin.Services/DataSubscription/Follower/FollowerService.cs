@@ -66,6 +66,37 @@ namespace Odin.Services.DataSubscription.Follower
             _db = db;
         }
 
+        private async Task DoFollow(OdinId identityToFollow, FollowRequest request)
+        {
+            await using (var tx = await _db.BeginStackedTransactionAsync())
+            {
+                await _db.ImFollowing.DeleteByIdentityAsync(identityToFollow);
+                if (request.NotificationType == FollowerNotificationType.AllNotifications)
+                {
+                    await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
+                    { identity = identityToFollow, driveId = Guid.Empty });
+                }
+
+                if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+                {
+                    if (request.Channels.Any(c => c.Type != SystemDriveConstants.ChannelDriveType))
+                    {
+                        throw new OdinClientException("Only drives of type channel can be followed",
+                            OdinClientErrorCode.InvalidTargetDrive);
+                    }
+
+                    //use the alias because we don't most likely will not have the channel on the callers identity
+                    foreach (var channel in request.Channels)
+                    {
+                        await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
+                        { identity = identityToFollow, driveId = channel.Alias });
+                    }
+                }
+                tx.Commit();
+            }
+        }
+
+
         /// <summary>
         /// Establishes a follower connection with the recipient
         /// </summary>
@@ -100,7 +131,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             var keyType = PublicPrivateKeyType.OfflineKey;
 
-            async Task<ApiResponse<HttpContent>> TryFollow()
+            async Task<ApiResponse<HttpContent>> TryCallFollow()
             {
                 var eccEncryptedPayload = await _publicPrivatePublicKeyService.EccEncryptPayloadForRecipientAsync(
                     keyType, identityToFollow, json.ToUtf8ByteArray());
@@ -109,44 +140,19 @@ namespace Odin.Services.DataSubscription.Follower
                 return response;
             }
 
-            if ((await TryFollow()).IsSuccessStatusCode == false)
+            if ((await TryCallFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
                 await _publicPrivatePublicKeyService.InvalidateRecipientEccPublicKeyAsync(keyType, identityToFollow);
 
                 //round 2, fail all together
-                if ((await TryFollow()).IsSuccessStatusCode == false)
+                if ((await TryCallFollow()).IsSuccessStatusCode == false)
                 {
                     throw new OdinRemoteIdentityException("Remote Server failed to accept follow");
                 }
             }
 
-            await using (var tx = await _db.BeginStackedTransactionAsync())
-            {
-                await _db.ImFollowing.DeleteByIdentityAsync(identityToFollow);
-                if (request.NotificationType == FollowerNotificationType.AllNotifications)
-                {
-                    await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
-                        { identity = identityToFollow, driveId = Guid.Empty });
-                }
-
-                if (request.NotificationType == FollowerNotificationType.SelectedChannels)
-                {
-                    if (request.Channels.Any(c => c.Type != SystemDriveConstants.ChannelDriveType))
-                    {
-                        throw new OdinClientException("Only drives of type channel can be followed",
-                            OdinClientErrorCode.InvalidTargetDrive);
-                    }
-
-                    //use the alias because we don't most likely will not have the channel on the callers identity
-                    foreach (var channel in request.Channels)
-                    {
-                        await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
-                            { identity = identityToFollow, driveId = channel.Alias });
-                    }
-                }
-                tx.Commit();
-            }
+            await DoFollow(identityToFollow, request);
 
             if (request.SynchronizeFeedHistoryNow)
             {

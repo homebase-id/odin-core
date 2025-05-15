@@ -20,54 +20,73 @@ namespace Odin.Services.DataSubscription.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
+        private async Task DoAcceptFollowerAsync(PerimeterFollowRequest request, IOdinContext odinContext)
+        {
+            var identityFollowing = new OdinId(request.OdinId);
+
+            await using (var tx = await db.BeginStackedTransactionAsync())
+            {
+                if (request.NotificationType == FollowerNotificationType.AllNotifications)
+                {
+                    // Created sample DeleteAndAddFollower() - take a look
+                    await db.FollowsMe.DeleteByIdentityAsync(identityFollowing);
+                    await db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = identityFollowing, driveId = System.Guid.Empty });
+                }
+
+                if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+                {
+                    OdinValidationUtils.AssertNotNull(request.Channels, nameof(request.Channels));
+                    OdinValidationUtils.AssertIsTrue(request.Channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType),
+                        $"All drives must be of type channel [{SystemDriveConstants.ChannelDriveType}]");
+
+                    //Valid the caller has access to the requested channels
+                    try
+                    {
+                        //use try/catch since GetDriveId will throw an exception
+                        //TODO: update PermissionContext with a better method
+                        var drives = request.Channels.Select(chan => odinContext.PermissionsContext.GetDriveId(chan));
+                        var allHaveReadAccess = drives.All(driveId =>
+                            odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
+                        if (!allHaveReadAccess)
+                        {
+                            throw new OdinSecurityException("Caller does not have read access to one or more channels");
+                        }
+                    }
+                    catch
+                    {
+                        throw new OdinSecurityException("Caller does not have read access to one or more channels");
+                    }
+
+                    var followsMeRecords = new List<FollowsMeRecord>();
+
+                    foreach (var channel in request.Channels)
+                    {
+                        followsMeRecords.Add(new FollowsMeRecord() { identity = identityFollowing, driveId = channel.Alias });
+                    }
+
+                    await db.FollowsMe.DeleteAndInsertManyAsync(identityFollowing, followsMeRecords);
+                }
+
+                tx.Commit();
+            }
+        }
+
+
+        /// <summary>
+        /// Accepts the new or exiting follower by upserting a record to ensure
+        /// the follower is notified of content changes.
+        /// </summary>
         public async Task AcceptFollowerAsync(PerimeterFollowRequest request, IOdinContext odinContext)
         {
             //
             //TODO: where to store the request.ClientAuthToken ??
             // 
 
-            if (request.NotificationType == FollowerNotificationType.AllNotifications)
-            {
-                // Created sample DeleteAndAddFollower() - take a look
-                await using var trx = await db.BeginStackedTransactionAsync();
-                await db.FollowsMe.DeleteByIdentityAsync(new OdinId(request.OdinId));
-                await db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
-                trx.Commit();
-            }
+            //
+            // Question: Do we check the X509 of the caller and do we check if the caller is blocked?
+            //
 
-            if (request.NotificationType == FollowerNotificationType.SelectedChannels)
-            {
-                OdinValidationUtils.AssertNotNull(request.Channels, nameof(request.Channels));
-                OdinValidationUtils.AssertIsTrue(request.Channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType),
-                    $"All drives must be of type channel [{SystemDriveConstants.ChannelDriveType}]");
-
-                //Valid the caller has access to the requested channels
-                try
-                {
-                    //use try/catch since GetDriveId will throw an exception
-                    //TODO: update PermissionContext with a better method
-                    var drives = request.Channels.Select(chan => odinContext.PermissionsContext.GetDriveId(chan));
-                    var allHaveReadAccess = drives.All(driveId =>
-                        odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
-                    if (!allHaveReadAccess)
-                    {
-                        throw new OdinSecurityException("Caller does not have read access to one or more channels");
-                    }
-                }
-                catch
-                {
-                    throw new OdinSecurityException("Caller does not have read access to one or more channels");
-                }
-
-                var followsMeRecords = new List<FollowsMeRecord>();
-
-                foreach (var channel in request.Channels)
-                {
-                    followsMeRecords.Add(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
-                }
-
-                await db.FollowsMe.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
-            }
+            await DoAcceptFollowerAsync(request, odinContext);
 
             await mediator.Publish(new NewFollowerNotification
             {
@@ -82,9 +101,9 @@ namespace Odin.Services.DataSubscription.Follower
         /// <returns></returns>
         public async Task AcceptUnfollowRequestAsync(IOdinContext odinContext)
         {
-            var follower = odinContext.Caller.OdinId;
+            var follower = new OdinId(odinContext.Caller.OdinId);
 
-            await db.FollowsMe.DeleteByIdentityAsync(new OdinId(follower));
+            await db.FollowsMe.DeleteByIdentityAsync(follower);
         }
     }
 }
