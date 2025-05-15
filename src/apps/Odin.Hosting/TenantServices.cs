@@ -59,7 +59,6 @@ using Odin.Services.Configuration.VersionUpgrade.Version2tov3;
 using Odin.Services.Configuration.VersionUpgrade.Version3tov4;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.DriveCore.Storage.Gugga;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Fingering;
 using Odin.Services.LinkMetaExtractor;
@@ -325,8 +324,6 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
-
-        cb.RegisterType<Defragmenter>().InstancePerLifetimeScope();
     }
 
     //
