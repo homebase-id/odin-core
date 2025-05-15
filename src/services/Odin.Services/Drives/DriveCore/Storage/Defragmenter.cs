@@ -19,6 +19,8 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.DriveCore.Storage;
 
+#if false
+
 namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 {
     public class Defragmenter(
@@ -159,3 +161,4 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         }
     }
 }
+#endif

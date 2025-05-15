@@ -97,7 +97,7 @@ namespace Odin.Hosting
             var httpClientFactory = new HttpClientFactory();
             services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-            services.AddSingleton<DriveFileReaderWriter>();
+            services.AddSingleton<FileReaderWriter>();
             services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             services.AddControllers()

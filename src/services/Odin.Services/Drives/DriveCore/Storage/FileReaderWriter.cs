@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Intrinsics.X86;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -11,14 +9,13 @@ using Odin.Services.Configuration;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
-/// <summary>
-/// Handles read/write access to drive files to ensure correct
-/// locking as well as apply system config for how files are written.
-/// </summary>
-public sealed class DriveFileReaderWriter(
+public sealed class FileReaderWriter(
     OdinConfiguration odinConfiguration,
-    ILogger<DriveFileReaderWriter> logger)
+    ILogger<FileReaderWriter> logger)
 {
+
+    //
+
     public async Task WriteStringAsync(string filePath, string data)
     {
         try
@@ -44,6 +41,8 @@ public sealed class DriveFileReaderWriter(
             throw e.InnerException!;
         }
     }
+
+    //
 
     public async Task WriteAllBytesAsync(string filePath, byte[] bytes)
     {
@@ -71,7 +70,9 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    public async Task<uint> WriteStreamAsync(string filePath, Stream stream, bool byPassInternalFileLocking = false)
+    //
+
+    public async Task<uint> WriteStreamAsync(string filePath, Stream stream)
     {
         uint bytesWritten = 0;
 
@@ -107,7 +108,9 @@ public sealed class DriveFileReaderWriter(
         return bytesWritten;
     }
 
-    public async Task<byte[]> GetAllFileBytesAsync(string filePath, bool byPassInternalFileLocking = false)
+    //
+
+    public async Task<byte[]> GetAllFileBytesAsync(string filePath)
     {
         byte[] bytes = null;
 
@@ -141,6 +144,8 @@ public sealed class DriveFileReaderWriter(
 
         return bytes;
     }
+
+    //
 
     public void MoveFile(string sourceFilePath, string destinationFilePath)
     {
@@ -185,41 +190,10 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    //public void CopyFile(string sourceFilePath, string destinationFilePath)
-    //{
-    //    try
-    //    {
-    //        TryRetry.Create()
-    //            .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
-    //            .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
-    //            .Execute(() =>
-    //            {
-    //                try
-    //                {
-    //                    File.Copy(sourceFilePath, destinationFilePath, true);
-    //                }
-    //                catch (Exception e)
-    //                {
-    //                    logger.LogDebug(e, "MoveFile (TryRetry) {message}", e.Message);
-    //                    throw;
-    //                }
-    //            });
-    //    }
-    //    catch (TryRetryException e)
-    //    {
-    //        throw e.InnerException!;
-    //    }
-
-    //    if (!File.Exists(destinationFilePath))
-    //    {
-    //        throw new OdinSystemException(
-    //            $"Error during file copy operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
-    //    }
-    //}
-
     /// <summary>
     /// Valid only when copying a payload or a thumbnail that uses our special design for Uids
     /// </summary>
+    // SEB:TODO move this to payload class
     public void CopyPayloadFile(string sourcePath, string targetPath)
     {
         // Ensure the source file exists
@@ -297,7 +271,8 @@ public sealed class DriveFileReaderWriter(
         }
     }
 
-    
+    //
+
     /// <summary>
     /// Opens a filestream.  You must remember to close it.  Always opens in Read mode.
     /// </summary>
@@ -331,6 +306,8 @@ public sealed class DriveFileReaderWriter(
         return fileStream;
     }
 
+    //
+
     private async Task<uint> WriteStreamInternalAsync(string filePath, Stream stream)
     {
         var chunkSize = odinConfiguration.Host.FileWriteChunkSizeInBytes;
@@ -348,6 +325,8 @@ public sealed class DriveFileReaderWriter(
 
         return bytesWritten;
     }
+
+    //
 
     public void DeleteFile(string path)
     {
