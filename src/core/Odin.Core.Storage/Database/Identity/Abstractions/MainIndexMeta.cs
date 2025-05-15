@@ -799,7 +799,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        internal async Task<UnixTimeUtc> AddEntryPassalongToUpsertAsync(Guid driveId, Guid fileId,
+        internal async Task<UnixTimeUtc> TestAddEntryPassalongToUpsertAsync(Guid driveId, Guid fileId,
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,

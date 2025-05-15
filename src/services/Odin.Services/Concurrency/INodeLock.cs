@@ -9,8 +9,9 @@ namespace Odin.Services.Concurrency;
 public interface INodeLock
 {
     public Task<IAsyncDisposable> LockAsync(
-        string key,
+        NodeLockKey key,
         TimeSpan? timeout = null,         // Timeout after timespan. Only used for distributed locks.
         TimeSpan? forcedRelease = null,   // Force release lock after timespan. Only used for distributed locks.
         CancellationToken cancellationToken = default);
 }
+

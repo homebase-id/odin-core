@@ -219,7 +219,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         FileId = header.FileId,
                         DriveId = driveId
                     },
-                    odinContext);
+                    odinContext, null);
 
                 return new PeerTransferResponse()
                 {

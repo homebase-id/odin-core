@@ -225,7 +225,7 @@ public class SendFileOutboxWorkerAsync(
             nextRunTime.AddMilliseconds(UnixTimeUtc.Now().milliseconds * -1).seconds);
         
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, null);
 
         return nextRunTime;
     }
@@ -243,6 +243,6 @@ public class SendFileOutboxWorkerAsync(
         };
 
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
-        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext);
+        await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, null);
     }
 }

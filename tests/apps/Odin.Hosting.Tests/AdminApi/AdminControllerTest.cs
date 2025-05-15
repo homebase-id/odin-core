@@ -18,6 +18,8 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Services.Configuration;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.JobManagement;
 
 namespace Odin.Hosting.Tests.AdminApi;
@@ -27,6 +29,7 @@ public class AdminControllerTest
 {
     private WebScaffold _scaffold = null!;
     private string _tenantDataRootPath;
+    private OdinConfiguration _config = null!;
     private readonly string _exportTargetPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("n"));
 
     [SetUp]
@@ -48,6 +51,8 @@ public class AdminControllerTest
         _tenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath") ?? "";
         Assert.That(_tenantDataRootPath, Is.Not.Empty);
         Assert.That(Directory.Exists(_tenantDataRootPath));
+
+        _config = _scaffold.Services.GetService<OdinConfiguration>();
     }
 
     //
@@ -105,7 +110,7 @@ public class AdminControllerTest
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
         Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
         Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadShards, Is.Null);
+        Assert.That(tenant.PayloadPath, Is.Null);
         Assert.That(tenant.PayloadSize, Is.Null);
     }
 
@@ -121,16 +126,19 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
+        Assert.That(tenant.Id, Is.Not.Null);
+        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+
+        var pm = new TenantPathManager(_config, Guid.Parse(tenant.Id));
+
         Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
         Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
         Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
         Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadShards!.Count, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadShards[0].Name, Is.EqualTo("shard1"));
-        Assert.That(tenant.PayloadShards[0].Path, Does.StartWith(_tenantDataRootPath));
-        Assert.That(tenant.PayloadShards[0].Path, Does.EndWith(Path.Combine("shard1", tenant.Id)));
+        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
         Assert.That(tenant.PayloadSize, Is.Not.Null.And.EqualTo(0));
+
     }
 
     //
@@ -147,15 +155,18 @@ public class AdminControllerTest
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
+
+        Assert.That(tenant.Id, Is.Not.Null);
+        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+
+        var pm = new TenantPathManager(_config, Guid.Parse(tenant.Id));
+
         Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
         Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
-        Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
+        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
         Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadShards!.Count, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadShards[0].Name, Is.EqualTo("shard1"));
-        Assert.That(tenant.PayloadShards[0].Path, Does.StartWith(_tenantDataRootPath));
-        Assert.That(tenant.PayloadShards[0].Path, Does.EndWith(Path.Combine("shard1", tenant.Id)));
+        Assert.That(tenant.PayloadPath, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.PayloadSize, Is.Not.Null.And.GreaterThan(0));
     }
 
@@ -382,6 +393,4 @@ public class AdminControllerTest
 
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, payload, null, null, WebScaffold.PAYLOAD_KEY);
     }
-
-
 }

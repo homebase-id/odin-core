@@ -99,7 +99,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
-                odinContext: odinContext);
+                odinContext: odinContext, markComplete: null);
 
             return;
         }

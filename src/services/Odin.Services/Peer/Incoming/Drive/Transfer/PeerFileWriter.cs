@@ -36,7 +36,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             OdinId sender,
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet,
             IOdinContext odinContext,
-            bool driveOriginWasCollaborative = false)
+            bool driveOriginWasCollaborative = false, 
+            WriteSecondDatabaseRowBase markComplete = null)
         {
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
@@ -112,20 +113,20 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 case TransferFileType.Normal:
                     return await StoreNormalFileLongTermAsync(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata,
-                        encryptedRecipientTransferInstructionSet, odinContext);
+                        encryptedRecipientTransferInstructionSet, odinContext, markComplete);
 
                 case TransferFileType.EncryptedFileForFeed:
                 case TransferFileType.EncryptedFileForFeedViaTransit:
                     return await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata,
                         driveOriginWasCollaborative,
-                        odinContext);
+                        odinContext, markComplete);
 
                 default:
                     throw new OdinFileWriteException($"Invalid TransferFileType: {transferFileType}");
             }
         }
 
-        public async Task<bool> DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext)
+        public async Task<bool> DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext);
 
@@ -144,10 +145,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = item.DriveId,
             };
 
-            return await fs.Storage.SoftDeleteLongTermFile(file, odinContext);
+            return await fs.Storage.SoftDeleteLongTermFile(file, odinContext, markComplete);
         }
 
-        public async Task<bool> MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext)
+        public async Task<bool> MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(item.DriveId,
                 item.GlobalTransitId,
@@ -182,7 +183,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 file,
                 item.Sender,
                 update,
-                odinContext);
+                odinContext,
+                markComplete);
         }
 
         private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext)
@@ -224,7 +226,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<(bool success, List<PayloadDescriptor> payloads)> WriteNewFile(IDriveFileSystem fs, TempFile tempFile,
             KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext)
+            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
@@ -232,7 +234,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 metadata.TransitCreated = UnixTimeUtc.Now().milliseconds;
                 (success, payloads) = await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata,
-                    serverMetadata, ignorePayloads, odinContext);
+                    serverMetadata, ignorePayloads, odinContext, markComplete: markComplete);
             });
 
             logger.LogDebug("Handle file->CommitNewFile: {ms} ms", ms);
@@ -243,7 +245,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<(bool success, List<PayloadDescriptor> payloads)> UpdateExistingFile(IDriveFileSystem fs,
             TempFile tempSourceFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader,
-            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext)
+            FileMetadata metadata, ServerMetadata serverMetadata, bool ignorePayloads, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
@@ -256,7 +258,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 (success, payloads) = await fs.Storage.OverwriteFile(tempSourceFile, targetFile, keyHeader, metadata, serverMetadata,
                     ignorePayloads,
-                    odinContext);
+                    odinContext, markComplete);
             });
             
             return (success, payloads);
@@ -268,7 +270,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<(bool success, List<PayloadDescriptor> payloads)> StoreNormalFileLongTermAsync(IDriveFileSystem fs,
             TempFile tempFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata,
-            EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet, IOdinContext odinContext)
+            EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
             var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
@@ -295,7 +297,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (header == null)
             {
                 // Neither gtid not uid points to an exiting file, so it's a new file
-                return await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext);
+                return await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, markComplete);
             }
 
             header.AssertFileIsActive();
@@ -315,13 +317,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             //note: we also update the key header because it might have been changed by the sender
-            return await UpdateExistingFile(fs, tempFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext);
+            return await UpdateExistingFile(fs, tempFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads, odinContext, markComplete);
         }
 
 
         private async Task<(bool success, List<PayloadDescriptor> payloads)> StoreEncryptedFeedFile(IDriveFileSystem fs, TempFile tempFile,
             KeyHeader keyHeader,
-            FileMetadata newMetadata, ServerMetadata serverMetadata, bool driveOriginWasCollaborative, IOdinContext odinContext)
+            FileMetadata newMetadata, ServerMetadata serverMetadata, bool driveOriginWasCollaborative, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             // Rules:
             // You must have a global transit id to write to the feed drive
@@ -338,7 +340,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (header == null)
             {
-                return await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext);
+                return await WriteNewFile(fs, tempFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true, odinContext, markComplete);
             }
 
             header.AssertFileIsActive();
@@ -358,10 +360,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //Update the reaction preview first since the overwrite method; uses what's on disk
             // we call both of these here because this 'special' feed item hack method for collabgroups
-            await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext);
+            await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview, odinContext); // XXX Ideally this should be part of the DB transaction... but alas! 
             //note: we also update the key header because it might have been changed by the sender
             return await UpdateExistingFile(fs, tempFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayloads: true,
-                odinContext);
+                odinContext, markComplete);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId,

@@ -448,7 +448,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
         private string GetThumbnailFileName(Guid fileId, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = TenantPathManager.CreateThumbnailFileNameAndExtension(payloadKey, payloadUid, width, height);
+            var extension = TenantPathManager.GetThumbnailFileNameAndExtension(payloadKey, payloadUid, width, height);
             return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 
@@ -463,14 +463,14 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
         private string GetThumbnailSearchMask(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
         {
-            var extension = TenantPathManager.CreateThumbnailFileExtensionStarStar(payloadKey, payloadUid);
+            var extension = TenantPathManager.GetThumbnailFileExtensionStarStar(payloadKey, payloadUid);
             return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
         }
 
         private string GetFilePath(StorageDrive drive, Guid fileId, FilePart filePart, bool ensureExists = false)
         {
             var path = filePart is FilePart.Payload or FilePart.Thumb
-                ? drive.GetLongTermPayloadStoragePath()
+                ? drive.GetDrivePayloadPath()
                 : throw new OdinSystemException($"Invalid FilePart {filePart}");
 
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8
@@ -503,7 +503,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
         private string GetPayloadFilePath(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
         {
-            var extension = TenantPathManager.CreateBasePayloadFileNameAndExtension(payloadKey, payloadUid);
+            var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(payloadKey, payloadUid);
             var payloadFileName = $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
             return Path.Combine(GetPayloadPath(drive, fileId, ensureExists), $"{payloadFileName}");
         }
