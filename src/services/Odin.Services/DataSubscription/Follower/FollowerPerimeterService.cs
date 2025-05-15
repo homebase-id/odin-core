@@ -17,8 +17,7 @@ namespace Odin.Services.DataSubscription.Follower
     public class FollowerPerimeterService(IMediator mediator, IdentityDatabase db)
     {
         /// <summary>
-        /// Accepts the new or exiting follower by upserting a record to ensure
-        /// the follower is notified of content changes.
+        /// Updates the database and adds the new follower.
         /// </summary>
         private async Task DoAcceptFollowerAsync(OdinId identityFollowing, FollowerNotificationType notificationType, IEnumerable<TargetDrive> channels, IOdinContext odinContext)
         {

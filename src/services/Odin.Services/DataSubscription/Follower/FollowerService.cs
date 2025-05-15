@@ -66,6 +66,10 @@ namespace Odin.Services.DataSubscription.Follower
             _db = db;
         }
 
+
+        /// <summary>
+        /// Updates the database and inserts the identity you're now following
+        /// </summary>
         private async Task DoFollow(OdinId identityToFollow, FollowerNotificationType notificationType, IEnumerable<TargetDrive> channels)
         {
             await using (var tx = await _db.BeginStackedTransactionAsync())
