@@ -24,7 +24,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 {
     public class LongTermStorageManager(
         ILogger<LongTermStorageManager> logger,
-        DriveFileReaderWriter driveFileReaderWriter,
+        IPayloadReaderWriter payloadFileReaderWriter,
         DriveQuery driveQuery,
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
@@ -189,7 +189,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 //    Debug.Assert(s != path);
                 //}
 
-                driveFileReaderWriter.DeleteFile(path);
+                payloadFileReaderWriter.DeleteFileXYZ(path);
             });
         }
 
@@ -214,16 +214,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 // Re-enable DELETION this after we are good with actually deleting the file
                 //
 
-                // _driveFileReaderWriter.DeleteFile(path);
+                // _payloadFileReaderWriter.DeleteFile(path);
 
                 var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
                 logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
                     pathAndFilename,
                     target);
 
-                if (driveFileReaderWriter.FileExists(pathAndFilename))
+                if (payloadFileReaderWriter.FileExistsXYZ(pathAndFilename))
                 {
-                    driveFileReaderWriter.MoveFile(pathAndFilename, target);
+                    payloadFileReaderWriter.MoveFileXYZ(pathAndFilename, target);
                 }
                 else
                 {
@@ -231,19 +231,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
 
                 // delete the thumbnails
-                // _driveFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
+                // _payloadFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
 
                 // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
                 var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, payloadUid);
                 var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
+                var thumbnailFiles = payloadFileReaderWriter.GetFilesInDirectoryXYZ(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
                     var thumbnailTarget = thumbnailFile.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
 
-                    if (driveFileReaderWriter.FileExists(thumbnailFile))
+                    if (payloadFileReaderWriter.FileExistsXYZ(thumbnailFile))
                     {
-                        driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
+                        payloadFileReaderWriter.MoveFileXYZ(thumbnailFile, thumbnailTarget);
                     }
                     else
                     {
@@ -263,7 +263,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 // note: no need to delete thumbnails separately due to the aggressive searchPattern
                 var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+                payloadFileReaderWriter.DeleteFilesInDirectoryXYZ(dir, searchPattern);
             });
         }
 
@@ -272,13 +272,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var result = Benchmark.Milliseconds(logger, "GetPayloadDiskUsage", () =>
             {
                 var payloadFilePath = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                if (!driveFileReaderWriter.DirectoryExists(payloadFilePath))
+                if (!payloadFileReaderWriter.DirectoryExistsXYZ(payloadFilePath))
                 {
                     return 0;
                 }
 
                 var usage = 0L;
-                var filePaths = driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
+                var filePaths = payloadFileReaderWriter.GetFilesInDirectoryXYZ(payloadFilePath!);
                 foreach (var filePath in filePaths)
                 {
                     var info = new FileInfo(filePath);
@@ -293,7 +293,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public bool PayloadExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
-            var exists = driveFileReaderWriter.FileExists(path);
+            var exists = payloadFileReaderWriter.FileExistsXYZ(path);
             return exists;
         }
 
@@ -303,7 +303,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key,descriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
-            return driveFileReaderWriter.FileExists(path);
+            return payloadFileReaderWriter.FileExistsXYZ(path);
         }
 
         public async Task<Stream> GetPayloadStream(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
@@ -319,7 +319,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 Stream fileStream;
                 try
                 {
-                    fileStream = driveFileReaderWriter.OpenStreamForReading(path);
+                    fileStream = payloadFileReaderWriter.OpenStreamForReadingXYZ(path);
                     logger.LogDebug("File size: {size} bytes", fileStream.Length);
                 }
                 catch (IOException io)
@@ -381,7 +381,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 try
                 {
-                    var fileStream = driveFileReaderWriter.OpenStreamForReading(path);
+                    var fileStream = payloadFileReaderWriter.OpenStreamForReadingXYZ(path);
                     return fileStream;
                 }
                 catch (IOException io)
@@ -451,7 +451,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 //}
 
                 var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid, ensureExists: true);
-                driveFileReaderWriter.CopyPayloadFile(sourceFile, destinationFile);
+                payloadFileReaderWriter.CopyPayloadFileXYZ(sourceFile, destinationFile);
                 logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
             });
         }
@@ -476,9 +476,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var dir = Path.GetDirectoryName(destinationFile) ??
                           throw new OdinSystemException("Destination folder was null");
                 logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
-                driveFileReaderWriter.CreateDirectory(dir);
+                payloadFileReaderWriter.CreateDirectoryXYZ(dir);
 
-                driveFileReaderWriter.CopyPayloadFile(sourceThumbnailFilePath, destinationFile);
+                payloadFileReaderWriter.CopyPayloadFileXYZ(sourceThumbnailFilePath, destinationFile);
                 logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                     sourceThumbnailFilePath, destinationFile);
             });
@@ -522,13 +522,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             */
 
             var payloadFileDirectory = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-            if (!driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
+            if (!payloadFileReaderWriter.DirectoryExistsXYZ(payloadFileDirectory))
             {
                 return [];
             }
 
             var searchPattern = GetPayloadSearchMask(fileId);
-            var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
+            var files = payloadFileReaderWriter.GetFilesInDirectoryXYZ(payloadFileDirectory, searchPattern);
 
             var zombies = new List<ParsedPayloadFileRecord>();
             foreach (var payloadFilePath in files)
@@ -579,14 +579,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var expectedThumbnails = payloadDescriptor.Thumbnails?.ToList() ?? [];
             var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-            if (driveFileReaderWriter.DirectoryExists(dir))
+            if (payloadFileReaderWriter.DirectoryExistsXYZ(dir))
             {
                 return [];
             }
 
             // ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-*x*.thumb
             var thumbnailSearchPatternForPayload = GetThumbnailSearchMask(fileId, payloadDescriptor.Key, payloadDescriptor.Uid);
-            var thumbnailFilePathsForPayload = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPatternForPayload);
+            var thumbnailFilePathsForPayload = payloadFileReaderWriter.GetFilesInDirectoryXYZ(dir, thumbnailSearchPatternForPayload);
             logger.LogDebug("Deleting thumbnails: Found {count} for file({fileId}) with path-pattern ({pattern})",
                 thumbnailFilePathsForPayload.Length,
                 fileId,
@@ -619,7 +619,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var payloadFileDirectory = _tenantPathManager.GetPayloadDirectory(drive.Id, file.FileId);
 
             var searchPattern = GetPayloadSearchMask(file.FileId);
-            var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
+            var files = payloadFileReaderWriter.GetFilesInDirectoryXYZ(payloadFileDirectory, searchPattern);
             var orphans = GetOrphanedPayloads(files, expectedPayloads);
 
             if (orphans.Any())

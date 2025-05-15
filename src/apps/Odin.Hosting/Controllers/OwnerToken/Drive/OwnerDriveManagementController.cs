@@ -7,7 +7,6 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage.Gugga;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -16,7 +15,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveManagementV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveManagementController(DriveManager driveManager, Defragmenter defragmenter) : OdinControllerBase
+    public class OwnerDriveManagementController(
+        DriveManager driveManager
+        //Defragmenter defragmenter
+        ) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]
@@ -111,13 +113,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
         }
-        [HttpPost("defrag")]
-        public async Task<IActionResult> DefragDrive([FromBody] TargetDrive targetDrive)
-        {
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            await defragmenter.DefragDrive(targetDrive, fs, WebOdinContext);
-            return Ok();
-        }
+
+        // [HttpPost("defrag")]
+        // public async Task<IActionResult> DefragDrive([FromBody] TargetDrive targetDrive)
+        // {
+        //     var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+        //     await defragmenter.DefragDrive(targetDrive, fs, WebOdinContext);
+        //     return Ok();
+        // }
     }
 
     public class UpdateDriveDefinitionRequest
