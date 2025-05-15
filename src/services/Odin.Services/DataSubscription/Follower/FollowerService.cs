@@ -66,27 +66,27 @@ namespace Odin.Services.DataSubscription.Follower
             _db = db;
         }
 
-        private async Task DoFollow(OdinId identityToFollow, FollowRequest request)
+        private async Task DoFollow(OdinId identityToFollow, FollowerNotificationType notificationType, IEnumerable<TargetDrive> channels)
         {
             await using (var tx = await _db.BeginStackedTransactionAsync())
             {
                 await _db.ImFollowing.DeleteByIdentityAsync(identityToFollow);
-                if (request.NotificationType == FollowerNotificationType.AllNotifications)
+                if (notificationType == FollowerNotificationType.AllNotifications)
                 {
                     await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
                     { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
-                if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+                if (notificationType == FollowerNotificationType.SelectedChannels)
                 {
-                    if (request.Channels.Any(c => c.Type != SystemDriveConstants.ChannelDriveType))
+                    if (channels.Any(c => c.Type != SystemDriveConstants.ChannelDriveType))
                     {
                         throw new OdinClientException("Only drives of type channel can be followed",
                             OdinClientErrorCode.InvalidTargetDrive);
                     }
 
                     //use the alias because we don't most likely will not have the channel on the callers identity
-                    foreach (var channel in request.Channels)
+                    foreach (var channel in channels)
                     {
                         await _db.ImFollowing.InsertAsync(new ImFollowingRecord()
                         { identity = identityToFollow, driveId = channel.Alias });
@@ -152,7 +152,7 @@ namespace Odin.Services.DataSubscription.Follower
                 }
             }
 
-            await DoFollow(identityToFollow, request);
+            await DoFollow(identityToFollow, request.NotificationType, request.Channels); // Or pass Perimeter Follow Request object
 
             if (request.SynchronizeFeedHistoryNow)
             {

@@ -20,23 +20,21 @@ namespace Odin.Services.DataSubscription.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        private async Task DoAcceptFollowerAsync(PerimeterFollowRequest request, IOdinContext odinContext)
+        private async Task DoAcceptFollowerAsync(OdinId identityFollowing, FollowerNotificationType notificationType, IEnumerable<TargetDrive> channels, IOdinContext odinContext)
         {
-            var identityFollowing = new OdinId(request.OdinId);
-
             await using (var tx = await db.BeginStackedTransactionAsync())
             {
-                if (request.NotificationType == FollowerNotificationType.AllNotifications)
+                if (notificationType == FollowerNotificationType.AllNotifications)
                 {
                     // Created sample DeleteAndAddFollower() - take a look
                     await db.FollowsMe.DeleteByIdentityAsync(identityFollowing);
                     await db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = identityFollowing, driveId = System.Guid.Empty });
                 }
 
-                if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+                if (notificationType == FollowerNotificationType.SelectedChannels)
                 {
-                    OdinValidationUtils.AssertNotNull(request.Channels, nameof(request.Channels));
-                    OdinValidationUtils.AssertIsTrue(request.Channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType),
+                    OdinValidationUtils.AssertNotNull(channels, nameof(channels));
+                    OdinValidationUtils.AssertIsTrue(channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType),
                         $"All drives must be of type channel [{SystemDriveConstants.ChannelDriveType}]");
 
                     //Valid the caller has access to the requested channels
@@ -44,7 +42,7 @@ namespace Odin.Services.DataSubscription.Follower
                     {
                         //use try/catch since GetDriveId will throw an exception
                         //TODO: update PermissionContext with a better method
-                        var drives = request.Channels.Select(chan => odinContext.PermissionsContext.GetDriveId(chan));
+                        var drives = channels.Select(chan => odinContext.PermissionsContext.GetDriveId(chan));
                         var allHaveReadAccess = drives.All(driveId =>
                             odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
                         if (!allHaveReadAccess)
@@ -59,7 +57,7 @@ namespace Odin.Services.DataSubscription.Follower
 
                     var followsMeRecords = new List<FollowsMeRecord>();
 
-                    foreach (var channel in request.Channels)
+                    foreach (var channel in channels)
                     {
                         followsMeRecords.Add(new FollowsMeRecord() { identity = identityFollowing, driveId = channel.Alias });
                     }
@@ -86,11 +84,13 @@ namespace Odin.Services.DataSubscription.Follower
             // Question: Do we check the X509 of the caller and do we check if the caller is blocked?
             //
 
-            await DoAcceptFollowerAsync(request, odinContext);
+            var identity = new OdinId(request.OdinId);
+
+            await DoAcceptFollowerAsync(identity, request.NotificationType, request.Channels, odinContext);
 
             await mediator.Publish(new NewFollowerNotification
             {
-                Sender = (OdinId)request.OdinId,
+                Sender = identity,
                 OdinContext = odinContext,
             });
         }
