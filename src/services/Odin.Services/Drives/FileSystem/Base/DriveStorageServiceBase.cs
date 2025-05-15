@@ -482,7 +482,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await longTermStorageManager.HeaderFileExists(drive, file.FileId, GetFileSystemType());
         }
 
-        public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
+        public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
+            WriteSecondDatabaseRowBase markComplete)
         {
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
@@ -502,7 +503,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 return;
             }
-            
+
             await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads);
 
             if (await ShouldRaiseDriveEventAsync(file))
@@ -557,6 +558,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         if (n != 1)
                             throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
                     }
+
                     tx.Commit();
                     success = true;
                 }
@@ -648,6 +650,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                         if (n != 1)
                             throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
                     }
+
                     tx.Commit();
                     success = true;
                 }
@@ -1027,10 +1030,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
 
         public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(TempFile originFile,
-                                InternalDriveFileId targetFile,
-                                BatchUpdateManifest manifest,
-                                IOdinContext odinContext,
-                                WriteSecondDatabaseRowBase markComplete)
+            InternalDriveFileId targetFile,
+            BatchUpdateManifest manifest,
+            IOdinContext odinContext,
+            WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
 
@@ -1041,23 +1044,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
-<<<<<<< HEAD
-                    var zombies = new List<PayloadDescriptor>();
-
-                    // Delete operations are for existing payloads, so we need to update the existing header
-                    foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType ==
-                                                                               PayloadUpdateOperationType.DeletePayload))
-=======
                     // Now commit the file header to the database and the inbox record in one transaction
                     await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
                         manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
+
                     if (markComplete != null)
->>>>>>> main
                     {
                         int n = await markComplete.ExecuteAsync();
                         if (n != 1)
                             throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
                     }
+
                     tx.Commit();
                     success = true;
                     // After success has been set to true we really should return TRUE.
@@ -1070,13 +1067,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // And publish the event
                 if (await TryShouldRaiseDriveEventAsync(targetFile))
                 {
-                    await TryPublishAsync(new DriveFileChangedNotification   // TODO remove await
-                            {
-                                File = targetFile,
-                                ServerFileHeader = header,
-                                OdinContext = odinContext,
-                                IgnoreFeedDistribution = false
-                            });
+                    await TryPublishAsync(new DriveFileChangedNotification // TODO remove await
+                    {
+                        File = targetFile,
+                        ServerFileHeader = header,
+                        OdinContext = odinContext,
+                        IgnoreFeedDistribution = false
+                    });
                 }
             }
             finally
@@ -1084,7 +1081,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 if (success)
                 {
                     // Cleanup zombied payloads only if the file got moved and 
-                    await TryDeleteZombiePayloadsAsync(targetFile, zombies);  // TODO remove await
+                    await TryDeleteZombiePayloadsAsync(targetFile, zombies); // TODO remove await
                 }
             }
 
@@ -1093,7 +1090,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        private async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification
+        private async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
+            where TNotification : INotification
         {
             try
             {
@@ -1106,10 +1104,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-
-        private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)> UpdateBatchCopyFilesAsync(TempFile originFile,
-                        InternalDriveFileId targetFile, BatchUpdateManifest manifest,
-                        IOdinContext odinContext)
+        private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)>
+            UpdateBatchCopyFilesAsync(TempFile originFile,
+                InternalDriveFileId targetFile, BatchUpdateManifest manifest,
+                IOdinContext odinContext)
         {
             List<PayloadDescriptor> copiedPayloads = new();
 
@@ -1118,8 +1116,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var zombies = new List<PayloadDescriptor>();
 
                 // Delete operations are for existing payloads, so we need to update the existing header
-                foreach (var op in manifest.PayloadInstruction.Where(op =>
-                                op.OperationType == PayloadUpdateOperationType.DeletePayload))
+                foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
                 {
                     var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
                     if (descriptor != null)
@@ -1136,7 +1133,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 var zombies = new List<PayloadDescriptor>();
                 foreach (var op in manifest.PayloadInstruction
-                                .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                             .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
                     // Here look at the incoming payloads because we're adding a new one or overwriting
                     var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
@@ -1192,8 +1189,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
                 {
                     throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
-                                                    "invalidate one or more payloads.  Re-upload the entire file if you wish " +
-                                                    "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
+                                                  "invalidate one or more payloads.  Re-upload the entire file if you wish " +
+                                                  "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
                 }
 
                 if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
@@ -1227,8 +1224,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return (existingHeader, copiedPayloads, zombies);
         }
-
-
 
 
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(InternalDriveFileId file,
@@ -1404,7 +1399,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
+        private async Task<bool> WriteDeletedFileHeader(ServerFileHeader existingHeader, IOdinContext odinContext,
+            WriteSecondDatabaseRowBase markComplete)
         {
             var file = existingHeader.FileMetadata.File;
 
@@ -1437,14 +1433,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                         if (n != 1)
                             throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
                     }
+
                     tx.Commit();
                 }
 
                 success = true;
-<<<<<<< HEAD
-                longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId, existingHeader.FileMetadata.Payloads);
-=======
->>>>>>> main
 
                 if (await TryShouldRaiseDriveEventAsync(file))
                 {
@@ -1474,7 +1467,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             finally
             {
                 if (success)
-                    longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId);
+                    longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId, descriptors: []);
             }
 
             return success;
