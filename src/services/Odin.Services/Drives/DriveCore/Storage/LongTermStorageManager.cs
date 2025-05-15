@@ -221,9 +221,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 foreach (var thumbnail in payloadDescriptor.Thumbnails)
                 {
-                    var thumbnailFileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
-                    var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                    var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
+                    //var thumbnailFileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
+                    //var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                    //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
+                    var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
 
                     var thumbnailTarget = thumbnailFilenameAndPath.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
 
@@ -246,8 +247,75 @@ namespace Odin.Services.Drives.DriveCore.Storage
             {
                 foreach (var descriptor in descriptors)
                 {
-                    HardDeletePayloadFile(drive, fileId, descriptor );
+                    HardDeletePayloadFile(drive, fileId, descriptor);
                 }
+            });
+        }
+
+        public void TryHardDeleteAllPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        {
+            Benchmark.Milliseconds(logger, nameof(TryHardDeleteAllPayloadFiles), () =>
+            {
+                foreach (var descriptor in descriptors)
+                {
+                    try
+                    {
+                        HardDeletePayloadFile(drive, fileId, descriptor);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "HeadDeletePayloadFile exception in Try");
+                    }
+                }
+            });
+        }
+
+        /// <summary>
+        /// Removes any payloads that are not in the provided list
+        /// </summary>
+        public void HardDeleteDeadPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
+        {
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
+                return;
+            }
+
+            Benchmark.Milliseconds(logger, nameof(HardDeleteDeadPayloadFiles), () =>
+            {
+                foreach (var zombiePayload in deadPayloads)
+                {
+                    //Note: this also kills the thumbnails for this file
+                    HardDeletePayloadFile(drive, fileId, zombiePayload);
+                }
+            });
+        }
+
+        public async Task TryDeleteUnassociatedTargetFiles(InternalDriveFileId targetFile)
+        {
+            try
+            {
+                var drive = await driveManager.GetDriveAsync(targetFile.DriveId);
+                HardDeleteDeadPayloadFiles(drive, targetFile.FileId, []);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed deleting unassociated target files {file}", targetFile);
+            }
+        }
+
+        /// <summary>
+        /// Removes all traces of a file and deletes its record from the index
+        /// </summary>
+        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        {
+            // First delete the DB header
+            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
+
+            // If some files fail, they are simply orphaned
+            Benchmark.Milliseconds(logger, "HardDeleteAsync", () =>
+            {
+                TryHardDeleteAllPayloadFiles(drive, fileId, descriptors);
             });
         }
 
@@ -390,19 +458,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Removes all traces of a file and deletes its record from the index
-        /// </summary>
-        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
-        {
-            Benchmark.Milliseconds(logger, "HardDeleteAsync", () =>
-            {
-                HardDeleteAllPayloadFiles(drive, fileId, descriptors);
-            });
-            
-            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
-        }
-
-        /// <summary>
         /// Moves the specified <param name="sourceFile"></param> to long term storage.
         /// Returns the storage UID used in the filename
         /// </summary>
@@ -410,11 +465,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             Benchmark.Milliseconds(logger, nameof(CopyPayloadToLongTerm), () =>
             {
-                //if (!File.Exists(sourceFile))
-                //{
-                //    throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
-                //}
-
                 var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key,
                     descriptor.Uid, ensureExists: true);
                 driveFileReaderWriter.CopyPayloadFile(sourceFile, destinationFile);
@@ -428,11 +478,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             Benchmark.Milliseconds(logger, "MoveThumbnailToLongTerm", () =>
             {
-                //if (!File.Exists(sourceThumbnailFilePath))
-                //{
-                //    throw new OdinSystemException($"Thumbnail: source file does not exist: {sourceThumbnailFilePath}");
-                //}
-
                 var payloadKey = payloadDescriptor.Key;
 
                 TenantPathManager.AssertValidPayloadKey(payloadKey);
@@ -443,7 +488,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var dir = Path.GetDirectoryName(destinationFile) ??
                           throw new OdinSystemException("Destination folder was null");
                 logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
-                driveFileReaderWriter.CreateDirectory(dir);
+                driveFileReaderWriter.CreateDirectory(dir); // TODO REMOVE
 
                 driveFileReaderWriter.CopyPayloadFile(sourceThumbnailFilePath, destinationFile);
                 logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
@@ -456,40 +501,5 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var header = await driveQuery.GetFileHeaderAsync(drive, fileId, fileSystemType);
             return header;
         }
-
-        /// <summary>
-        /// Removes any payloads that are not in the provided list
-        /// </summary>
-        public void HardDeleteDeadPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
-        {
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
-            {
-                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
-                return;
-            }
-
-            Benchmark.Milliseconds(logger, nameof(HardDeleteDeadPayloadFiles), () =>
-            {
-                foreach (var zombiePayload in deadPayloads)
-                {
-                    //Note: this also kills the thumbnails for this file
-                    HardDeletePayloadFile(drive, fileId, zombiePayload);
-                }
-            });
-        }
-
-        public async Task TryDeleteUnassociatedTargetFiles(InternalDriveFileId targetFile)
-        {
-            try
-            {
-                var drive = await driveManager.GetDriveAsync(targetFile.DriveId);
-                HardDeleteDeadPayloadFiles(drive, targetFile.FileId, []);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Failed deleting unassociated target files {file}", targetFile);
-            }
-        }
-
     }
 }
