@@ -723,7 +723,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
-
                 if (await TryShouldRaiseDriveEventAsync(targetFile))
                 {
                     await TryPublishAsync(new DriveFileChangedNotification
@@ -1414,7 +1413,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             WriteSecondDatabaseRowBase markComplete)
         {
             var file = existingHeader.FileMetadata.File;
-
+            var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
+            
             var deletedServerFileHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
@@ -1477,9 +1477,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                // TODO TODD ERROR : The empty list deletes nothing.
                 if (success)
-                    longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, file.FileId, descriptors: []);
+                {
+                    longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, file.FileId, payloadsToDelete);
+                }
             }
 
             return success;

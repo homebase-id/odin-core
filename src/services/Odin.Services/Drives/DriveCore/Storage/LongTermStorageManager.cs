@@ -243,9 +243,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
             {
-                // TODO TODD: This should be either LogError or just a return. If you change to LogError 
-                // a test will fail.
-                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
                 return;
             }
 
@@ -259,7 +256,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "TryHardDeleteListOfPayloadFiles exception");
+                        logger.LogError(ex, "Failed while deleting a payload");
                     }
                 }
             });
