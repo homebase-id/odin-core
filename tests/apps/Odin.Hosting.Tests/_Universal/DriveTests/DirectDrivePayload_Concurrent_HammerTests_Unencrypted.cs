@@ -135,8 +135,6 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
                 PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
             };
 
-            await Task.Delay(Random.Shared.Next(0, 6));
-
             var prevTag = newVersionTag;
             var (status, oce, tag) = await UploadAndValidatePayload(_targetFile, newVersionTag, uploadManifest, testPayloads);
 
@@ -145,7 +143,6 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
                 ClassicAssert.IsTrue(tag.HasValue);
                 newVersionTag = tag.GetValueOrDefault();
                 ClassicAssert.IsTrue(prevTag != newVersionTag, "version tag did not change");
-                await Task.Delay(Random.Shared.Next(0, 6));
             }
             else
             {
