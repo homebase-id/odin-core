@@ -11,7 +11,6 @@ using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.DriveCore.Storage.Gugga;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests;

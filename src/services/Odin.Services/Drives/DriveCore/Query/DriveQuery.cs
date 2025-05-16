@@ -282,7 +282,9 @@ public class DriveQuery(
 
     public async Task HardDeleteFileHeaderAsync(StorageDrive drive, InternalDriveFileId file)
     {
-        await metaIndex.DeleteEntryAsync(drive.Id, file.FileId);
+        int n = await metaIndex.DeleteEntryAsync(drive.Id, file.FileId);
+        if (n < 1)
+            throw new OdinSystemException("HardDeleteFileHeaderAsync() unable to delete header");
     }
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete)

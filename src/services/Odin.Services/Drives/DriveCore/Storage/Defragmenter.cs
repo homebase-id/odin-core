@@ -232,7 +232,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
                 var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, payloadUid);
                 var dir = GetPayloadPath(drive, fileId);
-                var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
+                var thumbnailFiles = GetFilesInDirectory(dir, thumbnailSearchPattern);
                 foreach (var thumbnailFile in thumbnailFiles)
                 {
                     var thumbnailTarget = thumbnailFile.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
@@ -259,7 +259,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
                 // note: no need to delete thumbnails separately due to the aggressive searchPattern
                 var dir = GetPayloadPath(drive, fileId);
-                driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+                DeleteFilesInDirectory(dir, searchPattern);
             });
         }
 
@@ -403,7 +403,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             // ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-*x*.thumb
             var thumbnailSearchPatternForPayload = GetThumbnailSearchMask(fileId, payloadDescriptor.Key, payloadDescriptor.Uid);
-            var thumbnailFilePathsForPayload = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPatternForPayload);
+            var thumbnailFilePathsForPayload = GetFilesInDirectory(dir, thumbnailSearchPatternForPayload);
             logger.LogDebug("Deleting thumbnails: Found {count} for file({fileId}) with path-pattern ({pattern})",
                 thumbnailFilePathsForPayload.Length,
                 fileId,
@@ -527,6 +527,20 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 FileId = fileId,
                 DriveId = drive.Id
             };
+        }
+        
+        private void DeleteFilesInDirectory(string dir, string searchPattern)
+        {
+            if (Directory.Exists(dir))
+            {
+                var files = Directory.GetFiles(dir, searchPattern);
+                driveFileReaderWriter.DeleteFiles(files);
+            }
+        }
+
+        private string[] GetFilesInDirectory(string dir, string searchPattern = "*")
+        {
+            return Directory.GetFiles(dir!, searchPattern);
         }
     }
 }

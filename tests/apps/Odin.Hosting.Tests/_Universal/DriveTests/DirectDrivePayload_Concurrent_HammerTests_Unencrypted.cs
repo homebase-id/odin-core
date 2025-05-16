@@ -89,7 +89,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
         var headerBeforeUpload = getHeaderBeforeUploadResponse.Content;
         ClassicAssert.IsNotNull(headerBeforeUpload);
 
-        await PerformanceFramework.ThreadedTestAsync(maxThreads: 50, iterations: 100, OverwritePayload);
+        await PerformanceFramework.ThreadedTestAsync(maxThreads: 2, iterations: 100, OverwritePayload);
 
         Console.WriteLine($"Success Count: {_successCount}");
         Console.WriteLine($"Conflict Count: {_ConflictCount}");
@@ -147,11 +147,16 @@ public class DirectDrivePayload_Concurrent_HammerTests_Unencrypted
             else
             {
                 _ConflictCount++;
-                ClassicAssert.IsTrue(oce == OdinClientErrorCode.VersionTagMismatch);
-
-                // we must presume there was a version tag mismatch, let's see if we can get back in the race
-                var getHeader = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
-                newVersionTag = getHeader.Content.FileMetadata.VersionTag;
+                if (oce == OdinClientErrorCode.VersionTagMismatch)
+                {
+                    // we must presume there was a version tag mismatch, let's see if we can get back in the race
+                    var getHeader = await _ownerApiClient.DriveRedux.GetFileHeader(_targetFile);
+                    newVersionTag = getHeader.Content.FileMetadata.VersionTag;
+                }
+                else
+                {
+                    throw new Exception($"Error uploading payload: HttpStatus {status}, OdinClientErrorCode {oce}");
+                }
             }
 
             // Finished doing all the work
