@@ -239,27 +239,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
             });
         }
 
-        public void HardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
-        {
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
-            {
-                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
-                return;
-            }
-
-            Benchmark.Milliseconds(logger, nameof(HardDeleteListOfPayloadFiles), () =>
-            {
-                foreach (var descriptor in descriptors)
-                {
-                    HardDeletePayloadFile(drive, fileId, descriptor);
-                }
-            });
-        }
-
         public void TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
             if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
             {
+                // TODO TODD: This should be either LogError or just a return. If you change to LogError 
+                // a test will fail.
                 logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
                 return;
             }
@@ -274,7 +259,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "HeadDeletePayloadFile exception in Try");
+                        logger.LogError(ex, "TryHardDeleteListOfPayloadFiles exception");
                     }
                 }
             });
