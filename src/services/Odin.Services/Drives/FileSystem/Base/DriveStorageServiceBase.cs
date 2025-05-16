@@ -345,7 +345,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             header.FileMetadata.Payloads!.RemoveAt(descriptorIndex);
             await UpdateActiveFileHeader(file, header, odinContext);
-            await DeletePayloadFromDiskInternal(file, descriptor); // Delete the payloads from disk AFTER we update the header successfully
+
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            // Delete the payload from disk AFTER we update the header successfully
+            longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, file.FileId, [descriptor]);
 
             return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because we pass header all the way
         }
@@ -1572,21 +1575,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
             await WriteFileHeaderInternal(existingServerHeader, useThisVersionTag); // Sets header.FileMetadata.Created/Updated
-        }
-
-        private async Task DeletePayloadFromDiskInternal(InternalDriveFileId file, PayloadDescriptor descriptor)
-        {
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-
-            // Delete the thumbnail files for this payload
-            foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
-            {
-                longTermStorageManager.HardDeleteThumbnailFile(drive, file.FileId, descriptor.Key, descriptor.Uid, thumb.PixelWidth,
-                    thumb.PixelHeight);
-            }
-
-            // Delete the payload file
-            longTermStorageManager.HardDeletePayloadFile(drive, file.FileId, descriptor);
         }
 
         private async Task CopyPayloadsAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
