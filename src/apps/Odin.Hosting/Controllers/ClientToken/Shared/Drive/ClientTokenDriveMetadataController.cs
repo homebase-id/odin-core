@@ -24,7 +24,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public ClientTokenDriveMetadataController(DriveManager driveManager)
         {
             _driveManager = driveManager;
-            
         }
 
         /// <summary>
@@ -36,17 +35,16 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            
-
             //TODO: make logic centralized and match transitperimeterservice
-            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
+            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize),
+                WebOdinContext);
 
-            var clientDriveData = drives.Results.Select(drive =>
-                new ClientDriveData()
-                {
-                    TargetDrive = drive.TargetDriveInfo,
-                    Attributes = WebOdinContext.Caller.IsOwner ? drive.Attributes : default
-                }).ToList();
+            var clientDriveData = drives.Results.Select(drive => new ClientDriveData()
+            {
+                TargetDrive = drive.TargetDriveInfo,
+                Name = WebOdinContext.Caller.IsOwner ? drive.Name : string.Empty,
+                Attributes = WebOdinContext.Caller.IsOwner ? drive.Attributes : default
+            }).ToList();
 
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
