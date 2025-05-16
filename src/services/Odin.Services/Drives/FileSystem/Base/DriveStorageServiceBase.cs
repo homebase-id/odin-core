@@ -670,7 +670,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
                     var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
-                    longTermStorageManager.HardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
+                    longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
                 }
             }
 
@@ -718,17 +718,23 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await WriteFileHeaderInternal(existingServerHeader);
 
-            // Remove the replaced payloads (only if DB successful)
-            longTermStorageManager.HardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
-
-            if (await TryShouldRaiseDriveEventAsync(targetFile))
+            try
             {
-                await TryPublishAsync(new DriveFileChangedNotification
+
+                if (await TryShouldRaiseDriveEventAsync(targetFile))
                 {
-                    File = targetFile,
-                    ServerFileHeader = existingServerHeader,
-                    OdinContext = odinContext,
-                });
+                    await TryPublishAsync(new DriveFileChangedNotification
+                    {
+                        File = targetFile,
+                        ServerFileHeader = existingServerHeader,
+                        OdinContext = odinContext,
+                    });
+                }
+            }
+            finally
+            {
+                // Remove the replaced payloads (only if DB successful)
+                longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
             }
 
             return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
@@ -1083,7 +1089,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     // Cleanup zombied payloads only if the file got moved and 
                     var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-                    longTermStorageManager.HardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombies);
+                    longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombies);
                 }
             }
 
@@ -1470,7 +1476,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 // TODO TODD ERROR : The empty list deletes nothing.
                 if (success)
-                    longTermStorageManager.HardDeleteListOfPayloadFiles(drive, file.FileId, descriptors: []);
+                    longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, file.FileId, descriptors: []);
             }
 
             return success;

@@ -256,7 +256,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             });
         }
 
-        public void TryHardDeleteAllPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        public void TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
             if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
             {
@@ -264,7 +264,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 return;
             }
 
-            Benchmark.Milliseconds(logger, nameof(TryHardDeleteAllPayloadFiles), () =>
+            Benchmark.Milliseconds(logger, nameof(TryHardDeleteListOfPayloadFiles), () =>
             {
                 foreach (var descriptor in descriptors)
                 {
@@ -291,7 +291,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // If some files fail, they are simply orphaned
             Benchmark.Milliseconds(logger, "HardDeleteAsync", () =>
             {
-                TryHardDeleteAllPayloadFiles(drive, fileId, descriptors);
+                TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors);
             });
         }
 
