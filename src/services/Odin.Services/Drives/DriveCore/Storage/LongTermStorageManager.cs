@@ -260,7 +260,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
             {
-                logger.LogError("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
+                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
                 return;
             }
 
