@@ -15,6 +15,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
+using Odin.Core.Trie;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -575,8 +576,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                if (success)
-                    await longTermStorageManager.TryDeleteUnassociatedTargetFiles(targetFile);
             }
 
             return (success, newMetadata.Payloads);
@@ -671,7 +670,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
                     var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
-                    await TryDeleteZombiePayloadsAsync(targetFile, zombiePayloads);
+                    longTermStorageManager.HardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
                 }
             }
 
@@ -718,11 +717,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
 
             await WriteFileHeaderInternal(existingServerHeader);
-            await DeleteZombiePayloadsAsync(targetFile, zombiePayloads); // Only remove the replaced payloads if successful
 
-            if (await ShouldRaiseDriveEventAsync(targetFile))
+            // Remove the replaced payloads (only if DB successful)
+            longTermStorageManager.HardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
+
+            if (await TryShouldRaiseDriveEventAsync(targetFile))
             {
-                await mediator.Publish(new DriveFileChangedNotification
+                await TryPublishAsync(new DriveFileChangedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
@@ -1081,7 +1082,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 if (success)
                 {
                     // Cleanup zombied payloads only if the file got moved and 
-                    await TryDeleteZombiePayloadsAsync(targetFile, zombies); // TODO remove await
+                    var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
+                    longTermStorageManager.HardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombies);
                 }
             }
 
@@ -1466,8 +1468,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
+                // TODO TODD ERROR : The empty list deletes nothing.
                 if (success)
-                    longTermStorageManager.HardDeleteAllPayloadFiles(drive, file.FileId, descriptors: []);
+                    longTermStorageManager.HardDeleteListOfPayloadFiles(drive, file.FileId, descriptors: []);
             }
 
             return success;
@@ -1640,39 +1643,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                             $" does not exist on disk.]");
                     }
                 }
-            }
-        }
-
-        private async Task DeleteZombiePayloadsAsync(InternalDriveFileId file, List<PayloadDescriptor> deadPayloads)
-        {
-            try
-            {
-                var drive = await DriveManager.GetDriveAsync(file.DriveId);
-                longTermStorageManager.HardDeleteDeadPayloadFiles(drive, file.FileId, deadPayloads);
-            }
-            catch (OdinSecurityException)
-            {
-                throw;
-            }
-            catch (OdinClientException)
-            {
-                throw;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Failed to delete zombie payloads");
-            }
-        }
-
-        private async Task TryDeleteZombiePayloadsAsync(InternalDriveFileId file, List<PayloadDescriptor> deadPayloads)
-        {
-            try
-            {
-                await DeleteZombiePayloadsAsync(file, deadPayloads);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to delete zombie payloads");
             }
         }
     }

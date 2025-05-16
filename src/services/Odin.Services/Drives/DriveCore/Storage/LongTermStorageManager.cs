@@ -27,7 +27,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         DriveQuery driveQuery,
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
-        DriveManager driveManager,
         TableDriveMainIndex driveMainIndex,
         TenantContext tenantContext)
     {
@@ -172,8 +171,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.SaveReactionSummary(drive, fileId, null);
         }
 
-        public void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width,
-            int height)
+        public void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
         {
             Benchmark.Milliseconds(logger, nameof(HardDeleteThumbnailFile), () =>
             {
@@ -241,9 +239,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             });
         }
 
-        public void HardDeleteAllPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        public void HardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
-            Benchmark.Milliseconds(logger, nameof(HardDeleteAllPayloadFiles), () =>
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
+                return;
+            }
+
+            Benchmark.Milliseconds(logger, nameof(HardDeleteListOfPayloadFiles), () =>
             {
                 foreach (var descriptor in descriptors)
                 {
@@ -254,6 +258,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public void TryHardDeleteAllPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                logger.LogError("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
+                return;
+            }
+
             Benchmark.Milliseconds(logger, nameof(TryHardDeleteAllPayloadFiles), () =>
             {
                 foreach (var descriptor in descriptors)
@@ -268,40 +278,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     }
                 }
             });
-        }
-
-        /// <summary>
-        /// Removes any payloads that are not in the provided list
-        /// </summary>
-        public void HardDeleteDeadPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
-        {
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
-            {
-                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
-                return;
-            }
-
-            Benchmark.Milliseconds(logger, nameof(HardDeleteDeadPayloadFiles), () =>
-            {
-                foreach (var zombiePayload in deadPayloads)
-                {
-                    //Note: this also kills the thumbnails for this file
-                    HardDeletePayloadFile(drive, fileId, zombiePayload);
-                }
-            });
-        }
-
-        public async Task TryDeleteUnassociatedTargetFiles(InternalDriveFileId targetFile)
-        {
-            try
-            {
-                var drive = await driveManager.GetDriveAsync(targetFile.DriveId);
-                HardDeleteDeadPayloadFiles(drive, targetFile.FileId, []);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Failed deleting unassociated target files {file}", targetFile);
-            }
         }
 
         /// <summary>
