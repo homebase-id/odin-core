@@ -159,9 +159,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
             {
-                if (await ShouldRaiseDriveEventAsync(targetFile))
+                if (await TryShouldRaiseDriveEventAsync(targetFile))
                 {
-                    await mediator.Publish(new DriveFileChangedNotification
+                    await TryPublishAsync(new DriveFileChangedNotification
                     {
                         File = targetFile,
                         ServerFileHeader = header,
@@ -197,9 +197,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             //HACKed in for Feed drive -> should become data subscription
             if (raiseEvent)
             {
-                if (await ShouldRaiseDriveEventAsync(targetFile))
+                if (await TryShouldRaiseDriveEventAsync(targetFile))
                 {
-                    await mediator.Publish(new DriveFileAddedNotification
+                    await TryPublishAsync(new DriveFileAddedNotification
                     {
                         File = targetFile,
                         ServerFileHeader = header,
@@ -510,9 +510,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await longTermStorageManager.HardDeleteAsync(drive, file.FileId, fileHeader.FileMetadata.Payloads);
 
-            if (await ShouldRaiseDriveEventAsync(file))
+            if (await TryShouldRaiseDriveEventAsync(file))
             {
-                await mediator.Publish(new DriveFileDeletedNotification
+                await TryPublishAsync(new DriveFileDeletedNotification
                 {
                     IsHardDelete = true,
                     File = file,
@@ -753,9 +753,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await OverwriteMetadataInternal(newKeyHeaderIv, existingServerHeader, newMetadata, newServerMetadata, odinContext);
 
-            if (await ShouldRaiseDriveEventAsync(targetFile))
+            if (await TryShouldRaiseDriveEventAsync(targetFile))
             {
-                await mediator.Publish(new DriveFileChangedNotification
+                await TryPublishAsync(new DriveFileChangedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingServerHeader,
@@ -779,9 +779,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await longTermStorageManager.SaveReactionHistory(drive, targetFile.FileId, summary);
 
-            if (await ShouldRaiseDriveEventAsync(targetFile))
+            if (await TryShouldRaiseDriveEventAsync(targetFile))
             {
-                await mediator.Publish(new ReactionPreviewUpdatedNotification
+                await TryPublishAsync(new ReactionPreviewUpdatedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
@@ -810,9 +810,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             header.ServerMetadata.TransferHistory = updatedHistory;
             header.FileMetadata.SetCreatedModifiedWithDatabaseValue(header.FileMetadata.Created, modifiedTime);
 
-            if (await ShouldRaiseDriveEventAsync(file))
+            if (await TryShouldRaiseDriveEventAsync(file))
             {
-                await mediator.Publish(new DriveFileChangedNotification
+                await TryPublishAsync(new DriveFileChangedNotification
                 {
                     File = file,
                     ServerFileHeader = header,
@@ -1020,9 +1020,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);
 
-            if (await ShouldRaiseDriveEventAsync(targetFile))
+            if (await TryShouldRaiseDriveEventAsync(targetFile))
             {
-                await mediator.Publish(new ReactionPreviewUpdatedNotification
+                await TryPublishAsync(new ReactionPreviewUpdatedNotification
                 {
                     File = targetFile,
                     ServerFileHeader = existingHeader,
@@ -1265,9 +1265,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata, newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-            if (await ShouldRaiseDriveEventAsync(file))
+            if (await TryShouldRaiseDriveEventAsync(file))
             {
-                await mediator.Publish(new DriveFileChangedNotification
+                await TryPublishAsync(new DriveFileChangedNotification
                 {
                     File = file,
                     ServerFileHeader = updatedHeader,
@@ -1316,9 +1316,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
 
             var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-            if (await ShouldRaiseDriveEventAsync(file))
+            if (await TryShouldRaiseDriveEventAsync(file))
             {
-                await mediator.Publish(new DriveFileChangedNotification
+                await TryPublishAsync(new DriveFileChangedNotification
                 {
                     File = file,
                     ServerFileHeader = updatedHeader,
