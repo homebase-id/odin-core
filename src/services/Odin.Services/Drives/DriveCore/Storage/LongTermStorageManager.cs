@@ -170,8 +170,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             await driveQuery.SaveReactionSummary(drive, fileId, null);
         }
-
-        public void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
+/*
+        private void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
         {
             Benchmark.Milliseconds(logger, nameof(HardDeleteThumbnailFile), () =>
             {
@@ -190,11 +190,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 driveFileReaderWriter.DeleteFile(path);
             });
         }
-
+*/
         /// <summary>
         /// Deletes the payload file and all associated thumbnails
         /// </summary>
-        public void HardDeletePayloadFile(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
+        private void HardDeletePayloadFile(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
         {
             string payloadKey = payloadDescriptor.Key;
             UnixTimeUtcUnique payloadUid = payloadDescriptor.Uid;
@@ -239,26 +239,29 @@ namespace Odin.Services.Drives.DriveCore.Storage
             });
         }
 
-        public void TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
+        public Task TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            return Task.Run(() =>
             {
-                return;
-            }
-
-            Benchmark.Milliseconds(logger, nameof(TryHardDeleteListOfPayloadFiles), () =>
-            {
-                foreach (var descriptor in descriptors)
+                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                 {
-                    try
-                    {
-                        HardDeletePayloadFile(drive, fileId, descriptor);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed while deleting a payload");
-                    }
+                    return;
                 }
+
+                Benchmark.Milliseconds(logger, nameof(TryHardDeleteListOfPayloadFiles), () =>
+                {
+                    foreach (var descriptor in descriptors)
+                    {
+                        try
+                        {
+                            HardDeletePayloadFile(drive, fileId, descriptor);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "Failed while deleting a payload");
+                        }
+                    }
+                });
             });
         }
 
@@ -271,9 +274,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
 
             // If some files fail, they are simply orphaned
-            Benchmark.Milliseconds(logger, "HardDeleteAsync", () =>
+            await Benchmark.Milliseconds(logger, "HardDeleteAsync", async () =>
             {
-                TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors);
+                await TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors);
             });
         }
 
