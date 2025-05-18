@@ -1354,7 +1354,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, Guid? useThisVersionTag = null)
         {
-            await AssertPayloadsExistOnFileSystem(header.FileMetadata);
+            await AssertPayloadsExistOnFileSystemAsync(header.FileMetadata);
 
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
@@ -1605,14 +1605,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task AssertPayloadsExistOnFileSystem(FileMetadata metadata)
+        private async Task<List<string>> GetMissingPayloadsAsync(FileMetadata metadata)
         {
+            var missingPayloads = new List<string>();
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
 
             // special exception *eye roll*.  really need to root this feed thing out of the core
             if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
             {
-                return;
+                return missingPayloads;
             }
 
             var fileId = metadata.File.FileId;
@@ -1621,9 +1622,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 bool payloadExists = longTermStorageManager.PayloadExistsOnDisk(drive, fileId, payloadDescriptor);
                 if (!payloadExists)
                 {
-                    throw new OdinFileHeaderHasCorruptPayloadException(
-                        $"File metadata ({metadata.File.ToString()}) defines payload [key:{payloadDescriptor.Key} " +
-                        $"uid:{payloadDescriptor.Uid}] but the payload-file does not exist on disk.]");
+                    missingPayloads.Add(TenantPathManager.GetPayloadFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid));
                 }
 
                 foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
@@ -1631,13 +1630,24 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var thumbExists = longTermStorageManager.ThumbnailExistsOnDisk(drive, fileId, payloadDescriptor, thumbnailDescriptor);
                     if (!thumbExists)
                     {
-                        throw new OdinFileHeaderHasCorruptPayloadException(
-                            $"File metadata [{metadata.File.ToString()}] defines payload [key:{payloadDescriptor.Key} " +
-                            $"uid:{payloadDescriptor.Uid}] with thumbnail " +
-                            $"[size={thumbnailDescriptor.PixelWidth}x{thumbnailDescriptor.PixelHeight}] but the thumbnail-file" +
-                            $" does not exist on disk.]");
+                        missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId,  payloadDescriptor.Key, payloadDescriptor.Uid, thumbnailDescriptor.PixelWidth,
+                            thumbnailDescriptor.PixelHeight));
                     }
                 }
+            }
+
+            return missingPayloads;
+        }
+
+        private async Task AssertPayloadsExistOnFileSystemAsync(FileMetadata metadata)
+        {
+            var sl = await GetMissingPayloadsAsync(metadata);
+
+            if (sl.Count > 0)
+            {
+                throw new OdinFileHeaderHasCorruptPayloadException(
+                    $"File metadata ({metadata.File.ToString()}) missing these payloads / thumbnails:" +
+                    string.Join(",", sl));
             }
         }
     }
