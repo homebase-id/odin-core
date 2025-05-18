@@ -11,12 +11,12 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -28,7 +28,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
         TableDriveMainIndex driveMainIndex,
-        TenantContext tenantContext)
+        TenantContext tenantContext,
+        IForgottenTasks forgottenTasks)
     {
         private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
@@ -248,20 +249,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     return;
                 }
 
-                Benchmark.Milliseconds(logger, nameof(TryHardDeleteListOfPayloadFiles), () =>
+                foreach (var descriptor in descriptors)
                 {
-                    foreach (var descriptor in descriptors)
+                    try
                     {
-                        try
-                        {
-                            HardDeletePayloadFile(drive, fileId, descriptor);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex, "Failed while deleting a payload");
-                        }
+                        HardDeletePayloadFile(drive, fileId, descriptor);
                     }
-                });
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed while deleting a payload");
+                    }
+                }
             });
         }
 
@@ -274,10 +272,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
 
             // If some files fail, they are simply orphaned
-            await Benchmark.Milliseconds(logger, "HardDeleteAsync", async () =>
-            {
-                await TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors);
-            });
+            forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
         }
 
         public bool PayloadExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)

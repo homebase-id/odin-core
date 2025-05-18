@@ -99,6 +99,7 @@ namespace Odin.Hosting
             services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
             services.AddSingleton<DriveFileReaderWriter>();
+            services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -615,6 +616,11 @@ namespace Odin.Hosting
                 // Shutdown system background services
                 //
                 services.ShutdownSystemBackgroundServices().BlockingWait();
+
+                //
+                // Wait for any registered fire-and-forget tasks to complete
+                //
+                services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
 
                 // DON'T PUT ANYTHING BELOW THIS LINE
                 logger.LogInformation("Background services stopped");
