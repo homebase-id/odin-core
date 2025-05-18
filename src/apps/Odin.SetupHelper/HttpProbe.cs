@@ -1,4 +1,5 @@
 using Odin.Core.Cache;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Util;
 
 namespace Odin.SetupHelper;
@@ -6,7 +7,11 @@ namespace Odin.SetupHelper;
 public class HttpProbe(IHttpClientFactory httpClientFactory, IGenericMemoryCache cache)
 {
     public record HttpProbeResult(bool Success, string Message);
-    public async Task<HttpProbeResult> ProbeAsync(string scheme, string domainName, string hostPort)
+    public async Task<HttpProbeResult> ProbeAsync(
+        string scheme,
+        string domainName,
+        string hostPort,
+        Guid? correlationId = null)
     {
         scheme = scheme.ToLower();
         if (scheme != "http" && scheme != "https")
@@ -40,7 +45,12 @@ public class HttpProbe(IHttpClientFactory httpClientFactory, IGenericMemoryCache
         var client = httpClientFactory.CreateClient("NoRedirectClient");
         try
         {
-            var response = await client.GetAsync(uri);
+            var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            if (correlationId.HasValue)
+            {
+                request.Headers.Add(ICorrelationContext.DefaultHeaderName, correlationId.ToString());
+            }
+            var response = await client.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)
