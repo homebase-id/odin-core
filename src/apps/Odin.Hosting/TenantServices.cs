@@ -312,7 +312,7 @@ public static class TenantServices
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
-
+        
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
 

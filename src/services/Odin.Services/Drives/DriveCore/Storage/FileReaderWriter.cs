@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -44,7 +45,7 @@ public sealed class FileReaderWriter(
 
     //
 
-    public async Task WriteAllBytesAsync(string filePath, byte[] bytes)
+    public async Task WriteAllBytesAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -55,7 +56,7 @@ public sealed class FileReaderWriter(
                 {
                     try
                     {
-                        await File.WriteAllBytesAsync(filePath, bytes);
+                        await File.WriteAllBytesAsync(filePath, bytes, cancellationToken);
                     }
                     catch (Exception e)
                     {
