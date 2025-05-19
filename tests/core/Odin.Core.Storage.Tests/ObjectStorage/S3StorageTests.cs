@@ -12,7 +12,7 @@ namespace Odin.Core.Storage.Tests.ObjectStorage;
 
 #nullable enable
 
-public class S3StorageBucketTests
+public class S3StorageTests
 {
     private string _accessKey = "";
     private string _secretAccessKey = "";

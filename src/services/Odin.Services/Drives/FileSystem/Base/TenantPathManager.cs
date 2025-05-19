@@ -157,12 +157,11 @@ public class TenantPathManager
         return Path.Combine(highNibble.ToString(), lowNibble.ToString());
     }
 
-    public string GetPayloadDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
+    public string GetPayloadDirectory(Guid driveId, Guid fileId)
     {
         var root = GetDrivePayloadPath(driveId);
         var subdir = GetPayloadDirectoryFromGuid(fileId);
         var path = Path.Combine(root, subdir);
-        if (ensureExists) Directory.CreateDirectory(path);
         return path;
     }
 
@@ -176,22 +175,20 @@ public class TenantPathManager
         return GetBasePayloadFileName(payloadKey, uid.ToString());
     }
 
-
     public static string GetBasePayloadFileNameAndExtension(string payloadKey, UnixTimeUtcUnique uid)
     {
         return $"{GetBasePayloadFileName(payloadKey, uid)}{PayloadExtension}";
     }
-
 
     internal static string GetPayloadFileName(Guid fileId, string key, UnixTimeUtcUnique uid)
     {
         return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{GetBasePayloadFileNameAndExtension(key, uid)}";
     }
 
-    public string GetPayloadDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
+    public string GetPayloadDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
     {
         var fileName = GetPayloadFileName(fileId, payloadKey, payloadUid);
-        var dir = GetPayloadDirectory(driveId, fileId, ensureExists);
+        var dir = GetPayloadDirectory(driveId, fileId);
         return Path.Combine(dir, fileName);
     }
 
@@ -220,9 +217,9 @@ public class TenantPathManager
     }
 
 
-    internal string GetThumbnailDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
+    internal string GetThumbnailDirectory(Guid driveId, Guid fileId)
     {
-        return GetPayloadDirectory(driveId, fileId, ensureExists);
+        return GetPayloadDirectory(driveId, fileId);
     }
 
     public static string GetThumbnailFileName(Guid fileId, string key, UnixTimeUtcUnique uid, int width, int height)
@@ -236,7 +233,7 @@ public class TenantPathManager
     public string GetThumbnailDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int thumbWidth, int thumbHeight)
     {
         var fileName = GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbWidth, thumbHeight);
-        var dir = GetThumbnailDirectory(driveId, fileId, false);
+        var dir = GetThumbnailDirectory(driveId, fileId);
         return Path.Combine(dir, fileName);
     }
 
