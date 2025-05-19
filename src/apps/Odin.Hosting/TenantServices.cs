@@ -314,6 +314,8 @@ public static class TenantServices
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
         
+        // cb.RegisterType<Defragmenter>().InstancePerLifetimeScope();
+
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
 
