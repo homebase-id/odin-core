@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Minio;
@@ -39,7 +38,7 @@ public class S3StorageBucketTests
             .WithSSL()
             .Build();
 
-        _bucketName = $"zz-ci-test-{Guid.NewGuid():N}";
+        _bucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
         await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(_bucketName));
     }
 
@@ -48,10 +47,17 @@ public class S3StorageBucketTests
     [TearDown]
     public async Task TearDown()
     {
-        if (_minioClient != null!)
+        // Remove all objects
+        var listArgs = new ListObjectsArgs().WithBucket(_bucketName).WithRecursive(true);
+        await foreach (var item in _minioClient.ListObjectsEnumAsync(listArgs))
         {
-            await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
+            await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()
+                .WithBucket(_bucketName)
+                .WithObject(item.Key));
         }
+
+        // Remove bucket
+        await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
     }
 
     //
