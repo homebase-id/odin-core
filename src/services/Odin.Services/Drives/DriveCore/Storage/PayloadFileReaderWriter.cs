@@ -16,6 +16,7 @@ public class PayloadFileReaderWriter(
     FileReaderWriter fileReaderWriter
 ) : IPayloadReaderWriter
 {
+    private readonly ILogger<PayloadFileReaderWriter> _logger = logger;
     private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
     //
@@ -23,13 +24,19 @@ public class PayloadFileReaderWriter(
     public async Task WriteFileAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        var directory = Path.GetDirectoryName(filePath);
-        if (directory != null && !Directory.Exists(directory))
+        try
         {
-            Directory.CreateDirectory(directory);
+            var directory = Path.GetDirectoryName(filePath);
+            if (directory != null && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            await fileReaderWriter.WriteAllBytesAsync(filePath, bytes, cancellationToken);
         }
-        await fileReaderWriter.WriteAllBytesAsync(filePath, bytes, cancellationToken);
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
 
     //
@@ -37,9 +44,15 @@ public class PayloadFileReaderWriter(
     public Task DeleteFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        fileReaderWriter.DeleteFile(filePath);
-        return Task.CompletedTask;
+        try
+        {
+            fileReaderWriter.DeleteFile(filePath);
+            return Task.CompletedTask;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
     
     //
@@ -47,7 +60,14 @@ public class PayloadFileReaderWriter(
     public Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(fileReaderWriter.FileExists(filePath));
+        try
+        {
+            return Task.FromResult(fileReaderWriter.FileExists(filePath));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
 
     //
@@ -55,28 +75,47 @@ public class PayloadFileReaderWriter(
     public Task MoveFileAsync(string srcFilePath, string dstFilePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        if (!File.Exists(srcFilePath))
+        try
         {
-            throw new FileNotFoundException(srcFilePath);
-        }
+            if (!File.Exists(srcFilePath))
+            {
+                throw new FileNotFoundException(srcFilePath);
+            }
 
-        var dstDirectory = Path.GetDirectoryName(dstFilePath);
-        if (dstDirectory != null && !Directory.Exists(dstDirectory))
+            var dstDirectory = Path.GetDirectoryName(dstFilePath);
+            if (dstDirectory != null && !Directory.Exists(dstDirectory))
+            {
+                Directory.CreateDirectory(dstDirectory);
+            }
+
+            fileReaderWriter.MoveFile(srcFilePath, dstFilePath);
+            return Task.CompletedTask;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            Directory.CreateDirectory(dstDirectory);
+            throw new PayloadReaderWriterException(e.Message, e);
         }
-
-        fileReaderWriter.MoveFile(srcFilePath, dstFilePath);
-        return Task.CompletedTask;
     }
 
     //
 
-    public void MoveFileXYZ(string sourceFilePath, string destinationFilePath)
+    public Task<string[]> GetFilesInDirectoryAsync(
+        string dir,
+        string searchPattern = "*",
+        CancellationToken cancellationToken = default)
     {
-        throw new System.NotImplementedException();
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            return Task.FromResult(fileReaderWriter.GetFilesInDirectory(dir, searchPattern));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
+
+    //
 
     public string[] GetFilesInDirectoryXYZ(string dir, string searchPattern = "*")
     {
