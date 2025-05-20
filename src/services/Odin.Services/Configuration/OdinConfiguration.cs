@@ -39,7 +39,7 @@ namespace Odin.Services.Configuration
         public RedisSection Redis { get; init; }
         public CacheSection Cache { get; init; }
 
-        public S3ObjectStorageSection S3ObjectStorage { get; init; } = new();
+        public S3PayloadStorageSection S3PayloadStorage { get; init; } = new();
 
         public OdinConfiguration()
         {
@@ -68,7 +68,7 @@ namespace Odin.Services.Configuration
             Database = new DatabaseSection(config);
             Redis = new RedisSection(config);
             Cache = new CacheSection(config);
-            S3ObjectStorage = new S3ObjectStorageSection(config);
+            S3PayloadStorage = new S3PayloadStorageSection(config);
         }
 
         //
@@ -504,7 +504,7 @@ namespace Odin.Services.Configuration
 
         //
 
-        public class S3ObjectStorageSection
+        public class S3PayloadStorageSection
         {
             public bool Enabled { get; init; }
             public string Endpoint { get; init; } = "";
@@ -513,21 +513,21 @@ namespace Odin.Services.Configuration
             public string SecretAccessKey { get; init; } = "";
             public string Region { get; init; } = "";
 
-            public S3ObjectStorageSection()
+            public S3PayloadStorageSection()
             {
                 // Mockable support
             }
 
-            public S3ObjectStorageSection(IConfiguration config)
+            public S3PayloadStorageSection(IConfiguration config)
             {
-                Enabled = config.GetOrDefault("S3ObjectStorage:Enabled", false);
+                Enabled = config.GetOrDefault("S3PayloadStorage:Enabled", false);
                 if (Enabled)
                 {
-                    Endpoint = config.Required<string>("S3ObjectStorage:Endpoint");
-                    BucketName = config.Required<string>("S3ObjectStorage:BucketName");
-                    AccessKey = config.Required<string>("S3ObjectStorage:AccessKey");
-                    SecretAccessKey = config.Required<string>("S3ObjectStorage:SecretAccessKey");
-                    Region = config.GetOrDefault("S3ObjectStorage:Region", ""); // Is this AWS only?
+                    Endpoint = config.Required<string>("S3PayloadStorage:Endpoint");
+                    BucketName = config.Required<string>("S3PayloadStorage:BucketName");
+                    AccessKey = config.Required<string>("S3PayloadStorage:AccessKey");
+                    SecretAccessKey = config.Required<string>("S3PayloadStorage:SecretAccessKey");
+                    Region = config.GetOrDefault("S3PayloadStorage:Region", ""); // Is this AWS only?
                 }
             }
         }

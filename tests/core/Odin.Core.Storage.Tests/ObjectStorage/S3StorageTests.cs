@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Minio;
@@ -15,7 +14,6 @@ namespace Odin.Core.Storage.Tests.ObjectStorage;
 
 public class S3StorageBucketTests
 {
-    private const string RootPath = "the-root-path";
     private string _bucketName = "";
     private readonly Mock<ILogger<S3Storage>> _loggerMock = new ();
     private IMinioClient _minioClient = null!;
@@ -40,7 +38,7 @@ public class S3StorageBucketTests
             .WithSSL()
             .Build();
 
-        _bucketName = $"zz-ci-test-{Guid.NewGuid():N}";
+        _bucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
         await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(_bucketName));
     }
 
@@ -49,10 +47,17 @@ public class S3StorageBucketTests
     [TearDown]
     public async Task TearDown()
     {
-        if (_minioClient != null!)
+        // Remove all objects
+        var listArgs = new ListObjectsArgs().WithBucket(_bucketName).WithRecursive(true);
+        await foreach (var item in _minioClient.ListObjectsEnumAsync(listArgs))
         {
-            await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
+            await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()
+                .WithBucket(_bucketName)
+                .WithObject(item.Key));
         }
+
+        // Remove bucket
+        await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
     }
 
     //
@@ -60,11 +65,10 @@ public class S3StorageBucketTests
     [Test]
     public async Task BucketShouldExist()
     {
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
         var bucketExists = await bucket.BucketExistsAsync();
         Assert.That(bucketExists, Is.True);
         Assert.That(bucket.BucketName, Is.EqualTo(_bucketName));
-        Assert.That(bucket.RootPath, Is.EqualTo(RootPath));
     }
 
     //
@@ -75,14 +79,14 @@ public class S3StorageBucketTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
 
         // Write to bucket
         await bucket.WriteAllBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
 
         // Test that file exists at the right place through minio client
         var exists = await _minioClient.StatObjectAsync(
-            new StatObjectArgs().WithBucket(_bucketName).WithObject(S3Path.Combine(RootPath, path)));
+            new StatObjectArgs().WithBucket(_bucketName).WithObject(path));
         Assert.That(exists, Is.Not.Null);
 
         // Read back from bucket
@@ -98,7 +102,7 @@ public class S3StorageBucketTests
         const string path = "the-file/";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
 
         var result = bucket.WriteAllBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
         Assert.ThrowsAsync<S3StorageException>(async () => await result);
@@ -112,7 +116,7 @@ public class S3StorageBucketTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
 
         var exists = await bucket.FileExistsAsync(path);
         Assert.That(exists, Is.False);
@@ -131,7 +135,7 @@ public class S3StorageBucketTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.DeleteFileAsync(path); // should not throw
         await bucket.WriteAllBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
@@ -150,7 +154,7 @@ public class S3StorageBucketTests
         const string dstPath = "the-dst-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.WriteAllBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.CopyFileAsync(srcPath, dstPath);
@@ -172,7 +176,7 @@ public class S3StorageBucketTests
         const string dstPath = "the-dst-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.WriteAllBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.MoveFileAsync(srcPath, dstPath);
@@ -189,13 +193,13 @@ public class S3StorageBucketTests
     [Test]
     public async Task ItShouldListFiles()
     {
-        const string file0 = "/file0";
-        const string file1 = "/parent/file1";
-        const string file2 = "/parent/file2";
-        const string file3 = "/parent/child/file3";
+        const string file0 = "file0";
+        const string file1 = "parent/file1";
+        const string file2 = "parent/file2";
+        const string file3 = "parent/child/file3";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName, RootPath);
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.WriteAllBytesAsync(file0, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.WriteAllBytesAsync(file1, System.Text.Encoding.UTF8.GetBytes(text));

@@ -268,15 +268,15 @@ namespace Odin.Hosting
             // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
             services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
 
-            if (_config.S3ObjectStorage.Enabled)
+            if (_config.S3PayloadStorage.Enabled)
             {
                 services.AddMinioClient(
-                    _config.S3ObjectStorage.Endpoint,
-                    _config.S3ObjectStorage.AccessKey,
-                    _config.S3ObjectStorage.SecretAccessKey,
-                    _config.S3ObjectStorage.Region);
+                    _config.S3PayloadStorage.Endpoint,
+                    _config.S3PayloadStorage.AccessKey,
+                    _config.S3PayloadStorage.SecretAccessKey,
+                    _config.S3PayloadStorage.Region);
 
-                services.AddS3SystemStorage(_config.S3ObjectStorage.BucketName);
+                services.AddS3PayloadStorage(_config.S3PayloadStorage.BucketName);
             }
         }
 
@@ -582,13 +582,13 @@ namespace Odin.Hosting
                 }
 
                 // Sanity ping S3 bucket
-                if (_config.S3ObjectStorage.Enabled)
+                if (_config.S3PayloadStorage.Enabled)
                 {
-                    var systemBucket = services.GetRequiredService<S3SystemStorage>();
-                    var bucketExists = systemBucket.BucketExistsAsync().GetAwaiter().GetResult();
+                    var payloadBucket = services.GetRequiredService<S3PayloadStorage>();
+                    var bucketExists = payloadBucket.BucketExistsAsync().GetAwaiter().GetResult();
                     if (!bucketExists)
                     {
-                        throw new OdinSystemException("S3 bucket sanity check failed");
+                        throw new OdinSystemException("S3 payload bucket sanity check failed");
                     }
                 }
 
