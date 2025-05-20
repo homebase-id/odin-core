@@ -1,6 +1,8 @@
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
@@ -12,8 +14,8 @@ public interface IPayloadReaderWriter
     Task DeleteFileAsync(string filePath, CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default);
     Task MoveFileAsync(string srcFilePath, string dstFilePath, CancellationToken cancellationToken = default);
+    Task<string[]> GetFilesInDirectoryAsync(string dir, string searchPattern = "*", CancellationToken cancellationToken = default);
 
-    void MoveFileXYZ(string sourceFilePath, string destinationFilePath); // SEB:TODO
     string[] GetFilesInDirectoryXYZ(string dir, string searchPattern = "*"); // SEB:TODO
     void DeleteFilesInDirectoryXYZ(string dir, string searchPattern);  // SEB:TODO
     bool DirectoryExistsXYZ(string dir); // SEB:TODO
@@ -24,4 +26,13 @@ public interface IPayloadReaderWriter
 
 //
 
+public class PayloadReaderWriterException : OdinSystemException
+{
+    public PayloadReaderWriterException(string message) : base(message)
+    {
+    }
 
+    public PayloadReaderWriterException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
+}

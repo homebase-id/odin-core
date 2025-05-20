@@ -71,6 +71,18 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
     //
 
+    private void CreateFile(string filePath, string content = "hello")
+    {
+        var directory = Path.GetDirectoryName(filePath);
+        if (directory != null && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+        File.WriteAllText(filePath, "hello");
+    }
+
+    //
+
     [Test]
     public async Task WriteFileAsync_ShouldWriteFile()
     {
@@ -173,35 +185,55 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task MoveFileAsync_ShouldThrowOnMissingSrcFile()
+    public Task MoveFileAsync_ShouldThrowOnMissingSrcFile()
     {
-        var driveId = Guid.NewGuid();
-        var fileId = Guid.NewGuid();
-        var appKey = "testAppKey";
-        var timestamp = UnixTimeUtcUnique.Now();
-
         var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
-
-        var srcPath = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
-        var someBytes = "hello".ToUtf8ByteArray();
-        await rw.WriteFileAsync(srcPath, someBytes);
-
-        var exists = await rw.FileExistsAsync(srcPath);
-        Assert.That(exists, Is.True);
-
-        var otherDriveId = Guid.NewGuid();
-        var dstPath = _tenantPathManager.GetPayloadDirectoryAndFileName(otherDriveId, fileId, appKey, timestamp);
-        exists = await rw.FileExistsAsync(dstPath);
-        Assert.That(exists, Is.False);
 
         var srcFile = Path.Combine(TestRootPath, Guid.NewGuid().ToString());
         var dstFile = Path.Combine(TestRootPath, Guid.NewGuid().ToString());
 
-        Assert.ThrowsAsync<FileNotFoundException>(() => rw.MoveFileAsync(srcFile, dstFile));
+        Assert.ThrowsAsync<PayloadReaderWriterException>(() => rw.MoveFileAsync(srcFile, dstFile));
+
+        return Task.CompletedTask;
     }
 
+    //
 
+    [Test]
+    public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithoutFileMask()
+    {
+        var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
 
+        CreateFile(Path.Combine(root, "file1.foo"));
+        CreateFile(Path.Combine(root, "file2.bar"));
+        CreateFile(Path.Combine(root, "subdir", "file3.foo"));
 
+        var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
+
+        var files = await rw.GetFilesInDirectoryAsync(root);
+        Assert.That(files.Length, Is.EqualTo(2));
+        Assert.That(files, Does.Contain(Path.Combine(root, "file1.foo")));
+        Assert.That(files, Does.Contain(Path.Combine(root, "file2.bar")));
+    }
+
+    //
+
+    [Test]
+    public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithFileMask()
+    {
+        var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
+
+        CreateFile(Path.Combine(root, "file1.foo"));
+        CreateFile(Path.Combine(root, "file2.bar"));
+        CreateFile(Path.Combine(root, "subdir", "file3.foo"));
+
+        var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
+
+        var files = await rw.GetFilesInDirectoryAsync(root, "*.foo");
+        Assert.That(files.Length, Is.EqualTo(1));
+        Assert.That(files, Does.Contain(Path.Combine(root, "file1.foo")));
+    }
+
+    //
 
 }

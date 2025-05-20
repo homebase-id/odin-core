@@ -59,7 +59,7 @@ public class TenantPathManager
 
     public readonly string RootPath; // e.g. /data/tenants
     public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
-    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads
+    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads OR SEB:TODO if S3 is enabled
 
     public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
     public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
@@ -79,7 +79,15 @@ public class TenantPathManager
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
-        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder);
+
+        if (config.S3ObjectStorage.Enabled)
+        {
+            //RootPayloadsPath
+        }
+        else
+        {
+            RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder);
+        }
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
