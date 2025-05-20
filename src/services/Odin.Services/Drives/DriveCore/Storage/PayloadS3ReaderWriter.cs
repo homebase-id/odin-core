@@ -22,41 +22,76 @@ public class PayloadS3ReaderWriter(
 
     public async Task WriteFileAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
     {
-        var relativePath = GetRelativeS3Path(filePath);
-        await s3PayloadsStorage.WriteAllBytesAsync(relativePath, bytes, cancellationToken);
+        try
+        {
+            var relativePath = GetRelativeS3Path(filePath);
+            await s3PayloadsStorage.WriteAllBytesAsync(relativePath, bytes, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
 
     //
 
     public async Task DeleteFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        var relativePath = GetRelativeS3Path(filePath);
-        await s3PayloadsStorage.DeleteFileAsync(relativePath, cancellationToken);
+        try
+        {
+            var relativePath = GetRelativeS3Path(filePath);
+            await s3PayloadsStorage.DeleteFileAsync(relativePath, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
     
     //
 
     public async Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        var relativePath = GetRelativeS3Path(filePath);
-        return await s3PayloadsStorage.FileExistsAsync(relativePath, cancellationToken);
+        try
+        {
+            var relativePath = GetRelativeS3Path(filePath);
+            return await s3PayloadsStorage.FileExistsAsync(relativePath, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
 
     //
 
     public async Task MoveFileAsync(string srcFilePath, string dstFilePath, CancellationToken cancellationToken = default)
     {
-        var srcRelativePath = GetRelativeS3Path(srcFilePath);
-        var dstRelativePath = GetRelativeS3Path(dstFilePath);
-        await s3PayloadsStorage.MoveFileAsync(srcRelativePath, dstRelativePath, cancellationToken);
+        try
+        {
+            var srcRelativePath = GetRelativeS3Path(srcFilePath);
+            var dstRelativePath = GetRelativeS3Path(dstFilePath);
+            await s3PayloadsStorage.MoveFileAsync(srcRelativePath, dstRelativePath, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
 
     //
 
-    public void MoveFileXYZ(string sourceFilePath, string destinationFilePath)
+    public async Task<string[]> GetFilesInDirectoryAsync(
+        string dir,
+        string searchPattern = "*",
+        CancellationToken cancellationToken = default)
     {
-        throw new System.NotImplementedException();
+        var relativePath = GetRelativeS3Path(dir);
+        var files = await s3PayloadsStorage.ListFilesAsync(relativePath, false, cancellationToken);
+        return files.ToArray();
     }
+
+    //
 
     public string[] GetFilesInDirectoryXYZ(string dir, string searchPattern = "*")
     {
@@ -97,7 +132,7 @@ public class PayloadS3ReaderWriter(
         ArgumentException.ThrowIfNullOrEmpty(absoluteFilePath, nameof(absoluteFilePath));
 
         var root = _tenantPathManager.RootPayloadsPath;
-        if (!root.StartsWith(_tenantPathManager.RootPayloadsPath))
+        if (!absoluteFilePath.StartsWith(_tenantPathManager.RootPayloadsPath))
         {
             throw new ArgumentException($"The path '{absoluteFilePath}' does not start with the expected root path.",
                 nameof(absoluteFilePath));
