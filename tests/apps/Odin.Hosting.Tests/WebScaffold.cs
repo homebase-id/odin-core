@@ -416,6 +416,8 @@ namespace Odin.Hosting.Tests
             }
         }
 
+        public TimeSpan DebugTimeout { get; } = TimeSpan.FromMinutes(3);
+
         /// <summary>
         /// Total transitionary hack method until i refactor the API clients 
         /// </summary>
