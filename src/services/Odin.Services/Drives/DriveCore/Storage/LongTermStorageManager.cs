@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,12 +11,12 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 using Odin.Services.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -28,9 +27,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         DriveQuery driveQuery,
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
-        DriveManager driveManager,
         TableDriveMainIndex driveMainIndex,
-        TenantContext tenantContext)
+        TenantContext tenantContext,
+        IForgottenTasks forgottenTasks)
     {
         private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
@@ -172,8 +171,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             await driveQuery.SaveReactionSummary(drive, fileId, null);
         }
-
-        public void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
+/*
+        private void HardDeleteThumbnailFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int width, int height)
         {
             Benchmark.Milliseconds(logger, nameof(HardDeleteThumbnailFile), () =>
             {
@@ -192,29 +191,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 driveFileReaderWriter.DeleteFile(path);
             });
         }
-
+*/
         /// <summary>
         /// Deletes the payload file and all associated thumbnails
         /// </summary>
-        public void HardDeletePayloadFile(StorageDrive drive, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
+        private void HardDeletePayloadFile(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
         {
+            string payloadKey = payloadDescriptor.Key;
+            UnixTimeUtcUnique payloadUid = payloadDescriptor.Uid;
+            
             Benchmark.Milliseconds(logger, nameof(HardDeletePayloadFile), () =>
             {
                 var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
-
-                //var s = tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
-
-                //if (s != pathAndFilename)
-                //{
-                //    logger.LogError($"HardDeleteThumbnailFile {pathAndFilename} != {s}");
-                //    Debug.Assert(s != pathAndFilename);
-                //}
-
-                //
-                // Re-enable DELETION this after we are good with actually deleting the file
-                //
-
-                // _driveFileReaderWriter.DeleteFile(path);
 
                 var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
                 logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
@@ -230,64 +218,61 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
                 }
 
-                // delete the thumbnails
-                // _driveFileReaderWriter.DeleteFilesInDirectory(dir, thumbnailSearchPattern);
-
-                // 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
-                var thumbnailSearchPattern = GetThumbnailSearchMask(fileId, payloadKey, payloadUid);
-                var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                var thumbnailFiles = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPattern);
-                foreach (var thumbnailFile in thumbnailFiles)
+                foreach (var thumbnail in payloadDescriptor.Thumbnails)
                 {
-                    var thumbnailTarget = thumbnailFile.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
+                    //var thumbnailFileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
+                    //var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                    //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
+                    var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
 
-                    if (driveFileReaderWriter.FileExists(thumbnailFile))
+                    var thumbnailTarget = thumbnailFilenameAndPath.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
+
+                    if (driveFileReaderWriter.FileExists(thumbnailFilenameAndPath))
                     {
-                        driveFileReaderWriter.MoveFile(thumbnailFile, thumbnailTarget);
+                        driveFileReaderWriter.MoveFile(thumbnailFilenameAndPath, thumbnailTarget);
                     }
                     else
                     {
                         logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
-                            thumbnailFile);
+                            thumbnailFilenameAndPath);
                     }
                 }
             });
         }
 
-        public void HardDeleteAllPayloadFiles(StorageDrive drive, Guid fileId)
+        public Task TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
-            Benchmark.Milliseconds(logger, nameof(HardDeleteAllPayloadFiles), () =>
+            return Task.Run(() =>
             {
-                var fn = TenantPathManager.GuidToPathSafeString(fileId);
-                var searchPattern = $"{fn}*";
+                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                {
+                    return;
+                }
 
-                // note: no need to delete thumbnails separately due to the aggressive searchPattern
-                var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                driveFileReaderWriter.DeleteFilesInDirectory(dir, searchPattern);
+                foreach (var descriptor in descriptors)
+                {
+                    try
+                    {
+                        HardDeletePayloadFile(drive, fileId, descriptor);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed while deleting a payload");
+                    }
+                }
             });
         }
 
-        public long GetPayloadDiskUsage(StorageDrive drive, Guid fileId)
+        /// <summary>
+        /// Removes all traces of a file and deletes its record from the index
+        /// </summary>
+        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
-            var result = Benchmark.Milliseconds(logger, "GetPayloadDiskUsage", () =>
-            {
-                var payloadFilePath = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                if (!driveFileReaderWriter.DirectoryExists(payloadFilePath))
-                {
-                    return 0;
-                }
+            // First delete the DB header
+            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
 
-                var usage = 0L;
-                var filePaths = driveFileReaderWriter.GetFilesInDirectory(payloadFilePath!);
-                foreach (var filePath in filePaths)
-                {
-                    var info = new FileInfo(filePath);
-                    usage += info.Length;
-                }
-
-                return usage;
-            });
-            return result;
+            // If some files fail, they are simply orphaned
+            forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
         }
 
         public bool PayloadExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
@@ -300,7 +285,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public bool ThumbnailExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
-            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key,descriptor.Uid,
+            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
             return driveFileReaderWriter.FileExists(path);
@@ -429,15 +414,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Removes all traces of a file and deletes its record from the index
-        /// </summary>
-        public async Task HardDeleteAsync(StorageDrive drive, Guid fileId)
-        {
-            Benchmark.Milliseconds(logger, "HardDeleteAsync", () => { HardDeleteAllPayloadFiles(drive, fileId); });
-            await driveQuery.HardDeleteFileHeaderAsync(drive, new InternalDriveFileId(drive, fileId));
-        }
-
-        /// <summary>
         /// Moves the specified <param name="sourceFile"></param> to long term storage.
         /// Returns the storage UID used in the filename
         /// </summary>
@@ -445,12 +421,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             Benchmark.Milliseconds(logger, nameof(CopyPayloadToLongTerm), () =>
             {
-                //if (!File.Exists(sourceFile))
-                //{
-                //    throw new OdinSystemException($"Payload: source file does not exist: {sourceFile}");
-                //}
-
-                var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid, ensureExists: true);
+                var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key,
+                    descriptor.Uid, ensureExists: true);
                 driveFileReaderWriter.CopyPayloadFile(sourceFile, destinationFile);
                 logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
             });
@@ -462,21 +434,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             Benchmark.Milliseconds(logger, "MoveThumbnailToLongTerm", () =>
             {
-                //if (!File.Exists(sourceThumbnailFilePath))
-                //{
-                //    throw new OdinSystemException($"Thumbnail: source file does not exist: {sourceThumbnailFilePath}");
-                //}
-
                 var payloadKey = payloadDescriptor.Key;
 
                 TenantPathManager.AssertValidPayloadKey(payloadKey);
-                var destinationFile = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, targetFileId, payloadKey, payloadDescriptor.Uid,
+                var destinationFile = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, targetFileId, payloadKey,
+                    payloadDescriptor.Uid,
                     thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
                 var dir = Path.GetDirectoryName(destinationFile) ??
                           throw new OdinSystemException("Destination folder was null");
                 logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
-                driveFileReaderWriter.CreateDirectory(dir);
+                driveFileReaderWriter.CreateDirectory(dir); // TODO REMOVE
 
                 driveFileReaderWriter.CopyPayloadFile(sourceThumbnailFilePath, destinationFile);
                 logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
@@ -488,197 +456,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var header = await driveQuery.GetFileHeaderAsync(drive, fileId, fileSystemType);
             return header;
-        }
-
-        /// <summary>
-        /// Removes any payloads that are not in the provided list
-        /// </summary>
-        public void HardDeleteDeadPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
-        {
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
-            {
-                logger.LogDebug("HardDeleteOrphanPayloadFiles called on feed drive; ignoring since feed does not receive the payloads");
-                return;
-            }
-
-            Benchmark.Milliseconds(logger, nameof(HardDeleteDeadPayloadFiles), () =>
-            {
-                var zombiePayloadFiles = GetZombiePayloadFilePaths(drive, fileId, deadPayloads);
-                foreach (var zombiePayload in zombiePayloadFiles)
-                {
-                    //Note: this also kills the thumbnails for this file
-                    HardDeletePayloadFile(drive, fileId, zombiePayload.Key, zombiePayload.Uid);
-                }
-            });
-        }
-
-        private List<ParsedPayloadFileRecord> GetZombiePayloadFilePaths(StorageDrive drive, Guid fileId, List<PayloadDescriptor> deadPayloads)
-        {
-            /*
-              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
-              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-20x20.thumb
-              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb
-              ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-500x500.thumb
-            */
-
-            var payloadFileDirectory = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-            if (!driveFileReaderWriter.DirectoryExists(payloadFileDirectory))
-            {
-                return [];
-            }
-
-            var searchPattern = GetPayloadSearchMask(fileId);
-            var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
-
-            var zombies = new List<ParsedPayloadFileRecord>();
-            foreach (var payloadFilePath in files)
-            {
-                var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
-                var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
-
-                bool isZombie = deadPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                                                      p.Uid.uniqueTime == fileRecord.Uid.uniqueTime);
-                // 🧟🧟🧟
-                if (isZombie)
-                {
-                    zombies.Add(fileRecord);
-                }
-            }
-
-            return zombies;
-        }
-
-        private List<ParsedPayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
-        {
-            // examine all payload files for a given fileId, regardless of key.
-            // we'll compare the file below before deleting
-
-            var orphanFiles = new List<ParsedPayloadFileRecord>();
-
-            foreach (var payloadFilePath in files)
-            {
-                var filename = Path.GetFileNameWithoutExtension(payloadFilePath);
-                var fileRecord = TenantPathManager.ParsePayloadFilename(filename);
-
-                bool isKept = expectedPayloads.Any(p => p.Key.Equals(fileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                                                        p.Uid.uniqueTime == fileRecord.Uid.uniqueTime);
-
-                if (!isKept)
-                {
-                    orphanFiles.Add(fileRecord);
-                }
-            }
-
-            return orphanFiles;
-        }
-
-        private List<ParsedThumbnailFileRecord> GetOrphanThumbnails(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
-        {
-            // examine all payload files for a given fileId, regardless of key.
-            // we'll compare the file below before deleting
-
-            var expectedThumbnails = payloadDescriptor.Thumbnails?.ToList() ?? [];
-            var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-            if (driveFileReaderWriter.DirectoryExists(dir))
-            {
-                return [];
-            }
-
-            // ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-*x*.thumb
-            var thumbnailSearchPatternForPayload = GetThumbnailSearchMask(fileId, payloadDescriptor.Key, payloadDescriptor.Uid);
-            var thumbnailFilePathsForPayload = driveFileReaderWriter.GetFilesInDirectory(dir, thumbnailSearchPatternForPayload);
-            logger.LogDebug("Deleting thumbnails: Found {count} for file({fileId}) with path-pattern ({pattern})",
-                thumbnailFilePathsForPayload.Length,
-                fileId,
-                thumbnailSearchPatternForPayload);
-
-            var orphans = new List<ParsedThumbnailFileRecord>();
-
-            foreach (var thumbnailFilePath in thumbnailFilePathsForPayload)
-            {
-                var filename = Path.GetFileNameWithoutExtension(thumbnailFilePath);
-                var thumbnailFileRecord = TenantPathManager.ParseThumbnailFilename(filename);
-
-                // is the file from the payload and thumbnail size
-                var keepThumbnail = payloadDescriptor.Key.Equals(thumbnailFileRecord.Key, StringComparison.InvariantCultureIgnoreCase) &&
-                                    payloadDescriptor.Uid.uniqueTime == thumbnailFileRecord.Uid.uniqueTime &&
-                                    expectedThumbnails.Exists(thumb => thumb.PixelWidth == thumbnailFileRecord.Width &&
-                                                                       thumb.PixelHeight == thumbnailFileRecord.Height);
-                if (!keepThumbnail)
-                {
-                    orphans.Add(thumbnailFileRecord);
-                }
-            }
-
-            return orphans;
-        }
-
-        public async Task<bool> HasOrphanPayloadsOrThumbnails(InternalDriveFileId file, List<PayloadDescriptor> expectedPayloads)
-        {
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
-            var payloadFileDirectory = _tenantPathManager.GetPayloadDirectory(drive.Id, file.FileId);
-
-            var searchPattern = GetPayloadSearchMask(file.FileId);
-            var files = driveFileReaderWriter.GetFilesInDirectory(payloadFileDirectory, searchPattern);
-            var orphans = GetOrphanedPayloads(files, expectedPayloads);
-
-            if (orphans.Any())
-            {
-                return true;
-            }
-
-            foreach (var descriptor in expectedPayloads)
-            {
-                var thumbnailOrphans = GetOrphanThumbnails(drive, file.FileId, descriptor);
-                if (thumbnailOrphans.Any())
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Removes all thumbnails on disk which are not in the provided list.
-        /// </summary>
-        private void HardDeleteOrphanThumbnailFiles(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
-        {
-            Benchmark.Milliseconds(logger, nameof(HardDeleteOrphanThumbnailFiles), () =>
-            {
-                var orphanedThumbnailFileRecords = GetOrphanThumbnails(drive, fileId, payloadDescriptor);
-                foreach (var orphanThumbnail in orphanedThumbnailFileRecords)
-                {
-                    HardDeleteThumbnailFile(drive, fileId, payloadDescriptor.Key, payloadDescriptor.Uid,
-                        orphanThumbnail.Width, orphanThumbnail.Height);
-                }
-            });
-        }
-
-        public async Task TryDeleteUnassociatedTargetFiles(InternalDriveFileId targetFile)
-        {
-            try
-            {
-                var drive = await driveManager.GetDriveAsync(targetFile.DriveId);
-                HardDeleteDeadPayloadFiles(drive, targetFile.FileId, []);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Failed deleting unassociated target files {file}", targetFile);
-            }
-        }
-
-        private string GetThumbnailSearchMask(Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
-        {
-            var extension = TenantPathManager.GetThumbnailFileExtensionStarStar(payloadKey, payloadUid);
-            return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
-        }
-
-        private string GetPayloadSearchMask(Guid fileId)
-        {
-            var extension = DriveFileUtility.GetPayloadFileExtensionStarStar();
-            var mask = $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
-            return mask;
         }
     }
 }

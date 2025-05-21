@@ -66,7 +66,7 @@ public class AutoAcceptTests
         // Note: for your sanity, remember this is a background process that is
         // automatically accepting introductions that are eligible
 
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = _scaffold.DebugTimeout;
         
         var frodo = TestIdentities.Frodo.OdinId;
         var sam = TestIdentities.Samwise.OdinId;

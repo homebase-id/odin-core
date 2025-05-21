@@ -393,21 +393,7 @@ public sealed class DriveFileReaderWriter(
     {
         return Directory.Exists(dir);
     }
-
-    public void DeleteFilesInDirectory(string dir, string searchPattern)
-    {
-        if (Directory.Exists(dir))
-        {
-            var files = Directory.GetFiles(dir, searchPattern);
-            DeleteFiles(files);
-        }
-    }
-
-    public string[] GetFilesInDirectory(string dir, string searchPattern = "*")
-    {
-        return Directory.GetFiles(dir!, searchPattern);
-    }
-
+    
     public void CreateDirectory(string dir)
     {
         Directory.CreateDirectory(dir);

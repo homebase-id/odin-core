@@ -21,9 +21,11 @@ public class CommentFileStorageService(
     DriveManager driveManager,
     LongTermStorageManager longTermStorageManager,
     UploadStorageManager uploadStorageManager,
-    IdentityDatabase db)
+    OrphanTestUtil orphanTestUtil,
+    IdentityDatabase db
+)
     : DriveStorageServiceBase(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager,
-        uploadStorageManager, db)
+        uploadStorageManager, orphanTestUtil, db)
 {
     public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
     {
@@ -42,7 +44,7 @@ public class CommentFileStorageService(
             odinContext.PermissionsContext.AssertHasDrivePermission(driveId, DrivePermission.Comment);
         }
     }
-    
+
     public override async Task<bool> CanWriteToDrive(Guid driveId, IOdinContext odinContext)
     {
         var drive = await DriveManager.GetDriveAsync(driveId, true);
