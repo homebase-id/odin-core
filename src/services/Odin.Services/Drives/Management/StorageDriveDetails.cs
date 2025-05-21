@@ -5,17 +5,13 @@ using Odin.Services.Peer.Encryption;
 
 namespace Odin.Services.Drives.Management;
 
-public class StorageDriveDefinition
+public class StorageDriveDetails
 {
-    public virtual Guid Id { get; init; }
-
-    public virtual string Name { get; set; }
-
     /// <summary>
     /// Data specified by the client to further help with usage of this drive (i.e. a json string indicating things like description, etc.)
     /// </summary>
     public virtual string Metadata { get; set; }
-
+    
     public virtual bool OwnerOnly { get; set; }
 
     /// <summary>
@@ -27,15 +23,6 @@ public class StorageDriveDefinition
     /// Specifies the drive can only be written to by the owner while in the OwnerAuth context
     /// </summary>
     public virtual bool IsReadonly { get; set; }
-
-    /// <summary>
-    /// The encryption key used to encrypt the <see cref="EncryptedKeyHeader"/>
-    /// </summary>
-    public virtual SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey { get; set; }
-
-    public virtual byte[] EncryptedIdIv { get; set; }
-
-    public virtual byte[] EncryptedIdValue { get; set; }
 
     /// <summary>
     /// Specifies if anonymous callers can read this drive.
