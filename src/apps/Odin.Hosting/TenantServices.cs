@@ -325,13 +325,6 @@ public static class TenantServices
         cb.AddTenantCaches(registration.Id.ToString());
 
         cb.RegisterType<Defragmenter>().InstancePerLifetimeScope();
-
-
-        // Tenant S3 bucket
-        if (odinConfig.S3ObjectStorage.Enabled)
-        {
-            cb.AddS3TenantStorage(odinConfig.S3ObjectStorage.BucketName);
-        }
     }
 
     //

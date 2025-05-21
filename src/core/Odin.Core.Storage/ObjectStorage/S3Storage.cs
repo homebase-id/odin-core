@@ -16,7 +16,6 @@ namespace Odin.Core.Storage.ObjectStorage;
 public interface IS3Storage
 {
     string BucketName { get; }
-    string RootPath { get; }
     Task<bool> BucketExistsAsync(CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default);
     Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default);
@@ -37,17 +36,13 @@ public class S3Storage : IS3Storage
     private readonly IMinioClient _minioClient;
 
     public string BucketName { get; }
-    public string RootPath { get; }
 
-    public S3Storage(ILogger logger, IMinioClient minioClient, string bucketName, string rootPath)
+    public S3Storage(ILogger logger, IMinioClient minioClient, string bucketName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
-        ArgumentException.ThrowIfNullOrWhiteSpace(rootPath, nameof(rootPath));
-
         _logger = logger;
         _minioClient = minioClient;
         BucketName = bucketName;
-        RootPath = rootPath;
     }
 
     //
@@ -63,8 +58,8 @@ public class S3Storage : IS3Storage
     public async Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(path);
+        path = S3Path.Combine(path);
 
-        path = S3Path.Combine(RootPath, path);
         try
         {
             await _minioClient.StatObjectAsync(
@@ -85,7 +80,7 @@ public class S3Storage : IS3Storage
         _logger.LogTrace(nameof(WriteAllBytesAsync));
 
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(RootPath, path);
+        path = S3Path.Combine(path);
 
         var memoryStream = new MemoryStream(bytes);
         try
@@ -118,7 +113,7 @@ public class S3Storage : IS3Storage
         _logger.LogTrace(nameof(ReadAllBytesAsync));
 
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(RootPath, path);
+        path = S3Path.Combine(path);
 
         var memoryStream = new MemoryStream();
         try
@@ -151,7 +146,7 @@ public class S3Storage : IS3Storage
     public async Task DeleteFileAsync(string path, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(RootPath, path);
+        path = S3Path.Combine(path);
 
         try
         {
@@ -172,9 +167,8 @@ public class S3Storage : IS3Storage
     {
         S3Path.AssertFileName(srcPath);
         S3Path.AssertFileName(dstPath);
-
-        srcPath = S3Path.Combine(RootPath, srcPath);
-        dstPath = S3Path.Combine(RootPath, dstPath);
+        srcPath = S3Path.Combine(srcPath);
+        dstPath = S3Path.Combine(dstPath);
 
         var cpSrcArgs = new CopySourceObjectArgs()
             .WithBucket(BucketName)
@@ -204,8 +198,7 @@ public class S3Storage : IS3Storage
         CancellationToken cancellationToken = default)
     {
         S3Path.AssertFolderName(path);
-
-        path = S3Path.Combine(RootPath, path);
+        path = S3Path.Combine(path);
 
         var result = new List<string>();
         var listArgs = new ListObjectsArgs()
@@ -216,15 +209,6 @@ public class S3Storage : IS3Storage
         await foreach (var item in _minioClient.ListObjectsEnumAsync(listArgs, cancellationToken))
         {
             var key = item.Key;
-
-            // Sanity
-            if (!key.StartsWith(RootPath))
-            {
-                throw new S3StorageException($"Key '{key}' does not start with root path '{RootPath}'");
-            }
-
-            key = key[RootPath.Length..];
-
             if (key != "" && !key.EndsWith('/'))
             {
                 result.Add(key);

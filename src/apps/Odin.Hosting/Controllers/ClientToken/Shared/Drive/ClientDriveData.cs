@@ -9,5 +9,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public TargetDrive TargetDrive { get; set; }
         
         public Dictionary<string,string> Attributes { get; set; }
+        public string Name { get; set; }
     }
 }

@@ -35,18 +35,26 @@ public class HttpProbeTests
     [Test]
     public async Task ItShouldProbePortHttpPort()
     {
+        var correlationId = Guid.NewGuid();
         var httpProbe = _serviceProvider.GetRequiredService<HttpProbe>();
         var (success, message) = await httpProbe.ProbeAsync("http", "id.homebase.id", "80");
-        Assert.That(message, Is.EqualTo("Successfully probed http://id.homebase.id:80"));
+        Assert.That(
+            message,
+            Is.EqualTo("Successfully probed http://id.homebase.id:80"),
+            $"Http probe failed with correlationId: {correlationId}");
         Assert.That(success, Is.True);
     }
     
     [Test]
     public async Task ItShouldProbePortHttpsPort()
     {
+        var correlationId = Guid.NewGuid();
         var httpProbe = _serviceProvider.GetRequiredService<HttpProbe>();
-        var (success, message) = await httpProbe.ProbeAsync("https", "id.homebase.id", "443");
-        Assert.That(message, Is.EqualTo("Successfully probed https://id.homebase.id:443"));
+        var (success, message) = await httpProbe.ProbeAsync("https", "id.homebase.id", "443", correlationId);
+        Assert.That(
+            message,
+            Is.EqualTo("Successfully probed https://id.homebase.id:443"),
+            $"HTTPS probe failed with correlationId: {correlationId}");
         Assert.That(success, Is.True);
     }
 
