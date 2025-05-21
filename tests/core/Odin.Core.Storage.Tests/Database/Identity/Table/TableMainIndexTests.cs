@@ -443,7 +443,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             md.globalTransitId = gtid2;
             await metaIndex.BaseUpsertEntryZapZapAsync(md);
             md = await tblDriveMainIndex.GetAsync(driveId, k1);
-            if (ByteArrayUtil.muidcmp(gtid2, md.globalTransitId) != 0)
+            if (ByteArrayUtil.muidcmp(gtid2, md.globalTransitId) == 0)
                 Assert.Fail();
 
 
@@ -765,6 +765,82 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // ClassicAssert.AreEqual(md.hdrLocalVersionTag, md2.hdrLocalVersionTag, "HdrLocalVersionTag mismatch after modification");
             // ClassicAssert.AreEqual(md.hdrLocalAppData, md2.hdrLocalAppData, "HdrLocalAppData mismatch after modification");
         }
+
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task UpsertAllButReactionsAndTransferGlobalTransitIdAsyncTest(DatabaseType databaseType)
+        {
+            // Register services and resolve dependencies
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            // Generate identifiers
+            var driveId = Guid.NewGuid();
+
+            var k1 = Guid.NewGuid();
+            var cts1 = UnixTimeUtc.Now();
+            var sid1 = Guid.NewGuid().ToByteArray();
+            var tid1 = Guid.NewGuid();
+            var ud1 = UnixTimeUtc.Now();
+
+            // Create a new record
+            var ndr = new DriveMainIndexRecord()
+            {
+                identityId = this.IdentityId,
+                driveId = driveId,
+                fileId = k1,
+                globalTransitId = null,
+                created = cts1,
+                fileType = 7,
+                dataType = 42,
+                senderId = sid1.ToString(),
+                groupId = tid1,
+                uniqueId = Guid.NewGuid(),
+                userDate = ud1,
+                archivalStatus = 0,
+                historyStatus = 1,
+                requiredSecurityGroup = 44,
+                byteCount = 7,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrVersionTag = SequentialGuid.CreateGuid(),
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrReactionSummary = """{"reactionSummary": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTransferHistory = """{"TransferStatus": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid(),
+                // hdrLocalVersionTag = SequentialGuid.CreateGuid(),
+                // hdrLocalAppData = "localAppData"
+            };
+
+            // Upsert the record
+            var n = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(ndr);
+            ClassicAssert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
+            var r = await tblDriveMainIndex.GetAsync(driveId, k1);
+            ClassicAssert.AreEqual(null, r.globalTransitId, "Global transit Id not null");
+
+            var g = Guid.NewGuid();
+            ndr.globalTransitId = g;
+            n = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(ndr);
+            ClassicAssert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
+            r = await tblDriveMainIndex.GetAsync(driveId, k1);
+            ClassicAssert.AreEqual(g, r.globalTransitId, "Global transit id not updated when it was null");
+
+            var g2 = Guid.NewGuid();
+            ndr.globalTransitId = g2;
+            n = await tblDriveMainIndex.UpsertAllButReactionsAndTransferAsync(ndr);
+            ClassicAssert.AreEqual(1, n, "Upsert failed: Expected 1 record affected");
+            r = await tblDriveMainIndex.GetAsync(driveId, k1);
+            ClassicAssert.AreEqual(g, r.globalTransitId, "Global transit updated when it was already set");
+        }
+
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
