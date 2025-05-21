@@ -416,8 +416,11 @@ namespace Odin.Hosting.Tests
             }
         }
 
+#if CI_GITHUB
         public TimeSpan DebugTimeout { get; } = TimeSpan.FromMinutes(3);
-
+#else
+        public TimeSpan DebugTimeout { get; } = TimeSpan.FromMinutes(60);
+#endif
         /// <summary>
         /// Total transitionary hack method until i refactor the API clients 
         /// </summary>
