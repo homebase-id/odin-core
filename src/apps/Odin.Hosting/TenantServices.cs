@@ -191,7 +191,8 @@ public static class TenantServices
             .As<INotificationHandler<DriveDefinitionAddedNotification>>()
             .InstancePerLifetimeScope();
 
-        cb.RegisterType<DriveManager>().InstancePerLifetimeScope();
+        // cb.RegisterType<DriveManager>().InstancePerLifetimeScope();
+        cb.RegisterType<DriveManager>().As<IDriveManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
@@ -313,7 +314,7 @@ public static class TenantServices
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
-        
+
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
 
@@ -353,5 +354,4 @@ public static class TenantServices
     }
 
     //
-
 }

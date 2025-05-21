@@ -59,7 +59,7 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     [TestCaseSource(nameof(AppAllowed))]
     public async Task WillAutoAcceptWhenIdentitiesAreNotConnected(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = TimeSpan.FromMinutes(3);
 
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;

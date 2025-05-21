@@ -151,6 +151,7 @@ namespace Odin.Services.Drives
 
     public class StorageDriveBase
     {
+        public virtual Guid Id { get; init; }
 
         public virtual string Name { get; set; }
 
