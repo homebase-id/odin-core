@@ -89,7 +89,7 @@ public class CollaborationChatPushNotificationTests
     public async Task CanAddPushNotificationWhenUploadingChatMessageDirectly(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = _scaffold.DebugTimeout;
 
         var collabChatIdentity = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
         var member1 = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
@@ -158,7 +158,7 @@ public class CollaborationChatPushNotificationTests
     public async Task CanAddPushNotificationWhenSendingChatMessageOverPeer(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = _scaffold.DebugTimeout;
 
         var collabChatIdentity = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
         var member1 = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);

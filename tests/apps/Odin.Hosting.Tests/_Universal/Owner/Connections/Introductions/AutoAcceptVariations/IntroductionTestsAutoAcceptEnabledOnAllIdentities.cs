@@ -59,7 +59,7 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     [TestCaseSource(nameof(AppAllowed))]
     public async Task WillAutoAcceptWhenIdentitiesAreNotConnected(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(3);
+        var debugTimeout = _scaffold.DebugTimeout;
 
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
@@ -115,7 +115,7 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     public async Task WillNotSendOrReceiveConnectionRequestWhenOneIntroduceeBlocksAnother(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = _scaffold.DebugTimeout;
 
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
@@ -170,7 +170,7 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     public async Task WillHandleWhenIntroduceesAreAlreadyConnectedAndVerifiable(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = _scaffold.DebugTimeout;
 
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
@@ -235,7 +235,7 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     public async Task WillHandleWithAllIntroduceesBlockEachOther(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = _scaffold.DebugTimeout;
 
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;
@@ -295,7 +295,7 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     public async Task WillHandleWhenAllWhenConnectionsFailsVerification(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        var debugTimeout = TimeSpan.FromMinutes(60);
+        var debugTimeout = _scaffold.DebugTimeout;
 
         var sam = TestIdentities.Samwise.OdinId;
         var merry = TestIdentities.Merry.OdinId;

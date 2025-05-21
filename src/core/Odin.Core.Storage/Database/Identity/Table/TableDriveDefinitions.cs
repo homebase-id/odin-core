@@ -34,7 +34,7 @@ public class TableDriveDefinitions(
         return await base.UpsertAsync(item);
     }
 
-    public new async Task<(List<DriveDefinitionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor)
+    public async Task<(List<DriveDefinitionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor)
     {
         return await base.PagingByCreatedAsync(count, odinIdentity, inCursor, null);
     }
