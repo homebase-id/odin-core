@@ -194,7 +194,6 @@ public sealed class FileReaderWriter(
     /// <summary>
     /// Valid only when copying a payload or a thumbnail that uses our special design for Uids
     /// </summary>
-    // SEB:TODO move this to payload class
     public void CopyPayloadFile(string sourcePath, string targetPath)
     {
         // Ensure the source file exists
@@ -224,8 +223,11 @@ public sealed class FileReaderWriter(
             }    
         }
 
+        Directory.CreateDirectory(Path.GetDirectoryName(targetPath) ?? throw new InvalidOperationException());
+
         try
         {
+
             TryRetry.Create()
                 .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
                 .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
@@ -233,9 +235,6 @@ public sealed class FileReaderWriter(
             {
                 try
                 {
-                    //Random rand = new Random();
-                    //int testDelay = rand.Next(0, 11);
-                    //Task.Delay(testDelay).Wait();
                     File.Copy(sourcePath, targetPath, overwrite: false);
                 }
                 catch (IOException ex) when (ex.Message.Contains("already exists"))
