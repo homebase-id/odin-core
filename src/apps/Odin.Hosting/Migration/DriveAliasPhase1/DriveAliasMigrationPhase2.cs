@@ -37,6 +37,7 @@ public static class DriveAliasMigrationPhase2
 
     private static async Task MigrateData(Guid tenantId, string connectionString)
     {
+        await Task.CompletedTask;
         // Migrate the data
         // await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
         // await using var tx = await cn.BeginTransactionAsync();
