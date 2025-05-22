@@ -4,129 +4,89 @@ using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
+using Autofac;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory.Sqlite;
-using Odin.Core.Storage.SQLite.Migrations.Helpers;
+using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Registry;
+using Odin.Services.Tenant.Container;
 
-namespace Odin.Core.Storage.SQLite.Migrations.DriveAliasToId;
+namespace Odin.Hosting.Migration.DriveAliasPhase1;
 
-public static class DriveAliasToIdMigration
+public static class DriveAliasMigrationPhase2
 {
-    public static void Execute(string tenantDataRootPath)
+    public static async Task MigrateData(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
     {
-        var tenantDirs = Directory.GetDirectories(Path.Combine(tenantDataRootPath, "registrations"));
-        foreach (var tenantDir in tenantDirs)
+        var allTenants = await registry.GetTenants();
+        foreach (var tenant in allTenants)
         {
-            MigrateDatabase(tenantDir);
+            logger.LogInformation("Drive Migration started for tenant {tenant}", tenant.PrimaryDomainName);
+            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
+            var tenantContext = scope.Resolve<TenantContext>();
+            var scopedIdentityTransactionFactory = scope.Resolve<ScopedIdentityTransactionFactory>();
+            
+            //TODO: decide on how im passing connections, etc. etc
+            // await MigrateData(tenantId, connectionString);
+
         }
-    }
-
-    //
-
-    private static void MigrateDatabase(string tenantDir)
-    {
-        Console.WriteLine(tenantDir);
-        var tenantId = Guid.Parse(Path.GetFileName(tenantDir));
-
-        var orgDbPath = Path.Combine(tenantDir, "headers", "identity.db");
-        var oldDbPath = Path.Combine(tenantDir, "headers", "old-identity-pre-drive-alias-as-drive-id.db");
-
-        if (!File.Exists(orgDbPath))
-        {
-            throw new Exception("Database not found: " + orgDbPath);
-        }
-
-        if (File.Exists(oldDbPath)) File.Delete(oldDbPath);
-        BackupSqliteDatabase.Execute(orgDbPath, oldDbPath);
-
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = orgDbPath,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Private,
-            Pooling = false
-        }.ToString();
-
-        PrepareSchema(connectionString).GetAwaiter().GetResult();
-        MigrateData(tenantId, connectionString).GetAwaiter().GetResult();
     }
 
     private static async Task MigrateData(Guid tenantId, string connectionString)
     {
         // Migrate the data
-        await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
-        await using var tx = await cn.BeginTransactionAsync();
-
-        var getDrivesCommand = cn.CreateCommand();
-
-        getDrivesCommand.CommandText = @"SELECT 
-                                           key1 as driveId, 
-                                           data as json 
-                                       FROM KeyThreeValue 
-                                       WHERE identityId = @identityId 
-                                       AND LOWER(key3) = 'drive'";
-
-        var identityId = tenantId;
-        var identityParam = getDrivesCommand.CreateParameter();
-        identityParam.ParameterName = "@identityId";
-        identityParam.Value = identityId.ToByteArray();
-        getDrivesCommand.Parameters.Add(identityParam);
-
-        var drives = new List<(Guid driveId, string json)>();
-        await using (var rdr = await getDrivesCommand.ExecuteReaderAsync(CommandBehavior.Default))
-        {
-            while (await rdr.ReadAsync())
-            {
-                drives.Add((rdr.GetGuid(0), rdr.GetString(1)));
-            }
-        }
-
-        foreach (var item in drives)
-        {
-            var json = item.json;
-            var storageDrive = OdinSystemSerializer.Deserialize<StorageDriveBaseForMigration>(json);
-            InsertStorageDrive(cn, identityId, storageDrive).GetAwaiter().GetResult();
-
-            var oldDriveId = storageDrive.Id;
-            var newDriveId = storageDrive.TargetDriveInfo.Alias;
-
-            MigrateDriveMainIndex(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
-            MigrateDriveLocalTagIndex(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
-            MigrateDriveAclIndex(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
-            MigrateDriveTransferHistory(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
-            MigrateDriveReactions(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
-        }
-
-        //validate no tables have the old driveId
-
-        await tx.CommitAsync();
+        // await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
+        // await using var tx = await cn.BeginTransactionAsync();
+        //
+        // var getDrivesCommand = cn.CreateCommand();
+        //
+        // getDrivesCommand.CommandText = @"SELECT 
+        //                                    key1 as driveId, 
+        //                                    data as json 
+        //                                FROM KeyThreeValue 
+        //                                WHERE identityId = @identityId 
+        //                                AND LOWER(key3) = 'drive'";
+        //
+        // var identityId = tenantId;
+        // var identityParam = getDrivesCommand.CreateParameter();
+        // identityParam.ParameterName = "@identityId";
+        // identityParam.Value = identityId.ToByteArray();
+        // getDrivesCommand.Parameters.Add(identityParam);
+        //
+        // var drives = new List<(Guid driveId, string json)>();
+        // await using (var rdr = await getDrivesCommand.ExecuteReaderAsync(CommandBehavior.Default))
+        // {
+        //     while (await rdr.ReadAsync())
+        //     {
+        //         drives.Add((rdr.GetGuid(0), rdr.GetString(1)));
+        //     }
+        // }
+        //
+        // foreach (var item in drives)
+        // {
+        //     var json = item.json;
+        //     var storageDrive = OdinSystemSerializer.Deserialize<StorageDriveBaseForMigration>(json);
+        //     InsertStorageDrive(cn, identityId, storageDrive).GetAwaiter().GetResult();
+        //
+        //     var oldDriveId = storageDrive.Id;
+        //     var newDriveId = storageDrive.TargetDriveInfo.Alias;
+        //
+        //     MigrateDriveMainIndex(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
+        //     MigrateDriveLocalTagIndex(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
+        //     MigrateDriveAclIndex(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
+        //     MigrateDriveTransferHistory(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
+        //     MigrateDriveReactions(cn, identityId, oldDriveId, newDriveId).GetAwaiter().GetResult();
+        // }
+        //
+        // //validate no tables have the old driveId
+        //
+        // await tx.CommitAsync();
     }
-
-    private static async Task PrepareSchema(string connectionString)
-    {
-        await using var cn = await SqliteConcreteConnectionFactory.CreateAsync(connectionString);
-        await using var tx = await cn.BeginTransactionAsync();
-
-        await using var cmd = cn.CreateCommand();
-
-        cmd.CommandText = "CREATE TABLE IF NOT EXISTS DriveDefinitions ("
-                          + "identityId BYTEA NOT NULL, "
-                          + "driveId BYTEA NOT NULL, "
-                          + "driveType BYTEA NOT NULL, "
-                          + "data TEXT NOT NULL, "
-                          + ", PRIMARY KEY (identityId,driveId,driveType)"
-                          + ");"
-                          + "CREATE INDEX IF NOT EXISTS Idx0TableDriveDefinitionsCRUD ON DriveDefinitions(identityId,driveId,driveType);"
-            ;
-
-        await cmd.ExecuteNonQueryAsync();
-
-        await tx.CommitAsync();
-    }
-
-    private static async Task InsertStorageDrive(DbConnection cn, Guid identityId, StorageDriveBaseForMigration storageDrive)
+    
+    private static async Task InsertStorageDrive(DbConnection cn, Guid identityId, StorageDrive storageDrive)
     {
         var driveId = storageDrive.TargetDriveInfo.Alias.Value;
 
@@ -197,9 +157,8 @@ public static class DriveAliasToIdMigration
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
-        
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
 
+        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
     }
 
     private static async Task MigrateDriveAclIndex(DbConnection cn, Guid identityId, Guid oldDriveId, Guid newDriveId)
@@ -220,9 +179,8 @@ public static class DriveAliasToIdMigration
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
-        
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
 
+        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
     }
 
     private static async Task MigrateDriveTransferHistory(DbConnection cn, Guid identityId, Guid oldDriveId, Guid newDriveId)
@@ -244,9 +202,8 @@ public static class DriveAliasToIdMigration
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
-        
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
 
+        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
     }
 
     private static async Task MigrateDriveReactions(DbConnection cn, Guid identityId, Guid oldDriveId, Guid newDriveId)
@@ -267,11 +224,10 @@ public static class DriveAliasToIdMigration
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
-        
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
 
+        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
     }
-    
+
     private static async Task AssertUpdateSuccess(DbConnection cn, string tableName, Guid identityId, Guid oldDriveId)
     {
         await using var validateCommand = cn.CreateCommand();
@@ -288,7 +244,8 @@ public static class DriveAliasToIdMigration
         var count = await validateCommand.ExecuteScalarAsync();
         if (Convert.ToInt32(count) > 0)
         {
-            throw new OdinSystemException($"Found {Convert.ToInt32(count)} rows remaining in table {tableName} for old driveId {oldDriveId} on identityId {identityId}");
+            throw new OdinSystemException(
+                $"Found {Convert.ToInt32(count)} rows remaining in table {tableName} for old driveId {oldDriveId} on identityId {identityId}");
         }
     }
 }

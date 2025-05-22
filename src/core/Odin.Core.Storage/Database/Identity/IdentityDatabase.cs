@@ -92,6 +92,9 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     private Lazy<TableOutbox> _outbox;
     public TableOutbox Outbox => LazyResolve(ref _outbox);
 
+    private Lazy<TableDriveDefinitions> _driveDefinitions;
+    public TableDriveDefinitions DriveDefinitions => LazyResolve(ref _driveDefinitions);
+
     //
     // Table cache convenience properties
     //

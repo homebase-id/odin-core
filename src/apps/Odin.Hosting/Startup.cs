@@ -49,6 +49,7 @@ using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
+using Odin.Hosting.Migration.DriveAliasPhase1;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.Concurrency;
@@ -109,36 +110,25 @@ namespace Odin.Hosting
                         options.JsonSerializerOptions.Converters.Add(c);
                     }
 
-                    options.JsonSerializerOptions.IncludeFields =
-                        OdinSystemSerializer.JsonSerializerOptions.IncludeFields;
+                    options.JsonSerializerOptions.IncludeFields = OdinSystemSerializer.JsonSerializerOptions.IncludeFields;
                     options.JsonSerializerOptions.Encoder = OdinSystemSerializer.JsonSerializerOptions.Encoder;
                     options.JsonSerializerOptions.MaxDepth = OdinSystemSerializer.JsonSerializerOptions.MaxDepth;
-                    options.JsonSerializerOptions.NumberHandling =
-                        OdinSystemSerializer.JsonSerializerOptions.NumberHandling;
-                    options.JsonSerializerOptions.ReferenceHandler =
-                        OdinSystemSerializer.JsonSerializerOptions.ReferenceHandler;
-                    options.JsonSerializerOptions.WriteIndented =
-                        OdinSystemSerializer.JsonSerializerOptions.WriteIndented;
-                    options.JsonSerializerOptions.AllowTrailingCommas =
-                        OdinSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
-                    options.JsonSerializerOptions.DefaultBufferSize =
-                        OdinSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
+                    options.JsonSerializerOptions.NumberHandling = OdinSystemSerializer.JsonSerializerOptions.NumberHandling;
+                    options.JsonSerializerOptions.ReferenceHandler = OdinSystemSerializer.JsonSerializerOptions.ReferenceHandler;
+                    options.JsonSerializerOptions.WriteIndented = OdinSystemSerializer.JsonSerializerOptions.WriteIndented;
+                    options.JsonSerializerOptions.AllowTrailingCommas = OdinSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
+                    options.JsonSerializerOptions.DefaultBufferSize = OdinSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
                     options.JsonSerializerOptions.DefaultIgnoreCondition =
                         OdinSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
-                    options.JsonSerializerOptions.DictionaryKeyPolicy =
-                        OdinSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
-                    options.JsonSerializerOptions.PropertyNamingPolicy =
-                        OdinSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
-                    options.JsonSerializerOptions.ReadCommentHandling =
-                        OdinSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
-                    options.JsonSerializerOptions.UnknownTypeHandling =
-                        OdinSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
-                    options.JsonSerializerOptions.IgnoreReadOnlyFields =
-                        OdinSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
-                    options.JsonSerializerOptions.IgnoreReadOnlyProperties =
-                        OdinSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyProperties;
-                    options.JsonSerializerOptions.PropertyNameCaseInsensitive =
-                        OdinSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
+                    options.JsonSerializerOptions.DictionaryKeyPolicy = OdinSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
+                    options.JsonSerializerOptions.PropertyNamingPolicy = OdinSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
+                    options.JsonSerializerOptions.ReadCommentHandling = OdinSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
+                    options.JsonSerializerOptions.UnknownTypeHandling = OdinSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
+                    options.JsonSerializerOptions.IgnoreReadOnlyFields = OdinSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
+                    options.JsonSerializerOptions.IgnoreReadOnlyProperties = OdinSystemSerializer.JsonSerializerOptions
+                        .IgnoreReadOnlyProperties;
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = OdinSystemSerializer.JsonSerializerOptions
+                        .PropertyNameCaseInsensitive;
                 });
 
             //Note: this product is designed to avoid use of the HttpContextAccessor in the services
@@ -246,8 +236,7 @@ namespace Odin.Hosting
 
             if (_config.Redis.Enabled)
             {
-                services.AddSingleton<IConnectionMultiplexer>(_ =>
-                    ConnectionMultiplexer.Connect(_config.Redis.Configuration));
+                services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(_config.Redis.Configuration));
             }
 
             if (_config.Redis.Enabled)
@@ -598,6 +587,15 @@ namespace Odin.Hosting
                 {
                     services.StartSystemBackgroundServices().BlockingWait();
                 }
+
+                if (Environment.GetCommandLineArgs().Contains("--migrate-drive-alias", StringComparer.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation("Migrating drive alias phase 1");
+                    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+                    var migrationLogger = loggerFactory.CreateLogger("Migration");
+                    var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+                    DriveAliasPhase1Migrator.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
+                }
             });
 
             lifetime.ApplicationStopping.Register(() =>
@@ -631,7 +629,6 @@ namespace Odin.Hosting
                 // DON'T PUT ANYTHING BELOW THIS LINE
                 logger.LogInformation("Application stopped");
             });
-
         }
 
 

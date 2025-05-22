@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.SQLite;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -48,14 +49,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _DriveId = value;
                }
         }
-        private Guid _DriveAlias;
-        public Guid DriveAlias
+        private Guid _TempDriveAlias;
+        public Guid TempDriveAlias
         {
            get {
-                   return _DriveAlias;
+                   return _TempDriveAlias;
                }
            set {
-                  _DriveAlias = value;
+                  _TempDriveAlias = value;
                }
         }
         private Guid _DriveType;
@@ -77,7 +78,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
            set {
                     if (value == null) throw new OdinDatabaseValidationException("Cannot be null DriveName");
                     if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short DriveName, was {value.Length} (min 0)");
-                    if (value?.Length > 1024) throw new OdinDatabaseValidationException($"Too long DriveName, was {value.Length} (max 1024)");
+                    if (value?.Length > 100) throw new OdinDatabaseValidationException($"Too long DriveName, was {value.Length} (max 100)");
                   _DriveName = value;
                }
         }
@@ -240,7 +241,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"DriveId BYTEA NOT NULL, "
-                   +"DriveAlias BYTEA NOT NULL, "
+                   +"TempDriveAlias BYTEA NOT NULL, "
                    +"DriveType BYTEA NOT NULL, "
                    +"DriveName TEXT NOT NULL, "
                    +"MasterKeyEncryptedStorageKeyJson TEXT NOT NULL, "
@@ -249,7 +250,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"detailsJson TEXT NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT  "
-                   +", UNIQUE(identityId,DriveId,DriveType)"
+                   +", UNIQUE(identityId,DriveId)"
                    +$"){wori};"
                    ;
             await cmd.ExecuteNonQueryAsync();
@@ -259,7 +260,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
+            item.TempDriveAlias.AssertGuidNotEmpty("Guid parameter TempDriveAlias cannot be set to Empty GUID.");
             item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
@@ -269,8 +270,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-                insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,DriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
-                                             $"VALUES (@identityId,@DriveId,@DriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL)"+
+                insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
+                                             $"VALUES (@identityId,@DriveId,@TempDriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL)"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -279,7 +280,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.ParameterName = "@DriveId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@DriveAlias";
+                insertParam3.ParameterName = "@TempDriveAlias";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@DriveType";
@@ -301,7 +302,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.Parameters.Add(insertParam9);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.DriveId.ToByteArray();
-                insertParam3.Value = item.DriveAlias.ToByteArray();
+                insertParam3.Value = item.TempDriveAlias.ToByteArray();
                 insertParam4.Value = item.DriveType.ToByteArray();
                 insertParam5.Value = item.DriveName;
                 insertParam6.Value = item.MasterKeyEncryptedStorageKeyJson;
@@ -329,7 +330,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
+            item.TempDriveAlias.AssertGuidNotEmpty("Guid parameter TempDriveAlias cannot be set to Empty GUID.");
             item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
@@ -339,8 +340,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-                insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,DriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
-                                            $"VALUES (@identityId,@DriveId,@DriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL) " +
+                insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
+                                            $"VALUES (@identityId,@DriveId,@TempDriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -350,7 +351,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.ParameterName = "@DriveId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.ParameterName = "@DriveAlias";
+                insertParam3.ParameterName = "@TempDriveAlias";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
                 insertParam4.ParameterName = "@DriveType";
@@ -372,7 +373,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.Parameters.Add(insertParam9);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.DriveId.ToByteArray();
-                insertParam3.Value = item.DriveAlias.ToByteArray();
+                insertParam3.Value = item.TempDriveAlias.ToByteArray();
                 insertParam4.Value = item.DriveType.ToByteArray();
                 insertParam5.Value = item.DriveName;
                 insertParam6.Value = item.MasterKeyEncryptedStorageKeyJson;
@@ -400,7 +401,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
+            item.TempDriveAlias.AssertGuidNotEmpty("Guid parameter TempDriveAlias cannot be set to Empty GUID.");
             item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
@@ -410,10 +411,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-                upsertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,DriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
-                                            $"VALUES (@identityId,@DriveId,@DriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL)"+
-                                            "ON CONFLICT (identityId,DriveId,DriveType) DO UPDATE "+
-                                            $"SET DriveAlias = @DriveAlias,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {sqlNowStr} "+
+                upsertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
+                                            $"VALUES (@identityId,@DriveId,@TempDriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL)"+
+                                            "ON CONFLICT (identityId,DriveId) DO UPDATE "+
+                                            $"SET TempDriveAlias = @TempDriveAlias,DriveType = @DriveType,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {sqlNowStr} "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -422,7 +423,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam2.ParameterName = "@DriveId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.ParameterName = "@DriveAlias";
+                upsertParam3.ParameterName = "@TempDriveAlias";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
                 upsertParam4.ParameterName = "@DriveType";
@@ -444,7 +445,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.Parameters.Add(upsertParam9);
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.DriveId.ToByteArray();
-                upsertParam3.Value = item.DriveAlias.ToByteArray();
+                upsertParam3.Value = item.TempDriveAlias.ToByteArray();
                 upsertParam4.Value = item.DriveType.ToByteArray();
                 upsertParam5.Value = item.DriveName;
                 upsertParam6.Value = item.MasterKeyEncryptedStorageKeyJson;
@@ -472,7 +473,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
+            item.TempDriveAlias.AssertGuidNotEmpty("Guid parameter TempDriveAlias cannot be set to Empty GUID.");
             item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
@@ -483,8 +484,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
                 updateCommand.CommandText = "UPDATE DriveDefinitions " +
-                                            $"SET DriveAlias = @DriveAlias,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {sqlNowStr} "+
-                                            "WHERE (identityId = @identityId AND DriveId = @DriveId AND DriveType = @DriveType) "+
+                                            $"SET TempDriveAlias = @TempDriveAlias,DriveType = @DriveType,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {sqlNowStr} "+
+                                            "WHERE (identityId = @identityId AND DriveId = @DriveId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
@@ -493,7 +494,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam2.ParameterName = "@DriveId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.ParameterName = "@DriveAlias";
+                updateParam3.ParameterName = "@TempDriveAlias";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
                 updateParam4.ParameterName = "@DriveType";
@@ -515,7 +516,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.Parameters.Add(updateParam9);
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.DriveId.ToByteArray();
-                updateParam3.Value = item.DriveAlias.ToByteArray();
+                updateParam3.Value = item.TempDriveAlias.ToByteArray();
                 updateParam4.Value = item.DriveType.ToByteArray();
                 updateParam5.Value = item.DriveName;
                 updateParam6.Value = item.MasterKeyEncryptedStorageKeyJson;
@@ -560,7 +561,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("DriveId");
-            sl.Add("DriveAlias");
+            sl.Add("TempDriveAlias");
             sl.Add("DriveType");
             sl.Add("DriveName");
             sl.Add("MasterKeyEncryptedStorageKeyJson");
@@ -572,7 +573,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT rowId,identityId,DriveId,DriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified
+        // SELECT rowId,identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified
         protected DriveDefinitionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<DriveDefinitionsRecord>();
@@ -584,7 +585,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.DriveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.DriveAlias = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
+            item.TempDriveAlias = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.DriveType = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
             item.DriveNameNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
@@ -596,26 +597,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid DriveId,Guid DriveType)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,Guid DriveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM DriveDefinitions " +
-                                             "WHERE identityId = @identityId AND DriveId = @DriveId AND DriveType = @DriveType";
+                                             "WHERE identityId = @identityId AND DriveId = @DriveId";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
                 delete0Param2.ParameterName = "@DriveId";
                 delete0Command.Parameters.Add(delete0Param2);
-                var delete0Param3 = delete0Command.CreateParameter();
-                delete0Param3.ParameterName = "@DriveType";
-                delete0Command.Parameters.Add(delete0Param3);
 
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = DriveId.ToByteArray();
-                delete0Param3.Value = DriveType.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -632,7 +629,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.DriveId = DriveId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.DriveAlias = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.TempDriveAlias = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.DriveType = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.DriveNameNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
             item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
@@ -649,7 +646,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,DriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                get0Command.CommandText = "SELECT rowId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
                                              "WHERE identityId = @identityId AND DriveId = @DriveId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -687,7 +684,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.DriveType = DriveType;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.DriveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.DriveAlias = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.TempDriveAlias = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.DriveNameNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
             item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             item.EncryptedIdIv64NoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
@@ -703,7 +700,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,DriveId,DriveAlias,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                get1Command.CommandText = "SELECT rowId,DriveId,TempDriveAlias,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
                                              "WHERE identityId = @identityId AND DriveType = @DriveType;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
@@ -735,7 +732,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected DriveDefinitionsRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid DriveAlias,Guid DriveType)
+        protected DriveDefinitionsRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid TempDriveAlias,Guid DriveType)
         {
             var result = new List<DriveDefinitionsRecord>();
 #pragma warning disable CS0168
@@ -744,7 +741,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var guid = new byte[16];
             var item = new DriveDefinitionsRecord();
             item.identityId = identityId;
-            item.DriveAlias = DriveAlias;
+            item.TempDriveAlias = TempDriveAlias;
             item.DriveType = DriveType;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.DriveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
@@ -758,26 +755,26 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<DriveDefinitionsRecord> GetByTargetDriveAsync(Guid identityId,Guid DriveAlias,Guid DriveType)
+        protected virtual async Task<DriveDefinitionsRecord> GetByTargetDriveAsync(Guid identityId,Guid TempDriveAlias,Guid DriveType)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT rowId,DriveId,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
-                                             "WHERE identityId = @identityId AND DriveAlias = @DriveAlias AND DriveType = @DriveType LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND TempDriveAlias = @TempDriveAlias AND DriveType = @DriveType LIMIT 1;"+
                                              ";";
                 var get2Param1 = get2Command.CreateParameter();
                 get2Param1.ParameterName = "@identityId";
                 get2Command.Parameters.Add(get2Param1);
                 var get2Param2 = get2Command.CreateParameter();
-                get2Param2.ParameterName = "@DriveAlias";
+                get2Param2.ParameterName = "@TempDriveAlias";
                 get2Command.Parameters.Add(get2Param2);
                 var get2Param3 = get2Command.CreateParameter();
                 get2Param3.ParameterName = "@DriveType";
                 get2Command.Parameters.Add(get2Param3);
 
                 get2Param1.Value = identityId.ToByteArray();
-                get2Param2.Value = DriveAlias.ToByteArray();
+                get2Param2.Value = TempDriveAlias.ToByteArray();
                 get2Param3.Value = DriveType.ToByteArray();
                 {
                     using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
@@ -786,14 +783,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader2(rdr,identityId,DriveAlias,DriveType);
+                        var r = ReadRecordFromReader2(rdr,identityId,TempDriveAlias,DriveType);
                         return r;
                     } // using
                 } //
             } // using
         }
 
-        protected DriveDefinitionsRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid DriveId,Guid DriveType)
+        protected DriveDefinitionsRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid DriveId)
         {
             var result = new List<DriveDefinitionsRecord>();
 #pragma warning disable CS0168
@@ -803,26 +800,26 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new DriveDefinitionsRecord();
             item.identityId = identityId;
             item.DriveId = DriveId;
-            item.DriveType = DriveType;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.DriveAlias = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.DriveNameNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
-            item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
-            item.EncryptedIdIv64NoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.EncryptedIdValue64NoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.detailsJsonNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[8]);
+            item.TempDriveAlias = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.DriveType = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
+            item.DriveNameNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
+            item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.EncryptedIdIv64NoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.EncryptedIdValue64NoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.detailsJsonNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[9]);
             return item;
        }
 
-        protected virtual async Task<DriveDefinitionsRecord> GetAsync(Guid identityId,Guid DriveId,Guid DriveType)
+        protected virtual async Task<DriveDefinitionsRecord> GetAsync(Guid identityId,Guid DriveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
-                get3Command.CommandText = "SELECT rowId,DriveAlias,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
-                                             "WHERE identityId = @identityId AND DriveId = @DriveId AND DriveType = @DriveType LIMIT 1;"+
+                get3Command.CommandText = "SELECT rowId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                                             "WHERE identityId = @identityId AND DriveId = @DriveId LIMIT 1;"+
                                              ";";
                 var get3Param1 = get3Command.CreateParameter();
                 get3Param1.ParameterName = "@identityId";
@@ -830,13 +827,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 var get3Param2 = get3Command.CreateParameter();
                 get3Param2.ParameterName = "@DriveId";
                 get3Command.Parameters.Add(get3Param2);
-                var get3Param3 = get3Command.CreateParameter();
-                get3Param3.ParameterName = "@DriveType";
-                get3Command.Parameters.Add(get3Param3);
 
                 get3Param1.Value = identityId.ToByteArray();
                 get3Param2.Value = DriveId.ToByteArray();
-                get3Param3.Value = DriveType.ToByteArray();
                 {
                     using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -844,7 +837,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader3(rdr,identityId,DriveId,DriveType);
+                        var r = ReadRecordFromReader3(rdr,identityId,DriveId);
                         return r;
                     } // using
                 } //
@@ -865,7 +858,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging10Command = cn.CreateCommand();
             {
-                getPaging10Command.CommandText = "SELECT rowId,identityId,DriveId,DriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                getPaging10Command.CommandText = "SELECT rowId,identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
                                             "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
                 var getPaging10Param1 = getPaging10Command.CreateParameter();
                 getPaging10Param1.ParameterName = "@created";

@@ -27,9 +27,9 @@ namespace Odin.Services.Drives.Management;
 /// </summary>
 public class DriveManager : IDriveManager
 {
-    private static readonly Guid DriveContextKey = Guid.Parse("4cca76c6-3432-4372-bef8-5f05313c0376");
+    internal static readonly Guid DriveContextKey = Guid.Parse("4cca76c6-3432-4372-bef8-5f05313c0376");
     private static readonly ThreeKeyValueStorage DriveStorage = TenantSystemStorage.CreateThreeKeyValueStorage(DriveContextKey);
-    private static readonly byte[] DriveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
+    internal static readonly byte[] DriveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
 
     private readonly ILogger<DriveManager> _logger;
     private readonly IMediator _mediator;
