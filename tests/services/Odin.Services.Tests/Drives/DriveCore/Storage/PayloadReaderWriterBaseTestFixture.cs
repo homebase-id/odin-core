@@ -23,5 +23,18 @@ public abstract class PayloadReaderWriterBaseTestFixture
         }
     }
 
+    //
+
+    protected void CreateFile(string filePath, string content = "hello")
+    {
+        var directory = Path.GetDirectoryName(filePath);
+        if (directory != null && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+        File.WriteAllText(filePath, "hello");
+    }
+
+
 
 }

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Minio;
@@ -18,6 +19,7 @@ public class S3StorageTests
     private string _secretAccessKey = "";
     private string _bucketName = "";
     private readonly Mock<ILogger<S3Storage>> _loggerMock = new ();
+    private string _testRootPath = "";
     private IMinioClient _minioClient = null!;
 
     //
@@ -50,6 +52,9 @@ public class S3StorageTests
 
         _bucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
         await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(_bucketName));
+
+        _testRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_testRootPath);
     }
 
     //
@@ -68,6 +73,12 @@ public class S3StorageTests
 
         // Remove bucket
         await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_bucketName));
+
+        // Remove test root path
+        if (Directory.Exists(_testRootPath))
+        {
+            Directory.Delete(_testRootPath, true);
+        }
     }
 
     //
@@ -323,4 +334,53 @@ public class S3StorageTests
             Assert.That(files, Has.Count.EqualTo(0));
         }
     }
+
+    //
+
+    [Test]
+    public async Task ItShouldUploadFile()
+    {
+        const string srcPath = "the-src-file";
+        const string dstPath = "the-dst-file";
+
+        var srcFile = Path.Combine(_testRootPath, srcPath);
+        await File.WriteAllTextAsync(srcFile, "Hello");
+
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        await bucket.UploadFileAsync(srcFile, dstPath);
+
+        var exists = await bucket.FileExistsAsync(dstPath);
+        Assert.That(exists, Is.True);
+
+        var dstCopy = await bucket.ReadAllBytesAsync(dstPath);
+        Assert.That(dstCopy.ToStringFromUtf8Bytes(), Is.EqualTo("Hello"));
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldDownloadFile()
+    {
+        const string srcPath = "the-src-file";
+        const string dstPath = "the-dst-file";
+        const string text = "hello";
+
+        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+
+        // Write to bucket
+        await bucket.WriteAllBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
+
+        // Download to local file
+        var dstFile = Path.Combine(_testRootPath, dstPath);
+        await bucket.DownloadFileAsync(srcPath, dstFile);
+
+        // Check that the file exists
+        Assert.That(File.Exists(dstFile), Is.True);
+
+        // Check that the file content is correct
+        var content = await File.ReadAllTextAsync(dstFile);
+        Assert.That(content, Is.EqualTo(text));
+    }
+
+
 }
