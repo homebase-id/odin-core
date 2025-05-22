@@ -193,7 +193,6 @@ public static class TenantServices
 
         cb.RegisterType<DriveManager>().InstancePerLifetimeScope();
         cb.RegisterType<DriveManagerWithDedicatedTable>().InstancePerLifetimeScope();
-        cb.RegisterType<DriveManagerWithDedicatedTable>().InstancePerLifetimeScope();
         // cb.RegisterType<DriveManager>().As<IDriveManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();

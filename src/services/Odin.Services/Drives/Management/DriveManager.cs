@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
@@ -42,13 +41,16 @@ public class DriveManager : IDriveManager
     private readonly TenantContext _tenantContext;
     private readonly TableKeyThreeValue _tblKeyThreeValue;
 
+    private readonly DriveManagerWithDedicatedTable _driveWithDedicatedTable;
+
     public DriveManager(
         ILogger<DriveManager> logger,
         SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> driveCache,
         SharedAsyncLock<DriveManager> createDriveLock,
         IMediator mediator,
         TenantContext tenantContext,
-        TableKeyThreeValue tblKeyThreeValue)
+        TableKeyThreeValue tblKeyThreeValue,
+        DriveManagerWithDedicatedTable driveWithDedicatedTable)
     {
         _logger = logger;
         _driveCache = driveCache;
@@ -56,6 +58,7 @@ public class DriveManager : IDriveManager
         _mediator = mediator;
         _tenantContext = tenantContext;
         _tblKeyThreeValue = tblKeyThreeValue;
+        _driveWithDedicatedTable = driveWithDedicatedTable;
     }
 
     public async Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
@@ -131,6 +134,15 @@ public class DriveManager : IDriveManager
             OdinContext = odinContext,
         });
 
+        try
+        {
+            await _driveWithDedicatedTable.CreateDriveAsync(request, odinContext);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, $"Failure while creating drive with {nameof(_driveWithDedicatedTable)}");
+        }
+
         return storageDrive;
     }
 
@@ -165,6 +177,15 @@ public class DriveManager : IDriveManager
                 OdinContext = odinContext,
             });
         }
+
+        try
+        {
+            await _driveWithDedicatedTable.SetDriveReadModeAsync(driveId, allowAnonymous, odinContext);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, $"Failure while calling _driveWithDedicatedTable.SetDriveReadModeAsync");
+        }
     }
 
     public async Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext)
@@ -198,6 +219,16 @@ public class DriveManager : IDriveManager
                 OdinContext = odinContext
             });
         }
+        
+        try
+        {
+            await _driveWithDedicatedTable.SetDriveAllowSubscriptionsAsync(driveId, allowSubscriptions, odinContext);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, $"Failure while calling _driveWithDedicatedTable.SetDriveAllowSubscriptionsAsync");
+            throw;
+        }
     }
 
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
@@ -210,6 +241,15 @@ public class DriveManager : IDriveManager
         await DriveStorage.UpsertAsync(_tblKeyThreeValue, driveId, sdb.TargetDriveInfo.ToKey(), DriveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
+        
+        try
+        {
+            await _driveWithDedicatedTable.UpdateMetadataAsync(driveId, metadata, odinContext);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, $"Failure while calling _driveWithDedicatedTable.UpdateMetadataAsync");
+        }
     }
 
     public async Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext)
@@ -221,6 +261,15 @@ public class DriveManager : IDriveManager
         await DriveStorage.UpsertAsync(_tblKeyThreeValue, driveId, sdb.TargetDriveInfo.ToKey(), DriveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
+        
+        try
+        {
+            await _driveWithDedicatedTable.UpdateAttributesAsync(driveId, attributes, odinContext);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, $"Failure while calling _driveWithDedicatedTable.UpdateAttributesAsync");
+        }
     }
 
     public async Task<StorageDrive> GetDriveAsync(Guid driveId, bool failIfInvalid = false)

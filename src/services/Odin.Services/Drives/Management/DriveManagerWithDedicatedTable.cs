@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -14,7 +13,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
 using Odin.Services.Base;
-using Odin.Services.Mediator;
 using Odin.Services.Util;
 
 [assembly: InternalsVisibleTo("Odin.Hosting")]
@@ -27,9 +25,9 @@ namespace Odin.Services.Drives.Management;
 public class DriveManagerWithDedicatedTable : IDriveManager
 {
     private readonly ILogger<DriveManagerWithDedicatedTable> _logger;
-    private readonly SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> _driveCache;
+    private readonly SharedConcurrentDictionary<DriveManagerWithDedicatedTable, Guid, StorageDrive> _driveCache;
 
-    private readonly IMediator _mediator;
+//    private readonly IMediator _mediator;
     private readonly TenantContext _tenantContext;
     private readonly TableDriveDefinitions _tableDriveDefinitions;
     private readonly TableKeyThreeValue _tblKeyThreeValue;
@@ -42,15 +40,15 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     /// Manages drive creation, metadata updates, and their overall definitions
     /// </summary>
     public DriveManagerWithDedicatedTable(ILogger<DriveManagerWithDedicatedTable> logger,
-        SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> driveCache,
-        IMediator mediator,
+        SharedConcurrentDictionary<DriveManagerWithDedicatedTable, Guid, StorageDrive> driveCache,
+        // IMediator mediator,
         TenantContext tenantContext,
         TableDriveDefinitions tableDriveDefinitions,
         TableKeyThreeValue tblKeyThreeValue)
     {
         _logger = logger;
         _driveCache = driveCache;
-        _mediator = mediator;
+        // _mediator = mediator;
         _tenantContext = tenantContext;
         _tableDriveDefinitions = tableDriveDefinitions;
         _tblKeyThreeValue = tblKeyThreeValue;
@@ -118,12 +116,12 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         CacheDrive(storageDrive);
         _logger.LogDebug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
 
-        await _mediator.Publish(new DriveDefinitionAddedNotification
-        {
-            IsNewDrive = true,
-            Drive = storageDrive,
-            OdinContext = odinContext,
-        });
+        // await _mediator.Publish(new DriveDefinitionAddedNotification
+        // {
+        //     IsNewDrive = true,
+        //     Drive = storageDrive,
+        //     OdinContext = odinContext,
+        // });
 
         return storageDrive;
     }
@@ -152,12 +150,12 @@ public class DriveManagerWithDedicatedTable : IDriveManager
 
             CacheDrive(storageDrive);
 
-            await _mediator.Publish(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext,
-            });
+            // await _mediator.Publish(new DriveDefinitionAddedNotification
+            // {
+            //     IsNewDrive = false,
+            //     Drive = storageDrive,
+            //     OdinContext = odinContext,
+            // });
         }
     }
 
@@ -185,12 +183,12 @@ public class DriveManagerWithDedicatedTable : IDriveManager
 
             CacheDrive(storageDrive);
 
-            await _mediator.Publish(new DriveDefinitionAddedNotification
-            {
-                IsNewDrive = false,
-                Drive = storageDrive,
-                OdinContext = odinContext
-            });
+            // await _mediator.Publish(new DriveDefinitionAddedNotification
+            // {
+            //     IsNewDrive = false,
+            //     Drive = storageDrive,
+            //     OdinContext = odinContext
+            // });
         }
     }
 
