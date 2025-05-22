@@ -256,6 +256,7 @@ namespace Odin.Hosting
             // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
             services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
 
+            // Payload storage
             if (_config.S3PayloadStorage.Enabled)
             {
                 services.AddMinioClient(

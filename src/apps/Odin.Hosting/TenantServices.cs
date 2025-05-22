@@ -321,6 +321,16 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
+
+        // Payload storage
+        if (odinConfig.S3PayloadStorage.Enabled)
+        {
+            cb.RegisterType<PayloadS3ReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
+        }
+        else
+        {
+            cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
+        }
     }
 
     //

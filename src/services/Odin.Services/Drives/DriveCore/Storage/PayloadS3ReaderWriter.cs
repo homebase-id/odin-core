@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Storage.ObjectStorage;
@@ -15,7 +14,6 @@ public class PayloadS3ReaderWriter(
     TenantContext tenantContext,
     S3PayloadStorage s3PayloadsStorage) : IPayloadReaderWriter
 {
-    private static readonly Regex SafeChars = new (@"^[a-zA-Z0-9\-_./]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
     //
@@ -24,8 +22,7 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            var relativePath = GetRelativeS3Path(filePath);
-            await s3PayloadsStorage.WriteAllBytesAsync(relativePath, bytes, cancellationToken);
+            await s3PayloadsStorage.WriteAllBytesAsync(filePath, bytes, cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -39,8 +36,7 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            var relativePath = GetRelativeS3Path(filePath);
-            await s3PayloadsStorage.DeleteFileAsync(relativePath, cancellationToken);
+            await s3PayloadsStorage.DeleteFileAsync(filePath, cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -54,8 +50,7 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            var relativePath = GetRelativeS3Path(filePath);
-            return await s3PayloadsStorage.FileExistsAsync(relativePath, cancellationToken);
+            return await s3PayloadsStorage.FileExistsAsync(filePath, cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -69,9 +64,7 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            var srcRelativePath = GetRelativeS3Path(srcFilePath);
-            var dstRelativePath = GetRelativeS3Path(dstFilePath);
-            await s3PayloadsStorage.MoveFileAsync(srcRelativePath, dstRelativePath, cancellationToken);
+            await s3PayloadsStorage.MoveFileAsync(srcFilePath, dstFilePath, cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -81,14 +74,25 @@ public class PayloadS3ReaderWriter(
 
     //
 
-    public async Task<string[]> GetFilesInDirectoryAsync(
-        string dir,
-        string searchPattern = "*",
-        CancellationToken cancellationToken = default)
+    public async Task<string[]> GetFilesInDirectoryAsync(string dir, CancellationToken cancellationToken = default)
     {
-        var relativePath = GetRelativeS3Path(dir);
-        var files = await s3PayloadsStorage.ListFilesAsync(relativePath, false, cancellationToken);
-        return files.ToArray();
+        try
+        {
+            var files = await s3PayloadsStorage.ListFilesAsync(dir, false, cancellationToken);
+            return files.ToArray();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
+    }
+
+    //
+
+    public Task CreateDirectoryAsync(string dir, CancellationToken cancellationToken = default)
+    {
+        // No-op: S3 does not have directories in the same way as a file system.
+        return Task.CompletedTask;
     }
 
     //
@@ -121,38 +125,6 @@ public class PayloadS3ReaderWriter(
     public void CreateDirectoryXYZ(string dir)
     {
         throw new System.NotImplementedException();
-    }
-
-    //
-
-    // Maps _tenantPathManager.GetPayloadDirectoryAndFileName to a relative S3 path
-    // e.g. "/data/tenants/payloads/<tenant-id>/drives" becomes "<tenant-id>/drives"
-    public string GetRelativeS3Path(string absoluteFilePath)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(absoluteFilePath, nameof(absoluteFilePath));
-
-        var root = _tenantPathManager.RootPayloadsPath;
-        if (!absoluteFilePath.StartsWith(_tenantPathManager.RootPayloadsPath))
-        {
-            throw new ArgumentException($"The path '{absoluteFilePath}' does not start with the expected root path.",
-                nameof(absoluteFilePath));
-        }
-
-        var relativePath = absoluteFilePath[root.Length..].Replace('\\', '/');
-
-        // Sanity #1
-        if (!SafeChars.IsMatch(relativePath))
-        {
-            throw new ArgumentException("File path contains invalid characters.", nameof(relativePath));
-        }
-
-        // Sanity #2
-        if (relativePath.StartsWith('/'))
-        {
-            relativePath = relativePath[1..];
-        }
-
-        return relativePath;
     }
 
     //

@@ -1601,7 +1601,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
                 var sourceThumbnail = await uploadStorageManager.GetPath(originFile, thumbExt);
-                longTermStorageManager.CopyThumbnailToLongTerm(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
             }
         }
 

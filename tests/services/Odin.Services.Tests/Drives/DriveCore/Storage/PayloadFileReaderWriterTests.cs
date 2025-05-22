@@ -219,21 +219,14 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithFileMask()
+    public async Task CreateDirectoryAsync_ShouldCreateDirectory()
     {
-        var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
-
-        CreateFile(Path.Combine(root, "file1.foo"));
-        CreateFile(Path.Combine(root, "file2.bar"));
-        CreateFile(Path.Combine(root, "subdir", "file3.foo"));
-
+        var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/sam");
         var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
-
-        var files = await rw.GetFilesInDirectoryAsync(root, "*.foo");
-        Assert.That(files.Length, Is.EqualTo(1));
-        Assert.That(files, Does.Contain(Path.Combine(root, "file1.foo")));
+        await rw.CreateDirectoryAsync(root);
+        Assert.That(Directory.Exists(root), Is.True);
     }
 
-    //
+
 
 }
