@@ -94,7 +94,8 @@ public class PayloadDescriptor
     public void Validate()
     {
         if (DescriptorContent?.Length > MaxDescriptorContentLength)
-            throw new OdinClientException($"Too long DescriptorContent length {DescriptorContent.Length} in PayloadDescriptor max {MaxDescriptorContentLength}");
+            throw new OdinClientException($"Too long DescriptorContent length {DescriptorContent.Length} in PayloadDescriptor max {MaxDescriptorContentLength}", 
+                OdinClientErrorCode.MaxContentLengthExceeded);
 
         PreviewThumbnail?.Validate();
 

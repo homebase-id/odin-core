@@ -50,8 +50,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (Tags?.Count > MaxTagCount)
                 throw new OdinClientException($"Too many Tags count {Tags.Count} in AppFileMetaData max {MaxTagCount}");
 
-            if (Content?.Length > MaxAppDataContentLength) 
-                throw new OdinClientException($"Content length {Content.Length} in AppFileMetaData max {MaxAppDataContentLength}");
+            if (Content?.Length > MaxAppDataContentLength)
+                throw new OdinClientException($"Content length {Content.Length} in AppFileMetaData max {MaxAppDataContentLength}",
+                    OdinClientErrorCode.MaxContentLengthExceeded);
 
             PreviewThumbnail?.Validate();
         }
