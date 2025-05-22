@@ -14,14 +14,17 @@ public interface IPayloadReaderWriter
     Task DeleteFileAsync(string filePath, CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default);
     Task MoveFileAsync(string srcFilePath, string dstFilePath, CancellationToken cancellationToken = default);
-    Task<string[]> GetFilesInDirectoryAsync(string dir, string searchPattern = "*", CancellationToken cancellationToken = default);
+    Task<string[]> GetFilesInDirectoryAsync(string dir, CancellationToken cancellationToken = default);
+    Task CreateDirectoryAsync(string dir, CancellationToken cancellationToken = default);
 
-    string[] GetFilesInDirectoryXYZ(string dir, string searchPattern = "*"); // SEB:TODO
-    void DeleteFilesInDirectoryXYZ(string dir, string searchPattern);  // SEB:TODO
-    bool DirectoryExistsXYZ(string dir); // SEB:TODO
     Stream OpenStreamForReadingXYZ(string filePath); // SEB:TODO
     void CopyPayloadFileXYZ(string sourcePath, string targetPath); // SEB:TODO
-    void CreateDirectoryXYZ(string dir);
+
+
+    bool DirectoryExistsXYZ(string dir); // SEB:TODO
+    string[] GetFilesInDirectoryXYZ(string dir, string searchPattern = "*"); // SEB:TODO
+    void DeleteFilesInDirectoryXYZ(string dir, string searchPattern);  // SEB:TODO
+
 }
 
 //

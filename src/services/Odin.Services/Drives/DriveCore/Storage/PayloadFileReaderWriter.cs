@@ -99,15 +99,28 @@ public class PayloadFileReaderWriter(
 
     //
 
-    public Task<string[]> GetFilesInDirectoryAsync(
-        string dir,
-        string searchPattern = "*",
-        CancellationToken cancellationToken = default)
+    public Task<string[]> GetFilesInDirectoryAsync(string dir, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            return Task.FromResult(fileReaderWriter.GetFilesInDirectory(dir, searchPattern));
+            return Task.FromResult(fileReaderWriter.GetFilesInDirectory(dir));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
+    }
+
+    //
+
+    public Task CreateDirectoryAsync(string dir, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            fileReaderWriter.CreateDirectory(dir);
+            return Task.CompletedTask;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

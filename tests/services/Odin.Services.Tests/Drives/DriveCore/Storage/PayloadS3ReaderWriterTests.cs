@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Minio;
 using Minio.DataModel.Args;
-using Minio.Exceptions;
 using Moq;
 using NUnit.Framework;
 using Odin.Core;
@@ -48,8 +47,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
             {
                 TenantDataRootPath = Path.Combine(TestRootPath, "tenants"),
             },
-            S3ObjectStorage = new OdinConfiguration.S3ObjectStorageSection
+            S3PayloadStorage = new OdinConfiguration.S3PayloadStorageSection
             {
+                Enabled = true,
                 BucketName = $"zz-ci-test-{Guid.NewGuid():N}",
                 Region = "hel1",
                 Endpoint = "hel1.your-objectstorage.com",
@@ -71,20 +71,19 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         _tenantPathManager = _tenantContext.TenantPathManager;
 
         _minioClient = new MinioClient()
-            .WithEndpoint(_config.S3ObjectStorage.Endpoint)
-            .WithCredentials(_config.S3ObjectStorage.AccessKey, _config.S3ObjectStorage.SecretAccessKey)
-            .WithRegion(_config.S3ObjectStorage.Region)
+            .WithEndpoint(_config.S3PayloadStorage.Endpoint)
+            .WithCredentials(_config.S3PayloadStorage.AccessKey, _config.S3PayloadStorage.SecretAccessKey)
+            .WithRegion(_config.S3PayloadStorage.Region)
             .WithSSL()
             .Build();
 
-        var bucketName = _config.S3ObjectStorage.BucketName;
+        var bucketName = _config.S3PayloadStorage.BucketName;
         await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
 
         _s3PayloadStorage = new S3PayloadStorage(
             new Mock<ILogger<S3PayloadStorage>>().Object,
             _minioClient,
-            bucketName,
-            TenantPathManager.PayloadsFolder);
+            bucketName);
     }
 
     //
@@ -96,7 +95,17 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         {
             if (_minioClient != null!)
             {
-                await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_config.S3ObjectStorage.BucketName));
+                // Remove all objects
+                var listArgs = new ListObjectsArgs().WithBucket(_config.S3PayloadStorage.BucketName).WithRecursive(true);
+                await foreach (var item in _minioClient.ListObjectsEnumAsync(listArgs))
+                {
+                    await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()
+                        .WithBucket(_config.S3PayloadStorage.BucketName)
+                        .WithObject(item.Key));
+                }
+
+                // Remove bucket
+                await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_config.S3PayloadStorage.BucketName));
             }
         }
         finally
@@ -117,33 +126,6 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public void GetRelativePath_ShouldReturnCorrectPath()
-    {
-        var driveId = Guid.NewGuid();
-        var fileId = Guid.NewGuid();
-        var appKey = "testAppKey";
-        var timestamp = UnixTimeUtcUnique.ZeroTime;
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
-
-        var absolutePath = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
-        Assert.That(absolutePath, Does.StartWith(Path.Combine(_config.Host.TenantDataRootPath, "payloads")));
-
-        var relativePath = rw.GetRelativeS3Path(absolutePath);
-
-        var (high, low) = GuidHelper.GetLastTwoNibbles(fileId);
-        Assert.That(relativePath, Is.EqualTo(Path.Combine(
-            _tenantContext.DotYouRegistryId.ToString(),
-            "drives",
-            driveId.ToString("N"),
-            "files",
-            high.ToString(),
-            low.ToString(),
-            $"{fileId:N}-{appKey.ToLower()}-0.payload")));
-    }
-
-    //
-
-    [Test]
     public async Task WriteFileAsync_ShouldWriteFile()
     {
         var driveId = Guid.NewGuid();
@@ -153,14 +135,15 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
         var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
 
-        var absolutePath = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
+
         var someBytes = "hello".ToUtf8ByteArray();
-        await rw.WriteFileAsync(absolutePath, someBytes);
+        await rw.WriteFileAsync(path, someBytes);
 
         await Task.Delay(100);
 
-        var relativePath = rw.GetRelativeS3Path(absolutePath);
-        var exists = await _s3PayloadStorage.FileExistsAsync(relativePath);
+        var exists = await _s3PayloadStorage.FileExistsAsync(path);
         Assert.That(exists, Is.True);
     }
 
@@ -176,21 +159,22 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
         var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
 
-        var absolutePath = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
+
         var someBytes = "hello".ToUtf8ByteArray();
-        await rw.WriteFileAsync(absolutePath, someBytes);
+        await rw.WriteFileAsync(path, someBytes);
 
         await Task.Delay(100);
 
-        var relativePath = rw.GetRelativeS3Path(absolutePath);
-        var exists = await _s3PayloadStorage.FileExistsAsync(relativePath);
+        var exists = await _s3PayloadStorage.FileExistsAsync(path);
         Assert.That(exists, Is.True);
 
-        await rw.DeleteFileAsync(absolutePath);
+        await rw.DeleteFileAsync(path);
 
         await Task.Delay(100);
 
-        exists = await _s3PayloadStorage.FileExistsAsync(relativePath);
+        exists = await _s3PayloadStorage.FileExistsAsync(path);
         Assert.That(exists, Is.False);
     }
 
@@ -206,19 +190,21 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
         var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
 
-        var absolutePath = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
+
         var someBytes = "hello".ToUtf8ByteArray();
-        await rw.WriteFileAsync(absolutePath, someBytes);
+        await rw.WriteFileAsync(path, someBytes);
 
         await Task.Delay(100);
 
-        var exists = await rw.FileExistsAsync(absolutePath);
+        var exists = await rw.FileExistsAsync(path);
         Assert.That(exists, Is.True);
 
-        await rw.DeleteFileAsync(absolutePath);
+        await rw.DeleteFileAsync(path);
         await Task.Delay(100);
 
-        exists = await rw.FileExistsAsync(absolutePath);
+        exists = await rw.FileExistsAsync(path);
         Assert.That(exists, Is.False);
     }
 
@@ -235,6 +221,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
 
         var srcPath = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        Assert.That(srcPath, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
+
         var someBytes = "hello".ToUtf8ByteArray();
         await rw.WriteFileAsync(srcPath, someBytes);
 
@@ -245,6 +233,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
         var otherDriveId = Guid.NewGuid();
         var dstPath = _tenantPathManager.GetPayloadDirectoryAndFileName(otherDriveId, fileId, appKey, timestamp);
+        Assert.That(dstPath, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
+
         exists = await rw.FileExistsAsync(dstPath);
         Assert.That(exists, Is.False);
 
@@ -277,13 +267,13 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithoutFileMask()
+    public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory()
     {
         var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
 
-        await CreateFileAsync(Path.Combine(root, "file1.foo"));
-        await CreateFileAsync(Path.Combine(root, "file2.bar"));
-        await CreateFileAsync(Path.Combine(root, "subdir", "file3.foo"));
+        await CreateFileAsync(S3Path.Combine(root, "file1.foo"));
+        await CreateFileAsync(S3Path.Combine(root, "file2.bar"));
+        await CreateFileAsync(S3Path.Combine(root, "subdir", "file3.foo"));
 
         await Task.Delay(100);
 
@@ -291,30 +281,21 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
         var files = await rw.GetFilesInDirectoryAsync(root);
         Assert.That(files.Length, Is.EqualTo(2));
-        Assert.That(files, Does.Contain(Path.Combine(root, "file1.foo")));
-        Assert.That(files, Does.Contain(Path.Combine(root, "file2.bar")));
+        Assert.That(files, Does.Contain(S3Path.Combine(root, "file1.foo")));
+        Assert.That(files, Does.Contain(S3Path.Combine(root, "file2.bar")));
     }
 
     //
 
-    // [Test]
-    // public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithFileMask()
-    // {
-    //     CreateFile(Path.Combine(TestRootPath, "dir1", "file1.foo"));
-    //     CreateFile(Path.Combine(TestRootPath, "dir1", "file2.bar"));
-    //     CreateFile(Path.Combine(TestRootPath, "dir1", "dir2", "file3.foo"));
-    //
-    //     var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
-    //
-    //     var files = await rw.GetFilesInDirectoryAsync(Path.Combine(TestRootPath, "dir1"), "*.foo");
-    //     Assert.That(files.Length, Is.EqualTo(1));
-    //     Assert.That(files, Does.Contain(Path.Combine(TestRootPath, "dir1", "file1.foo")));
-    // }
+    [Test]
+    public async Task CreateDirectoryAsync_ShouldCreateDirectory()
+    {
+        var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/sam");
+        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        await rw.CreateDirectoryAsync(root);
+        Assert.Pass(); // No-op: S3 does not have directories in the same way as a file system.
+    }
 
     //
-
-
-
-
 
 }

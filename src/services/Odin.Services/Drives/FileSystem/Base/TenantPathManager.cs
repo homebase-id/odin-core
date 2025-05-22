@@ -59,7 +59,7 @@ public class TenantPathManager
 
     public readonly string RootPath; // e.g. /data/tenants
     public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
-    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads OR SEB:TODO if S3 is enabled
+    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads OR empty string if S3 is enabled
 
     public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
     public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
@@ -69,7 +69,7 @@ public class TenantPathManager
     public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
 
     public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
-    public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives
+    public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
 
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
@@ -80,9 +80,10 @@ public class TenantPathManager
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
 
-        if (config.S3ObjectStorage.Enabled)
+        if (config.S3PayloadStorage.Enabled)
         {
-            //RootPayloadsPath
+            // Payloads on S3 is anchored to the root of the bucket
+            RootPayloadsPath = string.Empty;
         }
         else
         {
