@@ -298,4 +298,26 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
     //
 
+    [Test]
+    public async Task CopyPayloadFileAsync_ShouldCopyFileToPayloads()
+    {
+        var srcFile = Path.Combine(TestRootPath, "file1.foo");
+        CreateFile(srcFile);
+
+        var driveId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        var appKey = "testAppKey";
+        var timestamp = UnixTimeUtcUnique.Now();
+
+        var dstFile = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+
+        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+
+        await rw.CopyPayloadFileAsync(srcFile, dstFile);
+        var exists = await rw.FileExistsAsync(dstFile);
+
+        Assert.That(exists, Is.True);
+    }
+
+
 }

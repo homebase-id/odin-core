@@ -71,18 +71,6 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
     //
 
-    private void CreateFile(string filePath, string content = "hello")
-    {
-        var directory = Path.GetDirectoryName(filePath);
-        if (directory != null && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-        File.WriteAllText(filePath, "hello");
-    }
-
-    //
-
     [Test]
     public async Task WriteFileAsync_ShouldWriteFile()
     {
@@ -226,6 +214,30 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
         await rw.CreateDirectoryAsync(root);
         Assert.That(Directory.Exists(root), Is.True);
     }
+
+    //
+
+    [Test]
+    public async Task CopyPayloadFileAsync_ShouldCopyFileToPayloads()
+    {
+        var srcFile = Path.Combine(TestRootPath, "file1.foo");
+        CreateFile(srcFile);
+
+        var driveId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        var appKey = "testAppKey";
+        var timestamp = UnixTimeUtcUnique.Now();
+
+        var dstFile = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+
+        var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
+
+        await rw.CopyPayloadFileAsync(srcFile, dstFile);
+        var exists = await rw.FileExistsAsync(dstFile);
+
+        Assert.That(exists, Is.True);
+    }
+
 
 
 

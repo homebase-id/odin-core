@@ -97,36 +97,23 @@ public class PayloadS3ReaderWriter(
 
     //
 
-    public string[] GetFilesInDirectoryXYZ(string dir, string searchPattern = "*")
+    public async Task CopyPayloadFileAsync(string srcFilePath, string dstFilePath, CancellationToken cancellationToken = default)
     {
-        throw new System.NotImplementedException();
+        try
+        {
+            await s3PayloadsStorage.UploadFileAsync(srcFilePath, dstFilePath, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
 
-    public void DeleteFilesInDirectoryXYZ(string dir, string searchPattern)
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public bool DirectoryExistsXYZ(string dir)
-    {
-        throw new System.NotImplementedException();
-    }
+    //
 
     public Stream OpenStreamForReadingXYZ(string filePath)
     {
         throw new System.NotImplementedException();
     }
-
-    public void CopyPayloadFileXYZ(string sourcePath, string targetPath)
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public void CreateDirectoryXYZ(string dir)
-    {
-        throw new System.NotImplementedException();
-    }
-
-    //
 
 }

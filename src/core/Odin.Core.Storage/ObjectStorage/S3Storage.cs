@@ -24,6 +24,8 @@ public interface IS3Storage
     Task CopyFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task MoveFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task<List<string>> ListFilesAsync(string path, bool recursive = false, CancellationToken cancellationToken = default);
+    Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
+    Task DownloadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
 }
 
 //
@@ -219,6 +221,37 @@ public class S3Storage : IS3Storage
     }
 
     //
+
+    public async Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
+    {
+        S3Path.AssertFileName(dstPath);
+        dstPath = S3Path.Combine(dstPath);
+
+        var putObjectArgs = new PutObjectArgs()
+            .WithBucket(BucketName)
+            .WithFileName(srcPath)
+            .WithObject(dstPath)
+            .WithContentType("application/octet-stream");
+
+        await _minioClient.PutObjectAsync(putObjectArgs, cancellationToken);
+    }
+
+    //
+
+    public async Task DownloadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
+    {
+        S3Path.AssertFileName(srcPath);
+        srcPath = S3Path.Combine(srcPath);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(dstPath) ?? throw new InvalidOperationException());
+
+        var getObjectArgs = new GetObjectArgs()
+            .WithBucket(BucketName)
+            .WithObject(srcPath)
+            .WithFile(dstPath);
+
+        await _minioClient.GetObjectAsync(getObjectArgs, cancellationToken);
+    }
 
 }
 

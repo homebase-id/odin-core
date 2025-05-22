@@ -23,7 +23,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 {
     public class LongTermStorageManager(
         ILogger<LongTermStorageManager> logger,
-        DriveFileReaderWriter driveFileReaderWriter,
+        IPayloadReaderWriter payloadReaderWriter,
         DriveQuery driveQuery,
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
@@ -195,54 +195,51 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Deletes the payload file and all associated thumbnails
         /// </summary>
-        private void HardDeletePayloadFile(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
+        private async Task HardDeletePayloadFileAsync(StorageDrive drive, Guid fileId, PayloadDescriptor payloadDescriptor)
         {
             string payloadKey = payloadDescriptor.Key;
             UnixTimeUtcUnique payloadUid = payloadDescriptor.Uid;
             
-            Benchmark.Milliseconds(logger, nameof(HardDeletePayloadFile), () =>
+            var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
+
+            var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
+            logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
+                pathAndFilename,
+                target);
+
+            if (await payloadReaderWriter.FileExistsAsync(pathAndFilename))
             {
-                var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
+                await payloadReaderWriter.MoveFileAsync(pathAndFilename, target);
+            }
+            else
+            {
+                logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
+            }
 
-                var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
-                logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
-                    pathAndFilename,
-                    target);
+            foreach (var thumbnail in payloadDescriptor.Thumbnails)
+            {
+                //var thumbnailFileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
+                //var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
+                var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
 
-                if (driveFileReaderWriter.FileExists(pathAndFilename))
+                var thumbnailTarget = thumbnailFilenameAndPath.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
+
+                if (await payloadReaderWriter.FileExistsAsync(thumbnailFilenameAndPath))
                 {
-                    driveFileReaderWriter.MoveFile(pathAndFilename, target);
+                    await payloadReaderWriter.MoveFileAsync(thumbnailFilenameAndPath, thumbnailTarget);
                 }
                 else
                 {
-                    logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
+                    logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
+                        thumbnailFilenameAndPath);
                 }
-
-                foreach (var thumbnail in payloadDescriptor.Thumbnails)
-                {
-                    //var thumbnailFileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
-                    //var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                    //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
-                    var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
-
-                    var thumbnailTarget = thumbnailFilenameAndPath.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
-
-                    if (driveFileReaderWriter.FileExists(thumbnailFilenameAndPath))
-                    {
-                        driveFileReaderWriter.MoveFile(thumbnailFilenameAndPath, thumbnailTarget);
-                    }
-                    else
-                    {
-                        logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
-                            thumbnailFilenameAndPath);
-                    }
-                }
-            });
+            }
         }
 
         public Task TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)
         {
-            return Task.Run(() =>
+            return Task.Run(async () =>
             {
                 if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                 {
@@ -253,7 +250,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 {
                     try
                     {
-                        HardDeletePayloadFile(drive, fileId, descriptor);
+                        await HardDeletePayloadFileAsync(drive, fileId, descriptor);
                     }
                     catch (Exception ex)
                     {
@@ -275,20 +272,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
             forgottenTasks.Add(TryHardDeleteListOfPayloadFiles(drive, fileId, descriptors));
         }
 
-        public bool PayloadExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
+        public async Task<bool> PayloadExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
-            var exists = driveFileReaderWriter.FileExists(path);
+            var exists = await payloadReaderWriter.FileExistsAsync(path);
             return exists;
         }
 
-        public bool ThumbnailExistsOnDisk(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
+        public async Task<bool> ThumbnailExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
             var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
-            return driveFileReaderWriter.FileExists(path);
+            return await payloadReaderWriter.FileExistsAsync(path);
         }
 
         public async Task<Stream> GetPayloadStream(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
@@ -304,7 +301,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 Stream fileStream;
                 try
                 {
-                    fileStream = driveFileReaderWriter.OpenStreamForReading(path);
+                    fileStream = payloadReaderWriter.OpenStreamForReadingXYZ(path);
                     logger.LogDebug("File size: {size} bytes", fileStream.Length);
                 }
                 catch (IOException io)
@@ -366,7 +363,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 try
                 {
-                    var fileStream = driveFileReaderWriter.OpenStreamForReading(path);
+                    var fileStream = payloadReaderWriter.OpenStreamForReadingXYZ(path);
                     return fileStream;
                 }
                 catch (IOException io)
@@ -417,39 +414,39 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Moves the specified <param name="sourceFile"></param> to long term storage.
         /// Returns the storage UID used in the filename
         /// </summary>
-        public void CopyPayloadToLongTerm(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
+        public async Task CopyPayloadToLongTermAsync(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
-            Benchmark.Milliseconds(logger, nameof(CopyPayloadToLongTerm), () =>
-            {
-                var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key,
-                    descriptor.Uid, ensureExists: true);
-                driveFileReaderWriter.CopyPayloadFile(sourceFile, destinationFile);
-                logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
-            });
+            var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(
+                drive.Id,
+                targetFileId,
+                descriptor.Key,
+                descriptor.Uid);
+
+            await payloadReaderWriter.CopyPayloadFileAsync(sourceFile, destinationFile);
+
+            logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
         }
 
-        public void CopyThumbnailToLongTerm(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
+
+
+        public async Task CopyThumbnailToLongTermAsync(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
-            Benchmark.Milliseconds(logger, "MoveThumbnailToLongTerm", () =>
-            {
-                var payloadKey = payloadDescriptor.Key;
+            var payloadKey = payloadDescriptor.Key;
 
-                TenantPathManager.AssertValidPayloadKey(payloadKey);
-                var destinationFile = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, targetFileId, payloadKey,
-                    payloadDescriptor.Uid,
-                    thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
+            TenantPathManager.AssertValidPayloadKey(payloadKey);
+            var destinationFile = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, targetFileId, payloadKey,
+                payloadDescriptor.Uid,
+                thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
-                var dir = Path.GetDirectoryName(destinationFile) ??
-                          throw new OdinSystemException("Destination folder was null");
-                logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
-                driveFileReaderWriter.CreateDirectory(dir); // TODO REMOVE
+            var dir = Path.GetDirectoryName(destinationFile) ??
+                      throw new OdinSystemException("Destination folder was null");
+            logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
 
-                driveFileReaderWriter.CopyPayloadFile(sourceThumbnailFilePath, destinationFile);
-                logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
-                    sourceThumbnailFilePath, destinationFile);
-            });
+            await payloadReaderWriter.CopyPayloadFileAsync(sourceThumbnailFilePath, destinationFile);
+            logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
+                sourceThumbnailFilePath, destinationFile);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)

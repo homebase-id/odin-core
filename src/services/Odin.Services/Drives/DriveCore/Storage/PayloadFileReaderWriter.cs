@@ -104,7 +104,7 @@ public class PayloadFileReaderWriter(
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            return Task.FromResult(fileReaderWriter.GetFilesInDirectory(dir));
+            return Task.FromResult(Directory.GetFiles(dir));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -130,33 +130,25 @@ public class PayloadFileReaderWriter(
 
     //
 
-    public string[] GetFilesInDirectoryXYZ(string dir, string searchPattern = "*")
+    public Task CopyPayloadFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default)
     {
-        throw new System.NotImplementedException();
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            fileReaderWriter.CopyPayloadFile(sourcePath, targetPath);
+            return Task.CompletedTask;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
     }
 
-    public void DeleteFilesInDirectoryXYZ(string dir, string searchPattern)
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public bool DirectoryExistsXYZ(string dir)
-    {
-        throw new System.NotImplementedException();
-    }
+    //
 
     public Stream OpenStreamForReadingXYZ(string filePath)
     {
         throw new System.NotImplementedException();
     }
 
-    public void CopyPayloadFileXYZ(string sourcePath, string targetPath)
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public void CreateDirectoryXYZ(string dir)
-    {
-        throw new System.NotImplementedException();
-    }
 }

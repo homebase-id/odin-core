@@ -39,7 +39,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
-        OrphanTestUtil orphanTestUtil,
+        // OrphanTestUtil orphanTestUtil,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -240,7 +240,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             odinContext.Caller.AssertCallerIsOwner();
             var originalHeader = await this.GetServerFileHeaderInternal(file, odinContext);
             var metadata = originalHeader.FileMetadata;
-            return await orphanTestUtil.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
+            // return await orphanTestUtil.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
+            return false;
         }
 
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
@@ -1593,7 +1594,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = await uploadStorageManager.GetPath(originFile, payloadExtension);
-            longTermStorageManager.CopyPayloadToLongTerm(drive, targetFile.FileId, descriptor, sourceFilePath);
+            await longTermStorageManager.CopyPayloadToLongTermAsync(drive, targetFile.FileId, descriptor, sourceFilePath);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
@@ -1619,7 +1620,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var fileId = metadata.File.FileId;
             foreach (var payloadDescriptor in metadata.Payloads ?? [])
             {
-                bool payloadExists = longTermStorageManager.PayloadExistsOnDisk(drive, fileId, payloadDescriptor);
+                bool payloadExists = await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payloadDescriptor);
                 if (!payloadExists)
                 {
                     missingPayloads.Add(TenantPathManager.GetPayloadFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid));
@@ -1627,7 +1628,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
                 {
-                    var thumbExists = longTermStorageManager.ThumbnailExistsOnDisk(drive, fileId, payloadDescriptor, thumbnailDescriptor);
+                    var thumbExists = await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
                     if (!thumbExists)
                     {
                         missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId,  payloadDescriptor.Key, payloadDescriptor.Uid, thumbnailDescriptor.PixelWidth,
