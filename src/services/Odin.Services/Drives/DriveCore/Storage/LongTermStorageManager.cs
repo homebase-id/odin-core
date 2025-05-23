@@ -295,60 +295,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             if (chunk == null)
             {
-                try
-                {
-                    var bytes = await payloadReaderWriter.GetFileBytesAsync(path);
-                    return new MemoryStream(bytes);
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, "Failed to get payload stream for file {path}", path);
-                    throw;
-                }
+                var bytes = await payloadReaderWriter.GetFileBytesAsync(path);
+                return new MemoryStream(bytes);
             }
-
-            Stream fileStream;
-            try
+            else
             {
-                fileStream = payloadReaderWriter.OpenStreamForReadingXYZ(path);
-                logger.LogDebug("File size: {size} bytes", fileStream.Length);
+                var bytes = await payloadReaderWriter.GetFileBytesAsync(path, chunk.Start, chunk.Length);
+                return new MemoryStream(bytes);
             }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Failed to get thumbnail stream for file {path}", path);
-                throw;
-            }
-
-            if (null != chunk)
-            {
-                try
-                {
-                    var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
-                    if (chunk.Start > fileStream.Length)
-                    {
-                        throw new OdinClientException("Chunk start position is greater than length",
-                            OdinClientErrorCode.InvalidChunkStart);
-                    }
-
-                    fileStream.Position = chunk.Start;
-                    var bytesRead = fileStream.Read(buffer);
-
-                    //resize if length requested was too large (happens if we hit the end of the stream)
-                    if (bytesRead < buffer.Length)
-                    {
-                        Array.Resize(ref buffer, bytesRead);
-                    }
-
-                    // return Task.FromResult((Stream)new MemoryStream(buffer, false));
-                    return new MemoryStream(buffer, false);
-                }
-                finally
-                {
-                    await fileStream.DisposeAsync();
-                }
-            }
-
-            return fileStream;
         }
 
 
