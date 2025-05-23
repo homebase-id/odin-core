@@ -17,6 +17,8 @@ public interface IPayloadReaderWriter
     Task<string[]> GetFilesInDirectoryAsync(string dir, CancellationToken cancellationToken = default);
     Task CreateDirectoryAsync(string dir, CancellationToken cancellationToken = default);
     Task CopyPayloadFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default);
+    Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default);
+    Task<byte[]> GetFileBytesAsync(string filePath, long start, long length, CancellationToken cancellationToken = default);
 
     Stream OpenStreamForReadingXYZ(string filePath); // SEB:TODO
 }

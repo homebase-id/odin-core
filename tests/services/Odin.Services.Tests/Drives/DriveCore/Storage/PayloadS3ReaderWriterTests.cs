@@ -319,5 +319,33 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         Assert.That(exists, Is.True);
     }
 
+    //
+
+    [Test]
+    public async Task GetFileBytesAsync_ShouldGetBytes()
+    {
+        var driveId = Guid.NewGuid();
+        var fileId = Guid.NewGuid();
+        var appKey = "testAppKey";
+        var timestamp = UnixTimeUtcUnique.Now();
+
+        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+
+        var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
+        Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
+
+        var someBytes = "hello".ToUtf8ByteArray();
+        await rw.WriteFileAsync(path, someBytes);
+
+        await Task.Delay(100);
+
+        var exists = await _s3PayloadStorage.FileExistsAsync(path);
+        Assert.That(exists, Is.True);
+
+        var bytes = await rw.GetFileBytesAsync(path);
+        Assert.That(bytes, Is.EqualTo(someBytes));
+    }
+
+    //
 
 }

@@ -146,6 +146,32 @@ public class PayloadFileReaderWriter(
 
     //
 
+    public Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        return GetFileBytesAsync(filePath, 0, long.MaxValue, cancellationToken);
+    }
+
+    //
+
+    public async Task<byte[]> GetFileBytesAsync(
+        string filePath,
+        long start,
+        long length,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            return await fileReaderWriter.GetFileBytesAsync(filePath, start, length, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
+    }
+
+    //
+
     public Stream OpenStreamForReadingXYZ(string filePath)
     {
         throw new System.NotImplementedException();

@@ -275,16 +275,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 try
                 {
-                    var s = longTermStorageManager.GetThumbnailStream(drive, file.FileId, width, height, payloadKey, payloadUid);
+                    var s = await longTermStorageManager.GetThumbnailStreamAsync(drive, file.FileId, width, height, payloadKey, payloadUid);
                     return (s, directMatchingThumb);
                 }
-                catch (OdinFileHeaderHasCorruptPayloadException)
+                catch (Exception)
                 {
                     if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
-
                     throw;
                 }
             }
@@ -307,7 +306,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
-                var stream = longTermStorageManager.GetThumbnailStream(
+                var stream = await longTermStorageManager.GetThumbnailStreamAsync(
                     drive,
                     file.FileId,
                     nextSizeUp.PixelWidth,
@@ -316,13 +315,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 return (stream, nextSizeUp);
             }
-            catch (OdinFileHeaderHasCorruptPayloadException)
+            catch (Exception)
             {
                 if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
-
                 throw;
             }
         }
@@ -466,7 +464,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStream(drive, file.FileId, descriptor, chunk);
+                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
                 return new PayloadStream(descriptor, stream.Length, stream);
             }
             catch (OdinFileHeaderHasCorruptPayloadException)

@@ -18,8 +18,9 @@ public interface IS3Storage
     string BucketName { get; }
     Task<bool> BucketExistsAsync(CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default);
-    Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default);
-    Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default);
+    Task WriteBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default);
+    Task<byte[]> ReadBytesAsync(string path, CancellationToken cancellationToken = default);
+    Task<byte[]> ReadBytesAsync(string path, long offset, long length, CancellationToken cancellationToken = default);
     Task DeleteFileAsync(string path, CancellationToken cancellationToken = default);
     Task CopyFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task MoveFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
@@ -77,9 +78,9 @@ public class S3Storage : IS3Storage
 
     //
 
-    public async Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
+    public async Task WriteBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
     {
-        _logger.LogTrace(nameof(WriteAllBytesAsync));
+        _logger.LogTrace(nameof(WriteBytesAsync));
 
         S3Path.AssertFileName(path);
         path = S3Path.Combine(path);
@@ -110,10 +111,8 @@ public class S3Storage : IS3Storage
 
     //
 
-    public async Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<byte[]> ReadBytesAsync(string path, CancellationToken cancellationToken = default)
     {
-        _logger.LogTrace(nameof(ReadAllBytesAsync));
-
         S3Path.AssertFileName(path);
         path = S3Path.Combine(path);
 
@@ -133,8 +132,79 @@ public class S3Storage : IS3Storage
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to read object '{Path}' from bucket '{Bucket}': {Message}",
-                path, BucketName, ex.Message);
+            _logger.LogError(ex,
+                "Failed to read object '{Path}' from bucket '{Bucket}': {Message}", path, BucketName, ex.Message);
+            throw;
+        }
+        finally
+        {
+            await memoryStream.DisposeAsync();
+        }
+    }
+
+    //
+
+    public async Task<byte[]> ReadBytesAsync(string path, long offset, long length, CancellationToken cancellationToken = default)
+    {
+        if (offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative");
+        }
+
+        if (length < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Length must be greater than 0");
+        }
+
+        if (length == long.MaxValue)
+        {
+            length -= offset;
+        }
+
+        S3Path.AssertFileName(path);
+        path = S3Path.Combine(path);
+
+        // SEB:NOTE We need to check if the requested range is valid before reading the object.
+        // Hopefully minio will fix this so we don't need the extra roundtrip.
+        // Github issue: https://github.com/minio/minio-dotnet/issues/1309
+        var statArgs = new StatObjectArgs()
+            .WithBucket(BucketName)
+            .WithObject(path);
+
+        var objectStat = await _minioClient.StatObjectAsync(statArgs, cancellationToken);
+        var objectSize = objectStat.Size;
+
+        if (offset >= objectSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset is greater than the size of the object");
+        }
+
+        var maxAvailableLength = objectSize - offset;
+        if (length > maxAvailableLength)
+        {
+            length = maxAvailableLength;
+        }
+
+        var memoryStream = new MemoryStream();
+        try
+        {
+            var getArgs = new GetObjectArgs()
+                .WithBucket(BucketName)
+                .WithObject(path)
+                .WithOffsetAndLength(offset, length)
+                .WithCallbackStream(async (stream, ct) =>
+                {
+                    await stream.CopyToAsync(memoryStream, ct);
+                });
+
+            await _minioClient.GetObjectAsync(getArgs, cancellationToken);
+            return memoryStream.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to read object '{Path}' from bucket '{Bucket}' with offset {Offset} and length {Length}: {Message}",
+                path, BucketName, offset, length, ex.Message);
             throw;
         }
         finally

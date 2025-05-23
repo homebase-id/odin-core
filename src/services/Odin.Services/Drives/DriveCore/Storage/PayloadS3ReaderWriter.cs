@@ -22,7 +22,7 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            await s3PayloadsStorage.WriteAllBytesAsync(filePath, bytes, cancellationToken);
+            await s3PayloadsStorage.WriteBytesAsync(filePath, bytes, cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -102,6 +102,38 @@ public class PayloadS3ReaderWriter(
         try
         {
             await s3PayloadsStorage.UploadFileAsync(srcFilePath, dstFilePath, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
+    }
+
+    //
+
+    public async Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await s3PayloadsStorage.ReadBytesAsync(filePath, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
+    }
+
+    //
+
+    public async Task<byte[]> GetFileBytesAsync(
+        string filePath,
+        long start,
+        long length,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await s3PayloadsStorage.ReadBytesAsync(filePath, start, length, cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

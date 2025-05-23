@@ -288,96 +288,90 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return await payloadReaderWriter.FileExistsAsync(path);
         }
 
-        public async Task<Stream> GetPayloadStream(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
+        public async Task<Stream> GetPayloadStreamAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
         {
-            var result = await Benchmark.MillisecondsAsync(logger, "GetPayloadStream", async () => await Execute());
-            return result;
+            var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
+            logger.LogDebug("Get Chunked Stream called on file [{path}]", path);
 
-            async Task<Stream> Execute()
+            if (chunk == null)
             {
-                var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
-                logger.LogDebug("Get Chunked Stream called on file [{path}]", path);
-
-                Stream fileStream;
                 try
                 {
-                    fileStream = payloadReaderWriter.OpenStreamForReadingXYZ(path);
-                    logger.LogDebug("File size: {size} bytes", fileStream.Length);
+                    var bytes = await payloadReaderWriter.GetFileBytesAsync(path);
+                    return new MemoryStream(bytes);
                 }
-                catch (IOException io)
+                catch (Exception e)
                 {
-                    if (io is FileNotFoundException || io is DirectoryNotFoundException)
-                    {
-                        throw new OdinFileHeaderHasCorruptPayloadException(
-                            $"Missing payload file [path:{path}] for key {descriptor.Key} with uid: {descriptor.Uid.uniqueTime}");
-                    }
-
+                    logger.LogError(e, "Failed to get payload stream for file {path}", path);
                     throw;
                 }
-
-                if (null != chunk)
-                {
-                    try
-                    {
-                        var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
-                        if (chunk.Start > fileStream.Length)
-                        {
-                            throw new OdinClientException("Chunk start position is greater than length",
-                                OdinClientErrorCode.InvalidChunkStart);
-                        }
-
-                        fileStream.Position = chunk.Start;
-                        var bytesRead = fileStream.Read(buffer);
-
-                        //resize if length requested was too large (happens if we hit the end of the stream)
-                        if (bytesRead < buffer.Length)
-                        {
-                            Array.Resize(ref buffer, bytesRead);
-                        }
-
-                        // return Task.FromResult((Stream)new MemoryStream(buffer, false));
-                        return new MemoryStream(buffer, false);
-                    }
-                    finally
-                    {
-                        await fileStream.DisposeAsync();
-                    }
-                }
-
-                return fileStream;
             }
+
+            Stream fileStream;
+            try
+            {
+                fileStream = payloadReaderWriter.OpenStreamForReadingXYZ(path);
+                logger.LogDebug("File size: {size} bytes", fileStream.Length);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed to get thumbnail stream for file {path}", path);
+                throw;
+            }
+
+            if (null != chunk)
+            {
+                try
+                {
+                    var buffer = new byte[Math.Min(chunk.Length, fileStream.Length)];
+                    if (chunk.Start > fileStream.Length)
+                    {
+                        throw new OdinClientException("Chunk start position is greater than length",
+                            OdinClientErrorCode.InvalidChunkStart);
+                    }
+
+                    fileStream.Position = chunk.Start;
+                    var bytesRead = fileStream.Read(buffer);
+
+                    //resize if length requested was too large (happens if we hit the end of the stream)
+                    if (bytesRead < buffer.Length)
+                    {
+                        Array.Resize(ref buffer, bytesRead);
+                    }
+
+                    // return Task.FromResult((Stream)new MemoryStream(buffer, false));
+                    return new MemoryStream(buffer, false);
+                }
+                finally
+                {
+                    await fileStream.DisposeAsync();
+                }
+            }
+
+            return fileStream;
         }
 
 
         /// <summary>
         /// Gets a read stream of the thumbnail
         /// </summary>
-        public Stream GetThumbnailStream(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
+        public async Task<Stream> GetThumbnailStreamAsync(StorageDrive drive, Guid fileId, int width, int height, string payloadKey,
             UnixTimeUtcUnique payloadUid)
         {
-            var result = Benchmark.Milliseconds(logger, "GetThumbnailStream", () =>
+            var fileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
+            var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+            var path = Path.Combine(dir, fileName);
+
+            try
             {
-                var fileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, width, height);
-                var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                var path = Path.Combine(dir, fileName);
-
-                try
-                {
-                    var fileStream = payloadReaderWriter.OpenStreamForReadingXYZ(path);
-                    return fileStream;
-                }
-                catch (IOException io)
-                {
-                    if (io is FileNotFoundException || io is DirectoryNotFoundException)
-                    {
-                        throw new OdinFileHeaderHasCorruptPayloadException(
-                            $"Missing thumbnail file [path:{path}] for key {payloadKey} with uid: {payloadUid.uniqueTime}");
-                    }
-
-                    throw;
-                }
-            });
-            return result;
+                var bytes = await payloadReaderWriter.GetFileBytesAsync(path);
+                return new MemoryStream(bytes);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed to get thumbnail stream for file {path}", path);
+                throw;
+            }
         }
 
         public async Task<List<RecipientTransferHistoryItem>> GetTransferHistory(Guid driveId, Guid fileId)

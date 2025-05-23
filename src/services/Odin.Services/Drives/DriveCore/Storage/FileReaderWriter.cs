@@ -115,33 +115,51 @@ public sealed class FileReaderWriter(
     {
         byte[] bytes = null;
 
-        try
-        {
-            await TryRetry.Create()
-                .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
-                .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
-                .ExecuteAsync(async () =>
-                {
-                    try
-                    {
-                        bytes = await File.ReadAllBytesAsync(filePath);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogDebug(e, "GetAllFileBytes (TryRetry) {message}", e.Message);
-                        throw;
-                    }
-                });
-        }
-        catch (TryRetryException e)
-        {
-            if (e.InnerException is FileNotFoundException or DirectoryNotFoundException)
+        await TryRetry.Create()
+            .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+            .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+            .ExecuteAsync(async () =>
             {
-                return null;
-            }
+                try
+                {
+                    bytes = await File.ReadAllBytesAsync(filePath);
+                }
+                catch (Exception e)
+                {
+                    logger.LogDebug(e, "GetAllFileBytes (TryRetry) {message}", e.Message);
+                    throw;
+                }
+            });
 
-            throw;
-        }
+        return bytes;
+    }
+
+    //
+
+    public async Task<byte[]> GetFileBytesAsync(string filePath, long offset, long length, CancellationToken cancellationToken = default)
+    {
+        byte[] bytes = null;
+
+        await TryRetry.Create()
+            .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
+            .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
+            .ExecuteAsync(async () =>
+            {
+                await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+                // Check if offset is valid
+                if (offset < 0 || offset > fileStream.Length)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(offset), "Offset is outside the file bounds.");
+                }
+
+                // Calculate the number of bytes to read
+                var bytesToRead = Math.Min(fileStream.Length - offset, length);
+
+                bytes = new byte[bytesToRead];
+                fileStream.Seek(offset, SeekOrigin.Begin);
+                await fileStream.ReadExactlyAsync(bytes, cancellationToken);
+            });
 
         return bytes;
     }
