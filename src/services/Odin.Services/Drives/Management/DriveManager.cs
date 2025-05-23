@@ -24,7 +24,7 @@ namespace Odin.Services.Drives.Management;
 /// <summary>
 /// Manages drive creation, metadata updates, and their overall definitions
 /// </summary>
-public class DriveManager : IDriveManager
+public class DriveManager
 {
     internal static readonly Guid DriveContextKey = Guid.Parse("4cca76c6-3432-4372-bef8-5f05313c0376");
     private static readonly ThreeKeyValueStorage DriveStorage = TenantSystemStorage.CreateThreeKeyValueStorage(DriveContextKey);
@@ -83,6 +83,7 @@ public class DriveManager : IDriveManager
         var mk = odinContext.Caller.GetMasterKey();
 
         StorageDrive storageDrive;
+        var id = Guid.NewGuid();
 
         // SEB:TODO does not scale
         using (await _createDriveLock.LockAsync())
@@ -94,8 +95,6 @@ public class DriveManager : IDriveManager
             }
 
             var driveKey = new SymmetricKeyEncryptedAes(mk);
-
-            var id = Guid.NewGuid();
             var storageKey = driveKey.DecryptKeyClone(mk);
 
             (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
@@ -125,6 +124,16 @@ public class DriveManager : IDriveManager
             _logger.LogDebug($"Created a new Drive - {storageDrive.TargetDriveInfo}");
             CacheDrive(storageDrive);
             _logger.LogDebug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
+            
+            try
+            {
+                // await _driveWithDedicatedTable.CreateDriveAsync(id, request, odinContext);
+                await _driveWithDedicatedTable.CreateDriveFromClassicDriveManagerAsync(sdb);
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, $"Failure while creating drive with {nameof(_driveWithDedicatedTable)}");
+            }
         }
 
         await _mediator.Publish(new DriveDefinitionAddedNotification
@@ -133,15 +142,6 @@ public class DriveManager : IDriveManager
             Drive = storageDrive,
             OdinContext = odinContext,
         });
-
-        try
-        {
-            await _driveWithDedicatedTable.CreateDriveAsync(request, odinContext);
-        }
-        catch (Exception e)
-        {
-            _logger.LogWarning(e, $"Failure while creating drive with {nameof(_driveWithDedicatedTable)}");
-        }
 
         return storageDrive;
     }
@@ -219,7 +219,7 @@ public class DriveManager : IDriveManager
                 OdinContext = odinContext
             });
         }
-        
+
         try
         {
             await _driveWithDedicatedTable.SetDriveAllowSubscriptionsAsync(driveId, allowSubscriptions, odinContext);
@@ -241,7 +241,7 @@ public class DriveManager : IDriveManager
         await DriveStorage.UpsertAsync(_tblKeyThreeValue, driveId, sdb.TargetDriveInfo.ToKey(), DriveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
-        
+
         try
         {
             await _driveWithDedicatedTable.UpdateMetadataAsync(driveId, metadata, odinContext);
@@ -261,7 +261,7 @@ public class DriveManager : IDriveManager
         await DriveStorage.UpsertAsync(_tblKeyThreeValue, driveId, sdb.TargetDriveInfo.ToKey(), DriveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
-        
+
         try
         {
             await _driveWithDedicatedTable.UpdateAttributesAsync(driveId, attributes, odinContext);
@@ -292,13 +292,47 @@ public class DriveManager : IDriveManager
 
         var drive = ToStorageDrive(sdb);
         CacheDrive(drive);
+
+        try
+        {
+            var theSecondaryDrive = await _driveWithDedicatedTable.GetDriveAsync(driveId, failIfInvalid);
+
+            if (!StorageDriveComparer.AreEqual(drive, theSecondaryDrive, out var difference))
+            {
+                _logger.LogWarning("Found differences between primary drive {d1} and the secondary drive {d1}.  Diffs are: {difference}",
+                    drive.Name, theSecondaryDrive.Name, difference);
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "Failure while calling _driveWithDedicatedTable.GetDriveAsync(driveId)");
+        }
+
         return drive;
     }
 
     public async Task<StorageDrive> GetDriveAsync(TargetDrive targetDrive, bool failIfInvalid = false)
     {
         var driveId = await GetDriveIdByAliasAsync(targetDrive, failIfInvalid);
-        return await GetDriveAsync(driveId.GetValueOrDefault(), failIfInvalid);
+        var drive =  await GetDriveAsync(driveId.GetValueOrDefault(), failIfInvalid);
+
+        try
+        {
+            var theSecondaryDrive = await _driveWithDedicatedTable.GetDriveAsync(targetDrive, failIfInvalid);
+
+            if (!StorageDriveComparer.AreEqual(drive, theSecondaryDrive, out var difference))
+            {
+                _logger.LogWarning("GetDriveAsync (by target drive) Found differences between primary drive {d1} and " +
+                                   "the secondary drive {d1}.  Diffs are: {difference}", 
+                    drive.Name, theSecondaryDrive.Name, difference);
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "Failure while calling _driveWithDedicatedTable.GetDriveAsync(targetDrive)");
+        }
+        
+        return drive;
     }
 
     public async Task<Guid?> GetDriveIdByAliasAsync(TargetDrive targetDrive, bool failIfInvalid = false)
@@ -337,6 +371,34 @@ public class DriveManager : IDriveManager
         var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+        
+        try
+        {
+            var theSecondaryList = await _driveWithDedicatedTable.GetDrivesAsync(pageOptions, odinContext);
+            var result = StorageDriveComparer.CompareLists(results.Results.ToList(), theSecondaryList.Results.ToList());
+            if (result.OnlyInFirst.Any() || result.OnlyInSecond.Any() || result.Mismatched.Any())
+            {
+                foreach (var d in result.OnlyInFirst)
+                    _logger.LogWarning($"Only in first list: {d.Id}");
+
+                foreach (var d in result.OnlyInSecond)
+                    _logger.LogWarning($"Only in second list: {d.Id}");
+
+                foreach (var (d1, d2, diffs) in result.Mismatched)
+                {
+                    _logger.LogWarning($"Mismatched ID {d1.Id}:");
+                    foreach (var diff in diffs)
+                    {
+                        _logger.LogWarning($"  - {diff}");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "Failure while calling _driveWithDedicatedTable.GetDrivesAsync");
+        }
+        
         return results;
 
         // return await this.GetDrivesInternal(true, pageOptions);
@@ -354,6 +416,34 @@ public class DriveManager : IDriveManager
         var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+        
+        try
+        {
+            var theSecondaryList = await _driveWithDedicatedTable.GetDrivesAsync(type, pageOptions, odinContext);
+            var result = StorageDriveComparer.CompareLists(results.Results.ToList(), theSecondaryList.Results.ToList());
+            if (result.OnlyInFirst.Any() || result.OnlyInSecond.Any() || result.Mismatched.Any())
+            {
+                foreach (var d in result.OnlyInFirst)
+                    _logger.LogWarning($"Only in first list: {d.Id}");
+
+                foreach (var d in result.OnlyInSecond)
+                    _logger.LogWarning($"Only in second list: {d.Id}");
+
+                foreach (var (d1, d2, diffs) in result.Mismatched)
+                {
+                    _logger.LogWarning($"Mismatched ID {d1.Id}:");
+                    foreach (var diff in diffs)
+                    {
+                        _logger.LogWarning($"  - {diff}");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "Failure while calling _driveWithDedicatedTable.GetDrivesAsync(type)");
+        }
+        
         return results;
     }
 
@@ -362,6 +452,35 @@ public class DriveManager : IDriveManager
         var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+        
+        try
+        {
+            var theSecondaryList = await _driveWithDedicatedTable.GetAnonymousDrivesAsync(pageOptions, odinContext);
+            var result = StorageDriveComparer.CompareLists(results.Results.ToList(), theSecondaryList.Results.ToList());
+            if (result.OnlyInFirst.Any() || result.OnlyInSecond.Any() || result.Mismatched.Any())
+            {
+                foreach (var d in result.OnlyInFirst)
+                    _logger.LogWarning($"Only in first list: {d.Id}");
+
+                foreach (var d in result.OnlyInSecond)
+                    _logger.LogWarning($"Only in second list: {d.Id}");
+
+                foreach (var (d1, d2, diffs) in result.Mismatched)
+                {
+                    _logger.LogWarning($"Mismatched ID {d1.Id}:");
+                    foreach (var diff in diffs)
+                    {
+                        _logger.LogWarning($"  - {diff}");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "Failure while calling _driveWithDedicatedTable.GetDrivesAsync(type)");
+        }
+
+        
         return results;
     }
 

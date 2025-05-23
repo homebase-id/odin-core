@@ -588,7 +588,7 @@ namespace Odin.Hosting
                     services.StartSystemBackgroundServices().BlockingWait();
                 }
 
-                if (Environment.GetCommandLineArgs().Contains("--migrate-drive-alias", StringComparer.OrdinalIgnoreCase))
+                if (Environment.GetCommandLineArgs().Contains("--migrate-drive-alias-phase-1", StringComparer.OrdinalIgnoreCase))
                 {
                     logger.LogInformation("Migrating drive alias phase 1");
                     var loggerFactory = services.GetRequiredService<ILoggerFactory>();

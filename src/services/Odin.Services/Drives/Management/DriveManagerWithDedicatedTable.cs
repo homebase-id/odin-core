@@ -54,7 +54,25 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         _tblKeyThreeValue = tblKeyThreeValue;
     }
 
-    public async Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
+    public async Task<StorageDrive> CreateDriveFromClassicDriveManagerAsync(StorageDriveBase storageDriveBase)
+    {
+        OdinValidationUtils.AssertIsValidTargetDriveValue(storageDriveBase.TargetDriveInfo);
+        var record = FromStorageDriveBase(storageDriveBase);
+        var affectedCount = await _tableDriveDefinitions.InsertAsync(record);
+
+        if (affectedCount != 1)
+        {
+            throw new OdinSystemException($"Failed to migrate drive {storageDriveBase.Name}");
+        }
+        
+        var storageDrive = ToStorageDrive(record);
+        storageDrive.EnsureDirectories();
+        CacheDrive(storageDrive);
+
+        return storageDrive;
+    }
+
+    public async Task<StorageDrive> CreateDriveAsync(Guid driveId, CreateDriveRequest request, IOdinContext odinContext)
     {
         if (string.IsNullOrEmpty(request?.Name))
         {
@@ -79,7 +97,8 @@ public class DriveManagerWithDedicatedTable : IDriveManager
 
         var driveKey = new SymmetricKeyEncryptedAes(mk);
 
-        var id = request.TargetDrive.Alias.Value;
+        // var id = request.TargetDrive.Alias.Value;
+        var id = driveId;
         var storageKey = driveKey.DecryptKeyClone(mk);
 
         (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);
@@ -297,39 +316,8 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         var oldDrives = await DriveStorage.GetByCategoryAsync<StorageDriveBase>(_tblKeyThreeValue, DriveManager.DriveDataType);
         foreach (var oldDrive in oldDrives)
         {
-            var driveData = new StorageDriveDetails()
-            {
-                TargetDriveInfo = oldDrive.TargetDriveInfo,
-                Metadata = oldDrive.Metadata,
-                AllowAnonymousReads = oldDrive.AllowAnonymousReads,
-                AllowSubscriptions = oldDrive.AllowSubscriptions,
-                OwnerOnly = oldDrive.OwnerOnly,
-                Attributes = oldDrive.Attributes
-            };
-
-            var record = new DriveDefinitionsRecord
-            {
-                DriveId = oldDrive.Id,
-                DriveName = oldDrive.Name,
-                DriveType = oldDrive.TargetDriveInfo.Type.Value,
-                TempDriveAlias = oldDrive.TargetDriveInfo.Alias.Value,
-                MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(oldDrive.MasterKeyEncryptedStorageKey),
-                EncryptedIdIv64 = oldDrive.EncryptedIdIv.ToBase64(),
-                EncryptedIdValue64 = oldDrive.EncryptedIdValue.ToBase64(),
-                detailsJson = OdinSystemSerializer.Serialize(driveData),
-
-                created = default,
-                modified = null
-            };
-
+            await CreateDriveFromClassicDriveManagerAsync(oldDrive);
             _logger.LogInformation("Copying drive {name}", oldDrive.Name);
-            var affectedCount = await _tableDriveDefinitions.InsertAsync(record);
-
-            if (affectedCount != 1)
-            {
-                throw new OdinSystemException($"Failed to migrate drive {oldDrive.Name}");
-            }
-            
             count++;
         }
 
@@ -337,6 +325,34 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     }
 
     //
+
+    private static DriveDefinitionsRecord FromStorageDriveBase(StorageDriveBase oldDrive)
+    {
+        var driveData = new StorageDriveDetails()
+        {
+            TargetDriveInfo = oldDrive.TargetDriveInfo,
+            Metadata = oldDrive.Metadata,
+            AllowAnonymousReads = oldDrive.AllowAnonymousReads,
+            AllowSubscriptions = oldDrive.AllowSubscriptions,
+            OwnerOnly = oldDrive.OwnerOnly,
+            Attributes = oldDrive.Attributes
+        };
+
+        var record = new DriveDefinitionsRecord
+        {
+            DriveId = oldDrive.Id,
+            DriveName = oldDrive.Name,
+            DriveType = oldDrive.TargetDriveInfo.Type.Value,
+            TempDriveAlias = oldDrive.TargetDriveInfo.Alias.Value,
+            MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(oldDrive.MasterKeyEncryptedStorageKey),
+            EncryptedIdIv64 = oldDrive.EncryptedIdIv.ToBase64(),
+            EncryptedIdValue64 = oldDrive.EncryptedIdValue.ToBase64(),
+            detailsJson = OdinSystemSerializer.Serialize(driveData),
+        };
+
+        return record;
+    }
+
 
     private async Task<StorageDrive> GetDriveInternal(Guid driveId)
     {
@@ -368,6 +384,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             DriveId = storageDrive.Id,
             DriveName = storageDrive.Name,
             DriveType = storageDrive.TargetDriveInfo.Type.Value,
+            TempDriveAlias = storageDrive.TargetDriveInfo.Alias.Value,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDrive.MasterKeyEncryptedStorageKey),
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),

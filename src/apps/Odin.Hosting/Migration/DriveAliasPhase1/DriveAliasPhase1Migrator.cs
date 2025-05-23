@@ -35,23 +35,36 @@ public static class DriveAliasPhase1Migrator
 
             logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}", tenant.PrimaryDomainName, count);
 
+            //
             // validate all drives are exactly copied
+            //
 
             var odinContext = CreateOdinContext(tenantContext);
             var oldDriveManger = scope.Resolve<DriveManagerWithDedicatedTable>();
             var oldDrivesPage = await oldDriveManger.GetDrivesAsync(PageOptions.All, odinContext);
             var newDrivesPage = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
 
-            var oldDrives = oldDrivesPage.Results.OrderBy(d => d.Id).ToList();
-            var newDrives = newDrivesPage.Results.OrderBy(d => d.Id).ToList();
-
-            var oldJson = OdinSystemSerializer.Serialize(oldDrives);
-            var newJson = OdinSystemSerializer.Serialize(newDrives);
-
-            if (newJson != oldJson)
+            var result = StorageDriveComparer.CompareLists(oldDrivesPage.Results.ToList(), newDrivesPage.Results.ToList());
+            if (result.OnlyInFirst.Any() || result.OnlyInSecond.Any() || result.Mismatched.Any())
             {
-                throw new OdinSystemException("Failed to migrate drives; Serialized Json does not match");
+                foreach (var d in result.OnlyInFirst)
+                    logger.LogError($"Only in first list: {d.Id}");
+
+                foreach (var d in result.OnlyInSecond)
+                    logger.LogError($"Only in second list: {d.Id}");
+
+                foreach (var (d1, d2, diffs) in result.Mismatched)
+                {
+                    logger.LogError($"Mismatched ID {d1.Id}:");
+                    foreach (var diff in diffs)
+                        logger.LogError($"  - {diff}");
+                }
+
+                throw new OdinSystemException($"Failure during drive migration for tenant {tenant.PrimaryDomainName}");
             }
+
+            logger.LogInformation("Migrating drive success for {t}; all drives are equivalent", tenant.PrimaryDomainName);
+
 
             tx.Commit();
         }
