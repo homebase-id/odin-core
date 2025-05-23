@@ -23,7 +23,7 @@ public static class StorageDriveComparer
             return diffs;
         }
 
-        // if (drive1.Id != drive2.Id) diffs.Add("Id differs");
+        if (drive1.Id != drive2.Id) diffs.Add("Id differs");
 
         if (drive1.Name != drive2.Name) diffs.Add("Name differs");
         if (!Equals(drive1.TargetDriveInfo, drive2.TargetDriveInfo)) diffs.Add("TargetDriveInfo differs");
@@ -31,9 +31,9 @@ public static class StorageDriveComparer
         if (drive1.IsReadonly != drive2.IsReadonly) diffs.Add("IsReadonly differs");
         if (drive1.AllowSubscriptions != drive2.AllowSubscriptions) diffs.Add("AllowSubscriptions differs");
         
-        // if (!Equals(drive1.MasterKeyEncryptedStorageKey, drive2.MasterKeyEncryptedStorageKey)) diffs.Add("MasterKeyEncryptedStorageKey differs");
-        // if (!ByteArrayEquals(drive1.EncryptedIdIv, drive2.EncryptedIdIv)) diffs.Add("EncryptedIdIv differs");
-        // if (!ByteArrayEquals(drive1.EncryptedIdValue, drive2.EncryptedIdValue)) diffs.Add("EncryptedIdValue differs");
+        if (!Equals(drive1.MasterKeyEncryptedStorageKey, drive2.MasterKeyEncryptedStorageKey)) diffs.Add("MasterKeyEncryptedStorageKey differs");
+        if (!ByteArrayEquals(drive1.EncryptedIdIv, drive2.EncryptedIdIv)) diffs.Add("EncryptedIdIv differs");
+        if (!ByteArrayEquals(drive1.EncryptedIdValue, drive2.EncryptedIdValue)) diffs.Add("EncryptedIdValue differs");
         
         if (drive1.AllowAnonymousReads != drive2.AllowAnonymousReads) diffs.Add("AllowAnonymousReads differs");
         if (drive1.OwnerOnly != drive2.OwnerOnly) diffs.Add("OwnerOnly differs");
