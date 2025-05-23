@@ -72,7 +72,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task WriteFileAsync_ShouldWriteFile()
+    public async Task PayloadFile_WriteFileAsync_ShouldWriteFile()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -94,7 +94,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task DeleteFileAsync_ShouldDeleteFile()
+    public async Task PayloadFile_DeleteFileAsync_ShouldDeleteFile()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -116,7 +116,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task FileExistsAsync_ShouldCheckIfFileExists()
+    public async Task PayloadFile_FileExistsAsync_ShouldCheckIfFileExists()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -140,7 +140,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task MoveFileAsync_ShouldMoveTheFile()
+    public async Task PayloadFile_MoveFileAsync_ShouldMoveTheFile()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -173,7 +173,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public Task MoveFileAsync_ShouldThrowOnMissingSrcFile()
+    public Task PayloadFile_MoveFileAsync_ShouldThrowOnMissingSrcFile()
     {
         var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
 
@@ -188,7 +188,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithoutFileMask()
+    public async Task PayloadFile_GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithoutFileMask()
     {
         var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
 
@@ -207,7 +207,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task CreateDirectoryAsync_ShouldCreateDirectory()
+    public async Task PayloadFile_CreateDirectoryAsync_ShouldCreateDirectory()
     {
         var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/sam");
         var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
@@ -218,7 +218,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task CopyPayloadFileAsync_ShouldCopyFileToPayloads()
+    public async Task PayloadFile_CopyPayloadFileAsync_ShouldCopyFileToPayloads()
     {
         var srcFile = Path.Combine(TestRootPath, "file1.foo");
         CreateFile(srcFile);
@@ -241,7 +241,7 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task GetFileBytesAsync_ShouldReadFile()
+    public async Task PayloadFile_GetFileBytesAsync_ShouldReadFile()
     {
         var filePath = Path.Combine(TestRootPath, "file.txt");
         var input = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };

@@ -126,7 +126,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task WriteFileAsync_ShouldWriteFile()
+    public async Task PayloadS3_WriteFileAsync_ShouldWriteFile()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -150,7 +150,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task DeleteFileAsync_ShouldDeleteFile()
+    public async Task PayloadS3_DeleteFileAsync_ShouldDeleteFile()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -181,7 +181,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task FileExistsAsync_ShouldCheckIfFileExists()
+    public async Task PayloadS3_FileExistsAsync_ShouldCheckIfFileExists()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -211,7 +211,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task MoveFileAsync_ShouldMoveTheFile()
+    public async Task PayloadS3_MoveFileAsync_ShouldMoveTheFile()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
@@ -252,7 +252,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public Task MoveFileAsync_ShouldThrowOnMissingSrcFile()
+    public Task PayloadS3_MoveFileAsync_ShouldThrowOnMissingSrcFile()
     {
         var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
 
@@ -267,7 +267,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task GetFilesInDirectoryAsync_ShouldGetFilesInDirectory()
+    public async Task PayloadS3_GetFilesInDirectoryAsync_ShouldGetFilesInDirectory()
     {
         var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
 
@@ -288,7 +288,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task CreateDirectoryAsync_ShouldCreateDirectory()
+    public async Task PayloadS3_CreateDirectoryAsync_ShouldCreateDirectory()
     {
         var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/sam");
         var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
@@ -299,7 +299,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task CopyPayloadFileAsync_ShouldCopyFileToPayloads()
+    public async Task PayloadS3_CopyPayloadFileAsync_ShouldCopyFileToPayloads()
     {
         var srcFile = Path.Combine(TestRootPath, "file1.foo");
         CreateFile(srcFile);
@@ -322,7 +322,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task GetFileBytesAsync_ShouldGetBytes()
+    public async Task PayloadS3_GetFileBytesAsync_ShouldGetBytes()
     {
         var driveId = Guid.NewGuid();
         var fileId = Guid.NewGuid();
