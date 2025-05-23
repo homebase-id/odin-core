@@ -238,7 +238,35 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
         Assert.That(exists, Is.True);
     }
 
+    //
 
+    [Test]
+    public async Task GetFileBytesAsync_ShouldReadFile()
+    {
+        var filePath = Path.Combine(TestRootPath, "file.txt");
+        var input = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        await File.WriteAllBytesAsync(filePath, input);
 
+        var rw = new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object);
 
+        {
+            var bytes = await rw.GetFileBytesAsync(filePath, 0, input.Length);
+            Assert.That(bytes, Is.EqualTo(input));
+        }
+
+        {
+            var bytes = await rw.GetFileBytesAsync(filePath, 0, long.MaxValue);
+            Assert.That(bytes, Is.EqualTo(input));
+        }
+
+        {
+            var bytes = await rw.GetFileBytesAsync(filePath, 1, input.Length - 2);
+            Assert.That(bytes, Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }));
+        }
+
+        {
+            var bytes = await rw.GetFileBytesAsync(filePath, 1, 1);
+            Assert.That(bytes, Is.EqualTo(new byte[] { 1 }));
+        }
+    }
 }
