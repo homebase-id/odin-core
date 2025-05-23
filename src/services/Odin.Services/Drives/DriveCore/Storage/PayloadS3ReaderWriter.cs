@@ -143,9 +143,4 @@ public class PayloadS3ReaderWriter(
 
     //
 
-    public Stream OpenStreamForReadingXYZ(string filePath)
-    {
-        throw new System.NotImplementedException();
-    }
-
 }
