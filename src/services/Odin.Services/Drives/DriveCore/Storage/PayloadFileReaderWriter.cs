@@ -172,9 +172,4 @@ public class PayloadFileReaderWriter(
 
     //
 
-    public Stream OpenStreamForReadingXYZ(string filePath)
-    {
-        throw new System.NotImplementedException();
-    }
-
 }
