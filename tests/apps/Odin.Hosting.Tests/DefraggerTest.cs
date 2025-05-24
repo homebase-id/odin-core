@@ -86,22 +86,14 @@ public class DefraggerTest
     public async Task DefragDriveTest()
     {
         var ownerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        var drives = (await ownerClient.DriveManager.GetDrives(1, 200)).Content.Results;
+        var t = await ownerClient.DriveManager.GetDrives();
+        var drives = t.Content.Results;
 
-        await LoadFiles();
         foreach (var drive in drives)
         {
             // this calls to the server and on the server side you will perform the defrag
             // doing it this way ensures all context and all services are setup correclty
             await ownerClient.DriveManager.Defrag(drive.TargetDriveInfo);
         }
-    }
-
-    private async Task LoadFiles()
-    {
-
-        //TODO: 
-        await Task.CompletedTask;
-
     }
 }

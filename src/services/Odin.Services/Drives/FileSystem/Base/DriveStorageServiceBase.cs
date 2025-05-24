@@ -1605,7 +1605,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+<<<<<<< Updated upstream
         private async Task<List<string>> GetMissingPayloadsAsync(FileMetadata metadata)
+=======
+<<<<<<< Updated upstream
+        private async Task AssertPayloadsExistOnFileSystem(FileMetadata metadata)
+=======
+        public async Task<List<string>> GetMissingPayloadsAsync(FileMetadata metadata)
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
         {
             var missingPayloads = new List<string>();
             var drive = await DriveManager.GetDriveAsync(metadata.File.DriveId);
