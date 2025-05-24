@@ -3,75 +3,222 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using AngleSharp.Css.Dom;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
-using Odin.Core.Exceptions;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Time;
-using Odin.Core.Util;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
-using Odin.Services.Drives.DriveCore.Storage;
-
-#if false
 
 namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 {
     public class Defragmenter(
         ILogger<Defragmenter> logger,
-        IDriveManager driveManager,
-        DriveFileReaderWriter driveFileReaderWriter)
+        DriveManager driveManager,
+        LongTermStorageManager longTermStorageManager,
+        TenantContext tenantContext
+        )
     {
+        private TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
-        public static Guid RestoreFileIdFromDiskString(string fileId)
+        // Copied from another class
+        private async Task<List<string>> GetMissingPayloadsAsync(FileMetadata metadata)
         {
-            if (fileId.Length != 32)
-                throw new ArgumentException("Invalid fileId length for restoration; expected 32 characters.");
+            var missingPayloads = new List<string>();
+            var drive = await driveManager.GetDriveAsync(metadata.File.DriveId);
 
-            // Convert hex string to byte array (2 chars = 1 byte)
-            byte[] bytes = Enumerable.Range(0, 16)
-                .Select(i => Convert.ToByte(fileId.Substring(i * 2, 2), 16))
-                .ToArray();
+            // special exception *eye roll*.  really need to root this feed thing out of the core
+            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+            {
+                return missingPayloads;
+            }
 
-            return new Guid(bytes);
+            var fileId = metadata.File.FileId;
+            foreach (var payloadDescriptor in metadata.Payloads ?? [])
+            {
+                bool payloadExists = await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payloadDescriptor);
+                if (!payloadExists)
+                {
+                    missingPayloads.Add(TenantPathManager.GetPayloadFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid));
+                }
+
+                foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
+                {
+                    var thumbExists = await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
+                    if (!thumbExists)
+                    {
+                        missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid, thumbnailDescriptor.PixelWidth,
+                            thumbnailDescriptor.PixelHeight));
+                    }
+                }
+            }
+
+            return missingPayloads;
         }
 
-        public async Task VerifyFolder(StorageDrive drive, string folderPath, IDriveFileSystem fs, IOdinContext odinContext)
+        private bool HasHeaderPayload(FileMetadata header, ParsedPayloadFileRecord fileRecord)
         {
-            var files = GetFilesInDirectory(folderPath, "*.*", 24);
+            if (header.File.FileId != fileRecord.FileId)
+                return false;
 
-            var fileIds = files
-                .Select(f => Path.GetFileNameWithoutExtension(f).Split(TenantPathManager.PayloadDelimiter)[0])
-                .Distinct()
-                .Select(f => Guid.TryParse(RestoreFileIdFromDiskString(f).ToString(), out var guid) ? guid : (Guid?)null)
-                .Where(g => g.HasValue)
-                .Select(g => g.Value)
-                .ToList();
+            foreach (var record in header.Payloads)
+                if ((record.Key == fileRecord.Key) && (record.Uid.uniqueTime == fileRecord.Uid.uniqueTime))
+                    return true;
 
-            foreach (var fileId in fileIds)
+            return false;
+        }
+
+
+        private bool HasHeaderThumbnail(FileMetadata header, ParsedThumbnailFileRecord fileRecord)
+        {
+            if (header.File.FileId != fileRecord.FileId)
+                return false;
+
+            foreach (var record in header.Payloads)
+                if ((record.Key == fileRecord.Key) && (record.Uid.uniqueTime == fileRecord.Uid.uniqueTime))
+                    foreach (var thumbnail in record.Thumbnails)
+                        if (thumbnail.PixelWidth == fileRecord.Width && thumbnail.PixelHeight == fileRecord.Height)
+                            return true;
+
+            return false;
+        }
+
+        public async Task<FileMetadata> GetHeader(Dictionary<Guid,FileMetadata> cache, Guid driveId, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
+        {
+            if (cache.ContainsKey(fileId))
             {
-                // var header = await GetServerFileHeader(drive, fileId, fst);
-                var file = GetInternalFile(drive, fileId);
-                var header = await fs.Storage.GetServerFileHeader(file, odinContext);
+                return cache[fileId]; // May return null, which means the recond wasn't in the DB
+            }
 
-                if (header == null)
+            var header = await fs.Storage.GetServerFileHeader(new InternalDriveFileId(driveId, fileId), odinContext);
+            if (header == null)
+                cache.Add(fileId, null);
+            else
+                cache.Add(fileId, header.FileMetadata);
+            return cache[fileId];
+        }
+
+
+        public async Task VerifyFolder(Guid driveId, IDriveFileSystem fs, IOdinContext odinContext)
+        {
+            var headerCache = new Dictionary<Guid, FileMetadata>();
+
+            var rootpath = _tenantPathManager.GetDrivePayloadPath(driveId);
+
+            for (int first = 0; first < 16; first++)
+            {
+                for (int second = 0; second < 16; second++)
                 {
-                    // We have a file on disk with no corresponding entry in the DB
-                    // We should probably rename it ...
+                    var nibblepath = Path.Combine(first.ToString("x"), second.ToString("x"));
+                    var dirpath = Path.Combine(rootpath, nibblepath);
+                    var files = GetFilesInDirectory(dirpath, "*.*", 24);
+
+                    if (files == null)
+                        continue;
+
+                    foreach (var file in files)
+                    {
+                        var fileType = TenantPathManager.ParseFileType(file);
+                        Guid fileId = Guid.Empty;
+                        ParsedPayloadFileRecord parsedFile = null;
+                        ParsedThumbnailFileRecord parsedThumb = null;
+
+                        switch (fileType)
+                        {
+                            case TenantPathManager.FileType.Payload:
+                                parsedFile = TenantPathManager.ParsePayloadFilename(file);
+                                fileId = parsedFile.FileId;
+                                break;
+                            case TenantPathManager.FileType.Thumbnail:
+                                parsedThumb = TenantPathManager.ParseThumbnailFilename(file);
+                                fileId = parsedThumb.FileId;
+                                break;
+                            case TenantPathManager.FileType.Invalid:
+                                logger.LogDebug($"Invalid file {file} in {dirpath}");
+                                continue;
+                        }
+
+                        if (TenantPathManager.GetPayloadDirectoryFromGuid(fileId) != nibblepath)
+                        {
+                            logger.LogDebug($"File placed in incorrect directory {file} in {dirpath}");
+                            continue;
+                        }
+
+                        var header = await GetHeader(headerCache, driveId, fileId, fs, odinContext);
+
+                        if (header == null)
+                        {
+                            logger.LogDebug($"FileId {fileId} is on disk but not in database, delete.");
+                            // Delete (move) this file
+                            continue;
+                        }
+
+                        if (fileType == TenantPathManager.FileType.Payload)
+                        {
+                            if (!HasHeaderPayload(header, parsedFile))
+                            {
+                                logger.LogDebug($"File {file} is not present in the header, marked for deletion");
+                                // Move for deletion
+                                continue;
+                            }
+                        }
+
+                        if (fileType == TenantPathManager.FileType.Thumbnail)
+                        {
+                            if (!HasHeaderThumbnail(header, parsedThumb))
+                            {
+                                logger.LogDebug($"Thumb {file} is not present in the database header, marked for deletion");
+                                // Move for deletion
+                                continue;
+                            }
+                        }
+
+                    }
+
                 }
             }
         }
 
+
         /// <summary>
-        /// Queries all files on the drive and defrags
+        /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task DefragDrive(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task Defragment(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext)
+        {
+            var driveId = targetDrive.Alias;
+
+            await CheckDriveFileIntegrity(targetDrive, fs, odinContext);
+
+
+            await VerifyFolder(driveId, fs, odinContext);
+
+            // VerifyInbox()...
+        }
+
+        private async Task FakeIt(IDriveFileSystem fs, IOdinContext odinContext)
+        {
+            OdinConfiguration config = new OdinConfiguration()
+            {
+                Host = new OdinConfiguration.HostSection()
+                {
+                    TenantDataRootPath = "c:\\temp\\odin\\"
+                }
+            };
+
+            // Fake Michael's identity
+            var fakePathManager = new TenantPathManager(config, Guid.Parse("c1b588ba-8971-46e1-b8bd-105999fa8ddb"));
+
+            await VerifyFolder(Guid.Parse("35531928375d4bef8e250c419a8e870d"), fs, odinContext);
+        }
+
+        /// <summary>
+        /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
+        /// </summary>
+        public async Task CheckDriveFileIntegrity(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext)
         {
             var query = new FileQueryParams
             {
@@ -103,34 +250,82 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 Sorting = QueryBatchSortField.CreatedDate
             };
 
-            if (driveFileReaderWriter != null)
-                await Task.Delay(0); // NOP to avoid warning. Delete when class is finished
-
             var driveId = targetDrive.Alias;
             var storageDrive = await driveManager.GetDriveAsync(driveId);
 
             var batch = await fs.Query.GetBatch(driveId, query, options, odinContext);
 
-            logger.LogDebug("Defragmenting drive {driveName}.  File count: {fc}", storageDrive.Name, batch.SearchResults.Count());
-            
+            logger.LogDebug("Defragmenting drive {driveName}.  File count: {fc}", driveId, batch.SearchResults.Count());
+
             foreach (var header in batch.SearchResults)
             {
-                await this.DefragmentFileAsync(storageDrive, header.FileId, fs, odinContext);
+                var missing = await this.DefragmentFileAsync(storageDrive, header.FileId, fs, odinContext);
+                if (missing != null)
+                    logger.LogDebug(missing);
+
+                // Now check for orphaned files?
             }
         }
 
-        public async Task<bool> DefragmentFileAsync(StorageDrive drive, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
+        /// <summary>
+        /// Checks a file for payload integrity.
+        /// </summary>
+        /// <returns>null if file is complete, otherwise returns string of missing payloads / thumbnails</returns>
+        public async Task<string> DefragmentFileAsync(StorageDrive drive, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
         {
-            // var header = await GetServerFileHeader(drive, fileId, fst);
-            var file = GetInternalFile(drive, fileId);
+            var file = new InternalDriveFileId(drive.Id, fileId);
             var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
+            var sl = await CheckPayloadsIntegrity(drive, header);
 
-            // XXX DriveStorageServiceBase.AssertPayloadsExistOnFileSystem(FileMetadata metadata)
+            if (sl != null)
+                return $"The following files are missing: {string.Join(",", sl)}";
 
-            // XXX var ops = OrphanTestUtils.GetOrphanedPayloads()
+            return null;
+        }
 
-            return true;
+        /// <summary>
+        /// Returns null if file is OK, otherwise returns the list of missing payloads / thumbnails as full filename plus directory
+        /// </summary>
+        private async Task<List<string>> CheckPayloadsIntegrity(StorageDrive drive, ServerFileHeader header)
+        {
+            var fileId = header.FileMetadata.File.FileId;
+            var payloads = header.FileMetadata.Payloads;
+            var sl = new List<string>();
+
+            // Future improvement: Compare byte-sizes in header to bytes on disk
+
+            foreach (var payload in payloads)
+            {
+                if (!await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payload))
+                    sl.Add(tenantContext.TenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid));
+
+                foreach (var thumb in payload.Thumbnails ?? [])
+                {
+                    if (!await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payload, thumb))
+                        sl.Add(tenantContext.TenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid, thumb.PixelWidth, thumb.PixelHeight));
+                }
+            }
+
+            if (sl.Count > 0)
+                return sl;
+            else
+                return null;
+        }
+
+        private void CleanOrphanedPayloadsAndThumbnails(StorageDrive drive, ServerFileHeader header)
+        {
+            var fileId = header.FileMetadata.File.FileId;
+            var payloads = header.FileMetadata.Payloads.ToList();
+
+            var payloadDir = tenantContext.TenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+            var searchPattern = OrphanTestUtil.GetPayloadSearchMask(fileId);
+            var orphans = GetFilesInDirectory(payloadDir, searchPattern, 24); // Get all files matching fileId-*-* but they must be at least 24 hours old
+
+            foreach (var orphan in orphans)
+            {
+                // File.Delete(tenantContext.TenantPathManager.GetPayloadDirectoryAndFileName(orphan drive, fileId, orphan.Key, orphan.Uid);
+            }
         }
 
         /// <summary>
@@ -141,9 +336,13 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         /// <param name="searchPattern"></param>
         /// <param name="minAgeHours"></param>
         /// <returns></returns>
-        public string[] GetFilesInDirectory(string dir, string searchPattern, int minAgeHours)
+        private string[] GetFilesInDirectory(string dir, string searchPattern, int minAgeHours)
         {
             var directory = new DirectoryInfo(dir);
+
+            if (directory.Exists == false)
+                return null; // Maybe create it...
+
             var files = directory.GetFiles(searchPattern)
                 .Where(f => f.CreationTimeUtc <= DateTime.UtcNow.AddHours(-minAgeHours))
                 .Select(f => f.FullName)
@@ -161,4 +360,3 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         }
     }
 }
-#endif

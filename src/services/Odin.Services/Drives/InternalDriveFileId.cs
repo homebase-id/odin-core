@@ -26,6 +26,12 @@ namespace Odin.Services.Drives
             FileId = fileId;
         }
 
+        public InternalDriveFileId(Guid driveId, Guid fileId)
+        {
+            DriveId = driveId;
+            FileId = fileId;
+        }
+
         public bool IsValid()
         {
             return DriveId != Guid.Empty && FileId != Guid.Empty;

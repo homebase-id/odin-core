@@ -16,14 +16,14 @@ namespace Odin.Services.Drives.FileSystem.Base;
 
 public record ParsedPayloadFileRecord
 {
-    public string Filename { get; set; } = "";
+    public Guid FileId { get; set; } = Guid.Empty;
     public string Key { get; init; }  = "";
     public UnixTimeUtcUnique Uid { get; init; }
 }
 
 public record ParsedThumbnailFileRecord
 {
-    public string Filename { get; set; } = "";
+    public Guid FileId { get; set; } = Guid.Empty;
     public string Key { get; init; } = "";
     public UnixTimeUtcUnique Uid { get; init; }
     public int Width { get; init; }
@@ -158,7 +158,7 @@ public class TenantPathManager
         return isMatch;
     }
 
-    internal static string GetPayloadDirectoryFromGuid(Guid fileId)
+    public static string GetPayloadDirectoryFromGuid(Guid fileId)
     {
         var (highNibble, lowNibble) = GuidHelper.GetLastTwoNibbles(fileId);
         return Path.Combine(highNibble.ToString(), lowNibble.ToString());
@@ -287,7 +287,7 @@ public class TenantPathManager
         var parts = filename.Split(TenantPathManager.PayloadDelimiter);
         return new ParsedPayloadFileRecord()
         {
-            Filename = parts[0],
+            FileId = Guid.Parse(parts[0]),
             Key = parts[1],
             Uid = new UnixTimeUtcUnique(long.Parse(parts[2]))
         };
@@ -313,11 +313,21 @@ public class TenantPathManager
 
         return new ParsedThumbnailFileRecord
         {
-            Filename = fileNameOnDisk,
+            FileId = Guid.Parse(fileNameOnDisk),
             Key = payloadKeyOnDisk,
             Uid = new UnixTimeUtcUnique(payloadUidOnDisk),
             Width = widthOnDisk,
             Height = heightOnDisk
         };
+    }
+
+    public enum FileType { Invalid, Payload, Thumbnail }
+
+    public static FileType ParseFileType(string filename)
+    {
+        if (string.IsNullOrEmpty(filename)) return FileType.Invalid;
+        if (filename.EndsWith(PayloadExtension)) return FileType.Payload;
+        if (filename.EndsWith(ThumbnailExtension)) return FileType.Thumbnail;
+        return FileType.Invalid;
     }
 }
