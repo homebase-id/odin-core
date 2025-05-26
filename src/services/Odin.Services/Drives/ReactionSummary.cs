@@ -82,7 +82,8 @@ public class ReactionContentPreview
     public void Validate()
     {
         if (ReactionContent?.Length > MaxReactionContentLength)
-            throw new OdinClientException($"Too large ReactionContentPreview length {ReactionContent.Length} in ReactionSummary max {MaxReactionContentLength}");
+            throw new OdinClientException(
+                $"Too large ReactionContentPreview length {ReactionContent.Length} in ReactionSummary max {MaxReactionContentLength}");
     }
 }
 
@@ -96,6 +97,7 @@ public class CommentPreview
     /// as the file referencing them so we only need the fileId
     /// </summary>
     public Guid FileId { get; set; }
+
     public string OdinId { get; set; }
 
     public string Content { get; set; }
@@ -121,10 +123,11 @@ public class CommentPreview
     public void Validate()
     {
         if (OdinId != null)
-            AsciiDomainNameValidator.AssertValidDomain( OdinId );  // Because it's not an OdinId we need to check
+            AsciiDomainNameValidator.AssertValidDomain(OdinId); // Because it's not an OdinId we need to check
 
         if (Content.Length > MaxContentLength)
-            throw new OdinClientException($"Too long Content length {Content.Length} in CommentPreview max {MaxContentLength}");
+            throw new OdinClientException($"Too long Content length {Content.Length} in CommentPreview max {MaxContentLength}",
+                OdinClientErrorCode.MaxContentLengthExceeded);
 
         if (Reactions != null)
         {
