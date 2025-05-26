@@ -84,7 +84,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task BucketShouldExist()
+    public async Task S3MinioStorage_BucketShouldExist()
     {
         var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
         var bucketExists = await bucket.BucketExistsAsync();
@@ -95,7 +95,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldReadAndWriteFile()
+    public async Task S3MinioStorage_ItShouldReadAndWriteFile()
     {
         const string path = "the-file";
         const string text = "test";
@@ -118,7 +118,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldReadAndWriteFileWithOffsetAndLength()
+    public async Task S3MinioStorage_ItShouldReadAndWriteFileWithOffsetAndLength()
     {
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
@@ -141,7 +141,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldReadAndWriteFileWithOffsetAndLengthMaxedOut()
+    public async Task S3MinioStorage_ItShouldReadAndWriteFileWithOffsetAndLengthMaxedOut()
     {
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
@@ -164,7 +164,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldThrowOnBadOffset()
+    public async Task S3MinioStorage_ItShouldThrowOnBadOffset()
     {
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
@@ -184,7 +184,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public void ItShouldThrowWhenWritingToFolder()
+    public void S3MinioStorage_ItShouldThrowWhenWritingToFolder()
     {
         const string path = "the-file/";
         const string text = "test";
@@ -198,7 +198,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldCheckFileExistence()
+    public async Task S3MinioStorage_ItShouldCheckFileExistence()
     {
         const string path = "the-file";
         const string text = "test";
@@ -217,7 +217,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldDeleteFile()
+    public async Task S3MinioStorage_ItShouldDeleteFile()
     {
         const string path = "the-file";
         const string text = "test";
@@ -235,7 +235,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldCopyFile()
+    public async Task S3MinioStorage_ItShouldCopyFile()
     {
         const string srcPath = "the-src-file";
         const string dstPath = "the-dst-file";
@@ -257,7 +257,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldMoveFile()
+    public async Task S3MinioStorage_ItShouldMoveFile()
     {
         const string srcPath = "the-src-file";
         const string dstPath = "the-dst-file";
@@ -278,7 +278,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldListFiles()
+    public async Task S3MinioStorage_ItShouldListFiles()
     {
         const string file0 = "file0";
         const string file1 = "parent/file1";
@@ -404,7 +404,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldUploadFile()
+    public async Task S3MinioStorage_ItShouldUploadFile()
     {
         const string srcPath = "the-src-file";
         const string dstPath = "the-dst-file";
@@ -425,7 +425,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task ItShouldDownloadFile()
+    public async Task S3MinioStorage_ItShouldDownloadFile()
     {
         const string srcPath = "the-src-file";
         const string dstPath = "the-dst-file";
