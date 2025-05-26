@@ -55,7 +55,7 @@ public class TableDriveDefinitions(
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var command = cn.CreateCommand();
-        command.CommandText = "UPDATE driveMainIndex SET driveId = @newDriveId WHERE identityId = @identityId AND @driveId = @oldDriveId";
+        command.CommandText = "UPDATE driveMainIndex SET driveId = @newDriveId WHERE identityId = @identityId AND driveId = @oldDriveId";
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
@@ -66,7 +66,7 @@ public class TableDriveDefinitions(
         p2.Value = odinIdentity.Id.ToByteArray();
 
         var p3 = command.CreateParameter();
-        p3.ParameterName = "@driveId";
+        p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
@@ -80,7 +80,7 @@ public class TableDriveDefinitions(
         
         await using var command = cn.CreateCommand();
         command.CommandText =
-            "UPDATE DriveLocalTagIndex SET driveId = @newDriveId WHERE identityId = @identityId AND @driveId = @oldDriveId";
+            "UPDATE DriveLocalTagIndex SET driveId = @newDriveId WHERE identityId = @identityId AND driveId = @oldDriveId";
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
@@ -91,7 +91,7 @@ public class TableDriveDefinitions(
         p2.Value = identityId.ToByteArray();
 
         var p3 = command.CreateParameter();
-        p3.ParameterName = "@driveId";
+        p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
@@ -104,7 +104,7 @@ public class TableDriveDefinitions(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
         await using var command = cn.CreateCommand();
-        command.CommandText = "UPDATE DriveAclIndex SET driveId = @newDriveId WHERE identityId = @identityId AND @driveId = @oldDriveId";
+        command.CommandText = "UPDATE DriveAclIndex SET driveId = @newDriveId WHERE identityId = @identityId AND driveId = @oldDriveId";
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
@@ -115,7 +115,7 @@ public class TableDriveDefinitions(
         p2.Value = identityId.ToByteArray();
 
         var p3 = command.CreateParameter();
-        p3.ParameterName = "@driveId";
+        p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
@@ -177,7 +177,7 @@ public class TableDriveDefinitions(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
         await using var command = cn.CreateCommand();
-        command.CommandText = "UPDATE DriveDefinitions SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @driveId";
+        command.CommandText = "UPDATE DriveDefinitions SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
@@ -188,7 +188,7 @@ public class TableDriveDefinitions(
         p2.Value = identityId.ToByteArray();
 
         var p3 = command.CreateParameter();
-        p3.ParameterName = "@driveId";
+        p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
 
         await command.ExecuteNonQueryAsync();
@@ -199,14 +199,14 @@ public class TableDriveDefinitions(
     private static async Task AssertUpdateSuccess(IConnectionWrapper cn, string tableName, Guid identityId, Guid oldDriveId)
     {
         await using var validateCommand = cn.CreateCommand();
-        validateCommand.CommandText = $"SELECT COUNT(*) FROM {tableName} WHERE identityId = @identityId AND driveId = @driveId";
+        validateCommand.CommandText = $"SELECT COUNT(*) FROM {tableName} WHERE identityId = @identityId AND driveId = @oldDriveId";
 
         var v1 = validateCommand.CreateParameter();
         v1.ParameterName = "@identityId";
         v1.Value = identityId.ToByteArray();
 
         var v2 = validateCommand.CreateParameter();
-        v2.ParameterName = "@driveId";
+        v2.ParameterName = "@oldDriveId";
         v2.Value = oldDriveId.ToByteArray();
 
         var count = await validateCommand.ExecuteScalarAsync();
