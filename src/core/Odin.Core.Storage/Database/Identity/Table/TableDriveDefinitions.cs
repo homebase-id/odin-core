@@ -29,12 +29,13 @@ public class TableDriveDefinitions(
     {
         return await base.GetByDriveTypeAsync(odinIdentity, driveType);
     }
-    
+
     public new async Task<int> InsertAsync(DriveDefinitionsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
+
     public new async Task<int> UpsertAsync(DriveDefinitionsRecord item)
     {
         item.identityId = odinIdentity;
@@ -60,14 +61,17 @@ public class TableDriveDefinitions(
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
         p1.Value = newDriveId.ToByteArray();
+        command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
         p2.ParameterName = "@identityId";
         p2.Value = odinIdentity.Id.ToByteArray();
+        command.Parameters.Add(p2);
 
         var p3 = command.CreateParameter();
         p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
 
         await command.ExecuteNonQueryAsync();
         await AssertUpdateSuccess(cn, "driveMainIndex", odinIdentity.Id, oldDriveId);
@@ -77,7 +81,7 @@ public class TableDriveDefinitions(
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
-        
+
         await using var command = cn.CreateCommand();
         command.CommandText =
             "UPDATE DriveLocalTagIndex SET driveId = @newDriveId WHERE identityId = @identityId AND driveId = @oldDriveId";
@@ -85,14 +89,17 @@ public class TableDriveDefinitions(
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
         p1.Value = newDriveId.ToByteArray();
+        command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
         p2.ParameterName = "@identityId";
         p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
 
         var p3 = command.CreateParameter();
         p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
 
         await command.ExecuteNonQueryAsync();
 
@@ -109,14 +116,17 @@ public class TableDriveDefinitions(
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
         p1.Value = newDriveId.ToByteArray();
+        command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
         p2.ParameterName = "@identityId";
         p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
 
         var p3 = command.CreateParameter();
         p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
 
         await command.ExecuteNonQueryAsync();
 
@@ -134,14 +144,17 @@ public class TableDriveDefinitions(
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
         p1.Value = newDriveId.ToByteArray();
+        command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
         p2.ParameterName = "@identityId";
         p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
 
         var p3 = command.CreateParameter();
         p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
 
         await command.ExecuteNonQueryAsync();
 
@@ -158,14 +171,17 @@ public class TableDriveDefinitions(
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
         p1.Value = newDriveId.ToByteArray();
+        command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
         p2.ParameterName = "@identityId";
         p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
 
         var p3 = command.CreateParameter();
         p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
 
         await command.ExecuteNonQueryAsync();
 
@@ -182,20 +198,23 @@ public class TableDriveDefinitions(
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
         p1.Value = newDriveId.ToByteArray();
+        command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
         p2.ParameterName = "@identityId";
         p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
 
         var p3 = command.CreateParameter();
         p3.ParameterName = "@oldDriveId";
         p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
 
         await command.ExecuteNonQueryAsync();
 
         await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
     }
-    
+
     private static async Task AssertUpdateSuccess(IConnectionWrapper cn, string tableName, Guid identityId, Guid oldDriveId)
     {
         await using var validateCommand = cn.CreateCommand();
@@ -204,10 +223,12 @@ public class TableDriveDefinitions(
         var v1 = validateCommand.CreateParameter();
         v1.ParameterName = "@identityId";
         v1.Value = identityId.ToByteArray();
+        validateCommand.Parameters.Add(v1);
 
         var v2 = validateCommand.CreateParameter();
         v2.ParameterName = "@oldDriveId";
         v2.Value = oldDriveId.ToByteArray();
+        validateCommand.Parameters.Add(v2);
 
         var count = await validateCommand.ExecuteScalarAsync();
         if (Convert.ToInt32(count) > 0)

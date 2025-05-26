@@ -603,6 +603,7 @@ namespace Odin.Hosting
                     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
                     var migrationLogger = loggerFactory.CreateLogger("Migration");
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+
                     DriveAliasMigrationPhase2.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
                 }
             });
