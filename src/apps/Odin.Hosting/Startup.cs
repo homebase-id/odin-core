@@ -595,19 +595,30 @@ namespace Odin.Hosting
                     var migrationLogger = loggerFactory.CreateLogger("Migration");
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
                     DriveAliasPhase1Migrator.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
+                    
+                    
+                    logger.LogInformation("Completed migrating drive alias phase 2.  You should now " +
+                                          "remove flag --migrate-drive-alias-phase-1 from docker-compose.yml " +
+                                          "and restart");
+                    lifetime.StopApplication();
                 }
                 
                 if (Environment.GetCommandLineArgs().Contains("--migrate-drive-alias-phase2", StringComparer.OrdinalIgnoreCase))
                 {
-                    logger.LogInformation("Migrating drive alias phase deuce ");
+                    logger.LogInformation("Migrating drive alias phase deuce");
                     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
                     var migrationLogger = loggerFactory.CreateLogger("Migration");
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
 
                     DriveAliasMigrationPhase2.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
+                    
+                    logger.LogInformation("Completed migrating drive alias phase 2.  You should now remove " +
+                                          "flag --migrate-drive-alias-phase2 from docker-compose.yml " +
+                                          "and restart.  Remember to update tenant services with right drive manager");
+                    lifetime.StopApplication();
                 }
             });
-
+            
             lifetime.ApplicationStopping.Register(() =>
             {
                 logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",

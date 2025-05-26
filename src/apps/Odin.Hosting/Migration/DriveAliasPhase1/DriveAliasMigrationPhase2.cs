@@ -70,30 +70,30 @@ public static class DriveAliasMigrationPhase2
     private static void RenameFolders(TenantPathManager pathManager, Guid oldDriveId, Guid driveAlias)
     {
         // payloads
-        var oldFolderPath = pathManager.GetDrivePayloadPath(oldDriveId);
-        var newFolderPath = pathManager.GetDrivePayloadPath(driveAlias);
+        var oldFolderPath = pathManager.GetDrivePayloadPath(oldDriveId).Replace(TenantPathManager.FilesFolder, "");
+        var newFolderPath = pathManager.GetDrivePayloadPath(driveAlias).Replace(TenantPathManager.FilesFolder, "");
 
-        EnsureMoved(newFolderPath, oldFolderPath);
-        
-        var oldUploadFolder = pathManager.GetDriveUploadPath(oldDriveId);
-        var newUploadFolder = pathManager.GetDriveUploadPath(driveAlias);
+        EnsureMoved(oldFolderPath, newFolderPath);
+
+        var oldUploadFolder = pathManager.GetDriveUploadPath(oldDriveId).Replace(TenantPathManager.UploadFolder, "");
+        var newUploadFolder = pathManager.GetDriveUploadPath(driveAlias).Replace(TenantPathManager.UploadFolder, "");
         EnsureMoved(oldUploadFolder, newUploadFolder);
-        
-        var oldInboxFolder = pathManager.GetDriveInboxPath(oldDriveId);
-        var newInboxFolder = pathManager.GetDriveInboxPath(driveAlias);
+
+        var oldInboxFolder = pathManager.GetDriveInboxPath(oldDriveId).Replace(TenantPathManager.InboxFolder, "");
+        var newInboxFolder = pathManager.GetDriveInboxPath(driveAlias).Replace(TenantPathManager.InboxFolder, "");
         EnsureMoved(oldInboxFolder, newInboxFolder);
 
-        void EnsureMoved(string s, string oldFolderPath1)
+        void EnsureMoved(string oldPath, string newPath)
         {
-            if (Directory.Exists(s))
+            if (Directory.Exists(newPath))
             {
                 // skip new folder
                 return;
             }
 
-            if (Directory.Exists(oldFolderPath1))
+            if (Directory.Exists(oldPath))
             {
-                Directory.Move(oldFolderPath1, s);
+                Directory.Move(oldPath, newPath!);
             }
         }
     }

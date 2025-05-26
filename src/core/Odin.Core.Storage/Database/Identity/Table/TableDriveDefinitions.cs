@@ -52,7 +52,7 @@ public class TableDriveDefinitions(
         return await base.GetByTargetDriveAsync(odinIdentity, driveAlias, driveType);
     }
 
-    public async Task Temp_MigrateDriveMainIndex(Guid oldDriveId, Guid newDriveId)
+    public async Task Temp_MigrateDriveMainIndex(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var command = cn.CreateCommand();
@@ -60,7 +60,7 @@ public class TableDriveDefinitions(
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
-        p1.Value = newDriveId.ToByteArray();
+        p1.Value = driveAlias.ToByteArray();
         command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
@@ -77,7 +77,7 @@ public class TableDriveDefinitions(
         await AssertUpdateSuccess(cn, "driveMainIndex", odinIdentity.Id, oldDriveId);
     }
 
-    public async Task Temp_MigrateDriveLocalTagIndex(Guid oldDriveId, Guid newDriveId)
+    public async Task Temp_MigrateDriveLocalTagIndex(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
@@ -88,7 +88,7 @@ public class TableDriveDefinitions(
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
-        p1.Value = newDriveId.ToByteArray();
+        p1.Value = driveAlias.ToByteArray();
         command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
@@ -103,10 +103,10 @@ public class TableDriveDefinitions(
 
         await command.ExecuteNonQueryAsync();
 
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
+        await AssertUpdateSuccess(cn, "DriveLocalTagIndex", identityId, oldDriveId);
     }
 
-    public async Task Temp_MigrateDriveAclIndex(Guid oldDriveId, Guid newDriveId)
+    public async Task Temp_MigrateDriveAclIndex(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
@@ -115,7 +115,7 @@ public class TableDriveDefinitions(
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
-        p1.Value = newDriveId.ToByteArray();
+        p1.Value = driveAlias.ToByteArray();
         command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
@@ -130,10 +130,10 @@ public class TableDriveDefinitions(
 
         await command.ExecuteNonQueryAsync();
 
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
+        await AssertUpdateSuccess(cn, "DriveAclIndex", identityId, oldDriveId);
     }
 
-    public async Task Temp_MigrateDriveTransferHistory(Guid oldDriveId, Guid newDriveId)
+    public async Task Temp_MigrateDriveTransferHistory(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
@@ -143,7 +143,7 @@ public class TableDriveDefinitions(
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
-        p1.Value = newDriveId.ToByteArray();
+        p1.Value = driveAlias.ToByteArray();
         command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
@@ -158,10 +158,10 @@ public class TableDriveDefinitions(
 
         await command.ExecuteNonQueryAsync();
 
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
+        await AssertUpdateSuccess(cn, "DriveTransferHistory", identityId, oldDriveId);
     }
 
-    public async Task Temp_MigrateDriveReactions(Guid oldDriveId, Guid newDriveId)
+    public async Task Temp_MigrateDriveReactions(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
@@ -170,7 +170,7 @@ public class TableDriveDefinitions(
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
-        p1.Value = newDriveId.ToByteArray();
+        p1.Value = driveAlias.ToByteArray();
         command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
@@ -185,10 +185,10 @@ public class TableDriveDefinitions(
 
         await command.ExecuteNonQueryAsync();
 
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
+        await AssertUpdateSuccess(cn, "DriveReactions", identityId, oldDriveId);
     }
 
-    public async Task Temp_MigrateDriveDefinitions(Guid oldDriveId, Guid newDriveId)
+    public async Task Temp_MigrateDriveDefinitions(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
@@ -197,7 +197,7 @@ public class TableDriveDefinitions(
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
-        p1.Value = newDriveId.ToByteArray();
+        p1.Value = driveAlias.ToByteArray();
         command.Parameters.Add(p1);
 
         var p2 = command.CreateParameter();
@@ -212,7 +212,7 @@ public class TableDriveDefinitions(
 
         await command.ExecuteNonQueryAsync();
 
-        await AssertUpdateSuccess(cn, "driveMainIndex", identityId, oldDriveId);
+        await AssertUpdateSuccess(cn, "DriveDefinitions", identityId, oldDriveId);
     }
 
     private static async Task AssertUpdateSuccess(IConnectionWrapper cn, string tableName, Guid identityId, Guid oldDriveId)

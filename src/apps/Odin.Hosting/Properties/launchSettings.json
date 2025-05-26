@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": "--migrate-drive-alias-phase2"
+      "commandLineArgs": ""
     }
   }
 }
