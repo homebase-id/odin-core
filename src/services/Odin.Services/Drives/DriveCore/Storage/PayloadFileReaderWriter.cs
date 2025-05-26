@@ -99,21 +99,6 @@ public class PayloadFileReaderWriter(
 
     //
 
-    public Task<string[]> GetFilesInDirectoryAsync(string dir, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        try
-        {
-            return Task.FromResult(Directory.GetFiles(dir));
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new PayloadReaderWriterException(e.Message, e);
-        }
-    }
-
-    //
-
     public Task CreateDirectoryAsync(string dir, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

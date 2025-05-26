@@ -188,25 +188,6 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
     [Test]
-    public async Task PayloadFile_GetFilesInDirectoryAsync_ShouldGetFilesInDirectory_WithoutFileMask()
-    {
-        var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
-
-        CreateFile(Path.Combine(root, "file1.foo"));
-        CreateFile(Path.Combine(root, "file2.bar"));
-        CreateFile(Path.Combine(root, "subdir", "file3.foo"));
-
-        var rw = new PayloadFileReaderWriter(_loggerMock.Object, _tenantContext, _fileReaderWriter);
-
-        var files = await rw.GetFilesInDirectoryAsync(root);
-        Assert.That(files.Length, Is.EqualTo(2));
-        Assert.That(files, Does.Contain(Path.Combine(root, "file1.foo")));
-        Assert.That(files, Does.Contain(Path.Combine(root, "file2.bar")));
-    }
-
-    //
-
-    [Test]
     public async Task PayloadFile_CreateDirectoryAsync_ShouldCreateDirectory()
     {
         var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/sam");

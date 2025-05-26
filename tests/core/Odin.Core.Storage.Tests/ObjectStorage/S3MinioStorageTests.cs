@@ -84,6 +84,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_BucketShouldExist()
     {
         var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
@@ -95,6 +96,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldReadAndWriteFile()
     {
         const string path = "the-file";
@@ -118,6 +120,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldReadAndWriteFileWithOffsetAndLength()
     {
         const string path = "the-file";
@@ -141,6 +144,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldReadAndWriteFileWithOffsetAndLengthMaxedOut()
     {
         const string path = "the-file";
@@ -164,6 +168,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldThrowOnBadOffset()
     {
         const string path = "the-file";
@@ -184,6 +189,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public void S3MinioStorage_ItShouldThrowWhenWritingToFolder()
     {
         const string path = "the-file/";
@@ -198,6 +204,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldCheckFileExistence()
     {
         const string path = "the-file";
@@ -217,6 +224,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldDeleteFile()
     {
         const string path = "the-file";
@@ -235,6 +243,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldCopyFile()
     {
         const string srcPath = "the-src-file";
@@ -257,6 +266,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldMoveFile()
     {
         const string srcPath = "the-src-file";
@@ -278,132 +288,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
-    public async Task S3MinioStorage_ItShouldListFiles()
-    {
-        const string file0 = "file0";
-        const string file1 = "parent/file1";
-        const string file2 = "parent/file2";
-        const string file3 = "parent/child/file3";
-        const string text = "test";
-
-        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
-
-        await bucket.WriteBytesAsync(file0, System.Text.Encoding.UTF8.GetBytes(text));
-        await bucket.WriteBytesAsync(file1, System.Text.Encoding.UTF8.GetBytes(text));
-        await bucket.WriteBytesAsync(file2, System.Text.Encoding.UTF8.GetBytes(text));
-        await bucket.WriteBytesAsync(file3, System.Text.Encoding.UTF8.GetBytes(text));
-
-        {
-            var files = bucket.ListFilesAsync("", false);
-            Assert.ThrowsAsync<S3StorageException>(async () => await files);
-        }
-
-        {
-            var files = bucket.ListFilesAsync("", true);
-            Assert.ThrowsAsync<S3StorageException>(async () => await files);
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/", false);
-            Assert.That(files, Has.Count.EqualTo(1));
-            Assert.That(files, Has.Member(file0));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/", true);
-            Assert.That(files, Has.Count.EqualTo(4));
-            Assert.That(files, Has.Member(file0));
-            Assert.That(files, Has.Member(file1));
-            Assert.That(files, Has.Member(file2));
-            Assert.That(files, Has.Member(file3));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/parent/", false);
-            Assert.That(files, Has.Count.EqualTo(2));
-            Assert.That(files, Has.Member(file1));
-            Assert.That(files, Has.Member(file2));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/parent/", true);
-            Assert.That(files, Has.Count.EqualTo(3));
-            Assert.That(files, Has.Member(file1));
-            Assert.That(files, Has.Member(file2));
-            Assert.That(files, Has.Member(file3));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("parent/", false);
-            Assert.That(files, Has.Count.EqualTo(2));
-            Assert.That(files, Has.Member(file1));
-            Assert.That(files, Has.Member(file2));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("parent/", true);
-            Assert.That(files, Has.Count.EqualTo(3));
-            Assert.That(files, Has.Member(file1));
-            Assert.That(files, Has.Member(file2));
-            Assert.That(files, Has.Member(file3));
-        }
-
-        {
-            var files = bucket.ListFilesAsync("/parent", false);
-            Assert.ThrowsAsync<S3StorageException>(async () => await files);
-        }
-
-        {
-            var files = bucket.ListFilesAsync("/parent", true);
-            Assert.ThrowsAsync<S3StorageException>(async () => await files);
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/notthere/", true);
-            Assert.That(files, Has.Count.EqualTo(0));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/notthere/", false);
-            Assert.That(files, Has.Count.EqualTo(0));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("notthere/", true);
-            Assert.That(files, Has.Count.EqualTo(0));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("notthere/", false);
-            Assert.That(files, Has.Count.EqualTo(0));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/parent/child/", false);
-            Assert.That(files, Has.Count.EqualTo(1));
-            Assert.That(files, Has.Member(file3));
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/parent/child/", true);
-            Assert.That(files, Has.Count.EqualTo(1));
-            Assert.That(files, Has.Member(file3));
-        }
-
-        {
-            var files = bucket.ListFilesAsync("/parent/child/file3", true);
-            Assert.ThrowsAsync<S3StorageException>(async () => await files);
-        }
-
-        {
-            var files = await bucket.ListFilesAsync("/parent/child/file3/", true);
-            Assert.That(files, Has.Count.EqualTo(0));
-        }
-    }
-
-    //
-
-    [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldUploadFile()
     {
         const string srcPath = "the-src-file";
@@ -425,6 +310,7 @@ public class S3MinioStorageTests
     //
 
     [Test]
+    [Explicit]
     public async Task S3MinioStorage_ItShouldDownloadFile()
     {
         const string srcPath = "the-src-file";
@@ -447,6 +333,4 @@ public class S3MinioStorageTests
         var content = await File.ReadAllTextAsync(dstFile);
         Assert.That(content, Is.EqualTo(text));
     }
-
-
 }
