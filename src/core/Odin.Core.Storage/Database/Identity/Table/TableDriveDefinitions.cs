@@ -29,13 +29,12 @@ public class TableDriveDefinitions(
     {
         return await base.GetByDriveTypeAsync(odinIdentity, driveType);
     }
-
+    
     public new async Task<int> InsertAsync(DriveDefinitionsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
-
     public new async Task<int> UpsertAsync(DriveDefinitionsRecord item)
     {
         item.identityId = odinIdentity;
