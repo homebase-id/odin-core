@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -14,7 +13,6 @@ public interface IPayloadReaderWriter
     Task DeleteFileAsync(string filePath, CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default);
     Task MoveFileAsync(string srcFilePath, string dstFilePath, CancellationToken cancellationToken = default);
-    Task<string[]> GetFilesInDirectoryAsync(string dir, CancellationToken cancellationToken = default);
     Task CreateDirectoryAsync(string dir, CancellationToken cancellationToken = default);
     Task CopyPayloadFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default);
     Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default);

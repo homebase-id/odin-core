@@ -1,9 +1,10 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using Amazon.S3;
+using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
-using Minio;
-using Minio.DataModel.Args;
 using Moq;
 using NUnit.Framework;
 using Odin.Core;
@@ -22,11 +23,13 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 {
     private string _accessKey = "";
     private string _secretAccessKey = "";
+    private string _bucketName = "";
     private OdinConfiguration _config = null!;
     private TenantContext _tenantContext = null!;
     private TenantPathManager _tenantPathManager = null!;
-    private IMinioClient _minioClient = null!;
+    private IAmazonS3 _s3Client = null!;
     private IS3PayloadStorage _s3PayloadStorage = null!;
+    private readonly Mock<ILogger<S3AwsPayloadStorage>> _loggerMock = new ();
 
     [OneTimeSetUp]
     public void CheckCredentials()
@@ -49,6 +52,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     {
         BaseSetup();
 
+        // Config needed by TenantPathManager to tweak the path for S3 storage
         _config = new OdinConfiguration
         {
             Host = new OdinConfiguration.HostSection
@@ -58,11 +62,6 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
             S3PayloadStorage = new OdinConfiguration.S3PayloadStorageSection
             {
                 Enabled = true,
-                BucketName = $"zz-ci-test-{Guid.NewGuid():N}",
-                Region = "hel1",
-                Endpoint = "hel1.your-objectstorage.com",
-                AccessKey = _accessKey,
-                SecretAccessKey = _secretAccessKey,
             }
         };
 
@@ -78,20 +77,15 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         );
         _tenantPathManager = _tenantContext.TenantPathManager;
 
-        _minioClient = new MinioClient()
-            .WithEndpoint(_config.S3PayloadStorage.Endpoint)
-            .WithCredentials(_config.S3PayloadStorage.AccessKey, _config.S3PayloadStorage.SecretAccessKey)
-            .WithRegion(_config.S3PayloadStorage.Region)
-            .WithSSL()
-            .Build();
+        _s3Client = new AmazonS3Client(
+            _accessKey,
+            _secretAccessKey,
+            S3AwsStorageExtensions.GetHetznerConfig("hel1.your-objectstorage.com", "hel1"));
 
-        var bucketName = _config.S3PayloadStorage.BucketName;
-        await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
+        _bucketName = $"zz-ci-test-{Guid.NewGuid():N}";
+        await _s3Client.PutBucketAsync(_bucketName);
 
-        _s3PayloadStorage = new S3MinioPayloadStorage(
-            new Mock<ILogger<S3MinioPayloadStorage>>().Object,
-            _minioClient,
-            bucketName);
+        _s3PayloadStorage = new S3AwsPayloadStorage(_loggerMock.Object, _s3Client, _bucketName);
     }
 
     //
@@ -101,25 +95,49 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     {
         try
         {
-            if (_minioClient != null!)
-            {
-                // Remove all objects
-                var listArgs = new ListObjectsArgs().WithBucket(_config.S3PayloadStorage.BucketName).WithRecursive(true);
-                await foreach (var item in _minioClient.ListObjectsEnumAsync(listArgs))
-                {
-                    await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()
-                        .WithBucket(_config.S3PayloadStorage.BucketName)
-                        .WithObject(item.Key));
-                }
+            // Remove all objects in the bucket and the bucket itself
+            await DeleteAllObjectsAsync(_bucketName);
+            await _s3Client.DeleteBucketAsync(new DeleteBucketRequest { BucketName = _bucketName });
 
-                // Remove bucket
-                await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(_config.S3PayloadStorage.BucketName));
-            }
         }
         finally
         {
             BaseTearDown();
         }
+    }
+
+    //
+
+    // SEB:NOTE this will not delete versioned objects (if versioning is enabled on the bucket).
+    private async Task DeleteAllObjectsAsync(string bucketName)
+    {
+        string? continuationToken = null;
+
+        do
+        {
+            var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName            = bucketName,
+                ContinuationToken     = continuationToken,
+                MaxKeys               = 1000
+            });
+
+            if (listResponse.S3Objects is { Count: > 0 })
+            {
+                var deleteRequest = new DeleteObjectsRequest
+                {
+                    BucketName = bucketName,
+                    Objects    = listResponse.S3Objects
+                        .Select(o => new KeyVersion { Key = o.Key })
+                        .ToList()
+                };
+
+                await _s3Client.DeleteObjectsAsync(deleteRequest);
+            }
+
+            continuationToken = listResponse.NextContinuationToken;
+        }
+        while (continuationToken != null);
     }
 
     //
@@ -270,27 +288,6 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         Assert.ThrowsAsync<PayloadReaderWriterException>(() => rw.MoveFileAsync(srcFile, dstFile));
 
         return Task.CompletedTask;
-    }
-
-    //
-
-    [Test]
-    public async Task PayloadS3_GetFilesInDirectoryAsync_ShouldGetFilesInDirectory()
-    {
-        var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/");
-
-        await CreateFileAsync(S3Path.Combine(root, "file1.foo"));
-        await CreateFileAsync(S3Path.Combine(root, "file2.bar"));
-        await CreateFileAsync(S3Path.Combine(root, "subdir", "file3.foo"));
-
-        await Task.Delay(100);
-
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
-
-        var files = await rw.GetFilesInDirectoryAsync(root);
-        Assert.That(files.Length, Is.EqualTo(2));
-        Assert.That(files, Does.Contain(S3Path.Combine(root, "file1.foo")));
-        Assert.That(files, Does.Contain(S3Path.Combine(root, "file2.bar")));
     }
 
     //

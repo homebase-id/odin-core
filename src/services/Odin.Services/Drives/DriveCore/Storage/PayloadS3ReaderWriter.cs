@@ -73,21 +73,6 @@ public class PayloadS3ReaderWriter(
 
     //
 
-    public async Task<string[]> GetFilesInDirectoryAsync(string dir, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var files = await s3PayloadsStorage.ListFilesAsync(dir, false, cancellationToken);
-            return files.ToArray();
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new PayloadReaderWriterException(e.Message, e);
-        }
-    }
-
-    //
-
     public Task CreateDirectoryAsync(string dir, CancellationToken cancellationToken = default)
     {
         // No-op: S3 does not have directories in the same way as a file system.

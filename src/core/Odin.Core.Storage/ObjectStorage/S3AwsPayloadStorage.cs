@@ -1,24 +1,22 @@
 using System;
+using Amazon.S3;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Minio;
 
 namespace Odin.Core.Storage.ObjectStorage;
 
 #nullable enable
 
-
-public sealed class S3MinioPayloadStorage(
-    ILogger<S3MinioPayloadStorage> logger,
-    IMinioClient minioClient,
-    string bucketName)
-    : S3MinioStorage(logger, minioClient, bucketName), IS3PayloadStorage
+public sealed class S3AwsPayloadStorage(ILogger<S3AwsPayloadStorage> logger, IAmazonS3 awsClient, string bucketName)
+    : S3AwsStorage(logger, awsClient, bucketName), IS3PayloadStorage
 {
 }
 
-public static class S3MinioPayloadStorageExtensions
+//
+
+public static class S3AwsPayloadStorageExtensions
 {
-    public static IServiceCollection AddS3MinioPayloadStorage(
+    public static IServiceCollection AddS3AwsPayloadStorage(
         this IServiceCollection services,
         string endpoint,
         string accessKey,
@@ -32,7 +30,7 @@ public static class S3MinioPayloadStorageExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(region, nameof(region));
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
 
-        services.AddMinioClient(
+        services.AddAwsS3Client(
             endpoint,
             accessKey,
             secretAccessKey,
@@ -40,9 +38,9 @@ public static class S3MinioPayloadStorageExtensions
 
         services.AddSingleton<IS3PayloadStorage>(sp =>
         {
-            var logger = sp.GetRequiredService<ILogger<S3MinioPayloadStorage>>();
-            var minioClient = sp.GetRequiredService<IMinioClient>();
-            return new S3MinioPayloadStorage(logger, minioClient, bucketName);
+            var logger = sp.GetRequiredService<ILogger<S3AwsPayloadStorage>>();
+            var awsClient = sp.GetRequiredService<IAmazonS3>();
+            return new S3AwsPayloadStorage(logger, awsClient, bucketName);
         });
 
         return services;

@@ -245,34 +245,6 @@ public class S3MinioStorage : IS3Storage
 
     //
 
-    public async Task<List<string>> ListFilesAsync(
-        string path,
-        bool recursive = false,
-        CancellationToken cancellationToken = default)
-    {
-        S3Path.AssertFolderName(path);
-        path = S3Path.Combine(path);
-
-        var result = new List<string>();
-        var listArgs = new ListObjectsArgs()
-            .WithBucket(BucketName)
-            .WithPrefix(path)
-            .WithRecursive(recursive);
-
-        await foreach (var item in _minioClient.ListObjectsEnumAsync(listArgs, cancellationToken))
-        {
-            var key = item.Key;
-            if (key != "" && !key.EndsWith('/'))
-            {
-                result.Add(key);
-            }
-        }
-
-        return result;
-    }
-
-    //
-
     public async Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(dstPath);

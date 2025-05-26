@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,7 +16,10 @@ public interface IS3Storage
     Task DeleteFileAsync(string path, CancellationToken cancellationToken = default);
     Task CopyFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task MoveFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
-    Task<List<string>> ListFilesAsync(string path, bool recursive = false, CancellationToken cancellationToken = default);
     Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task DownloadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
+}
+
+public interface IS3PayloadStorage : IS3Storage
+{
 }

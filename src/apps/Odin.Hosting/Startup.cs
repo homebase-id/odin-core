@@ -259,7 +259,7 @@ namespace Odin.Hosting
             // Payload storage
             if (_config.S3PayloadStorage.Enabled)
             {
-                services.AddS3MinioPayloadStorage(
+                services.AddS3AwsPayloadStorage(
                     _config.S3PayloadStorage.Endpoint,
                     _config.S3PayloadStorage.AccessKey,
                     _config.S3PayloadStorage.SecretAccessKey,
