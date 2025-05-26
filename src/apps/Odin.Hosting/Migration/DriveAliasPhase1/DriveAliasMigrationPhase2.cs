@@ -49,17 +49,17 @@ public static class DriveAliasMigrationPhase2
                 await t.Temp_MigrateDriveReactions(oldDriveId, driveAlias);
                 await t.Temp_MigrateDriveDefinitions(oldDriveId, driveAlias);
             }
-            
+
             // only change folders after all drive updates succeed
             foreach (var drive in allDrives.Results)
             {
                 var oldDriveId = drive.Id;
                 var driveAlias = drive.TargetDriveInfo.Alias.Value;
-               
+
                 RenameFolders(tenantContext.TenantPathManager, oldDriveId, driveAlias);
             }
 
-            logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}", 
+            logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
                 tenant.PrimaryDomainName,
                 allDrives.Results.Count);
 
@@ -69,18 +69,32 @@ public static class DriveAliasMigrationPhase2
 
     private static void RenameFolders(TenantPathManager pathManager, Guid oldDriveId, Guid driveAlias)
     {
+        // payloads
         var oldFolderPath = pathManager.GetDrivePayloadPath(oldDriveId);
         var newFolderPath = pathManager.GetDrivePayloadPath(driveAlias);
 
-        if (Directory.Exists(newFolderPath))
-        {
-            // skip new folder
-            return;
-        }
+        EnsureMoved(newFolderPath, oldFolderPath);
         
-        if (Directory.Exists(oldFolderPath))
+        var oldUploadFolder = pathManager.GetDriveUploadPath(oldDriveId);
+        var newUploadFolder = pathManager.GetDriveUploadPath(driveAlias);
+        EnsureMoved(oldUploadFolder, newUploadFolder);
+        
+        var oldInboxFolder = pathManager.GetDriveInboxPath(oldDriveId);
+        var newInboxFolder = pathManager.GetDriveInboxPath(driveAlias);
+        EnsureMoved(oldInboxFolder, newInboxFolder);
+
+        void EnsureMoved(string s, string oldFolderPath1)
         {
-            Directory.Move(oldFolderPath, newFolderPath);
+            if (Directory.Exists(s))
+            {
+                // skip new folder
+                return;
+            }
+
+            if (Directory.Exists(oldFolderPath1))
+            {
+                Directory.Move(oldFolderPath1, s);
+            }
         }
     }
 
