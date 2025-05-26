@@ -97,8 +97,8 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 ExcludeServerMetaData = true,
                 IncludeTransferHistory = true,
                 Cursor = default,
-                Ordering = QueryBatchOrdering.Default,
-                Sorting = QueryBatchType.FileId
+                Ordering = QueryBatchSortOrder.Default,
+                Sorting = QueryBatchSortField.CreatedDate
             };
 
             if (driveFileReaderWriter != null)

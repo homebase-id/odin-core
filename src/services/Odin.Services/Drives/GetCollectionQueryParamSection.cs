@@ -51,9 +51,9 @@ public class GetCollectionQueryParamSection {
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
 
-    public QueryBatchOrdering Ordering { get; set; }
+    public QueryBatchSortOrder Ordering { get; set; }
 
-    public QueryBatchType Sorting { get; set; }
+    public QueryBatchSortField Sorting { get; set; }
 
     public CollectionQueryParamSection ToCollectionQueryParamSection () {
         return new CollectionQueryParamSection() {

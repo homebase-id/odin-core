@@ -12,17 +12,18 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
 {
-    public enum QueryBatchType
+    public enum QueryBatchSortField
     {
         FileId = 0, // OBSOLETE
         UserDate = 1,
         CreatedDate = 2,
-        ModifiedDate = 3
+        AnyChangeDate = 3, // By Newly created or modified
+        OnlyModifiedDate = 4 // Not yet implemented
     }
 
-    public enum QueryBatchOrdering
+    public enum QueryBatchSortOrder
     {
-        Default = 0,
+        Default = 0, // NewestFirst
         NewestFirst = 1,
         OldestFirst = 2
     }
@@ -236,33 +237,40 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
 
         /// <summary>
-        /// Get a page with up to 'noOfItems' rows in either newest first or oldest first order as
-        /// specified by the 'sortOrder' bool. If the cursor.stopAtBoundary is null, paging will
-        /// continue until the last data row. If set, the paging will stop at the specified point. 
-        /// For example if you wanted to get all the latest items but stop
-        /// at 2023-03-15, set the stopAtBoundary to this value by constructing a cusor with the 
-        /// appropriate constructor (by time or by fileId).
+        /// Asynchronously retrieves a batch of records from the drive main index, sorted by the specified field (e.g., creation date, user date, or latest change) in the chosen order (newest or oldest first).
+        /// Supports pagination via a cursor and can stop at a specified boundary. Applies various filters for precise record selection.
+        /// The choice of <c>sortField</c> affects how modifications are handled; see parameter documentation for details.
+        /// Returns the list of records, a boolean indicating if more rows are available, and the updated cursor for subsequent queries.
         /// </summary>
-        /// <param name="driveId">The drive you're querying</param>
-        /// <param name="noOfItems">Maximum number of results you want back</param>
-        /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page. pagingCursor will be updated. When no more data is available, pagingCursor is set to null (query will restart if you keep passing it)</param>
-        /// <param name="sortOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
-        /// <param name="createdSort">true to order by fileId, false to order by usedDate, fileId</param>
-        /// <param name="requiredSecurityGroup"></param>
-        /// <param name="filetypesAnyOf"></param>
-        /// <param name="datatypesAnyOf"></param>
-        /// <param name="senderidAnyOf"></param>
-        /// <param name="groupIdAnyOf"></param>
-        /// <param name="userdateSpan"></param>
-        /// <param name="aclAnyOf"></param>
-        /// <param name="tagsAnyOf"></param>
-        /// <param name="tagsAllOf"></param>
-        /// <returns>List of fileIds in the dataset, and indicates if there is more data to fetch.</fileId></returns>
+        /// <param name="driveId">The unique identifier of the drive to query.</param>
+        /// <param name="noOfItems">The maximum number of records to return in this batch (must be at least 1).</param>
+        /// <param name="cursor">The pagination cursor. Pass <c>null</c> to start from the beginning. The cursor is updated for subsequent queries.</param>
+        /// <param name="sortOrder">The sorting order: <c>NewestFirst</c> (descending) or <c>OldestFirst</c> (ascending). Default is <c>NewestFirst</c>.</param>
+        /// <param name="sortField">Determines the field used for sorting the records. The choice impacts how modifications are captured:
+        ///   - <c>CreatedDate</c>: Sorts by the record's creation timestamp, which is fixed at creation. Returns the latest version of a record at query time, but subsequent modifications do not change its sort order, so updated records won't reappear in later pages.
+        ///   - <c>UserDate</c>: Sorts by the client-specified date, typically fixed. Returns the latest version of a record at query time, but subsequent modifications do not alter its sort order unless <c>userDate</c> is updated, so updated records typically won't reappear in later pages.
+        ///   - <c>AnyChangeDate</c>: Sorts by the most recent change (latest of <c>modified</c> or <c>created</c>), ensuring both new and updated records are included in the order of their last change.
+        ///   - <c>OnlyModifiedDate</c>: (Not yet implemented) Will sort only by the modification date, excluding newly created records.
+        ///   For <c>UserDate</c> or <c>CreatedDate</c>, clients may need to separately query for modifications using <c>OnlyModifiedDate</c> (once implemented) to capture updated records, which could result in duplicates or require additional logic to handle updates.
+        /// </param>
+        /// <returns>A tuple containing the list of <c>DriveMainIndexRecord</c>, a boolean indicating if more rows are available, and the updated <c>QueryBatchCursor</c>.</returns>
+        /// <example>
+        /// To fetch 10 records sorted by their latest change (newest first) before March 15, 2023, from a drive with a specific security group:
+        /// <code>
+        /// var boundaryInstant = NodaTime.Instant.FromDateTimeUtc(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Utc));
+        /// var cursor = new QueryBatchCursor { stopAtBoundary = new TimeRowCursor(new UnixTimeUtc(boundaryInstant), null) };
+        /// var (records, moreRows, updatedCursor) = await QueryBatchAsync(driveId: Guid.Parse("drive-id"), 
+        ///     noOfItems: 10, cursor: cursor, sortOrder: QueryBatchSortOrder.NewestFirst, 
+        ///     sortField: QueryBatchSortField.AnyChangeDate, fileSystemType: (int)FileSystemType.Standard, 
+        ///     requiredSecurityGroup: new IntRange(1, 5));
+        /// </code>
+        /// This example uses <c>AnyChangeDate</c> to retrieve records based on their most recent change, ensuring both new and modified records are included.
+        /// </example>
         public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
-            int noOfItems,
+        int noOfItems,
             QueryBatchCursor cursor,
-            QueryBatchOrdering sortOrder = QueryBatchOrdering.NewestFirst,
-            QueryBatchType queryType = QueryBatchType.CreatedDate,
+            QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
+            QueryBatchSortField sortField = QueryBatchSortField.CreatedDate,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -313,7 +321,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             char isign;
             string direction;
 
-            if ((sortOrder == QueryBatchOrdering.NewestFirst) || (sortOrder == QueryBatchOrdering.Default))
+            if ((sortOrder == QueryBatchSortOrder.NewestFirst) || (sortOrder == QueryBatchSortOrder.Default))
             {
                 sign = '<';
                 isign = '>';
@@ -329,11 +337,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             string timeField;
             string tempSelect = "";
 
-            if ((queryType == QueryBatchType.CreatedDate) || (queryType == QueryBatchType.FileId))
+            if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
                 timeField = "created";
-            else if (queryType == QueryBatchType.UserDate)
+            else if (sortField == QueryBatchSortField.UserDate)
                 timeField = "userDate";
-            else if (queryType == QueryBatchType.ModifiedDate)
+            else if (sortField == QueryBatchSortField.AnyChangeDate)
             {
                 tempSelect = ", COALESCE(modified,created) as temphack";
                 timeField = "COALESCE(modified,created)"; 
@@ -353,7 +361,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 if (cursor.pagingCursor.rowId == null)
                 {
-                    if (sortOrder == QueryBatchOrdering.NewestFirst)
+                    if (sortOrder == QueryBatchSortOrder.NewestFirst)
                         cursor.pagingCursor.rowId = long.MaxValue;
                     else
                         cursor.pagingCursor.rowId = 0;
@@ -366,7 +374,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 if (cursor.stopAtBoundary.rowId == null)
                 {
-                    if (sortOrder == QueryBatchOrdering.NewestFirst)
+                    if (sortOrder == QueryBatchSortOrder.NewestFirst)
                         cursor.stopAtBoundary.rowId = long.MaxValue;
                     else
                         cursor.stopAtBoundary.rowId = 0;
@@ -412,9 +420,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 if (i > 0)
                 {
-                    if (queryType == QueryBatchType.UserDate)
+                    if (sortField == QueryBatchSortField.UserDate)
                         cursor.pagingCursor = new TimeRowCursor(record.userDate, record.rowId);
-                    else if (queryType == QueryBatchType.ModifiedDate)
+                    else if (sortField == QueryBatchSortField.AnyChangeDate)
                         cursor.pagingCursor = new TimeRowCursor(record.modified ?? record.created, record.rowId); // TODO FIX
                     else
                         cursor.pagingCursor = new TimeRowCursor(record.created, record.rowId);
@@ -426,26 +434,30 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             } // using rdr
         }
 
-
         /// <summary>
-        /// Will get the newest item first as specified by the cursor.
+        /// Asynchronously retrieves a batch of records from the drive main index, sorted by the specified field in the chosen order (newest or oldest first).
+        /// For `NewestFirst`, it automatically manages pagination with smart cursor handling, using boundary markers and recursive queries to ensure all records up to the initial newest point are fetched, even with new record additions.
+        /// For `OldestFirst`, it delegates to `QueryBatchAsync` for simple, static pagination. Supports various filters for precise record selection.
+        /// Returns a tuple containing the list of records, a boolean indicating if more rows are available, and the updated cursor for subsequent queries.
+        /// <example>
+        /// To fetch 10 newest records created before March 15, 2023, from a drive with a specific security group:
+        /// <code>
+        /// var boundaryInstant = NodaTime.Instant.FromDateTimeUtc(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Utc));
+        /// var cursor = new QueryBatchCursor { stopAtBoundary = new TimeRowCursor(new UnixTimeUtc(boundaryInstant), null) };
+        /// var (records, moreRows, updatedCursor) = await QueryBatchSmartCursorAsync(driveId: Guid.Parse("drive-id"), 
+        ///     noOfItems: 10, cursor: cursor, sortOrder: QueryBatchSortOrder.NewestFirst, 
+        ///     sortField: QueryBatchSortField.CreatedDate, fileSystemType: (int)FileSystemType.Standard, 
+        ///     requiredSecurityGroup: new IntRange(1, 5));
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="driveId">Drive ID</param>
-        /// <param name="noOfItems">Maximum number of results you want back</param>
-        /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page.</param>
-        /// <param name="requiredSecurityGroup"></param>
-        /// <param name="filetypesAnyOf"></param>
-        /// <param name="datatypesAnyOf"></param>
-        /// <param name="senderidAnyOf"></param>
-        /// <param name="groupIdAnyOf"></param>
-        /// <param name="userdateSpan"></param>
-        /// <param name="aclAnyOf"></param>
-        /// <param name="tagsAnyOf"></param>
-        /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAutoAsync(Guid driveId,
+
+        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(Guid driveId,
             int noOfItems,
             QueryBatchCursor cursor,
+            QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
+            QueryBatchSortField sortField = QueryBatchSortField.CreatedDate,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
@@ -467,9 +479,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             var (result, moreRows, refCursor) = await
                 QueryBatchAsync(driveId, noOfItems,
-                    cursor,
-                    sortOrder: QueryBatchOrdering.NewestFirst,
-                    QueryBatchType.CreatedDate,
+                    cursor: cursor,
+                    sortOrder: sortOrder,
+                    sortField: sortField,
                     fileSystemType,
                     fileStateAnyOf,
                     requiredSecurityGroup,
@@ -486,6 +498,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     tagsAllOf,
                     localTagsAnyOf,
                     localTagsAllOf);
+
+            if (sortOrder == QueryBatchSortOrder.OldestFirst)
+                return (result, moreRows, refCursor);
 
             //
             // OldToNew:
@@ -525,7 +540,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var (r2, moreRows2, refCursor2) = await QueryBatchAutoAsync(driveId, noOfItems - result.Count, refCursor,
+                    var (r2, moreRows2, refCursor2) = await QueryBatchSmartCursorAsync(driveId, noOfItems - result.Count, refCursor,
+                        sortOrder,
+                        sortField,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -559,7 +576,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     refCursor.stopAtBoundary = refCursor.nextBoundaryCursor;
                     refCursor.nextBoundaryCursor = null;
                     refCursor.pagingCursor = null;
-                    return await QueryBatchAutoAsync(driveId, noOfItems, refCursor,
+                    return await QueryBatchSmartCursorAsync(driveId, noOfItems, refCursor,
+                        sortOrder,
+                        sortField,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
