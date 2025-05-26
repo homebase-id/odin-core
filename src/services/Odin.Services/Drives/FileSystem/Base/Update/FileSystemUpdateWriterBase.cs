@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Bitcoin.BitcoinUtilities;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
@@ -431,7 +432,7 @@ public abstract class FileSystemUpdateWriterBase
             if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false ||
                 ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
             {
-                throw new OdinClientException("The encryption key is too simple", code: OdinClientErrorCode.InvalidKeyHeader);
+                throw new OdinClientException($"The encryption key is too simple: IV [{Utilities.BytesToHexString(keyHeader.Iv)}], the AesKey is {keyHeader.AesKey.GetKey().Length} long.", code: OdinClientErrorCode.InvalidKeyHeader);
             }
         }
 
