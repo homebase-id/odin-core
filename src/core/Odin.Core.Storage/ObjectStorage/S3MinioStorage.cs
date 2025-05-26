@@ -33,14 +33,14 @@ public interface IS3Storage
 
 // SEB:TOO TryRetry here or in callers?
 
-public class S3Storage : IS3Storage
+public class S3MinioStorage : IS3Storage
 {
     private readonly ILogger _logger;
     private readonly IMinioClient _minioClient;
 
     public string BucketName { get; }
 
-    public S3Storage(ILogger logger, IMinioClient minioClient, string bucketName)
+    public S3MinioStorage(ILogger logger, IMinioClient minioClient, string bucketName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
         _logger = logger;
@@ -330,20 +330,7 @@ public class S3Storage : IS3Storage
 
 //
 
-public class S3StorageException : OdinSystemException
-{
-    public S3StorageException(string message) : base(message)
-    {
-    }
-
-    public S3StorageException(string message, Exception innerException) : base(message, innerException)
-    {
-    }
-}
-
-//
-
-public static class S3StorageExtensions
+public static class S3MinioStorageExtensions
 {
     public static IServiceCollection AddMinioClient(
         this IServiceCollection services,
@@ -362,6 +349,5 @@ public static class S3StorageExtensions
 
         return services;
     }
-
 }
 

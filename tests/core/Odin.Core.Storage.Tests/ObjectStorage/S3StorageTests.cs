@@ -13,14 +13,14 @@ namespace Odin.Core.Storage.Tests.ObjectStorage;
 
 #nullable enable
 
-public class S3StorageTests
+public class S3MinioStorageTests
 {
     private string _accessKey = "";
     private string _secretAccessKey = "";
     private string _bucketName = "";
-    private readonly Mock<ILogger<S3Storage>> _loggerMock = new ();
     private string _testRootPath = "";
     private IMinioClient _minioClient = null!;
+    private readonly Mock<ILogger<S3MinioStorage>> _loggerMock = new ();
 
     //
 
@@ -86,7 +86,7 @@ public class S3StorageTests
     [Test]
     public async Task BucketShouldExist()
     {
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
         var bucketExists = await bucket.BucketExistsAsync();
         Assert.That(bucketExists, Is.True);
         Assert.That(bucket.BucketName, Is.EqualTo(_bucketName));
@@ -100,7 +100,7 @@ public class S3StorageTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
@@ -123,7 +123,7 @@ public class S3StorageTests
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(path, bytes);
@@ -146,7 +146,7 @@ public class S3StorageTests
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(path, bytes);
@@ -169,7 +169,7 @@ public class S3StorageTests
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.WriteBytesAsync(path, bytes);
 
@@ -189,7 +189,7 @@ public class S3StorageTests
         const string path = "the-file/";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         var result = bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
         Assert.ThrowsAsync<S3StorageException>(async () => await result);
@@ -203,7 +203,7 @@ public class S3StorageTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         var exists = await bucket.FileExistsAsync(path);
         Assert.That(exists, Is.False);
@@ -222,7 +222,7 @@ public class S3StorageTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.DeleteFileAsync(path); // should not throw
         await bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
@@ -241,7 +241,7 @@ public class S3StorageTests
         const string dstPath = "the-dst-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.CopyFileAsync(srcPath, dstPath);
@@ -263,7 +263,7 @@ public class S3StorageTests
         const string dstPath = "the-dst-file";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.MoveFileAsync(srcPath, dstPath);
@@ -286,7 +286,7 @@ public class S3StorageTests
         const string file3 = "parent/child/file3";
         const string text = "test";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         await bucket.WriteBytesAsync(file0, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.WriteBytesAsync(file1, System.Text.Encoding.UTF8.GetBytes(text));
@@ -412,7 +412,7 @@ public class S3StorageTests
         var srcFile = Path.Combine(_testRootPath, srcPath);
         await File.WriteAllTextAsync(srcFile, "Hello");
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
         await bucket.UploadFileAsync(srcFile, dstPath);
 
         var exists = await bucket.FileExistsAsync(dstPath);
@@ -431,7 +431,7 @@ public class S3StorageTests
         const string dstPath = "the-dst-file";
         const string text = "hello";
 
-        var bucket = new S3Storage(_loggerMock.Object, _minioClient, _bucketName);
+        var bucket = new S3MinioStorage(_loggerMock.Object, _minioClient, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
