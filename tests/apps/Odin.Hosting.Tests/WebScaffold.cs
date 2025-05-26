@@ -28,6 +28,7 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Configuration;
 using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
@@ -238,6 +239,13 @@ namespace Odin.Hosting.Tests
 
             _webserver = Program.CreateHostBuilder([]).Build();
             _webserver.Start();
+
+            // SEB:TODO fix S3 scaffold tests
+            var config = Services.GetRequiredService<OdinConfiguration>();
+            if (config.S3PayloadStorage.Enabled)
+            {
+                throw new Exception("SEB MUST FIX S3 TESTS. In particular bucket deletion.");
+            }
 
             if (setupOwnerAccounts)
             {
