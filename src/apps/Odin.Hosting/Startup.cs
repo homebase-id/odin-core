@@ -259,13 +259,12 @@ namespace Odin.Hosting
             // Payload storage
             if (_config.S3PayloadStorage.Enabled)
             {
-                services.AddMinioClient(
+                services.AddS3MinioPayloadStorage(
                     _config.S3PayloadStorage.Endpoint,
                     _config.S3PayloadStorage.AccessKey,
                     _config.S3PayloadStorage.SecretAccessKey,
-                    _config.S3PayloadStorage.Region);
-
-                services.AddS3PayloadStorage(_config.S3PayloadStorage.BucketName);
+                    _config.S3PayloadStorage.Region,
+                    _config.S3PayloadStorage.BucketName);
             }
         }
 
@@ -575,7 +574,7 @@ namespace Odin.Hosting
                 logger.LogInformation("S3PayloadStorage enabled: {enabled}", _config.S3PayloadStorage.Enabled);
                 if (_config.S3PayloadStorage.Enabled)
                 {
-                    var payloadBucket = services.GetRequiredService<S3PayloadStorage>();
+                    var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
                     var bucketExists = payloadBucket.BucketExistsAsync().GetAwaiter().GetResult();
                     if (!bucketExists)
                     {

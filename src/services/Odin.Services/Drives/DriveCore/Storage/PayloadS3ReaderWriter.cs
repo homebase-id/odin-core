@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Storage.ObjectStorage;
@@ -12,7 +11,7 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 public class PayloadS3ReaderWriter(
     TenantContext tenantContext,
-    S3PayloadStorage s3PayloadsStorage) : IPayloadReaderWriter
+    IS3PayloadStorage s3PayloadsStorage) : IPayloadReaderWriter
 {
     private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 

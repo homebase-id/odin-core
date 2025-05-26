@@ -24,7 +24,7 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     private TenantContext _tenantContext = null!;
     private TenantPathManager _tenantPathManager = null!;
     private IMinioClient _minioClient = null!;
-    private S3PayloadStorage _s3PayloadStorage = null!;
+    private IS3PayloadStorage _s3PayloadStorage = null!;
 
     [SetUp]
     public async Task Setup()
@@ -80,8 +80,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         var bucketName = _config.S3PayloadStorage.BucketName;
         await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName));
 
-        _s3PayloadStorage = new S3PayloadStorage(
-            new Mock<ILogger<S3PayloadStorage>>().Object,
+        _s3PayloadStorage = new S3MinioPayloadStorage(
+            new Mock<ILogger<S3MinioPayloadStorage>>().Object,
             _minioClient,
             bucketName);
     }
