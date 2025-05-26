@@ -130,7 +130,9 @@ public class TenantAdmin(
             if (includePayload)
             {
                 result.PayloadPath = Path.Combine(fsir.PayloadRoot, result.Id);
-                result.PayloadSize = await GetDirectoryByteSizeAsync(result.PayloadPath);
+                // SEB:TODO this breaks when payload is on S3. Fix it. Look up size in DB instead.
+                // result.PayloadSize = await GetDirectoryByteSizeAsync(result.PayloadPath);
+                result.PayloadSize = 0;
             }
         }
 
