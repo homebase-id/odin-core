@@ -14,26 +14,36 @@ namespace Odin.Core.Storage.Tests.ObjectStorage;
 
 public class S3StorageBucketTests
 {
+    private string _accessKey = "";
+    private string _secretAccessKey = "";
     private string _bucketName = "";
     private readonly Mock<ILogger<S3Storage>> _loggerMock = new ();
     private IMinioClient _minioClient = null!;
 
-    [SetUp]
-    public async Task SetUp()
+    //
+
+    [OneTimeSetUp]
+    public void CheckCredentials()
     {
         TestSecrets.Load();
 
-        var accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY");
-        var secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY");
+        _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY")!;
+        _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY")!;
 
-        if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretAccessKey))
+        if (string.IsNullOrWhiteSpace(_accessKey) || string.IsNullOrWhiteSpace(_secretAccessKey))
         {
             Assert.Ignore("Environment variable ODIN_S3_ACCESS_KEY or ODIN_S3_SECRET_ACCESS_KEY is not set");
         }
+    }
 
+    //
+
+    [SetUp]
+    public async Task SetUp()
+    {
         _minioClient = new MinioClient()
             .WithEndpoint("hel1.your-objectstorage.com")
-            .WithCredentials(accessKey, secretAccessKey)
+            .WithCredentials(_accessKey, _secretAccessKey)
             .WithRegion("hel1")
             .WithSSL()
             .Build();
