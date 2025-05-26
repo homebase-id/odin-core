@@ -20,26 +20,34 @@ namespace Odin.Services.Tests.Drives.DriveCore.Storage;
 
 public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 {
+    private string _accessKey = "";
+    private string _secretAccessKey = "";
     private OdinConfiguration _config = null!;
     private TenantContext _tenantContext = null!;
     private TenantPathManager _tenantPathManager = null!;
     private IMinioClient _minioClient = null!;
     private IS3PayloadStorage _s3PayloadStorage = null!;
 
+    [OneTimeSetUp]
+    public void CheckCredentials()
+    {
+        TestSecrets.Load();
+
+        _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY")!;
+        _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY")!;
+
+        if (string.IsNullOrWhiteSpace(_accessKey) || string.IsNullOrWhiteSpace(_secretAccessKey))
+        {
+            Assert.Ignore("Environment variable ODIN_S3_ACCESS_KEY or ODIN_S3_SECRET_ACCESS_KEY is not set");
+        }
+    }
+
+    //
+
     [SetUp]
     public async Task Setup()
     {
         BaseSetup();
-
-        TestSecrets.Load();
-
-        var accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY");
-        var secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY");
-
-        if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretAccessKey))
-        {
-            Assert.Ignore("Environment variable ODIN_S3_ACCESS_KEY or ODIN_S3_SECRET_ACCESS_KEY is not set");
-        }
 
         _config = new OdinConfiguration
         {
@@ -53,8 +61,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
                 BucketName = $"zz-ci-test-{Guid.NewGuid():N}",
                 Region = "hel1",
                 Endpoint = "hel1.your-objectstorage.com",
-                AccessKey = accessKey,
-                SecretAccessKey = secretAccessKey,
+                AccessKey = _accessKey,
+                SecretAccessKey = _secretAccessKey,
             }
         };
 
