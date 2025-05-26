@@ -297,9 +297,12 @@ public class S3Storage : IS3Storage
         S3Path.AssertFileName(dstPath);
         dstPath = S3Path.Combine(dstPath);
 
+        await using var inputStream = new FileStream(srcPath, FileMode.Open, FileAccess.Read);
+
         var putObjectArgs = new PutObjectArgs()
             .WithBucket(BucketName)
-            .WithFileName(srcPath)
+            .WithStreamData(inputStream)
+            .WithObjectSize(inputStream.Length)
             .WithObject(dstPath)
             .WithContentType("application/octet-stream");
 
