@@ -596,6 +596,15 @@ namespace Odin.Hosting
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
                     DriveAliasPhase1Migrator.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
                 }
+                
+                if (Environment.GetCommandLineArgs().Contains("--migrate-drive-alias-phase2", StringComparer.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation("Migrating drive alias phase deuce ");
+                    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+                    var migrationLogger = loggerFactory.CreateLogger("Migration");
+                    var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+                    DriveAliasMigrationPhase2.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
+                }
             });
 
             lifetime.ApplicationStopping.Register(() =>

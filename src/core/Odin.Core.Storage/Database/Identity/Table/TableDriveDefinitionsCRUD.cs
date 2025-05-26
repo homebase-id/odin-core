@@ -255,7 +255,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    ;
             await cmd.ExecuteNonQueryAsync();
         }
-
+        
         protected virtual async Task<int> InsertAsync(DriveDefinitionsRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
