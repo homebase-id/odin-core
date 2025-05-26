@@ -21,6 +21,8 @@ public static class DriveAliasPhase1Migrator
     public static async Task MigrateData(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
     {
         var allTenants = await registry.GetTenants();
+        int successfullyMigrated = 0;
+        logger.LogInformation("Migrating drive alias phase 1 data - tenant count: {tenants}", allTenants.Count);
         foreach (var tenant in allTenants)
         {
             logger.LogInformation("Drive Migration started for tenant {tenant}", tenant.PrimaryDomainName);
@@ -63,11 +65,15 @@ public static class DriveAliasPhase1Migrator
                 throw new OdinSystemException($"Failure during drive migration for tenant {tenant.PrimaryDomainName}");
             }
 
+            successfullyMigrated++;
+
             logger.LogInformation("Migrating drive success for {t}; all drives are equivalent", tenant.PrimaryDomainName);
-
-
+            
             tx.Commit();
         }
+        
+        logger.LogInformation("Successfully migrated drive alias phase 1 data: success count: {s}", successfullyMigrated);
+
     }
 
     private static OdinContext CreateOdinContext(TenantContext tenantContext)

@@ -302,6 +302,10 @@ public class DriveManager
                 _logger.LogWarning("Found differences between primary drive {d1} and the secondary drive {d1}.  Diffs are: {difference}",
                     drive.Name, theSecondaryDrive.Name, difference);
             }
+            else
+            {
+                _logger.LogInformation("GetDriveAsync (by driveid) is valid");
+            }
         }
         catch (Exception e)
         {
@@ -326,6 +330,11 @@ public class DriveManager
                                    "the secondary drive {d1}.  Diffs are: {difference}", 
                     drive.Name, theSecondaryDrive.Name, difference);
             }
+            else
+            {
+                _logger.LogInformation("GetDriveAsync (by target drive) is valid");
+            }
+            
         }
         catch (Exception e)
         {
@@ -393,6 +402,10 @@ public class DriveManager
                     }
                 }
             }
+            else
+            {
+                _logger.LogInformation("GetDrivesAsync - all drives valid");
+            }
         }
         catch (Exception e)
         {
@@ -438,6 +451,10 @@ public class DriveManager
                     }
                 }
             }
+            else
+            {
+                _logger.LogInformation("GetDrivesAsync (type) - all drives valid");
+            }
         }
         catch (Exception e)
         {
@@ -473,6 +490,10 @@ public class DriveManager
                         _logger.LogWarning($"  - {diff}");
                     }
                 }
+            }
+            else
+            {
+                _logger.LogInformation("GetAnonymousDrivesAsync - all drives valid");
             }
         }
         catch (Exception e)

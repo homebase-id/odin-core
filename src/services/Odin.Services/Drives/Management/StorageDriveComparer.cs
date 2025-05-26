@@ -31,9 +31,12 @@ public static class StorageDriveComparer
         if (drive1.IsReadonly != drive2.IsReadonly) diffs.Add("IsReadonly differs");
         if (drive1.AllowSubscriptions != drive2.AllowSubscriptions) diffs.Add("AllowSubscriptions differs");
         
-        if (!Equals(drive1.MasterKeyEncryptedStorageKey, drive2.MasterKeyEncryptedStorageKey)) diffs.Add("MasterKeyEncryptedStorageKey differs");
-        if (!ByteArrayEquals(drive1.EncryptedIdIv, drive2.EncryptedIdIv)) diffs.Add("EncryptedIdIv differs");
-        if (!ByteArrayEquals(drive1.EncryptedIdValue, drive2.EncryptedIdValue)) diffs.Add("EncryptedIdValue differs");
+        if (!drive1.MasterKeyEncryptedStorageKey.KeyEncrypted.SequenceEqual(drive2.MasterKeyEncryptedStorageKey.KeyEncrypted)) diffs.Add("MasterKeyEncryptedStorageKey KeyEncrypted differs");
+        if (!drive1.MasterKeyEncryptedStorageKey.KeyIV.SequenceEqual(drive2.MasterKeyEncryptedStorageKey.KeyIV)) diffs.Add("MasterKeyEncryptedStorageKey KeyIV differs");
+        if (!drive1.MasterKeyEncryptedStorageKey.KeyHash.SequenceEqual(drive2.MasterKeyEncryptedStorageKey.KeyHash)) diffs.Add("MasterKeyEncryptedStorageKey KeyHash differs");
+
+        if (!drive1.EncryptedIdIv.SequenceEqual(drive2.EncryptedIdIv)) diffs.Add("EncryptedIdIv differs");
+        if (!drive1.EncryptedIdValue.SequenceEqual(drive2.EncryptedIdValue)) diffs.Add("EncryptedIdValue differs");
         
         if (drive1.AllowAnonymousReads != drive2.AllowAnonymousReads) diffs.Add("AllowAnonymousReads differs");
         if (drive1.OwnerOnly != drive2.OwnerOnly) diffs.Add("OwnerOnly differs");
@@ -73,20 +76,6 @@ public static class StorageDriveComparer
         onlyInSecond.AddRange(lookup2.Values);
 
         return (onlyInFirst, onlyInSecond, mismatched);
-    }
-
-    private static bool ByteArrayEquals(byte[] a, byte[] b)
-    {
-        if (a == b) return true;
-        if (a is null || b is null) return false;
-        if (a.Length != b.Length) return false;
-
-        for (int i = 0; i < a.Length; i++)
-        {
-            if (a[i] != b[i]) return false;
-        }
-
-        return true;
     }
 
     private static bool DictionariesEqual(Dictionary<string, string> a, Dictionary<string, string> b)
