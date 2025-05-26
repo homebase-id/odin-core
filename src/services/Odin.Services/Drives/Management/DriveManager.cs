@@ -383,6 +383,8 @@ public class DriveManager
         
         try
         {
+            _logger.LogInformation("Checking GetDrivesAsync (all drives)");
+
             var theSecondaryList = await _driveWithDedicatedTable.GetDrivesAsync(pageOptions, odinContext);
             var result = StorageDriveComparer.CompareLists(results.Results.ToList(), theSecondaryList.Results.ToList());
             if (result.OnlyInFirst.Any() || result.OnlyInSecond.Any() || result.Mismatched.Any())
@@ -432,6 +434,7 @@ public class DriveManager
         
         try
         {
+            _logger.LogInformation("Checking GetDrivesAsync (by type)");
             var theSecondaryList = await _driveWithDedicatedTable.GetDrivesAsync(type, pageOptions, odinContext);
             var result = StorageDriveComparer.CompareLists(results.Results.ToList(), theSecondaryList.Results.ToList());
             if (result.OnlyInFirst.Any() || result.OnlyInSecond.Any() || result.Mismatched.Any())
@@ -472,6 +475,8 @@ public class DriveManager
         
         try
         {
+            _logger.LogInformation("Checking GetAnonymousDrivesAsync");
+
             var theSecondaryList = await _driveWithDedicatedTable.GetAnonymousDrivesAsync(pageOptions, odinContext);
             var result = StorageDriveComparer.CompareLists(results.Results.ToList(), theSecondaryList.Results.ToList());
             if (result.OnlyInFirst.Any() || result.OnlyInSecond.Any() || result.Mismatched.Any())
