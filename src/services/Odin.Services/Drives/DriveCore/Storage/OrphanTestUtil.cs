@@ -14,7 +14,7 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 public class OrphanTestUtil(
     ILogger<OrphanTestUtil> logger,
     DriveFileReaderWriter driveFileReaderWriter,
-    DriveManager driveManager,
+    IDriveManager driveManager,
     TenantContext tenantContext
     )
 {

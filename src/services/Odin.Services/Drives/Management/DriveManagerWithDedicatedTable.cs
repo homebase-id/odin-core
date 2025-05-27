@@ -72,7 +72,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         return storageDrive;
     }
 
-    public async Task<StorageDrive> CreateDriveAsync(Guid driveId, CreateDriveRequest request, IOdinContext odinContext)
+    public async Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
         if (string.IsNullOrEmpty(request?.Name))
         {
@@ -97,8 +97,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
 
         var driveKey = new SymmetricKeyEncryptedAes(mk);
 
-        // var id = request.TargetDrive.Alias.Value;
-        var id = driveId;
+        var id = request.TargetDrive.Alias.Value;
         var storageKey = driveKey.DecryptKeyClone(mk);
 
         (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), storageKey);

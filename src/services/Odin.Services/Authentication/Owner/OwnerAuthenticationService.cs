@@ -56,7 +56,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
         private readonly ILogger<OwnerAuthenticationService> _logger;
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
         private readonly TenantContext _tenantContext;
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
@@ -66,7 +66,7 @@ namespace Odin.Services.Authentication.Owner
             OwnerSecretService secretService,
             TenantContext tenantContext,
             OdinConfiguration config,
-            DriveManager driveManager,
+            IDriveManager driveManager,
             IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService,
             IIdentityRegistry identityRegistry,

@@ -20,7 +20,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
         ILogger<V3ToV4VersionMigrationService> logger,
         CircleNetworkService circleNetworkService,
         CircleDefinitionService circleDefinitionService,
-        DriveManager driveManager)
+        IDriveManager driveManager)
     {
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {

@@ -22,9 +22,9 @@ namespace Odin.Services.Authorization.ExchangeGrants
     public class ExchangeGrantService
     {
         private readonly ILogger<ExchangeGrantService> _logger;
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
 
-        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, DriveManager driveManager)
+        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveManager driveManager)
         {
             _logger = logger;
             _driveManager = driveManager;

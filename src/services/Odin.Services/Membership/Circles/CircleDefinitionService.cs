@@ -15,7 +15,7 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Membership.Circles
 {
-    public class CircleDefinitionService(DriveManager driveManager, TableKeyThreeValue tblKeyThreeValue)
+    public class CircleDefinitionService(IDriveManager driveManager, TableKeyThreeValue tblKeyThreeValue)
     {
         private const string CircleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
         private static readonly ThreeKeyValueStorage CircleValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(CircleValueContextKey));

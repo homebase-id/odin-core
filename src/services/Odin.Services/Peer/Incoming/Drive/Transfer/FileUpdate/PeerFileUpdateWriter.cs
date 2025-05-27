@@ -23,7 +23,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// <summary>
     /// Handles the process of updating an existing long-term file based on an incoming temporary file
     /// </summary>
-    public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, DriveManager driveManager)
+    public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, IDriveManager driveManager)
     {
         public async Task<(bool success, List<PayloadDescriptor> payloads)> UpsertFileAsync(TempFile tempFile,
             KeyHeader decryptedKeyHeader,

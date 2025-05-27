@@ -25,7 +25,7 @@ namespace Odin.Services.Drives.Reactions;
 public class ReactionContentService(
     ILogger<ReactionContentService> logger,
     IdentityDatabase database,
-    DriveManager driveManager,
+    IDriveManager driveManager,
     DriveQuery driveQuery,
     IMediator mediator)
 {
