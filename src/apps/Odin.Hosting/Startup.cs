@@ -596,7 +596,6 @@ namespace Odin.Hosting
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
                     DriveAliasPhase1Migrator.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
                     
-                    
                     logger.LogInformation("Completed migrating drive alias phase 2.  You should now " +
                                           "remove flag --migrate-drive-alias-phase-1 from docker-compose.yml " +
                                           "and restart");
