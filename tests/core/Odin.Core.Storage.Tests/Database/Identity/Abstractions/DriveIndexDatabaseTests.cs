@@ -942,6 +942,122 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         }
 
 
+        /// <summary>
+        /// READ THIS EXAMPLE TO UNDERSTAND HOW THE AUTO CURSOR WORKS IN A REAL LIFE SCENARIO
+        ///
+        /// Scenario: First we get the entire chat history of five items.
+        /// Then three new items are added.
+        /// We check to get a page of TWO those (one is left).
+        /// Then two new items are added.
+        /// We check to get TWO items. We'll get only 1 because that's the leftover from the three items where we only got 2
+        /// Then we check to get TWO more items, and we get the last two.
+        ///
+        /// In summary items are retrieved as [f5,f4,f3,f2,f1], [f8,f7], [f6], [f10,f9]
+        ///
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task CursorsBatch07UserDateExampleTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+
+            var driveId = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            // Add five items to the chat database
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(3), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(4), 2, null, null, 1);
+            var (c5, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(5), 3, null, null, 1);
+
+            // Get everything from the chat database
+            QueryBatchCursor cursor = null;
+            var (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 100, cursor, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f4) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[2].fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[3].fileId, f2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            // Now there should be no more items
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, refCursor, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 0);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
+
+            // Now add three more items
+            var f6 = SequentialGuid.CreateGuid();
+            var f7 = SequentialGuid.CreateGuid();
+            var f8 = SequentialGuid.CreateGuid();
+            var (c6, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(6), 1, null, null, 1);
+            var (c7, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(7), 1, null, null, 1);
+            var (c8, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(8), 1, null, null, 1);
+
+            // Now we get two of the three new items, we get the newest first f8 & f7
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f8) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f7) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(7, 7).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(new TimeRowCursor(8, 8).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(moreRows == true);
+
+
+            // Now add two more items
+            var f9 = SequentialGuid.CreateGuid();
+            var f10 = SequentialGuid.CreateGuid();
+            var (c9, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(9), 1, null, null, 1);
+            var (c10, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(10), 1, null, null, 1);
+
+            // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
+            // because there is only 1 left in the previous range. A second request will get the
+            // next item. Leaving us with 1 left over. The order of the items will be newest first,
+            // so f10, f6. Note that you'll get a gap between {f8,f7,f6} and {f10,f9}, i.e. f9 still
+            // waiting for the next query
+            //
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f6) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(10, 10).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(8, 8).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(new TimeRowCursor(10, 10).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(moreRows == true);
+
+            // Now we get two more items, only one should be left (f9)
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f9) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(10, 10).Equals(refCursor.stopAtBoundary));
+
+        }
+
 
         /// <summary>
         /// READ THIS EXAMPLE TO UNDERSTAND HOW THE AUTO CURSOR WITH ANYCHANGE WORKS IN A REAL LIFE SCENARIO
@@ -1072,6 +1188,162 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(new TimeRowCursor(c10, 10).Equals(refCursor.stopAtBoundary));
         }
 
+
+
+        /// <summary>
+        /// READ THIS EXAMPLE TO UNDERSTAND HOW THE AUTO CURSOR WITH ANYCHANGE WORKS IN A REAL LIFE SCENARIO
+        ///
+        /// Scenario: First we get the entire chat history of five items.
+        /// Then three new items are added.
+        /// We check to get a page of TWO those (one is left).
+        /// Then two new items are added.
+        /// We check to get TWO items. We'll get only 1 because that's the leftover from the three items where we only got 2
+        /// Then we check to get TWO more items, and we get the last two.
+        ///
+        /// In summary items are retrieved as [f5,f4,f3,f2,f1], [f8,f7], [f6], [f10,f9]
+        ///
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task CursorsBatch07ModifiedOnlyExampleTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+
+            var driveId = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            // Add five items to the chat database
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
+            await Task.Delay(2);
+            var (c5, m5) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
+            await Task.Delay(2);
+
+            // Get everything from the chat database
+            QueryBatchCursor cursor = null;
+            var (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 100, cursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 0);
+
+            (_, var m1) = await tblDriveMainIndex.TestTouchAsync(driveId, f1);
+            (_, var m2) = await tblDriveMainIndex.TestTouchAsync(driveId, f2);
+            (_, var m3) = await tblDriveMainIndex.TestTouchAsync(driveId, f3);
+            (_, var m4) = await tblDriveMainIndex.TestTouchAsync(driveId, f4);
+            (_, m5) = await tblDriveMainIndex.TestTouchAsync(driveId, f5);
+
+            await Task.Delay(2);
+
+            // Get everything (modified) from the chat database
+            cursor = null;
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 100, cursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 5);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f5) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f4) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[2].fileId, f3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[3].fileId, f2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[4].fileId, f1) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(m5, 5).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            // Now we'll touch two items from above
+            await Task.Delay(2);
+            (_, m2) = await tblDriveMainIndex.TestTouchAsync(driveId, f2);
+            await Task.Delay(2);
+            (_, m3) = await tblDriveMainIndex.TestTouchAsync(driveId, f3);
+            await Task.Delay(2);
+
+            // Now there should be no more items
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(m3, 3).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(moreRows == false);
+
+            // Now add three more items
+            var f6 = SequentialGuid.CreateGuid();
+            var f7 = SequentialGuid.CreateGuid();
+            var f8 = SequentialGuid.CreateGuid();
+            await Task.Delay(2);
+            var (c6, m6) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await Task.Delay(2);
+            var (c7, m7) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await Task.Delay(2);
+            var (c8, m8) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            await Task.Delay(2);
+
+            // None new, not modified
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 0);
+
+            await Task.Delay(2);
+            (_, m6) = await tblDriveMainIndex.TestTouchAsync(driveId, f6);
+            (_, m7) = await tblDriveMainIndex.TestTouchAsync(driveId, f7);
+            (_, m8) = await tblDriveMainIndex.TestTouchAsync(driveId, f8);
+            await Task.Delay(2);
+
+            // Now we get two of the three new items, we get the newest first f8 & f7
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f8) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f7) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(m7, 7).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(m3, 3).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(new TimeRowCursor(m8, 8).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(moreRows == true);
+
+
+            // Now add two more items
+            var f9 = SequentialGuid.CreateGuid();
+            var f10 = SequentialGuid.CreateGuid();
+            var (c9, m9) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+            var (c10, m10) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
+
+            (_, m9) = await tblDriveMainIndex.TestTouchAsync(driveId, f9);
+            (_, m10) = await tblDriveMainIndex.TestTouchAsync(driveId, f10);
+            await Task.Delay(5);
+
+            // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
+            // because there is only 1 left in the previous range. A second request will get the
+            // next item. Leaving us with 1 left over. The order of the items will be newest first,
+            // so f10, f6. Note that you'll get a gap between {f8,f7,f6} and {f10,f9}, i.e. f9 still
+            // waiting for the next query
+            //
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[1].fileId, f6) == 0);
+            ClassicAssert.IsTrue(new TimeRowCursor(m10, 10).Equals(refCursor.pagingCursor));
+            ClassicAssert.IsTrue(new TimeRowCursor(m8, 8).Equals(refCursor.stopAtBoundary));
+            ClassicAssert.IsTrue(new TimeRowCursor(m10, 10).Equals(refCursor.nextBoundaryCursor));
+            ClassicAssert.IsTrue(moreRows == true);
+
+            // Now we get two more items, only one should be left (f9)
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 1);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f9) == 0);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            ClassicAssert.IsTrue(refCursor.nextBoundaryCursor == null);
+            ClassicAssert.IsTrue(refCursor.pagingCursor == null);
+            ClassicAssert.IsTrue(new TimeRowCursor(m10, 10).Equals(refCursor.stopAtBoundary));
+        }
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
