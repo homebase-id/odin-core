@@ -645,6 +645,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.fileState = 42;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
+            await Task.Delay(5);
+
             var c2 = new QueryBatchCursor(UnixTimeUtc.ZeroTime);
             (result, moreRows, var outc2) = await metaIndex.QueryBatchAsync(driveId, 10, c2, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 5);
@@ -653,6 +655,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r = await tblDriveMainIndex.GetAsync(driveId, f2);
             r.fileState = 43;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
+
+            await Task.Delay(5);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, fileStateAnyOf: new List<Int32>() { 42, 43 }, requiredSecurityGroup: allIntRange);
@@ -717,6 +721,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(result.Count == 5);
             ClassicAssert.IsTrue(moreRows == false);
 
+            await Task.Delay(5);
+
             var c2 = new QueryBatchCursor();
             var outc2 = new QueryBatchCursor();
             (result, moreRows, outc2) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, c2, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -726,6 +732,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             r.archivalStatus = 7;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
+
+            await Task.Delay(5);
 
             c2 = new QueryBatchCursor();
             (result, moreRows, outc2) = await metaIndex.QueryBatchAsync(driveId, 10, c2, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -740,6 +748,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r = await tblDriveMainIndex.GetAsync(driveId, f2);
             r.archivalStatus = 7;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
+
+            await Task.Delay(5);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
@@ -1907,6 +1917,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
+            await Task.Delay(5);
+
             QueryBatchCursor inCursor = null;
             var (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 400, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 5); // Nothing has been modified
@@ -1917,6 +1929,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblDriveMainIndex.TestTouchAsync(driveId, f3);
             await tblDriveMainIndex.TestTouchAsync(driveId, f4);
             await tblDriveMainIndex.TestTouchAsync(driveId, f5);
+
+            await Task.Delay(5);
 
             outCursor = null;
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 400, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -2221,6 +2235,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblDriveMainIndex.TestTouchAsync(driveId, f3);
             await tblDriveMainIndex.TestTouchAsync(driveId, f4);
             await tblDriveMainIndex.TestTouchAsync(driveId, f5);
+
+            await Task.Delay(5);
 
             // ===== TEST RSG, no circles
 
