@@ -268,7 +268,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
                                              $"VALUES (@identityId,@DriveId,@TempDriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},{sqlNowStr})"+
-                                            "RETURNING created,modified,rowId;";
+                                            "RETURNING DriveDefinitions.created,DriveDefinitions.modified,DriveDefinitions.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
                                             $"VALUES (@identityId,@DriveId,@TempDriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING created,modified,rowId;";
+                                            "RETURNING DriveDefinitions.created,DriveDefinitions.modified,DriveDefinitions.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -396,8 +396,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
                                             $"VALUES (@identityId,@DriveId,@TempDriveAlias,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,DriveId) DO UPDATE "+
-                                            $"SET TempDriveAlias = @TempDriveAlias,DriveType = @DriveType,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}) "+
-                                            "RETURNING created,modified,rowId;";
+                                            $"SET DriveDefinitions.TempDriveAlias = @TempDriveAlias,DriveDefinitions.DriveType = @DriveType,DriveDefinitions.DriveName = @DriveName,DriveDefinitions.MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,DriveDefinitions.EncryptedIdIv64 = @EncryptedIdIv64,DriveDefinitions.EncryptedIdValue64 = @EncryptedIdValue64,DriveDefinitions.detailsJson = @detailsJson,DriveDefinitions.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(DriveDefinitions.modified+1,{sqlNowStr}) "+
+                                            "RETURNING DriveDefinitions.created,DriveDefinitions.modified,DriveDefinitions.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -459,9 +459,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 updateCommand.CommandText = "UPDATE DriveDefinitions " +
-                                            $"SET TempDriveAlias = @TempDriveAlias,DriveType = @DriveType,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}) "+
+                                            $"SET DriveDefinitions.TempDriveAlias = @TempDriveAlias,DriveDefinitions.DriveType = @DriveType,DriveDefinitions.DriveName = @DriveName,DriveDefinitions.MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,DriveDefinitions.EncryptedIdIv64 = @EncryptedIdIv64,DriveDefinitions.EncryptedIdValue64 = @EncryptedIdValue64,DriveDefinitions.detailsJson = @detailsJson,DriveDefinitions.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(DriveDefinitions.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND DriveId = @DriveId) "+
-                                            "RETURNING created,modified,rowId;";
+                                            "RETURNING DriveDefinitions.created,DriveDefinitions.modified,DriveDefinitions.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

@@ -228,7 +228,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             {
                 insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                              $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,KeyChain.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -275,7 +275,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,KeyChain.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -322,8 +322,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 upsertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
                                             "ON CONFLICT (identity,publicKeyJwkBase64Url) DO UPDATE "+
-                                            $"SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
-                                            "RETURNING -1,-1,rowId;";
+                                            $"SET KeyChain.previousHash = @previousHash,KeyChain.timestamp = @timestamp,KeyChain.signedPreviousHash = @signedPreviousHash,KeyChain.algorithm = @algorithm,KeyChain.recordHash = @recordHash "+
+                                            "RETURNING -1,-1,KeyChain.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@previousHash";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -368,9 +368,9 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE KeyChain " +
-                                            $"SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
+                                            $"SET KeyChain.previousHash = @previousHash,KeyChain.timestamp = @timestamp,KeyChain.signedPreviousHash = @signedPreviousHash,KeyChain.algorithm = @algorithm,KeyChain.recordHash = @recordHash "+
                                             "WHERE (identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url) "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,KeyChain.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@previousHash";
                 updateCommand.Parameters.Add(updateParam1);

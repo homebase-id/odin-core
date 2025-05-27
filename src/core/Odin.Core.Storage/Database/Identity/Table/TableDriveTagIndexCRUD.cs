@@ -120,7 +120,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO DriveTagIndex (identityId,driveId,fileId,tagId) " +
                                              $"VALUES (@identityId,@driveId,@fileId,@tagId)"+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveTagIndex.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -159,7 +159,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO DriveTagIndex (identityId,driveId,fileId,tagId) " +
                                             $"VALUES (@identityId,@driveId,@fileId,@tagId) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveTagIndex.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -199,7 +199,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@driveId,@fileId,@tagId)"+
                                             "ON CONFLICT (identityId,driveId,fileId,tagId) DO UPDATE "+
                                             $"SET  "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveTagIndex.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -238,7 +238,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.CommandText = "UPDATE DriveTagIndex " +
                                             $"SET  "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId) "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveTagIndex.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

@@ -120,7 +120,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                              $"VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveAclIndex.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -159,7 +159,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                             $"VALUES (@identityId,@driveId,@fileId,@aclMemberId) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveAclIndex.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -199,7 +199,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
                                             "ON CONFLICT (identityId,driveId,fileId,aclMemberId) DO UPDATE "+
                                             $"SET  "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveAclIndex.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -238,7 +238,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.CommandText = "UPDATE DriveAclIndex " +
                                             $"SET  "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId) "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveAclIndex.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

@@ -144,7 +144,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
                                              $"VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveReactions.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -186,7 +186,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO DriveReactions (identityId,driveId,postId,identity,singleReaction) " +
                                             $"VALUES (@identityId,@driveId,@postId,@identity,@singleReaction) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveReactions.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -229,7 +229,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@driveId,@postId,@identity,@singleReaction)"+
                                             "ON CONFLICT (identityId,driveId,postId,identity,singleReaction) DO UPDATE "+
                                             $"SET  "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveReactions.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.CommandText = "UPDATE DriveReactions " +
                                             $"SET  "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction) "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,DriveReactions.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

@@ -145,7 +145,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                              $"VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,AppGrants.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -189,7 +189,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                             $"VALUES (@identityId,@odinHashId,@appId,@circleId,@data) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,AppGrants.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -233,8 +233,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO AppGrants (identityId,odinHashId,appId,circleId,data) " +
                                             $"VALUES (@identityId,@odinHashId,@appId,@circleId,@data)"+
                                             "ON CONFLICT (identityId,odinHashId,appId,circleId) DO UPDATE "+
-                                            $"SET data = @data "+
-                                            "RETURNING -1,-1,rowId;";
+                                            $"SET AppGrants.data = @data "+
+                                            "RETURNING -1,-1,AppGrants.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -276,9 +276,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE AppGrants " +
-                                            $"SET data = @data "+
+                                            $"SET AppGrants.data = @data "+
                                             "WHERE (identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId) "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,AppGrants.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

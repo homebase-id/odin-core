@@ -187,7 +187,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 insertCommand.CommandText = "INSERT INTO KeyUniqueThreeValue (identityId,key1,key2,key3,data) " +
                                              $"VALUES (@identityId,@key1,@key2,@key3,@data)"+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,KeyUniqueThreeValue.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -228,7 +228,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO KeyUniqueThreeValue (identityId,key1,key2,key3,data) " +
                                             $"VALUES (@identityId,@key1,@key2,@key3,@data) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,KeyUniqueThreeValue.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -269,8 +269,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO KeyUniqueThreeValue (identityId,key1,key2,key3,data) " +
                                             $"VALUES (@identityId,@key1,@key2,@key3,@data)"+
                                             "ON CONFLICT (identityId,key1) DO UPDATE "+
-                                            $"SET key2 = @key2,key3 = @key3,data = @data "+
-                                            "RETURNING -1,-1,rowId;";
+                                            $"SET KeyUniqueThreeValue.key2 = @key2,KeyUniqueThreeValue.key3 = @key3,KeyUniqueThreeValue.data = @data "+
+                                            "RETURNING -1,-1,KeyUniqueThreeValue.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -309,9 +309,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE KeyUniqueThreeValue " +
-                                            $"SET key2 = @key2,key3 = @key3,data = @data "+
+                                            $"SET KeyUniqueThreeValue.key2 = @key2,KeyUniqueThreeValue.key3 = @key3,KeyUniqueThreeValue.data = @data "+
                                             "WHERE (identityId = @identityId AND key1 = @key1) "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,KeyUniqueThreeValue.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

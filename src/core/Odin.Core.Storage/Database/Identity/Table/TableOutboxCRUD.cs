@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
                                              $"VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,{sqlNowStr},{sqlNowStr})"+
-                                            "RETURNING created,modified,rowId;";
+                                            "RETURNING Outbox.created,Outbox.modified,Outbox.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -348,7 +348,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
                                             $"VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING created,modified,rowId;";
+                                            "RETURNING Outbox.created,Outbox.modified,Outbox.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -425,8 +425,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
                                             $"VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,driveId,fileId,recipient) DO UPDATE "+
-                                            $"SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}) "+
-                                            "RETURNING created,modified,rowId;";
+                                            $"SET Outbox.type = @type,Outbox.priority = @priority,Outbox.dependencyFileId = @dependencyFileId,Outbox.checkOutCount = @checkOutCount,Outbox.nextRunTime = @nextRunTime,Outbox.value = @value,Outbox.checkOutStamp = @checkOutStamp,Outbox.correlationId = @correlationId,Outbox.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Outbox.modified+1,{sqlNowStr}) "+
+                                            "RETURNING Outbox.created,Outbox.modified,Outbox.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -501,9 +501,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 updateCommand.CommandText = "UPDATE Outbox " +
-                                            $"SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}) "+
+                                            $"SET Outbox.type = @type,Outbox.priority = @priority,Outbox.dependencyFileId = @dependencyFileId,Outbox.checkOutCount = @checkOutCount,Outbox.nextRunTime = @nextRunTime,Outbox.value = @value,Outbox.checkOutStamp = @checkOutStamp,Outbox.correlationId = @correlationId,Outbox.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Outbox.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient) "+
-                                            "RETURNING created,modified,rowId;";
+                                            "RETURNING Outbox.created,Outbox.modified,Outbox.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

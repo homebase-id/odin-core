@@ -252,7 +252,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             {
                 insertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                              $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)"+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,NotaryChain.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -303,7 +303,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 insertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,NotaryChain.rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
@@ -354,8 +354,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 upsertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)"+
                                             "ON CONFLICT (notarySignature) DO UPDATE "+
-                                            $"SET previousHash = @previousHash,identity = @identity,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,publicKeyJwkBase64Url = @publicKeyJwkBase64Url,recordHash = @recordHash "+
-                                            "RETURNING -1,-1,rowId;";
+                                            $"SET NotaryChain.previousHash = @previousHash,NotaryChain.identity = @identity,NotaryChain.timestamp = @timestamp,NotaryChain.signedPreviousHash = @signedPreviousHash,NotaryChain.algorithm = @algorithm,NotaryChain.publicKeyJwkBase64Url = @publicKeyJwkBase64Url,NotaryChain.recordHash = @recordHash "+
+                                            "RETURNING -1,-1,NotaryChain.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@previousHash";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -404,9 +404,9 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE NotaryChain " +
-                                            $"SET previousHash = @previousHash,identity = @identity,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,publicKeyJwkBase64Url = @publicKeyJwkBase64Url,recordHash = @recordHash "+
+                                            $"SET NotaryChain.previousHash = @previousHash,NotaryChain.identity = @identity,NotaryChain.timestamp = @timestamp,NotaryChain.signedPreviousHash = @signedPreviousHash,NotaryChain.algorithm = @algorithm,NotaryChain.publicKeyJwkBase64Url = @publicKeyJwkBase64Url,NotaryChain.recordHash = @recordHash "+
                                             "WHERE (notarySignature = @notarySignature) "+
-                                            "RETURNING -1,-1,rowId;";
+                                            "RETURNING -1,-1,NotaryChain.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@previousHash";
                 updateCommand.Parameters.Add(updateParam1);
