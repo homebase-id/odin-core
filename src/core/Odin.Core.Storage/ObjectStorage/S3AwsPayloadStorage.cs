@@ -7,6 +7,10 @@ namespace Odin.Core.Storage.ObjectStorage;
 
 #nullable enable
 
+public interface IS3PayloadStorage : IS3Storage
+{
+}
+
 public sealed class S3AwsPayloadStorage(ILogger<S3AwsPayloadStorage> logger, IAmazonS3 awsClient, string bucketName)
     : S3AwsStorage(logger, awsClient, bucketName), IS3PayloadStorage
 {
@@ -30,7 +34,7 @@ public static class S3AwsPayloadStorageExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(region, nameof(region));
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
 
-        services.AddAwsS3Client(
+        services.AddAmazonS3Client(
             endpoint,
             accessKey,
             secretAccessKey,

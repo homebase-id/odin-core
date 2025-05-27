@@ -1,3 +1,4 @@
+#if ODIN_MINIO_STORAGE
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -334,3 +335,4 @@ public class S3MinioStorageTests
         Assert.That(content, Is.EqualTo(text));
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if ODIN_MINIO_STORAGE
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -303,4 +304,4 @@ public static class S3MinioStorageExtensions
         return services;
     }
 }
-
+#endif
