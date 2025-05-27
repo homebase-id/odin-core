@@ -3392,6 +3392,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(result.Count == 0); // There should be no more
             ClassicAssert.IsTrue(moreRows == false);
 
+            await Task.Delay(5);
+
             QueryBatchCursor inCursor = null;
             QueryBatchCursor outCursor = null;
             // Be sure we can get the modified items
@@ -3413,6 +3415,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
             //UpdateEntryZapZapPassAlong(myc, driveId, fileId[420], fileType: 5, dataType: 6, senderId: conversationId[42].ToByteArray(), groupId: theguid, userDate: new UnixTimeUtc(42), requiredSecurityGroup: 333);
 
+            await Task.Delay(5);
+
             // Now check that we can find the one modified item with our cursor timestamp
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 100, null, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 100);
@@ -3425,6 +3429,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(md.userDate == new UnixTimeUtc(42));
 
             ClassicAssert.True(md.requiredSecurityGroup == 333);
+
+            await Task.Delay(5);
 
             // UInt64 tmpCursor = UnixTime.UnixTimeMillisecondsUnique();
             // Now check that we can't find the one modified item with a newer cursor 

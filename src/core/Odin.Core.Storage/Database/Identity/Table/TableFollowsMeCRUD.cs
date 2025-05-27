@@ -224,7 +224,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO FollowsMe (identityId,identity,driveId,created,modified) " +
                                             $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
-                                            $"SET modified = MAX(modified+1,{sqlNowStr}) "+
+                                            $"SET modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -261,7 +261,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 updateCommand.CommandText = "UPDATE FollowsMe " +
-                                            $"SET modified = MAX(modified+1,{sqlNowStr}) "+
+                                            $"SET modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND identity = @identity AND driveId = @driveId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

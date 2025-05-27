@@ -27,4 +27,12 @@ public static class SqlExtensions
         else
             return "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
     }
+
+    public static string MaxString(DatabaseType dbType)
+    {
+        if (dbType == DatabaseType.Sqlite)
+            return "MAX";
+        else
+            return "GREATEST";
+    }
 }
