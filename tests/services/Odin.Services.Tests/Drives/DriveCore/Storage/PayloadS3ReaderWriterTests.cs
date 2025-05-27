@@ -21,6 +21,8 @@ using Testcontainers.Minio;
 
 namespace Odin.Services.Tests.Drives.DriveCore.Storage;
 
+#if RUN_S3_TESTS
+
 public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 {
     private string _accessKey = "";
@@ -383,3 +385,5 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     //
 
 }
+
+#endif

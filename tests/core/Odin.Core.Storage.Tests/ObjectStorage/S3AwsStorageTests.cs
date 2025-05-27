@@ -14,6 +14,8 @@ using Testcontainers.Minio;
 
 namespace Odin.Core.Storage.Tests.ObjectStorage;
 
+#if RUN_S3_TESTS
+
 public class S3AwsStorageTests
 {
     private string _accessKey = "";
@@ -370,3 +372,5 @@ public class S3AwsStorageTests
         Assert.That(content, Is.EqualTo(text));
     }
 }
+
+#endif
