@@ -8,6 +8,7 @@ namespace Odin.Core.Storage.ObjectStorage;
 public interface IS3Storage
 {
     string BucketName { get; }
+    Task CreateBucketAsync(CancellationToken cancellationToken = default);
     Task<bool> BucketExistsAsync(CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default);
     Task WriteBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default);

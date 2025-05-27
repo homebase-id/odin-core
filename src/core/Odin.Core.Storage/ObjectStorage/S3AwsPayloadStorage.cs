@@ -22,23 +22,24 @@ public static class S3AwsPayloadStorageExtensions
 {
     public static IServiceCollection AddS3AwsPayloadStorage(
         this IServiceCollection services,
-        string endpoint,
         string accessKey,
         string secretAccessKey,
+        string serviceUrl,
         string region,
+        bool forcePathStyle,
         string bucketName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(endpoint, nameof(endpoint));
         ArgumentException.ThrowIfNullOrWhiteSpace(accessKey, nameof(accessKey));
         ArgumentException.ThrowIfNullOrWhiteSpace(secretAccessKey, nameof(secretAccessKey));
-        ArgumentException.ThrowIfNullOrWhiteSpace(region, nameof(region));
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceUrl, nameof(serviceUrl));
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
 
         services.AddAmazonS3Client(
-            endpoint,
             accessKey,
             secretAccessKey,
-            region);
+            serviceUrl,
+            region,
+            forcePathStyle);
 
         services.AddSingleton<IS3PayloadStorage>(sp =>
         {
