@@ -28,10 +28,10 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Configuration;
 using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
+using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
 
@@ -78,6 +78,10 @@ namespace Odin.Hosting.Tests
 
 #if RUN_REDIS_TESTS
         protected RedisContainer  RedisContainer;
+#endif
+
+#if RUN_S3_TESTS
+        protected MinioContainer MinioContainer = null!;
 #endif
 
         static WebScaffold()
@@ -168,6 +172,22 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Cache__Level2CacheType", "redis");
 #endif
 
+#if RUN_S3_TESTS
+            Logger.LogInformation("Starting Minio S3 container for tests");
+            MinioContainer = new MinioBuilder()
+                .WithImage("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+                .WithUsername("minioadmin")
+                .WithPassword("minioadmin123")
+                .Build();
+            MinioContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("S3PayloadStorage__AccessKey", MinioContainer.GetAccessKey());
+            Environment.SetEnvironmentVariable("S3PayloadStorage__SecretAccessKey", MinioContainer.GetSecretKey());
+            Environment.SetEnvironmentVariable("S3PayloadStorage__ServiceUrl", MinioContainer.GetConnectionString());
+            Environment.SetEnvironmentVariable("S3PayloadStorage__Region", "meh");
+            Environment.SetEnvironmentVariable("S3PayloadStorage__ForcePathStyle", "true");
+            Environment.SetEnvironmentVariable("S3PayloadStorage__BucketName", "odin-payloads");
+#endif
+
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
@@ -240,13 +260,6 @@ namespace Odin.Hosting.Tests
             _webserver = Program.CreateHostBuilder([]).Build();
             _webserver.Start();
 
-            // SEB:TODO fix S3 scaffold tests
-            var config = Services.GetRequiredService<OdinConfiguration>();
-            if (config.S3PayloadStorage.Enabled)
-            {
-                throw new Exception("SEB MUST FIX S3 TESTS. In particular bucket deletion.");
-            }
-
             if (setupOwnerAccounts)
             {
                 // foreach (var odinId in TestIdentities.All.Keys)
@@ -284,6 +297,12 @@ namespace Odin.Hosting.Tests
             RedisContainer?.StopAsync().Wait();
             RedisContainer?.DisposeAsync().AsTask().Wait();
             RedisContainer = null;
+#endif
+
+#if RUN_S3_TESTS
+            MinioContainer?.StopAsync().Wait();
+            MinioContainer?.DisposeAsync().AsTask().Wait();
+            MinioContainer = null;
 #endif
 
             this.DeleteData();

@@ -30,18 +30,35 @@ public class S3AwsStorage : IS3Storage
 
     //
 
-    public async Task<bool> BucketExistsAsync(CancellationToken cancellationToken = default)
+    public async Task CreateBucketAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogTrace(nameof(BucketExistsAsync));
+        if (await BucketExistsAsync(cancellationToken))
+        {
+            return;
+        }
+
         try
         {
-            var response = await _s3Client.ListBucketsAsync(cancellationToken);
-            return response.Buckets.Any(b => b.BucketName == BucketName);
+            await _s3Client.PutBucketAsync(BucketName, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check if bucket '{Bucket}' exists: {Message}", BucketName, ex.Message);
-            return false;
+            throw new S3StorageException($"Create bucket '{BucketName}' failed: {ex.Message}", ex);
+        }
+    }
+
+    //
+
+    public async Task<bool> BucketExistsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _s3Client.ListBucketsAsync(cancellationToken);
+            return response.Buckets != null && response.Buckets.Any(b => b.BucketName == BucketName);
+        }
+        catch (Exception ex)
+        {
+            throw new S3StorageException($"Failed to check if bucket '{BucketName}' exists: {ex.Message}", ex);
         }
     }
 
@@ -69,9 +86,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to write object '{Path}' to bucket '{Bucket}': {Message}",
-                path, BucketName, ex.Message);
-            throw;
+            throw new S3StorageException($"Failed to write object '{path}' to bucket '{BucketName}': {ex.Message}", ex);
         }
         finally
         {
@@ -148,10 +163,9 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                "Failed to read object '{Path}' from bucket '{Bucket}' with offset {Offset} and length {Length}: {Message}",
-                path, BucketName, offset, length, ex.Message);
-            throw;
+            throw new S3StorageException(
+                $"Failed to read object '{path}' from bucket '{BucketName}' with offset {offset} and length {length}: {ex.Message}",
+                ex);
         }
         finally
         {
@@ -231,9 +245,9 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload file '{SrcPath}' to '{DstPath}' in bucket '{Bucket}': {Message}",
-                srcPath, dstPath, BucketName, ex.Message);
-            throw;
+            throw new S3StorageException(
+                $"Failed to upload file '{srcPath}' to '{dstPath}' in bucket '{BucketName}': {ex.Message}",
+                ex);
         }
     }
 
@@ -259,9 +273,8 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to download object '{SrcPath}' to '{DstPath}': {Message}",
-                srcPath, dstPath, ex.Message);
-            throw;
+            throw new S3StorageException(
+                $"Failed to download object '{srcPath}' to '{dstPath}': {ex.Message}", ex);
         }
     }
 
@@ -273,46 +286,25 @@ public class S3AwsStorage : IS3Storage
 
 public static class S3AwsStorageExtensions
 {
-    // SEB:NOTE S3 settings seem to be different for different providers. So for now we hardcode the Hetzner settings.
-    public static AmazonS3Config GetHetznerConfig(string endpoint, string region)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(endpoint, nameof(endpoint));
-        ArgumentException.ThrowIfNullOrWhiteSpace(region, nameof(region));
-
-        if (!endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            endpoint = "https://" + endpoint;
-        }
-
-        return new AmazonS3Config
-        {
-            ServiceURL = endpoint,
-            AuthenticationRegion = region,
-            ForcePathStyle = false,
-            UseHttp = false,
-            ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
-            RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
-        };
-    }
-
-    //
-
     public static IServiceCollection AddAmazonS3Client(
         this IServiceCollection services,
-        string endpoint,
         string accessKey,
         string secretAccessKey,
-        string region)
+        string serviceUrl,
+        string region,
+        bool forcePathStyle)
     {
         services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
             accessKey,
             secretAccessKey,
-            GetHetznerConfig(endpoint, region)));
-
+            new AmazonS3Config
+            {
+                ServiceURL = serviceUrl,
+                AuthenticationRegion = region,
+                ForcePathStyle = forcePathStyle,
+                ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+                RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
+            }));
         return services;
     }
-
-    //
-
-
 }

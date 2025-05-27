@@ -261,10 +261,11 @@ namespace Odin.Hosting
             if (_config.S3PayloadStorage.Enabled)
             {
                 services.AddS3AwsPayloadStorage(
-                    _config.S3PayloadStorage.Endpoint,
                     _config.S3PayloadStorage.AccessKey,
                     _config.S3PayloadStorage.SecretAccessKey,
+                    _config.S3PayloadStorage.ServiceUrl,
                     _config.S3PayloadStorage.Region,
+                    _config.S3PayloadStorage.ForcePathStyle,
                     _config.S3PayloadStorage.BucketName);
             }
         }
@@ -541,6 +542,8 @@ namespace Odin.Hosting
                     });
             }
 
+
+            // SEB:TODO move this to somewhere else that runs BEFORE the application starts accepting requests
             lifetime.ApplicationStarted.Register(() =>
             {
                 var services = app.ApplicationServices;
@@ -571,20 +574,14 @@ namespace Odin.Hosting
                     throw new OdinSystemException("Cache sanity check failed");
                 }
 
-                // Sanity ping S3 bucket
+                // Ensure S3 bucket exists
                 logger.LogInformation("S3PayloadStorage enabled: {enabled}", _config.S3PayloadStorage.Enabled);
                 if (_config.S3PayloadStorage.Enabled)
                 {
+                    logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
+                        _config.S3PayloadStorage.BucketName, _config.S3PayloadStorage.ServiceUrl);
                     var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
-                    try
-                    {
-                        var timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-                        payloadBucket.WriteBytesAsync("host-ping.txt", timestamp.ToUtf8ByteArray()).BlockingWait();
-                    }
-                    catch (Exception e)
-                    {
-                        throw new OdinSystemException($"S3 sanity check failed: {e.Message}", e);
-                    }
+                    payloadBucket.CreateBucketAsync().BlockingWait();
                 }
 
                 // Start system background services

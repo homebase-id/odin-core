@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Test.Helpers.Secrets;
+using Testcontainers.Minio;
 
 namespace Odin.Services.Tests.Drives.DriveCore.Storage;
 
@@ -29,21 +31,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     private TenantPathManager _tenantPathManager = null!;
     private IAmazonS3 _s3Client = null!;
     private IS3PayloadStorage _s3PayloadStorage = null!;
+    private MinioContainer _minioContainer = null!;
     private readonly Mock<ILogger<S3AwsPayloadStorage>> _loggerMock = new ();
-
-    [OneTimeSetUp]
-    public void CheckCredentials()
-    {
-        TestSecrets.Load();
-
-        _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY")!;
-        _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY")!;
-
-        if (string.IsNullOrWhiteSpace(_accessKey) || string.IsNullOrWhiteSpace(_secretAccessKey))
-        {
-            Assert.Ignore("Environment variable ODIN_S3_ACCESS_KEY or ODIN_S3_SECRET_ACCESS_KEY is not set");
-        }
-    }
 
     //
 
@@ -51,6 +40,51 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     public async Task Setup()
     {
         BaseSetup();
+        TestSecrets.Load();
+
+        var runTestAgainstHetzner = Environment.GetEnvironmentVariable("ODIN_S3_RUN_HETZNER_TESTS")?.ToLower() == "true";
+        if (runTestAgainstHetzner)
+        {
+            _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY")!;
+            _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY")!;
+
+            _s3Client = new AmazonS3Client(
+                _accessKey,
+                _secretAccessKey,
+                new AmazonS3Config
+                {
+                    ServiceURL = "https://hel1.your-objectstorage.com",
+                    AuthenticationRegion = "hel1",
+                    ForcePathStyle = false,
+                    ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+                    RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
+                });
+        }
+        else
+        {
+            _minioContainer = new MinioBuilder()
+                .WithImage("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+                .WithUsername("minioadmin")
+                .WithPassword("minioadmin123")
+                .Build();
+
+            await _minioContainer.StartAsync();
+
+            _accessKey = _minioContainer.GetAccessKey();
+            _secretAccessKey = _minioContainer.GetSecretKey();
+
+            _s3Client = new AmazonS3Client(
+                _accessKey,
+                _secretAccessKey,
+                new AmazonS3Config
+                {
+                    ServiceURL = _minioContainer.GetConnectionString(),
+                    AuthenticationRegion = "foo",
+                    ForcePathStyle = true,
+                    ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+                    RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
+                });
+        }
 
         // Config needed by TenantPathManager to tweak the path for S3 storage
         _config = new OdinConfiguration
@@ -76,11 +110,6 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
             markedForDeletionDate: null
         );
         _tenantPathManager = _tenantContext.TenantPathManager;
-
-        _s3Client = new AmazonS3Client(
-            _accessKey,
-            _secretAccessKey,
-            S3AwsStorageExtensions.GetHetznerConfig("hel1.your-objectstorage.com", "hel1"));
 
         _bucketName = $"zz-ci-test-{Guid.NewGuid():N}";
         await _s3Client.PutBucketAsync(_bucketName);

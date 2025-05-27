@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,7 @@ using Moq;
 using NUnit.Framework;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Test.Helpers.Secrets;
+using Testcontainers.Minio;
 
 namespace Odin.Core.Storage.Tests.ObjectStorage;
 
@@ -19,32 +21,57 @@ public class S3AwsStorageTests
     private string _bucketName = "";
     private string _testRootPath = "";
     private IAmazonS3 _s3Client = null!;
+    private MinioContainer _minioContainer = null!;
     private readonly Mock<ILogger<S3AwsStorage>> _loggerMock = new ();
-
-
-    [OneTimeSetUp]
-    public void CheckCredentials()
-    {
-        TestSecrets.Load();
-
-        _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY")!;
-        _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY")!;
-
-        if (string.IsNullOrWhiteSpace(_accessKey) || string.IsNullOrWhiteSpace(_secretAccessKey))
-        {
-            Assert.Ignore("Environment variable ODIN_S3_ACCESS_KEY or ODIN_S3_SECRET_ACCESS_KEY is not set");
-        }
-    }
-
-    //
 
     [SetUp]
     public async Task SetUp()
     {
-        _s3Client = new AmazonS3Client(
-            _accessKey,
-            _secretAccessKey,
-            S3AwsStorageExtensions.GetHetznerConfig("hel1.your-objectstorage.com", "hel1"));
+        TestSecrets.Load();
+
+        var runTestAgainstHetzner = Environment.GetEnvironmentVariable("ODIN_S3_RUN_HETZNER_TESTS")?.ToLower() == "true";
+        if (runTestAgainstHetzner)
+        {
+            _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY")!;
+            _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY")!;
+
+            _s3Client = new AmazonS3Client(
+                _accessKey,
+                _secretAccessKey,
+                new AmazonS3Config
+                {
+                    ServiceURL = "https://hel1.your-objectstorage.com",
+                    AuthenticationRegion = "hel1",
+                    ForcePathStyle = false,
+                    ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+                    RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
+                });
+        }
+        else
+        {
+            _minioContainer = new MinioBuilder()
+                .WithImage("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+                .WithUsername("minioadmin")
+                .WithPassword("minioadmin123")
+                .Build();
+
+            await _minioContainer.StartAsync();
+
+            _accessKey = _minioContainer.GetAccessKey();
+            _secretAccessKey = _minioContainer.GetSecretKey();
+
+            _s3Client = new AmazonS3Client(
+                _accessKey,
+                _secretAccessKey,
+                new AmazonS3Config
+                {
+                    ServiceURL = _minioContainer.GetConnectionString(),
+                    AuthenticationRegion = "foo",
+                    ForcePathStyle = true,
+                    ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+                    RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
+                });
+        }
 
         _bucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
         await _s3Client.PutBucketAsync(_bucketName);
@@ -66,6 +93,11 @@ public class S3AwsStorageTests
         if (Directory.Exists(_testRootPath))
         {
             Directory.Delete(_testRootPath, true);
+        }
+
+        if (_minioContainer != null)
+        {
+            await _minioContainer.DisposeAsync();
         }
     }
 
@@ -101,6 +133,19 @@ public class S3AwsStorageTests
             continuationToken = listResponse.NextContinuationToken;
         }
         while (continuationToken != null);
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldCreateABucket()
+    {
+        var someOtherBucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
+        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, someOtherBucketName);
+        await bucket.CreateBucketAsync();
+        var bucketExists = await bucket.BucketExistsAsync();
+        await _s3Client.DeleteBucketAsync(new DeleteBucketRequest { BucketName = someOtherBucketName });
+        Assert.That(bucketExists, Is.True);
     }
 
     //
@@ -180,8 +225,9 @@ public class S3AwsStorageTests
 
         await bucket.WriteBytesAsync(path, bytes);
 
-        var exception = Assert.ThrowsAsync<AmazonS3Exception>(() =>  bucket.ReadBytesAsync(path, 10, long.MaxValue));
-        Assert.That(exception!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.RequestedRangeNotSatisfiable));
+        var exception = Assert.ThrowsAsync<S3StorageException>(() =>  bucket.ReadBytesAsync(path, 10, long.MaxValue));
+        var inner = exception!.InnerException as AmazonS3Exception;
+        Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.RequestedRangeNotSatisfiable));
     }
 
     //
@@ -323,6 +369,4 @@ public class S3AwsStorageTests
         var content = await File.ReadAllTextAsync(dstFile);
         Assert.That(content, Is.EqualTo(text));
     }
-
-
 }

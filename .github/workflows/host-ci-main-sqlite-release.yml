@@ -37,7 +37,7 @@ jobs:
       
       - name: Build
         # below: %3B is ASCII for semicolon
-        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX%3BRUN_REDIS_TESTS" ./odin-core.sln
+        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX%3BRUN_REDIS_TESTS%3BRUN_S3_TESTS" ./odin-core.sln
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
