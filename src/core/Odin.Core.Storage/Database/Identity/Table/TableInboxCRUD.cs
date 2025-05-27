@@ -334,7 +334,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
                                             $"VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,fileId) DO UPDATE "+
-                                            $"SET Inbox.boxId = @boxId,Inbox.priority = @priority,Inbox.timeStamp = @timeStamp,Inbox.value = @value,Inbox.popStamp = @popStamp,Inbox.correlationId = @correlationId,Inbox.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Inbox.modified+1,{sqlNowStr}) "+
+                                            $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Inbox.modified+1,{sqlNowStr}) "+
                                             "RETURNING Inbox.created,Inbox.modified,Inbox.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -393,7 +393,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 updateCommand.CommandText = "UPDATE Inbox " +
-                                            $"SET Inbox.boxId = @boxId,Inbox.priority = @priority,Inbox.timeStamp = @timeStamp,Inbox.value = @value,Inbox.popStamp = @popStamp,Inbox.correlationId = @correlationId,Inbox.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Inbox.modified+1,{sqlNowStr}) "+
+                                            $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Inbox.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND fileId = @fileId) "+
                                             "RETURNING Inbox.created,Inbox.modified,Inbox.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

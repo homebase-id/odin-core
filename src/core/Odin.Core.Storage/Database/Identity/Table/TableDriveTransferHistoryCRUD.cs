@@ -275,7 +275,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO DriveTransferHistory (identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
                                             $"VALUES (@identityId,@driveId,@fileId,@remoteIdentityId,@latestTransferStatus,@isInOutbox,@latestSuccessfullyDeliveredVersionTag,@isReadByRecipient)"+
                                             "ON CONFLICT (identityId,driveId,fileId,remoteIdentityId) DO UPDATE "+
-                                            $"SET DriveTransferHistory.latestTransferStatus = @latestTransferStatus,DriveTransferHistory.isInOutbox = @isInOutbox,DriveTransferHistory.latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,DriveTransferHistory.isReadByRecipient = @isReadByRecipient "+
+                                            $"SET latestTransferStatus = @latestTransferStatus,isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
                                             "RETURNING -1,-1,DriveTransferHistory.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -329,7 +329,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE DriveTransferHistory " +
-                                            $"SET DriveTransferHistory.latestTransferStatus = @latestTransferStatus,DriveTransferHistory.isInOutbox = @isInOutbox,DriveTransferHistory.latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,DriveTransferHistory.isReadByRecipient = @isReadByRecipient "+
+                                            $"SET latestTransferStatus = @latestTransferStatus,isInOutbox = @isInOutbox,latestSuccessfullyDeliveredVersionTag = @latestSuccessfullyDeliveredVersionTag,isReadByRecipient = @isReadByRecipient "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId) "+
                                             "RETURNING -1,-1,DriveTransferHistory.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

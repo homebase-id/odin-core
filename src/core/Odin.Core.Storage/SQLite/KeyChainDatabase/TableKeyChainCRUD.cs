@@ -322,7 +322,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 upsertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
                                             "ON CONFLICT (identity,publicKeyJwkBase64Url) DO UPDATE "+
-                                            $"SET KeyChain.previousHash = @previousHash,KeyChain.timestamp = @timestamp,KeyChain.signedPreviousHash = @signedPreviousHash,KeyChain.algorithm = @algorithm,KeyChain.recordHash = @recordHash "+
+                                            $"SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
                                             "RETURNING -1,-1,KeyChain.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@previousHash";
@@ -368,7 +368,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE KeyChain " +
-                                            $"SET KeyChain.previousHash = @previousHash,KeyChain.timestamp = @timestamp,KeyChain.signedPreviousHash = @signedPreviousHash,KeyChain.algorithm = @algorithm,KeyChain.recordHash = @recordHash "+
+                                            $"SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
                                             "WHERE (identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url) "+
                                             "RETURNING -1,-1,KeyChain.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

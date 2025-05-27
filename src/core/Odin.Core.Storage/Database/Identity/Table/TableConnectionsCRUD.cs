@@ -291,7 +291,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
                                             $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,identity) DO UPDATE "+
-                                            $"SET Connections.displayName = @displayName,Connections.status = @status,Connections.accessIsRevoked = @accessIsRevoked,Connections.data = @data,Connections.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Connections.modified+1,{sqlNowStr}) "+
+                                            $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Connections.modified+1,{sqlNowStr}) "+
                                             "RETURNING Connections.created,Connections.modified,Connections.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -340,7 +340,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 updateCommand.CommandText = "UPDATE Connections " +
-                                            $"SET Connections.displayName = @displayName,Connections.status = @status,Connections.accessIsRevoked = @accessIsRevoked,Connections.data = @data,Connections.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Connections.modified+1,{sqlNowStr}) "+
+                                            $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Connections.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND identity = @identity) "+
                                             "RETURNING Connections.created,Connections.modified,Connections.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

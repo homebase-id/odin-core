@@ -211,7 +211,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO CircleMember (identityId,circleId,memberId,data) " +
                                             $"VALUES (@identityId,@circleId,@memberId,@data)"+
                                             "ON CONFLICT (identityId,circleId,memberId) DO UPDATE "+
-                                            $"SET CircleMember.data = @data "+
+                                            $"SET data = @data "+
                                             "RETURNING -1,-1,CircleMember.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -249,7 +249,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE CircleMember " +
-                                            $"SET CircleMember.data = @data "+
+                                            $"SET data = @data "+
                                             "WHERE (identityId = @identityId AND circleId = @circleId AND memberId = @memberId) "+
                                             "RETURNING -1,-1,CircleMember.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

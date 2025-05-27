@@ -189,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 upsertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
                                             $"VALUES (@attestationId,@requestEnvelope,@timestamp)"+
                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                            $"SET AttestationRequest.requestEnvelope = @requestEnvelope,AttestationRequest.timestamp = @timestamp "+
+                                            $"SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
                                             "RETURNING -1,-1,AttestationRequest.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
@@ -219,7 +219,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var updateCommand = conn.db.CreateCommand())
             {
                 updateCommand.CommandText = "UPDATE AttestationRequest " +
-                                            $"SET AttestationRequest.requestEnvelope = @requestEnvelope,AttestationRequest.timestamp = @timestamp "+
+                                            $"SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING -1,-1,AttestationRequest.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

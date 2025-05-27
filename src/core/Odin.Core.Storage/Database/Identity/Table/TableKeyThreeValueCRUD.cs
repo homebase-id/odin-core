@@ -264,7 +264,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.CommandText = "INSERT INTO KeyThreeValue (identityId,key1,key2,key3,data) " +
                                             $"VALUES (@identityId,@key1,@key2,@key3,@data)"+
                                             "ON CONFLICT (identityId,key1) DO UPDATE "+
-                                            $"SET KeyThreeValue.key2 = @key2,KeyThreeValue.key3 = @key3,KeyThreeValue.data = @data "+
+                                            $"SET key2 = @key2,key3 = @key3,data = @data "+
                                             "RETURNING -1,-1,KeyThreeValue.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -304,7 +304,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE KeyThreeValue " +
-                                            $"SET KeyThreeValue.key2 = @key2,KeyThreeValue.key3 = @key3,KeyThreeValue.data = @data "+
+                                            $"SET key2 = @key2,key3 = @key3,data = @data "+
                                             "WHERE (identityId = @identityId AND key1 = @key1) "+
                                             "RETURNING -1,-1,KeyThreeValue.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

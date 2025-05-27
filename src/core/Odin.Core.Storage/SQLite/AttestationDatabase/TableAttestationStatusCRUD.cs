@@ -189,7 +189,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 upsertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                             $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                            $"SET AttestationStatus.status = @status,AttestationStatus.modified = {SqlExtensions.MaxString(DatabaseType.Sqlite)}(AttestationStatus.modified+1,{sqlNowStr}) "+
+                                            $"SET status = @status,modified = {SqlExtensions.MaxString(DatabaseType.Sqlite)}(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "RETURNING AttestationStatus.created,AttestationStatus.modified,AttestationStatus.rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
@@ -220,7 +220,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
                 updateCommand.CommandText = "UPDATE AttestationStatus " +
-                                            $"SET AttestationStatus.status = @status,AttestationStatus.modified = {SqlExtensions.MaxString(DatabaseType.Sqlite)}(AttestationStatus.modified+1,{sqlNowStr}) "+
+                                            $"SET status = @status,modified = {SqlExtensions.MaxString(DatabaseType.Sqlite)}(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING AttestationStatus.created,AttestationStatus.modified,AttestationStatus.rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
