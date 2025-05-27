@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging;
@@ -575,10 +576,14 @@ namespace Odin.Hosting
                 if (_config.S3PayloadStorage.Enabled)
                 {
                     var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
-                    var bucketExists = payloadBucket.BucketExistsAsync().GetAwaiter().GetResult();
-                    if (!bucketExists)
+                    try
                     {
-                        throw new OdinSystemException("S3 payload bucket sanity check failed");
+                        var timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                        payloadBucket.WriteBytesAsync("host-ping.txt", timestamp.ToUtf8ByteArray()).BlockingWait();
+                    }
+                    catch (Exception e)
+                    {
+                        throw new OdinSystemException($"S3 sanity check failed: {e.Message}", e);
                     }
                 }
 
@@ -621,7 +626,6 @@ namespace Odin.Hosting
                 logger.LogInformation("Application stopped");
             });
         }
-
 
         private void PrepareEnvironment(OdinConfiguration cfg)
         {
