@@ -78,12 +78,14 @@ public class DriveQuery(
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 
-        if (options.Ordering == QueryBatchOrdering.Default)
-        {
-            (var results, var moreRows, cursor) = await metaIndex.QueryBatchAutoAsync(
+        //if (options.Ordering == QueryBatchSortOrder.Default)
+        //{
+            (var results, var moreRows, cursor) = await metaIndex.QueryBatchSmartCursorAsync(
                 drive.Id,
                 noOfItems: options.MaxRecords,
                 cursor,
+                sortOrder: options.Ordering,
+                sortField: options.Sorting,
                 fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
                 fileSystemType: (Int32)fileSystemType,
                 requiredSecurityGroup: securityRange,
@@ -102,10 +104,10 @@ public class DriveQuery(
                 localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
             return (cursor, results, moreRows);
-        }
+        //}
 
-        // if the caller was explicit in how they want results...
-        return await GetBatchExplicitOrderingAsync(drive, odinContext, fileSystemType, qp, options);
+        //// if the caller was explicit in how they want results...
+        //return await GetBatchExplicitOrderingAsync(drive, odinContext, fileSystemType, qp, options);
     }
 
     private List<Guid> GetAcl(IOdinContext odinContext)
@@ -430,7 +432,7 @@ public class DriveQuery(
         return null;
     }
 
-
+/*
     private async Task<(QueryBatchCursor cursor, List<DriveMainIndexRecord> fileIds, bool hasMoreRows)> GetBatchExplicitOrderingAsync(
         StorageDrive drive,
         IOdinContext odinContext,
@@ -446,7 +448,7 @@ public class DriveQuery(
             drive.Id,
             noOfItems: options.MaxRecords,
             cursor,
-            queryType: options.Sorting,
+            sortField: options.Sorting,
             sortOrder: options.Ordering,
             fileSystemType: (Int32)fileSystemType,
             requiredSecurityGroup: securityRange,
@@ -465,6 +467,7 @@ public class DriveQuery(
 
         return (cursor, results, hasMoreRows);
     }
+*/
 }
 
 public class ReactionCount

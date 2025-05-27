@@ -62,9 +62,9 @@ public class GetQueryBatchRequest
     public bool IncludeMetadataHeader { get; set; }
     public bool IncludeTransferHistory { get; set; }
 
-    public QueryBatchOrdering Ordering { get; set; }
+    public QueryBatchSortOrder Ordering { get; set; }
 
-    public QueryBatchType Sorting { get; set; }
+    public QueryBatchSortField Sorting { get; set; }
 
     public QueryBatchRequest ToQueryBatchRequest()
     {
