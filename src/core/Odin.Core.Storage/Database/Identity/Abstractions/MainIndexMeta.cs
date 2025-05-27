@@ -519,7 +519,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
                         refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].created, result[0].rowId);
                     else if (sortField == QueryBatchSortField.AnyChangeDate)
-                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].modified == null ? result[0].modified.GetValueOrDefault() : result[0].created, result[0].rowId);
+                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].modified != null ? result[0].modified.GetValueOrDefault() : result[0].created, result[0].rowId);
                     else if (sortField == QueryBatchSortField.UserDate)
                         refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].userDate, result[0].rowId);
                     else
