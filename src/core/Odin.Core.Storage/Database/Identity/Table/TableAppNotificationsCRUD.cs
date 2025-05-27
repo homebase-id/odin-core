@@ -123,8 +123,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtc? _modified;
-        public UnixTimeUtc? modified
+        private UnixTimeUtc _modified;
+        public UnixTimeUtc modified
         {
            get {
                    return _modified;
@@ -172,7 +172,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"timestamp BIGINT NOT NULL, "
                    +"data BYTEA , "
                    +"created BIGINT NOT NULL, "
-                   +"modified BIGINT  "
+                   +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,notificationId)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0AppNotifications ON AppNotifications(identityId,created);"
@@ -187,13 +187,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},NULL)"+
+                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -223,12 +219,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -244,13 +237,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                            $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},NULL) " +
+                                            $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -281,12 +270,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return true;
@@ -302,15 +288,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                            $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},NULL)"+
+                                            $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,notificationId) DO UPDATE "+
-                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {sqlNowStr} "+
+                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = MAX(modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -340,12 +322,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -361,13 +340,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 updateCommand.CommandText = "UPDATE AppNotifications " +
-                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {sqlNowStr} "+
+                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = MAX(modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND notificationId = @notificationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -398,12 +373,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -461,7 +433,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -506,7 +478,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.modified = (rdr[6] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
             return item;
        }
 

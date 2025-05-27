@@ -63,12 +63,12 @@ public class TableDriveLocalTagIndex(
         string forUpdate;
         if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
         {
-            sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+            sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
             forUpdate = "";
         }
         else
         {
-            sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+            sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Postgres);
             forUpdate = "FOR UPDATE";
         }
 
@@ -102,7 +102,7 @@ public class TableDriveLocalTagIndex(
         updateCommand.CommandText =
             $"""
             UPDATE driveMainIndex
-            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {sqlNowStr}
+            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = MAX(modified+1,{sqlNowStr})
             WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId
                   AND COALESCE(hdrLocalVersionTag, @emptyGuid) = @hdrLocalVersionTag
             """;

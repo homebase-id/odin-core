@@ -85,8 +85,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtc? _modified;
-        public UnixTimeUtc? modified
+        private UnixTimeUtc _modified;
+        public UnixTimeUtc modified
         {
            get {
                    return _modified;
@@ -131,7 +131,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"identity TEXT NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"created BIGINT NOT NULL, "
-                   +"modified BIGINT  "
+                   +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,identity,driveId)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0FollowsMe ON FollowsMe(identityId,identity);"
@@ -145,13 +145,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO FollowsMe (identityId,identity,driveId,created,modified) " +
-                                             $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},NULL)"+
+                                             $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
@@ -169,12 +165,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
@@ -189,13 +182,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO FollowsMe (identityId,identity,driveId,created,modified) " +
-                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},NULL) " +
+                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -214,12 +203,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return true;
@@ -234,15 +220,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 upsertCommand.CommandText = "INSERT INTO FollowsMe (identityId,identity,driveId,created,modified) " +
-                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},NULL)"+
+                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
-                                            $"SET modified = {sqlNowStr} "+
+                                            $"SET modified = MAX(modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
@@ -260,12 +242,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
@@ -280,13 +259,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 updateCommand.CommandText = "UPDATE FollowsMe " +
-                                            $"SET modified = {sqlNowStr} "+
+                                            $"SET modified = MAX(modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND identity = @identity AND driveId = @driveId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -305,12 +280,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
@@ -360,7 +332,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.driveId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.created = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.modified = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
+            item.modified = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
             return item;
        }
 
@@ -410,7 +382,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             return item;
        }
 
@@ -471,7 +443,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
-            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
+            item.modified = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 
