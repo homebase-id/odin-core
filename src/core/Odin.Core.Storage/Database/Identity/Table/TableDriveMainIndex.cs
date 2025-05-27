@@ -252,7 +252,7 @@ public class TableDriveMainIndex(
 
         string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
         updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+            $"UPDATE driveMainIndex SET driveMainIndex.modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -284,8 +284,8 @@ public class TableDriveMainIndex(
 
         string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
 
-        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
-                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING modified;";
+        updateCommand.CommandText = $"UPDATE driveMainIndex SET driveMainIndex.modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
+                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -369,7 +369,7 @@ public class TableDriveMainIndex(
         string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
 
         touchCommand.CommandText =
-            $"UPDATE drivemainindex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING modified;";
+            $"UPDATE drivemainindex SET driveMainIndex.modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING driveMainIndex.modified;";
 
         var tparam1 = touchCommand.CreateParameter();
         var tparam3 = touchCommand.CreateParameter();

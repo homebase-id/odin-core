@@ -102,7 +102,7 @@ public class TableDriveLocalTagIndex(
         updateCommand.CommandText =
             $"""
             UPDATE driveMainIndex
-            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(modified+1,{sqlNowStr})
+            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, driveMainIndex.modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr})
             WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId
                   AND COALESCE(hdrLocalVersionTag, @emptyGuid) = @hdrLocalVersionTag
             """;
