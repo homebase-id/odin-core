@@ -11,6 +11,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Odin.Core.Storage.ObjectStorage;
 
+#nullable enable
+
 public class S3AwsStorage : IS3Storage
 {
     private readonly ILogger<S3AwsStorage> _logger;
@@ -293,7 +295,9 @@ public static class S3AwsStorageExtensions
         };
     }
 
-    public static IServiceCollection AddAwsS3Client(
+    //
+
+    public static IServiceCollection AddAmazonS3Client(
         this IServiceCollection services,
         string endpoint,
         string accessKey,
@@ -312,5 +316,3 @@ public static class S3AwsStorageExtensions
 
 
 }
-
-

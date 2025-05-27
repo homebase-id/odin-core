@@ -1,3 +1,4 @@
+#if ODIN_MINIO_STORAGE
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -48,3 +49,4 @@ public static class S3MinioPayloadStorageExtensions
         return services;
     }
 }
+#endif

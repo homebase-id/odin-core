@@ -20,6 +20,3 @@ public interface IS3Storage
     Task DownloadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
 }
 
-public interface IS3PayloadStorage : IS3Storage
-{
-}
