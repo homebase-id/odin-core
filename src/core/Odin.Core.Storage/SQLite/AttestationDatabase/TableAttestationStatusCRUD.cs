@@ -73,8 +73,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _created = value;
                }
         }
-        private UnixTimeUtc? _modified;
-        public UnixTimeUtc? modified
+        private UnixTimeUtc _modified;
+        public UnixTimeUtc modified
         {
            get {
                    return _modified;
@@ -112,7 +112,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    +"attestationId BYTEA NOT NULL UNIQUE, "
                    +"status BIGINT NOT NULL, "
                    +"created BIGINT NOT NULL, "
-                   +"modified BIGINT  "
+                   +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
@@ -122,10 +122,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                             $"VALUES (@attestationId,@status,{sqlNowStr},NULL)"+
+                                             $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@attestationId";
@@ -139,12 +138,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -157,10 +153,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                            $"VALUES (@attestationId,@status,{sqlNowStr},NULL) " +
+                                            $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -175,12 +170,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return true;
@@ -193,12 +185,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var upsertCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
                 upsertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                            $"VALUES (@attestationId,@status,{sqlNowStr},NULL)"+
+                                            $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                            $"SET status = @status,modified = {sqlNowStr} "+
+                                            $"SET status = @status,modified = MAX(modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@attestationId";
@@ -212,12 +203,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -230,10 +218,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var updateCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
                 updateCommand.CommandText = "UPDATE AttestationStatus " +
-                                            $"SET status = @status,modified = {sqlNowStr} "+
+                                            $"SET status = @status,modified = MAX(modified+1,{sqlNowStr}) "+
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -248,12 +235,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
+                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
-                    else
-                        item.modified = null;
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -302,7 +286,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 throw new Exception("Too little data in attestationId...");
             item.status = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.modified = (rdr[4] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[4]);
+            item.modified = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             return item;
        }
 
@@ -342,7 +326,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.status = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             return item;
        }
 

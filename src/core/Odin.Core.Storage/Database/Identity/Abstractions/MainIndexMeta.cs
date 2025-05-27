@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Threading.Tasks;
+using Minio.DataModel;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
@@ -335,7 +338,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             }
 
             string timeField;
-            string tempSelect = "";
+            var listWhereAnd = new List<string>();
 
             if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
                 timeField = "created";
@@ -343,19 +346,25 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 timeField = "userDate";
             else if (sortField == QueryBatchSortField.AnyChangeDate)
             {
-                tempSelect = ", COALESCE(modified,created) as temphack";
-                timeField = "COALESCE(modified,created)"; 
-                // TODO FIX THIS: We need to sort by modified once we changed modified to NOT NULL. 
-                // Had to hack it due to Postgres restriction in DISTINCT and ORDER BY
+                // IMPORTANT: When querying by modified and getting a cursor back, it is important we do not
+                // query for the last millisecond, otherwise we risk getting a cursor with a millisecond that
+                // might in parallel get an update on another row in the database with the same timestamp, and
+                // in such a case, that record would be missing from the dataset unless we add this less than
+                // condition to the query. This means in our testing of modified cursor types we may need to
+                // add delays before calling QueryBatch()
+                listWhereAnd.Add($"modified < {SqlExtensions.SqlNowString(scopedConnectionFactory.DatabaseType)}");
+                timeField = "modified";
+            }
+            else if (sortField == QueryBatchSortField.OnlyModifiedDate)
+            {
+                // Same important note as above
+                listWhereAnd.Add($"modified < {SqlExtensions.SqlNowString(scopedConnectionFactory.DatabaseType)}");
+                // When modified != created, it means it's an item that has been modified, not newly created
+                listWhereAnd.Add($"modified != created"); 
+                timeField = "modified";
             }
             else
                 throw new Exception("Invalid sorting value");
-
-            // TODO: When retrieving modified, but sure to not include the current ms to avoid
-            // duplicate cursor problems since rowId isn't increasing for modified
-            //
-
-            var listWhereAnd = new List<string>();
 
             if (cursor.pagingCursor != null)
             {
@@ -395,7 +404,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT DISTINCT {selectOutputFields}{tempSelect} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
 
@@ -422,10 +431,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 {
                     if (sortField == QueryBatchSortField.UserDate)
                         cursor.pagingCursor = new TimeRowCursor(record.userDate, record.rowId);
-                    else if (sortField == QueryBatchSortField.AnyChangeDate)
-                        cursor.pagingCursor = new TimeRowCursor(record.modified ?? record.created, record.rowId); // TODO FIX
-                    else
+                    else if (sortField == QueryBatchSortField.AnyChangeDate || sortField == QueryBatchSortField.OnlyModifiedDate)
+                        cursor.pagingCursor = new TimeRowCursor(record.modified, record.rowId);
+                    else if (sortField == QueryBatchSortField.FileId || sortField == QueryBatchSortField.CreatedDate)
                         cursor.pagingCursor = new TimeRowCursor(record.created, record.rowId);
+                    else
+                        throw new OdinSystemException("Invalid QueryBatchSortField type");
                 }
 
                 bool hasMoreRows = await rdr.ReadAsync(); // Unfortunately, this seems like the only way to know if there's more rows
@@ -502,12 +513,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (sortOrder == QueryBatchSortOrder.OldestFirst)
                 return (result, moreRows, refCursor);
 
-            //
-            // OldToNew:
-            //   nextBoundaryCursor and currentBoundaryCursor not needed.
-            //   PagingCursor will probably suffice
-            // 
-
             if (result.Count > 0)
             {
                 // If pagingCursor is null, it means we are getting a the newest data,
@@ -519,9 +524,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
                         refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].created, result[0].rowId);
                     else if (sortField == QueryBatchSortField.AnyChangeDate)
-                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].modified != null ? result[0].modified.GetValueOrDefault() : result[0].created, result[0].rowId);
+                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].modified, result[0].rowId);
                     else if (sortField == QueryBatchSortField.UserDate)
                         refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].userDate, result[0].rowId);
+                    else if (sortField == QueryBatchSortField.OnlyModifiedDate)
+                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].modified, result[0].rowId);
                     else
                         throw new OdinSystemException("Illegal QueryBatchSortField type");
                 }
@@ -550,9 +557,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var (r2, moreRows2, refCursor2) = await QueryBatchSmartCursorAsync(driveId, noOfItems - result.Count, refCursor,
-                        sortOrder,
-                        sortField,
+                    var (r2, moreRows2, refCursor2) = await QueryBatchSmartCursorAsync(driveId, noOfItems - result.Count, cursor: refCursor,
+                        sortOrder: sortOrder,
+                        sortField: sortField,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -586,9 +593,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     refCursor.stopAtBoundary = refCursor.nextBoundaryCursor;
                     refCursor.nextBoundaryCursor = null;
                     refCursor.pagingCursor = null;
-                    return await QueryBatchSmartCursorAsync(driveId, noOfItems, refCursor,
-                        sortOrder,
-                        sortField,
+                    return await QueryBatchSmartCursorAsync(driveId, noOfItems, cursor: refCursor,
+                        sortOrder: sortOrder,
+                        sortField: sortField,
                         fileSystemType,
                         fileStateAnyOf,
                         requiredSecurityGroup,
@@ -712,7 +719,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                     var r = driveMainIndex.ReadAllColumns(rdr, driveId);
                     _fileId = r.fileId.ToByteArray();
                     result.Add(r);
-                    ts = (long) r.modified?.milliseconds; // XXX
+                    ts = (long) r.modified.milliseconds;
                     rid = (long)r.rowId;
                     i++;
                     if (i >= noOfItems)
@@ -828,7 +835,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <summary>
         /// Only kept to not change all tests! Do not use.
         /// </summary>
-        internal async Task<UnixTimeUtc> TestAddEntryPassalongToUpsertAsync(Guid driveId, Guid fileId,
+        internal async Task<(UnixTimeUtc created, UnixTimeUtc modified)> TestAddEntryPassalongToUpsertAsync(Guid driveId, Guid fileId,
             Guid? globalTransitId,
             Int32 fileType,
             Int32 dataType,
@@ -876,7 +883,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             };
             await BaseUpsertEntryZapZapAsync(r, accessControlList: accessControlList, tagIdList: tagIdList);
 
-            return (r.created);
+            return (r.created, r.modified);
         }
     }
 }
