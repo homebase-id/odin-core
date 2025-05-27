@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.SQLite;
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 

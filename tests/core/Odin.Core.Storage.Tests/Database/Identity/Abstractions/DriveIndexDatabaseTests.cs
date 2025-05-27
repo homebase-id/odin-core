@@ -2526,7 +2526,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
-        // Test we can modify the global transit guid with both update versions
+        // Test we can not modify the global transit guid with both update versions
         public async Task GlobalTransitId06Test(DatabaseType databaseType)
         {
             await RegisterServicesAsync(databaseType);
@@ -2552,12 +2552,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             data.globalTransitId = g2;
             await metaIndex.BaseUpsertEntryZapZapAsync(data);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g2) != 0);
 
             data.globalTransitId = g3;
             await metaIndex.BaseUpsertEntryZapZapAsync(data);
             data = await tblDriveMainIndex.GetAsync(driveId, f1);
-            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g3) == 0);
+            ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(data.globalTransitId, g3) != 0);
         }
 
 

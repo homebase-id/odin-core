@@ -108,7 +108,7 @@ public class LinkPreviewService(
 
             if (!IsPostPath())
             {
-                logger.LogDebug("Path is not a posts path; falling back");
+                // logger.LogDebug("Path is not a posts path; falling back");
                 return false;
             }
 
@@ -175,7 +175,7 @@ public class LinkPreviewService(
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
-        logger.LogDebug("Try parse post file with channel key: [{ck}] postKey: [{pk}]", channelKey, postKey);
+        // logger.LogDebug("Try parse post file with channel key: [{ck}] postKey: [{pk}]", channelKey, postKey);
 
         var (success, targetDrive, driveId) = await TryGetChannelDrive(channelKey, odinContext);
         if (!success)
@@ -186,7 +186,7 @@ public class LinkPreviewService(
         var postFile = await FindPost(postKey, odinContext, targetDrive);
         if (null == postFile)
         {
-            logger.LogDebug("File for channelKey:[{ck}] and with postKey {pk} not found", channelKey, postKey);
+            // logger.LogDebug("File for channelKey:[{ck}] and with postKey {pk} not found", channelKey, postKey);
             return (false, null, null, null);
         }
 
@@ -204,13 +204,13 @@ public class LinkPreviewService(
         {
             if (payloadHeader == null)
             {
-                logger.LogDebug("Using content used from AppData.Content");
+                // logger.LogDebug("Using content used from AppData.Content");
                 json = postFile.FileMetadata.AppData.Content;
             }
             else
             {
                 // if there is a default payload, then all content is there;
-                logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
+                // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
                 using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
                 using var reader = new StreamReader(payloadStream.Stream);
                 json = await reader.ReadToEndAsync(cancellationToken);
@@ -245,7 +245,7 @@ public class LinkPreviewService(
 
             if (theThumbnail != null)
             {
-                logger.LogDebug("Post has usable thumbnail");
+                // logger.LogDebug("Post has usable thumbnail");
 
                 StringBuilder b = new StringBuilder(100);
                 b.Append($"&alias={targetDrive.Alias}");
@@ -287,10 +287,10 @@ public class LinkPreviewService(
         if (Guid.TryParse(postKey, out var postIdAsTag))
         {
             postFile = await QueryBatchFirstFile(targetDrive, odinContext, postIdAsTag);
-            logger.LogDebug("Searching for post with key [{pk}] using postIdAsTag: [{tag}] result:  {result}",
-                postKey,
-                postIdAsTag,
-                postFile == null ? "not found" : "found");
+            // logger.LogDebug("Searching for post with key [{pk}] using postIdAsTag: [{tag}] result:  {result}",
+            //     postKey,
+            //     postIdAsTag,
+            //     postFile == null ? "not found" : "found");
         }
         else
         {
@@ -306,10 +306,10 @@ public class LinkPreviewService(
             };
 
             postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, options, odinContext);
-            logger.LogDebug("Searching for post with key [{pk}] using post as Slug: {uid}] result: {result}",
-                postKey,
-                uid,
-                postFile == null ? "not found" : "found");
+            // logger.LogDebug("Searching for post with key [{pk}] using post as Slug: {uid}] result: {result}",
+            //     postKey,
+            //     uid,
+            //     postFile == null ? "not found" : "found");
         }
 
         return postFile;
@@ -378,19 +378,19 @@ public class LinkPreviewService(
             // slug was not found
             if (targetDrive == null)
             {
-                logger.LogDebug("Channel key {ck} was not found on any channel drives", channelKey);
+                // logger.LogDebug("Channel key {ck} was not found on any channel drives", channelKey);
                 return (false, null, null);
             }
         }
 
         if (!odinContext.PermissionsContext.HasDriveId(targetDrive, out var driveId))
         {
-            logger.LogDebug("link preview does not have access to drive for channel-key: {ck}; " +
-                            "falling back to generic preview", channelKey);
+            // logger.LogDebug("link preview does not have access to drive for channel-key: {ck}; " +
+            //                 "falling back to generic preview", channelKey);
             return (false, null, null);
         }
 
-        logger.LogDebug("TargetDrive {td} found by channelKey: {ck}", targetDrive.ToString(), channelKey);
+        // logger.LogDebug("TargetDrive {td} found by channelKey: {ck}", targetDrive.ToString(), channelKey);
         return (true, targetDrive, driveId);
     }
 
