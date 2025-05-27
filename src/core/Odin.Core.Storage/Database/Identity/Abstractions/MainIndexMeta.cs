@@ -514,7 +514,17 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
                 if (pagingCursorWasNull)
-                    refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].created, result[0].rowId); // Set to the newest cursor
+                {
+                    // Set to the newest cursor 
+                    if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
+                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].created, result[0].rowId);
+                    else if (sortField == QueryBatchSortField.AnyChangeDate)
+                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].modified == null ? result[0].modified.GetValueOrDefault() : result[0].created, result[0].rowId);
+                    else if (sortField == QueryBatchSortField.UserDate)
+                        refCursor.nextBoundaryCursor = new TimeRowCursor(result[0].userDate, result[0].rowId);
+                    else
+                        throw new OdinSystemException("Illegal QueryBatchSortField type");
+                }
 
                 if (result.Count < noOfItems)
                 {
