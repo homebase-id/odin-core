@@ -7,21 +7,7 @@ public class QueryBatchResultOptions : ResultOptions
 {
     public QueryBatchCursor Cursor { get; set; }
 
-    public QueryBatchOrdering Ordering { get; set; } = QueryBatchOrdering.Default;
+    public QueryBatchSortOrder Ordering { get; set; } = QueryBatchSortOrder.Default;
 
-    public QueryBatchType Sorting { get; set; } = QueryBatchType.CreatedDate;
+    public QueryBatchSortField Sorting { get; set; } = QueryBatchSortField.CreatedDate;
 }
-
-/*
-public enum Sorting
-{
-    FileId = 0,
-    UserDate = 1
-}
-
-public enum Ordering
-{
-    Default = 0,
-    NewestFirst = 1,
-    OldestFirst = 2
-}*/
