@@ -161,9 +161,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Int32;
                 insertParam2.ParameterName = "@status";
                 insertCommand.Parameters.Add(insertParam2);
                 insertParam1.Value = item.attestationId;
@@ -194,9 +196,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                             $"SET status = @status,modified = {SqlExtensions.MaxString(DatabaseType.Sqlite)}(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.Int32;
                 upsertParam2.ParameterName = "@status";
                 upsertCommand.Parameters.Add(upsertParam2);
                 upsertParam1.Value = item.attestationId;
@@ -226,9 +230,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@attestationId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.Int32;
                 updateParam2.ParameterName = "@status";
                 updateCommand.Parameters.Add(updateParam2);
                 updateParam1.Value = item.attestationId;
@@ -302,6 +308,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 delete0Command.CommandText = "DELETE FROM AttestationStatus " +
                                              "WHERE attestationId = @attestationId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.Binary;
                 delete0Param1.ParameterName = "@attestationId";
                 delete0Command.Parameters.Add(delete0Param1);
 
@@ -346,6 +353,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                              "WHERE attestationId = @attestationId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
                 get0Param1.ParameterName = "@attestationId";
                 get0Command.Parameters.Add(get0Param1);
 

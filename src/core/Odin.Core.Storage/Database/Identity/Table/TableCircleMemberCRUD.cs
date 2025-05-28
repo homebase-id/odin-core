@@ -178,15 +178,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Binary;
                 insertParam2.ParameterName = "@circleId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Binary;
                 insertParam3.ParameterName = "@memberId";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.Binary;
                 insertParam4.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam4);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -218,15 +222,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET data = @data "+
                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.Binary;
                 upsertParam2.ParameterName = "@circleId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.DbType = DbType.Binary;
                 upsertParam3.ParameterName = "@memberId";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.DbType = DbType.Binary;
                 upsertParam4.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam4);
                 upsertParam1.Value = item.identityId.ToByteArray();
@@ -257,15 +265,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "WHERE (identityId = @identityId AND circleId = @circleId AND memberId = @memberId) "+
                                             "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.Binary;
                 updateParam2.ParameterName = "@circleId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.DbType = DbType.Binary;
                 updateParam3.ParameterName = "@memberId";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.DbType = DbType.Binary;
                 updateParam4.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam4);
                 updateParam1.Value = item.identityId.ToByteArray();
@@ -336,12 +348,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Command.CommandText = "DELETE FROM CircleMember " +
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.Binary;
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.DbType = DbType.Binary;
                 delete0Param2.ParameterName = "@circleId";
                 delete0Command.Parameters.Add(delete0Param2);
                 var delete0Param3 = delete0Command.CreateParameter();
+                delete0Param3.DbType = DbType.Binary;
                 delete0Param3.ParameterName = "@memberId";
                 delete0Command.Parameters.Add(delete0Param3);
 
@@ -382,9 +397,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND circleId = @circleId;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
                 var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.Binary;
                 get0Param2.ParameterName = "@circleId";
                 get0Command.Parameters.Add(get0Param2);
 
@@ -438,9 +455,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND memberId = @memberId;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
+                get1Param1.DbType = DbType.Binary;
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
                 var get1Param2 = get1Command.CreateParameter();
+                get1Param2.DbType = DbType.Binary;
                 get1Param2.ParameterName = "@memberId";
                 get1Command.Parameters.Add(get1Param2);
 
@@ -497,12 +516,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;"+
                                              ";";
                 var get2Param1 = get2Command.CreateParameter();
+                get2Param1.DbType = DbType.Binary;
                 get2Param1.ParameterName = "@identityId";
                 get2Command.Parameters.Add(get2Param1);
                 var get2Param2 = get2Command.CreateParameter();
+                get2Param2.DbType = DbType.Binary;
                 get2Param2.ParameterName = "@circleId";
                 get2Command.Parameters.Add(get2Param2);
                 var get2Param3 = get2Command.CreateParameter();
+                get2Param3.DbType = DbType.Binary;
                 get2Param3.ParameterName = "@memberId";
                 get2Command.Parameters.Add(get2Param3);
 
@@ -540,9 +562,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 getPaging0Command.CommandText = "SELECT rowId,identityId,circleId,memberId,data FROM CircleMember " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.DbType = DbType.Int64;
                 getPaging0Param1.ParameterName = "@rowId";
                 getPaging0Command.Parameters.Add(getPaging0Param1);
                 var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.DbType = DbType.Int64;
                 getPaging0Param2.ParameterName = "@count";
                 getPaging0Command.Parameters.Add(getPaging0Param2);
 

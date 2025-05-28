@@ -193,18 +193,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Binary;
                 insertParam2.ParameterName = "@driveId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Binary;
                 insertParam3.ParameterName = "@postId";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.String;
                 insertParam4.ParameterName = "@identity";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.String;
                 insertParam5.ParameterName = "@singleReaction";
                 insertCommand.Parameters.Add(insertParam5);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -236,18 +241,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET  "+
                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.Binary;
                 upsertParam2.ParameterName = "@driveId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.DbType = DbType.Binary;
                 upsertParam3.ParameterName = "@postId";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.DbType = DbType.String;
                 upsertParam4.ParameterName = "@identity";
                 upsertCommand.Parameters.Add(upsertParam4);
                 var upsertParam5 = upsertCommand.CreateParameter();
+                upsertParam5.DbType = DbType.String;
                 upsertParam5.ParameterName = "@singleReaction";
                 upsertCommand.Parameters.Add(upsertParam5);
                 upsertParam1.Value = item.identityId.ToByteArray();
@@ -278,18 +288,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction) "+
                                             "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.Binary;
                 updateParam2.ParameterName = "@driveId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.DbType = DbType.Binary;
                 updateParam3.ParameterName = "@postId";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.DbType = DbType.String;
                 updateParam4.ParameterName = "@identity";
                 updateCommand.Parameters.Add(updateParam4);
                 var updateParam5 = updateCommand.CreateParameter();
+                updateParam5.DbType = DbType.String;
                 updateParam5.ParameterName = "@singleReaction";
                 updateCommand.Parameters.Add(updateParam5);
                 updateParam1.Value = item.identityId.ToByteArray();
@@ -342,6 +357,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                  // TODO: this is SQLite specific
                 getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM DriveReactions WHERE driveId = $driveId;";
                 var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
+                getCountDriveParam1.DbType = DbType.Binary;
                 getCountDriveParam1.ParameterName = "$driveId";
                 getCountDriveCommand.Parameters.Add(getCountDriveParam1);
                 getCountDriveParam1.Value = driveId.ToByteArray();
@@ -379,15 +395,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Command.CommandText = "DELETE FROM DriveReactions " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND identity = @identity AND postId = @postId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.Binary;
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.DbType = DbType.Binary;
                 delete0Param2.ParameterName = "@driveId";
                 delete0Command.Parameters.Add(delete0Param2);
                 var delete0Param3 = delete0Command.CreateParameter();
+                delete0Param3.DbType = DbType.String;
                 delete0Param3.ParameterName = "@identity";
                 delete0Command.Parameters.Add(delete0Param3);
                 var delete0Param4 = delete0Command.CreateParameter();
+                delete0Param4.DbType = DbType.Binary;
                 delete0Param4.ParameterName = "@postId";
                 delete0Command.Parameters.Add(delete0Param4);
 
@@ -411,18 +431,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete1Command.CommandText = "DELETE FROM DriveReactions " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction";
                 var delete1Param1 = delete1Command.CreateParameter();
+                delete1Param1.DbType = DbType.Binary;
                 delete1Param1.ParameterName = "@identityId";
                 delete1Command.Parameters.Add(delete1Param1);
                 var delete1Param2 = delete1Command.CreateParameter();
+                delete1Param2.DbType = DbType.Binary;
                 delete1Param2.ParameterName = "@driveId";
                 delete1Command.Parameters.Add(delete1Param2);
                 var delete1Param3 = delete1Command.CreateParameter();
+                delete1Param3.DbType = DbType.Binary;
                 delete1Param3.ParameterName = "@postId";
                 delete1Command.Parameters.Add(delete1Param3);
                 var delete1Param4 = delete1Command.CreateParameter();
+                delete1Param4.DbType = DbType.String;
                 delete1Param4.ParameterName = "@identity";
                 delete1Command.Parameters.Add(delete1Param4);
                 var delete1Param5 = delete1Command.CreateParameter();
+                delete1Param5.DbType = DbType.String;
                 delete1Param5.ParameterName = "@singleReaction";
                 delete1Command.Parameters.Add(delete1Param5);
 
@@ -468,18 +493,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
                 var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.Binary;
                 get0Param2.ParameterName = "@driveId";
                 get0Command.Parameters.Add(get0Param2);
                 var get0Param3 = get0Command.CreateParameter();
+                get0Param3.DbType = DbType.Binary;
                 get0Param3.ParameterName = "@postId";
                 get0Command.Parameters.Add(get0Param3);
                 var get0Param4 = get0Command.CreateParameter();
+                get0Param4.DbType = DbType.String;
                 get0Param4.ParameterName = "@identity";
                 get0Command.Parameters.Add(get0Param4);
                 var get0Param5 = get0Command.CreateParameter();
+                get0Param5.DbType = DbType.String;
                 get0Param5.ParameterName = "@singleReaction";
                 get0Command.Parameters.Add(get0Param5);
 
@@ -517,9 +547,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,postId,identity,singleReaction FROM DriveReactions " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.DbType = DbType.Int64;
                 getPaging0Param1.ParameterName = "@rowId";
                 getPaging0Command.Parameters.Add(getPaging0Param1);
                 var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.DbType = DbType.Int64;
                 getPaging0Param2.ParameterName = "@count";
                 getPaging0Command.Parameters.Add(getPaging0Param2);
 

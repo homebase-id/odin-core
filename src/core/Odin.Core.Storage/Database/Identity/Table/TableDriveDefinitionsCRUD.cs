@@ -343,30 +343,39 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Binary;
                 insertParam2.ParameterName = "@DriveId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Binary;
                 insertParam3.ParameterName = "@TempDriveAlias";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.Binary;
                 insertParam4.ParameterName = "@DriveType";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.String;
                 insertParam5.ParameterName = "@DriveName";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.DbType = DbType.String;
                 insertParam6.ParameterName = "@MasterKeyEncryptedStorageKeyJson";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.DbType = DbType.String;
                 insertParam7.ParameterName = "@EncryptedIdIv64";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.DbType = DbType.String;
                 insertParam8.ParameterName = "@EncryptedIdValue64";
                 insertCommand.Parameters.Add(insertParam8);
                 var insertParam9 = insertCommand.CreateParameter();
+                insertParam9.DbType = DbType.String;
                 insertParam9.ParameterName = "@detailsJson";
                 insertCommand.Parameters.Add(insertParam9);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -408,30 +417,39 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET TempDriveAlias = @TempDriveAlias,DriveType = @DriveType,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(DriveDefinitions.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.Binary;
                 upsertParam2.ParameterName = "@DriveId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.DbType = DbType.Binary;
                 upsertParam3.ParameterName = "@TempDriveAlias";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.DbType = DbType.Binary;
                 upsertParam4.ParameterName = "@DriveType";
                 upsertCommand.Parameters.Add(upsertParam4);
                 var upsertParam5 = upsertCommand.CreateParameter();
+                upsertParam5.DbType = DbType.String;
                 upsertParam5.ParameterName = "@DriveName";
                 upsertCommand.Parameters.Add(upsertParam5);
                 var upsertParam6 = upsertCommand.CreateParameter();
+                upsertParam6.DbType = DbType.String;
                 upsertParam6.ParameterName = "@MasterKeyEncryptedStorageKeyJson";
                 upsertCommand.Parameters.Add(upsertParam6);
                 var upsertParam7 = upsertCommand.CreateParameter();
+                upsertParam7.DbType = DbType.String;
                 upsertParam7.ParameterName = "@EncryptedIdIv64";
                 upsertCommand.Parameters.Add(upsertParam7);
                 var upsertParam8 = upsertCommand.CreateParameter();
+                upsertParam8.DbType = DbType.String;
                 upsertParam8.ParameterName = "@EncryptedIdValue64";
                 upsertCommand.Parameters.Add(upsertParam8);
                 var upsertParam9 = upsertCommand.CreateParameter();
+                upsertParam9.DbType = DbType.String;
                 upsertParam9.ParameterName = "@detailsJson";
                 upsertCommand.Parameters.Add(upsertParam9);
                 upsertParam1.Value = item.identityId.ToByteArray();
@@ -472,30 +490,39 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "WHERE (identityId = @identityId AND DriveId = @DriveId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.Binary;
                 updateParam2.ParameterName = "@DriveId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.DbType = DbType.Binary;
                 updateParam3.ParameterName = "@TempDriveAlias";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.DbType = DbType.Binary;
                 updateParam4.ParameterName = "@DriveType";
                 updateCommand.Parameters.Add(updateParam4);
                 var updateParam5 = updateCommand.CreateParameter();
+                updateParam5.DbType = DbType.String;
                 updateParam5.ParameterName = "@DriveName";
                 updateCommand.Parameters.Add(updateParam5);
                 var updateParam6 = updateCommand.CreateParameter();
+                updateParam6.DbType = DbType.String;
                 updateParam6.ParameterName = "@MasterKeyEncryptedStorageKeyJson";
                 updateCommand.Parameters.Add(updateParam6);
                 var updateParam7 = updateCommand.CreateParameter();
+                updateParam7.DbType = DbType.String;
                 updateParam7.ParameterName = "@EncryptedIdIv64";
                 updateCommand.Parameters.Add(updateParam7);
                 var updateParam8 = updateCommand.CreateParameter();
+                updateParam8.DbType = DbType.String;
                 updateParam8.ParameterName = "@EncryptedIdValue64";
                 updateCommand.Parameters.Add(updateParam8);
                 var updateParam9 = updateCommand.CreateParameter();
+                updateParam9.DbType = DbType.String;
                 updateParam9.ParameterName = "@detailsJson";
                 updateCommand.Parameters.Add(updateParam9);
                 updateParam1.Value = item.identityId.ToByteArray();
@@ -586,9 +613,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Command.CommandText = "DELETE FROM DriveDefinitions " +
                                              "WHERE identityId = @identityId AND DriveId = @DriveId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.Binary;
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.DbType = DbType.Binary;
                 delete0Param2.ParameterName = "@DriveId";
                 delete0Command.Parameters.Add(delete0Param2);
 
@@ -631,9 +660,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND DriveId = @DriveId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
                 var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.Binary;
                 get0Param2.ParameterName = "@DriveId";
                 get0Command.Parameters.Add(get0Param2);
 
@@ -685,9 +716,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND DriveType = @DriveType;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
+                get1Param1.DbType = DbType.Binary;
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
                 var get1Param2 = get1Command.CreateParameter();
+                get1Param2.DbType = DbType.Binary;
                 get1Param2.ParameterName = "@DriveType";
                 get1Command.Parameters.Add(get1Param2);
 
@@ -745,12 +778,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND TempDriveAlias = @TempDriveAlias AND DriveType = @DriveType LIMIT 1;"+
                                              ";";
                 var get2Param1 = get2Command.CreateParameter();
+                get2Param1.DbType = DbType.Binary;
                 get2Param1.ParameterName = "@identityId";
                 get2Command.Parameters.Add(get2Param1);
                 var get2Param2 = get2Command.CreateParameter();
+                get2Param2.DbType = DbType.Binary;
                 get2Param2.ParameterName = "@TempDriveAlias";
                 get2Command.Parameters.Add(get2Param2);
                 var get2Param3 = get2Command.CreateParameter();
+                get2Param3.DbType = DbType.Binary;
                 get2Param3.ParameterName = "@DriveType";
                 get2Command.Parameters.Add(get2Param3);
 
@@ -803,9 +839,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND DriveId = @DriveId LIMIT 1;"+
                                              ";";
                 var get3Param1 = get3Command.CreateParameter();
+                get3Param1.DbType = DbType.Binary;
                 get3Param1.ParameterName = "@identityId";
                 get3Command.Parameters.Add(get3Param1);
                 var get3Param2 = get3Command.CreateParameter();
+                get3Param2.DbType = DbType.Binary;
                 get3Param2.ParameterName = "@DriveId";
                 get3Command.Parameters.Add(get3Param2);
 
@@ -842,15 +880,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 getPaging10Command.CommandText = "SELECT rowId,identityId,DriveId,TempDriveAlias,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
                                             "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
                 var getPaging10Param1 = getPaging10Command.CreateParameter();
+                getPaging10Param1.DbType = DbType.Int64;
                 getPaging10Param1.ParameterName = "@created";
                 getPaging10Command.Parameters.Add(getPaging10Param1);
                 var getPaging10Param2 = getPaging10Command.CreateParameter();
+                getPaging10Param2.DbType = DbType.Int64;
                 getPaging10Param2.ParameterName = "@rowId";
                 getPaging10Command.Parameters.Add(getPaging10Param2);
                 var getPaging10Param3 = getPaging10Command.CreateParameter();
+                getPaging10Param3.DbType = DbType.Int64;
                 getPaging10Param3.ParameterName = "@count";
                 getPaging10Command.Parameters.Add(getPaging10Param3);
                 var getPaging10Param4 = getPaging10Command.CreateParameter();
+                getPaging10Param4.DbType = DbType.Binary;
                 getPaging10Param4.ParameterName = "@identityId";
                 getPaging10Command.Parameters.Add(getPaging10Param4);
 

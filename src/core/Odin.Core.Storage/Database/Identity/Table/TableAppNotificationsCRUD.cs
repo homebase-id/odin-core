@@ -249,21 +249,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Binary;
                 insertParam2.ParameterName = "@notificationId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Int32;
                 insertParam3.ParameterName = "@unread";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.String;
                 insertParam4.ParameterName = "@senderId";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.Int64;
                 insertParam5.ParameterName = "@timestamp";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.DbType = DbType.Binary;
                 insertParam6.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam6);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -301,21 +307,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(AppNotifications.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.Binary;
                 upsertParam2.ParameterName = "@notificationId";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.DbType = DbType.Int32;
                 upsertParam3.ParameterName = "@unread";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.DbType = DbType.String;
                 upsertParam4.ParameterName = "@senderId";
                 upsertCommand.Parameters.Add(upsertParam4);
                 var upsertParam5 = upsertCommand.CreateParameter();
+                upsertParam5.DbType = DbType.Int64;
                 upsertParam5.ParameterName = "@timestamp";
                 upsertCommand.Parameters.Add(upsertParam5);
                 var upsertParam6 = upsertCommand.CreateParameter();
+                upsertParam6.DbType = DbType.Binary;
                 upsertParam6.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam6);
                 upsertParam1.Value = item.identityId.ToByteArray();
@@ -352,21 +364,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "WHERE (identityId = @identityId AND notificationId = @notificationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.Binary;
                 updateParam2.ParameterName = "@notificationId";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.DbType = DbType.Int32;
                 updateParam3.ParameterName = "@unread";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.DbType = DbType.String;
                 updateParam4.ParameterName = "@senderId";
                 updateCommand.Parameters.Add(updateParam4);
                 var updateParam5 = updateCommand.CreateParameter();
+                updateParam5.DbType = DbType.Int64;
                 updateParam5.ParameterName = "@timestamp";
                 updateCommand.Parameters.Add(updateParam5);
                 var updateParam6 = updateCommand.CreateParameter();
+                updateParam6.DbType = DbType.Binary;
                 updateParam6.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam6);
                 updateParam1.Value = item.identityId.ToByteArray();
@@ -451,9 +469,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Command.CommandText = "DELETE FROM AppNotifications " +
                                              "WHERE identityId = @identityId AND notificationId = @notificationId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.Binary;
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.DbType = DbType.Binary;
                 delete0Param2.ParameterName = "@notificationId";
                 delete0Command.Parameters.Add(delete0Param2);
 
@@ -500,9 +520,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
                 var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.Binary;
                 get0Param2.ParameterName = "@notificationId";
                 get0Command.Parameters.Add(get0Param2);
 
@@ -541,15 +563,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 getPaging7Command.CommandText = "SELECT rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                             "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
                 var getPaging7Param1 = getPaging7Command.CreateParameter();
+                getPaging7Param1.DbType = DbType.Int64;
                 getPaging7Param1.ParameterName = "@created";
                 getPaging7Command.Parameters.Add(getPaging7Param1);
                 var getPaging7Param2 = getPaging7Command.CreateParameter();
+                getPaging7Param2.DbType = DbType.Int64;
                 getPaging7Param2.ParameterName = "@rowId";
                 getPaging7Command.Parameters.Add(getPaging7Param2);
                 var getPaging7Param3 = getPaging7Command.CreateParameter();
+                getPaging7Param3.DbType = DbType.Int64;
                 getPaging7Param3.ParameterName = "@count";
                 getPaging7Command.Parameters.Add(getPaging7Param3);
                 var getPaging7Param4 = getPaging7Command.CreateParameter();
+                getPaging7Param4.DbType = DbType.Binary;
                 getPaging7Param4.ParameterName = "@identityId";
                 getPaging7Command.Parameters.Add(getPaging7Param4);
 
@@ -601,9 +627,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 getPaging0Command.CommandText = "SELECT rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.DbType = DbType.Int64;
                 getPaging0Param1.ParameterName = "@rowId";
                 getPaging0Command.Parameters.Add(getPaging0Param1);
                 var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.DbType = DbType.Int64;
                 getPaging0Param2.ParameterName = "@count";
                 getPaging0Command.Parameters.Add(getPaging0Param2);
 
