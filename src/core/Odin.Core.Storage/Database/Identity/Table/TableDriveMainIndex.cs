@@ -93,13 +93,13 @@ public class TableDriveMainIndex(
         await using var upsertCommand = cn.CreateCommand();
         await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
 
-        string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+        string sqlNowStr = upsertCommand.SqlNow();
 
         upsertCommand.CommandText =
             "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
             $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr}) " +
             "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
-            $"SET globalTransitId=COALESCE(driveMainIndex.globalTransitId, @globalTransitId),fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}) " +
+            $"SET globalTransitId=COALESCE(driveMainIndex.globalTransitId, @globalTransitId),fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {upsertCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) " +
             "WHERE driveMainIndex.hdrVersionTag = @hdrVersionTag " +
             "RETURNING created, driveMainIndex.modified, rowid;";
 
@@ -250,7 +250,7 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
-        string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+        string sqlNowStr = updateCommand.SqlNow();
         updateCommand.CommandText =
             $"UPDATE driveMainIndex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
@@ -282,7 +282,7 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
-        string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+        string sqlNowStr = updateCommand.SqlNow();
 
         updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
                                     $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
@@ -366,7 +366,7 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var touchCommand = cn.CreateCommand();
 
-        string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+        string sqlNowStr = touchCommand.SqlNow();
 
         touchCommand.CommandText =
             $"UPDATE drivemainindex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING driveMainIndex.modified;";
