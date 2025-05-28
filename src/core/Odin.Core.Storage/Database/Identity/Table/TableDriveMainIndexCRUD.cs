@@ -511,87 +511,114 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-                                             $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr})"+
-                                            "RETURNING DriveMainIndex.created,DriveMainIndex.modified,DriveMainIndex.rowId;";
+                                           $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr})"+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Binary;
                 insertParam2.ParameterName = "@driveId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Binary;
                 insertParam3.ParameterName = "@fileId";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.Binary;
                 insertParam4.ParameterName = "@globalTransitId";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.Int32;
                 insertParam5.ParameterName = "@fileState";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.DbType = DbType.Int32;
                 insertParam6.ParameterName = "@requiredSecurityGroup";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.DbType = DbType.Int32;
                 insertParam7.ParameterName = "@fileSystemType";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.DbType = DbType.Int64;
                 insertParam8.ParameterName = "@userDate";
                 insertCommand.Parameters.Add(insertParam8);
                 var insertParam9 = insertCommand.CreateParameter();
+                insertParam9.DbType = DbType.Int32;
                 insertParam9.ParameterName = "@fileType";
                 insertCommand.Parameters.Add(insertParam9);
                 var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.DbType = DbType.Int32;
                 insertParam10.ParameterName = "@dataType";
                 insertCommand.Parameters.Add(insertParam10);
                 var insertParam11 = insertCommand.CreateParameter();
+                insertParam11.DbType = DbType.Int32;
                 insertParam11.ParameterName = "@archivalStatus";
                 insertCommand.Parameters.Add(insertParam11);
                 var insertParam12 = insertCommand.CreateParameter();
+                insertParam12.DbType = DbType.Int32;
                 insertParam12.ParameterName = "@historyStatus";
                 insertCommand.Parameters.Add(insertParam12);
                 var insertParam13 = insertCommand.CreateParameter();
+                insertParam13.DbType = DbType.String;
                 insertParam13.ParameterName = "@senderId";
                 insertCommand.Parameters.Add(insertParam13);
                 var insertParam14 = insertCommand.CreateParameter();
+                insertParam14.DbType = DbType.Binary;
                 insertParam14.ParameterName = "@groupId";
                 insertCommand.Parameters.Add(insertParam14);
                 var insertParam15 = insertCommand.CreateParameter();
+                insertParam15.DbType = DbType.Binary;
                 insertParam15.ParameterName = "@uniqueId";
                 insertCommand.Parameters.Add(insertParam15);
                 var insertParam16 = insertCommand.CreateParameter();
+                insertParam16.DbType = DbType.Int64;
                 insertParam16.ParameterName = "@byteCount";
                 insertCommand.Parameters.Add(insertParam16);
                 var insertParam17 = insertCommand.CreateParameter();
+                insertParam17.DbType = DbType.String;
                 insertParam17.ParameterName = "@hdrEncryptedKeyHeader";
                 insertCommand.Parameters.Add(insertParam17);
                 var insertParam18 = insertCommand.CreateParameter();
+                insertParam18.DbType = DbType.Binary;
                 insertParam18.ParameterName = "@hdrVersionTag";
                 insertCommand.Parameters.Add(insertParam18);
                 var insertParam19 = insertCommand.CreateParameter();
+                insertParam19.DbType = DbType.String;
                 insertParam19.ParameterName = "@hdrAppData";
                 insertCommand.Parameters.Add(insertParam19);
                 var insertParam20 = insertCommand.CreateParameter();
+                insertParam20.DbType = DbType.Binary;
                 insertParam20.ParameterName = "@hdrLocalVersionTag";
                 insertCommand.Parameters.Add(insertParam20);
                 var insertParam21 = insertCommand.CreateParameter();
+                insertParam21.DbType = DbType.String;
                 insertParam21.ParameterName = "@hdrLocalAppData";
                 insertCommand.Parameters.Add(insertParam21);
                 var insertParam22 = insertCommand.CreateParameter();
+                insertParam22.DbType = DbType.String;
                 insertParam22.ParameterName = "@hdrReactionSummary";
                 insertCommand.Parameters.Add(insertParam22);
                 var insertParam23 = insertCommand.CreateParameter();
+                insertParam23.DbType = DbType.String;
                 insertParam23.ParameterName = "@hdrServerData";
                 insertCommand.Parameters.Add(insertParam23);
                 var insertParam24 = insertCommand.CreateParameter();
+                insertParam24.DbType = DbType.String;
                 insertParam24.ParameterName = "@hdrTransferHistory";
                 insertCommand.Parameters.Add(insertParam24);
                 var insertParam25 = insertCommand.CreateParameter();
+                insertParam25.DbType = DbType.String;
                 insertParam25.ParameterName = "@hdrFileMetaData";
                 insertCommand.Parameters.Add(insertParam25);
                 var insertParam26 = insertCommand.CreateParameter();
+                insertParam26.DbType = DbType.Binary;
                 insertParam26.ParameterName = "@hdrTmpDriveAlias";
                 insertCommand.Parameters.Add(insertParam26);
                 var insertParam27 = insertCommand.CreateParameter();
+                insertParam27.DbType = DbType.Binary;
                 insertParam27.ParameterName = "@hdrTmpDriveType";
                 insertCommand.Parameters.Add(insertParam27);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -654,7 +681,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO DriveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                                             $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING DriveMainIndex.created,DriveMainIndex.modified,DriveMainIndex.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -797,7 +824,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrLocalVersionTag,@hdrLocalAppData,@hdrReactionSummary,@hdrServerData,@hdrTransferHistory,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,driveId,fileId) DO UPDATE "+
                                             $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(DriveMainIndex.modified+1,{sqlNowStr}) "+
-                                            "RETURNING DriveMainIndex.created,DriveMainIndex.modified,DriveMainIndex.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -939,7 +966,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.CommandText = "UPDATE DriveMainIndex " +
                                             $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(DriveMainIndex.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId) "+
-                                            "RETURNING DriveMainIndex.created,DriveMainIndex.modified,DriveMainIndex.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

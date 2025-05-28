@@ -136,15 +136,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO KeyValue (identityId,key,data) " +
-                                             $"VALUES (@identityId,@key,@data)"+
-                                            "RETURNING -1,-1,KeyValue.rowId;";
+                                           $"VALUES (@identityId,@key,@data)"+
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Binary;
                 insertParam2.ParameterName = "@key";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Binary;
                 insertParam3.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam3);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -170,7 +173,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO KeyValue (identityId,key,data) " +
                                             $"VALUES (@identityId,@key,@data) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING -1,-1,KeyValue.rowId;";
+                                            "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -204,7 +207,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@key,@data)"+
                                             "ON CONFLICT (identityId,key) DO UPDATE "+
                                             $"SET data = @data "+
-                                            "RETURNING -1,-1,KeyValue.rowId;";
+                                            "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -237,7 +240,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.CommandText = "UPDATE KeyValue " +
                                             $"SET data = @data "+
                                             "WHERE (identityId = @identityId AND key = @key) "+
-                                            "RETURNING -1,-1,KeyValue.rowId;";
+                                            "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

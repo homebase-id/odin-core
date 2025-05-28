@@ -352,6 +352,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 // in such a case, that record would be missing from the dataset unless we add this less than
                 // condition to the query. This means in our testing of modified cursor types we may need to
                 // add delays before calling QueryBatch()
+                // Example: rec1: modified time stamp(mts) = 1, rowid 1, rec2: modified time stamp = now() = 7, rowid 2
+                // Example: thread1: QueryBatch(AnyChangeDate), cursor (timestamp 7, row 2)
+                //          thread2: Update rec1 (timestamp is now=7) (aka updates in the same millisecond, and right after the QB() took place).
+                //          thread1: QueryBatch(AnyChangeDate) with the cursor above (7,2). Will NOT return the rec1 because it has (7,1).
+                //          Therefore, if QB() doesn't include results from the current ms this is not a problem.
+                //
                 listWhereAnd.Add($"modified < {SqlExtensions.SqlNowString(scopedConnectionFactory.DatabaseType)}");
                 timeField = "modified";
             }

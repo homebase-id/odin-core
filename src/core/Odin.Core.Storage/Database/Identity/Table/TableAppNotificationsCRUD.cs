@@ -189,24 +189,30 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr})"+
-                                            "RETURNING AppNotifications.created,AppNotifications.modified,AppNotifications.rowId;";
+                                           $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr})"+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Binary;
                 insertParam2.ParameterName = "@notificationId";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Int32;
                 insertParam3.ParameterName = "@unread";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.String;
                 insertParam4.ParameterName = "@senderId";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.Int64;
                 insertParam5.ParameterName = "@timestamp";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.DbType = DbType.Binary;
                 insertParam6.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam6);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -241,7 +247,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING AppNotifications.created,AppNotifications.modified,AppNotifications.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
@@ -293,7 +299,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,notificationId) DO UPDATE "+
                                             $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(AppNotifications.modified+1,{sqlNowStr}) "+
-                                            "RETURNING AppNotifications.created,AppNotifications.modified,AppNotifications.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -344,7 +350,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.CommandText = "UPDATE AppNotifications " +
                                             $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(AppNotifications.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND notificationId = @notificationId) "+
-                                            "RETURNING AppNotifications.created,AppNotifications.modified,AppNotifications.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);

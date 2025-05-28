@@ -362,57 +362,74 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
                 insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                             $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},{sqlNowStr})"+
-                                            "RETURNING Jobs.created,Jobs.modified,Jobs.rowId;";
+                                           $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},{sqlNowStr})"+
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@id";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.String;
                 insertParam2.ParameterName = "@name";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Int32;
                 insertParam3.ParameterName = "@state";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.Int32;
                 insertParam4.ParameterName = "@priority";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.Int64;
                 insertParam5.ParameterName = "@nextRun";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.DbType = DbType.Int64;
                 insertParam6.ParameterName = "@lastRun";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.DbType = DbType.Int32;
                 insertParam7.ParameterName = "@runCount";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
+                insertParam8.DbType = DbType.Int32;
                 insertParam8.ParameterName = "@maxAttempts";
                 insertCommand.Parameters.Add(insertParam8);
                 var insertParam9 = insertCommand.CreateParameter();
+                insertParam9.DbType = DbType.Int64;
                 insertParam9.ParameterName = "@retryDelay";
                 insertCommand.Parameters.Add(insertParam9);
                 var insertParam10 = insertCommand.CreateParameter();
+                insertParam10.DbType = DbType.Int64;
                 insertParam10.ParameterName = "@onSuccessDeleteAfter";
                 insertCommand.Parameters.Add(insertParam10);
                 var insertParam11 = insertCommand.CreateParameter();
+                insertParam11.DbType = DbType.Int64;
                 insertParam11.ParameterName = "@onFailureDeleteAfter";
                 insertCommand.Parameters.Add(insertParam11);
                 var insertParam12 = insertCommand.CreateParameter();
+                insertParam12.DbType = DbType.Int64;
                 insertParam12.ParameterName = "@expiresAt";
                 insertCommand.Parameters.Add(insertParam12);
                 var insertParam13 = insertCommand.CreateParameter();
+                insertParam13.DbType = DbType.String;
                 insertParam13.ParameterName = "@correlationId";
                 insertCommand.Parameters.Add(insertParam13);
                 var insertParam14 = insertCommand.CreateParameter();
+                insertParam14.DbType = DbType.String;
                 insertParam14.ParameterName = "@jobType";
                 insertCommand.Parameters.Add(insertParam14);
                 var insertParam15 = insertCommand.CreateParameter();
+                insertParam15.DbType = DbType.String;
                 insertParam15.ParameterName = "@jobData";
                 insertCommand.Parameters.Add(insertParam15);
                 var insertParam16 = insertCommand.CreateParameter();
+                insertParam16.DbType = DbType.String;
                 insertParam16.ParameterName = "@jobHash";
                 insertCommand.Parameters.Add(insertParam16);
                 var insertParam17 = insertCommand.CreateParameter();
+                insertParam17.DbType = DbType.String;
                 insertParam17.ParameterName = "@lastError";
                 insertCommand.Parameters.Add(insertParam17);
                 insertParam1.Value = item.id.ToByteArray();
@@ -456,7 +473,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
                                             $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
-                                            "RETURNING Jobs.created,Jobs.modified,Jobs.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.ParameterName = "@id";
                 insertCommand.Parameters.Add(insertParam1);
@@ -550,7 +567,7 @@ namespace Odin.Core.Storage.Database.System.Table
                                             $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (id) DO UPDATE "+
                                             $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Jobs.modified+1,{sqlNowStr}) "+
-                                            "RETURNING Jobs.created,Jobs.modified,Jobs.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.ParameterName = "@id";
                 upsertCommand.Parameters.Add(upsertParam1);
@@ -643,7 +660,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateCommand.CommandText = "UPDATE Jobs " +
                                             $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Jobs.modified+1,{sqlNowStr}) "+
                                             "WHERE (id = @id) "+
-                                            "RETURNING Jobs.created,Jobs.modified,Jobs.rowId;";
+                                            "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
                 updateParam1.ParameterName = "@id";
                 updateCommand.Parameters.Add(updateParam1);
