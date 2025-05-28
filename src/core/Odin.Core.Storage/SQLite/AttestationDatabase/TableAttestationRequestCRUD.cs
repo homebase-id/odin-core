@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 getPaging1Param1.ParameterName = "@attestationId";
                 getPaging1Command.Parameters.Add(getPaging1Param1);
                 var getPaging1Param2 = getPaging1Command.CreateParameter();
-                getPaging1Param2.DbType = DbType.String;
+                getPaging1Param2.DbType = DbType.Int64;
                 getPaging1Param2.ParameterName = "@count";
                 getPaging1Command.Parameters.Add(getPaging1Param2);
 

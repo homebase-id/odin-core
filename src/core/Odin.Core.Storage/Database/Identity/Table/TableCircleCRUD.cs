@@ -450,7 +450,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 getPaging2Param1.ParameterName = "@circleId";
                 getPaging2Command.Parameters.Add(getPaging2Param1);
                 var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.DbType = DbType.Binary;
+                getPaging2Param2.DbType = DbType.Int64;
                 getPaging2Param2.ParameterName = "@count";
                 getPaging2Command.Parameters.Add(getPaging2Param2);
                 var getPaging2Param3 = getPaging2Command.CreateParameter();
