@@ -43,7 +43,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw CreateS3StorageException(ex, $"Create bucket '{BucketName} failed'.");
+            throw CreateS3StorageException(ex, $"Create bucket '{BucketName} failed'");
         }
     }
 
@@ -58,7 +58,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw CreateS3StorageException(ex, $"Failed to check if bucket '{BucketName}'.");
+            throw CreateS3StorageException(ex, $"Failed to check if bucket '{BucketName}'");
         }
     }
 
@@ -86,7 +86,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw CreateS3StorageException(ex, $"Failed to write object '{path}' to bucket '{BucketName}'.");
+            throw CreateS3StorageException(ex, $"Failed to write object '{path}' to bucket '{BucketName}'");
         }
         finally
         {
@@ -119,7 +119,7 @@ public class S3AwsStorage : IS3Storage
         catch (Exception ex)
         {
             throw CreateS3StorageException(ex,
-                $"Failed to check if object '{path}' exists in bucket '{BucketName}'.");
+                $"Failed to check if object '{path}' exists in bucket '{BucketName}'");
         }
     }
 
@@ -174,7 +174,7 @@ public class S3AwsStorage : IS3Storage
         catch (Exception ex)
         {
             throw CreateS3StorageException(ex,
-                $"Failed to read object '{path}' from bucket '{BucketName}' with offset {offset} and length {length}.");
+                $"Failed to read object '{path}' from bucket '{BucketName}' with offset {offset} and length {length}");
         }
         finally
         {
@@ -206,7 +206,7 @@ public class S3AwsStorage : IS3Storage
         catch (Exception ex)
         {
             throw CreateS3StorageException(ex,
-                $"Failed to delete object '{path}' from bucket '{BucketName}'.");
+                $"Failed to delete object '{path}' from bucket '{BucketName}'");
         }
     }
 
@@ -234,7 +234,7 @@ public class S3AwsStorage : IS3Storage
         catch (Exception ex)
         {
             throw CreateS3StorageException(ex,
-                $"Failed to copy object from '{srcPath}' to '{dstPath}' in bucket '{BucketName}'.");
+                $"Failed to copy object from '{srcPath}' to '{dstPath}' in bucket '{BucketName}'");
         }
 
     }
@@ -269,7 +269,7 @@ public class S3AwsStorage : IS3Storage
         catch (Exception ex)
         {
             throw CreateS3StorageException(ex,
-                $"Failed to upload file '{srcPath}' to '{dstPath}' in bucket '{BucketName}.");
+                $"Failed to upload file '{srcPath}' to '{dstPath}' in bucket '{BucketName}");
         }
     }
 
@@ -295,7 +295,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw CreateS3StorageException(ex, $"Failed to download object '{srcPath}' to '{dstPath}'.");
+            throw CreateS3StorageException(ex, $"Failed to download object '{srcPath}' to '{dstPath}'");
         }
     }
 
@@ -305,20 +305,20 @@ public class S3AwsStorage : IS3Storage
     {
         var error = exception.Message;
 
-        if (string.IsNullOrEmpty(message))
+        if (string.IsNullOrEmpty(error))
         {
             // This is a freaking weird, Amazon. Wth...
             if (exception.InnerException is Amazon.Runtime.Internal.HttpErrorResponseException httpException)
             {
-                error = $"S3 HTTP status: {httpException.Response.StatusCode}";
+                error = $": S3 HTTP status={httpException.Response.StatusCode}";
             }
             else
             {
-                error = exception.InnerException?.Message ?? "Unknown error";
+                error = exception.InnerException?.Message ?? ": Unknown error";
             }
         }
 
-        return new S3StorageException($"{message}: {error}", exception);
+        return new S3StorageException($"{message}{error}", exception);
     }
 
     //
