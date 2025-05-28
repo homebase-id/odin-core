@@ -235,6 +235,22 @@ public class S3AwsStorageTests
     //
 
     [Test]
+    public void S3AwsStorage_ItShouldThrowWhenReadingNotExistingPath()
+    {
+        const string path = "the-file-not-existing";
+
+        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+
+        var exception = Assert.ThrowsAsync<S3StorageException>(() =>  bucket.ReadBytesAsync(path));
+        var inner = exception!.InnerException as AmazonS3Exception;
+        Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
+        Assert.That(inner!.Message, Is.EqualTo("The specified key does not exist."));
+    }
+
+
+    //
+
+    [Test]
     public async Task S3AwsStorage_ItShouldCheckFileExistence()
     {
         const string path = "the-file";

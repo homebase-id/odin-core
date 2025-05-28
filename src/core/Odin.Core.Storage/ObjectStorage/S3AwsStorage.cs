@@ -43,7 +43,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw new S3StorageException($"Create bucket '{BucketName}' failed: {ex.Message}", ex);
+            throw CreateS3StorageException(ex, $"Create bucket '{BucketName} failed'.");
         }
     }
 
@@ -58,7 +58,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw new S3StorageException($"Failed to check if bucket '{BucketName}' exists: {ex.Message}", ex);
+            throw CreateS3StorageException(ex, $"Failed to check if bucket '{BucketName}'.");
         }
     }
 
@@ -86,7 +86,7 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw new S3StorageException($"Failed to write object '{path}' to bucket '{BucketName}': {ex.Message}", ex);
+            throw CreateS3StorageException(ex, $"Failed to write object '{path}' to bucket '{BucketName}'.");
         }
         finally
         {
@@ -115,6 +115,11 @@ public class S3AwsStorage : IS3Storage
         catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             return false;
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex,
+                $"Failed to check if object '{path}' exists in bucket '{BucketName}'.");
         }
     }
 
@@ -168,9 +173,8 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw new S3StorageException(
-                $"Failed to read object '{path}' from bucket '{BucketName}' with offset {offset} and length {length}: {ex.Message}",
-                ex);
+            throw CreateS3StorageException(ex,
+                $"Failed to read object '{path}' from bucket '{BucketName}' with offset {offset} and length {length}.");
         }
         finally
         {
@@ -199,6 +203,11 @@ public class S3AwsStorage : IS3Storage
         {
             // Ignore if file doesn't exist
         }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex,
+                $"Failed to delete object '{path}' from bucket '{BucketName}'.");
+        }
     }
 
     //
@@ -218,7 +227,16 @@ public class S3AwsStorage : IS3Storage
             DestinationKey = dstPath
         };
 
-        await _s3Client.CopyObjectAsync(request, cancellationToken);
+        try
+        {
+            await _s3Client.CopyObjectAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex,
+                $"Failed to copy object from '{srcPath}' to '{dstPath}' in bucket '{BucketName}'.");
+        }
+
     }
 
     //
@@ -250,9 +268,8 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw new S3StorageException(
-                $"Failed to upload file '{srcPath}' to '{dstPath}' in bucket '{BucketName}': {ex.Message}",
-                ex);
+            throw CreateS3StorageException(ex,
+                $"Failed to upload file '{srcPath}' to '{dstPath}' in bucket '{BucketName}.");
         }
     }
 
@@ -278,9 +295,30 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw new S3StorageException(
-                $"Failed to download object '{srcPath}' to '{dstPath}': {ex.Message}", ex);
+            throw CreateS3StorageException(ex, $"Failed to download object '{srcPath}' to '{dstPath}'.");
         }
+    }
+
+    //
+
+    private S3StorageException CreateS3StorageException(Exception exception, string message)
+    {
+        var error = exception.Message;
+
+        if (string.IsNullOrEmpty(message))
+        {
+            // This is a freaking weird, Amazon. Wth...
+            if (exception.InnerException is Amazon.Runtime.Internal.HttpErrorResponseException httpException)
+            {
+                error = $"S3 HTTP status: {httpException.Response.StatusCode}";
+            }
+            else
+            {
+                error = exception.InnerException?.Message ?? "Unknown error";
+            }
+        }
+
+        return new S3StorageException($"{message}: {error}", exception);
     }
 
     //
@@ -313,3 +351,4 @@ public static class S3AwsStorageExtensions
         return services;
     }
 }
+
