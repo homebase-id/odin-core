@@ -144,6 +144,8 @@ public class S3AwsStorage : IS3Storage
             length -= offset;
         }
 
+        // _logger.LogDebug("Requesting bytes from S3: Path={Path}, Offset={Offset}, Length={Length}", path, offset, length);
+
         S3Path.AssertFileName(path);
         path = S3Path.Combine(path);
 
@@ -159,6 +161,9 @@ public class S3AwsStorage : IS3Storage
 
             using var response = await _s3Client.GetObjectAsync(request, cancellationToken);
             await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
+
+            // _logger.LogDebug("Got bytes from S3: Path={Path}, Length={Size}", path, memoryStream.Length);
+
             return memoryStream.ToArray();
         }
         catch (Exception ex)
