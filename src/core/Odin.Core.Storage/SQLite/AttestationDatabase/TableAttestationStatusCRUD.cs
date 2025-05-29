@@ -122,7 +122,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                            $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
@@ -155,7 +156,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var insertCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                             $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
@@ -189,11 +191,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var upsertCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 upsertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                             $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                            $"SET status = @status,modified = {SqlExtensions.MaxString(DatabaseType.Sqlite)}(AttestationStatus.modified+1,{sqlNowStr}) "+
+                                            $"SET status = @status,modified = MAX(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.Binary;
@@ -224,9 +227,10 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         {
             using (var updateCommand = conn.db.CreateCommand())
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(DatabaseType.Sqlite);
+                string sqlNowStr;
+                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 updateCommand.CommandText = "UPDATE AttestationStatus " +
-                                            $"SET status = @status,modified = {SqlExtensions.MaxString(DatabaseType.Sqlite)}(AttestationStatus.modified+1,{sqlNowStr}) "+
+                                            $"SET status = @status,modified = MAX(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

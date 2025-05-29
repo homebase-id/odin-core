@@ -211,7 +211,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
                                            $"VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
@@ -278,7 +278,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
                                             $"VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
@@ -346,11 +346,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = upsertCommand.SqlNow();
                 upsertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
                                             $"VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,fileId) DO UPDATE "+
-                                            $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Inbox.modified+1,{sqlNowStr}) "+
+                                            $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {upsertCommand.SqlMax()}(Inbox.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.Binary;
@@ -415,9 +415,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE Inbox " +
-                                            $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(Inbox.modified+1,{sqlNowStr}) "+
+                                            $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {updateCommand.SqlMax()}(Inbox.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND fileId = @fileId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

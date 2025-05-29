@@ -339,6 +339,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             string timeField;
             var listWhereAnd = new List<string>();
+            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
 
             if ((sortField == QueryBatchSortField.CreatedDate) || (sortField == QueryBatchSortField.FileId))
                 timeField = "created";
@@ -358,13 +360,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 //          thread1: QueryBatch(AnyChangeDate) with the cursor above (7,2). Will NOT return the rec1 because it has (7,1).
                 //          Therefore, if QB() doesn't include results from the current ms this is not a problem.
                 //
-                listWhereAnd.Add($"modified < {SqlExtensions.SqlNowString(scopedConnectionFactory.DatabaseType)}");
+                listWhereAnd.Add($"modified < {cmd.SqlNow()}");
                 timeField = "modified";
             }
             else if (sortField == QueryBatchSortField.OnlyModifiedDate)
             {
                 // Same important note as above
-                listWhereAnd.Add($"modified < {SqlExtensions.SqlNowString(scopedConnectionFactory.DatabaseType)}");
+                listWhereAnd.Add($"modified < {cmd.SqlNow()}");
+
                 // When modified != created, it means it's an item that has been modified, not newly created
                 listWhereAnd.Add($"modified != created"); 
                 timeField = "modified";
@@ -411,8 +414,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             // Read +1 more than requested to see if we're at the end of the dataset
             string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
 
             cmd.CommandText = stm;
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
@@ -656,6 +657,9 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> localTagsAnyOf = null,
             List<Guid> localTagsAllOf = null)
         {
+            await Task.Delay(0);
+            throw new OdinClientException("QueryBatch() no longer supported.");
+/*
             if (null == fileSystemType)
             {
                 throw new OdinSystemException("fileSystemType required in Query Modified");
@@ -737,6 +741,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
                 return (result, await rdr.ReadAsync(), cursorString);
             } // using rdr
+*/
         }
 
 
@@ -782,22 +787,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <summary>
         /// Returns true if the list should be used in the query
         /// </summary>
-        private bool IsSet(List<byte[]> list)
-        {
-            return list?.Count > 0;
-        }
-
-        private bool IsSet(List<Guid> list)
-        {
-            return list?.Count > 0;
-        }
-
-        private bool IsSet(List<int> list)
-        {
-            return list?.Count > 0;
-        }
-
-        private bool IsSet(List<string> list)
+        private bool IsSet<T>(List<T> list)
         {
             return list?.Count > 0;
         }

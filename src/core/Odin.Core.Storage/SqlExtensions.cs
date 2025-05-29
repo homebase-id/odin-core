@@ -46,24 +46,4 @@ public static class SqlExtensions
     {
         return guid.ToByteArray().ToSql(databaseType);
     }
-
-    public static string SqlNowString(DatabaseType dbType)
-    {
-        if (dbType == DatabaseType.Sqlite)
-            return "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-        else if (dbType == DatabaseType.Postgres)
-            return "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-        else
-            throw new OdinDatabaseException(DatabaseType.Unknown, "Incorrect database type");
-    }
-
-    public static string MaxString(DatabaseType dbType)
-    {
-        if (dbType == DatabaseType.Sqlite)
-            return "MAX";
-        else if (dbType == DatabaseType.Postgres)
-            return "GREATEST";
-        else
-            throw new OdinDatabaseException(DatabaseType.Unknown, "Incorrect database type");
-    }
 }

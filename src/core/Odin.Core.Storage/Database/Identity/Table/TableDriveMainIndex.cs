@@ -252,7 +252,7 @@ public class TableDriveMainIndex(
 
         string sqlNowStr = updateCommand.SqlNow();
         updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+            $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -284,7 +284,7 @@ public class TableDriveMainIndex(
 
         string sqlNowStr = updateCommand.SqlNow();
 
-        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
+        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
                                     $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
 
         var sparam1 = updateCommand.CreateParameter();
@@ -369,7 +369,7 @@ public class TableDriveMainIndex(
         string sqlNowStr = touchCommand.SqlNow();
 
         touchCommand.CommandText =
-            $"UPDATE drivemainindex SET modified={SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING driveMainIndex.modified;";
+            $"UPDATE drivemainindex SET modified={touchCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING modified;";
 
         var tparam1 = touchCommand.CreateParameter();
         var tparam3 = touchCommand.CreateParameter();

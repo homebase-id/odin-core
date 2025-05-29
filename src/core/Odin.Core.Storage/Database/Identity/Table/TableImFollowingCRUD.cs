@@ -129,7 +129,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
@@ -169,7 +169,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
                                             $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
@@ -210,11 +210,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = upsertCommand.SqlNow();
                 upsertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
                                             $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
-                                            $"SET modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(ImFollowing.modified+1,{sqlNowStr}) "+
+                                            $"SET modified = {upsertCommand.SqlMax()}(ImFollowing.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.Binary;
@@ -252,9 +252,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE ImFollowing " +
-                                            $"SET modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(ImFollowing.modified+1,{sqlNowStr}) "+
+                                            $"SET modified = {updateCommand.SqlMax()}(ImFollowing.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND identity = @identity AND driveId = @driveId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();

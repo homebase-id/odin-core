@@ -187,7 +187,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                            $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
@@ -243,7 +243,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
@@ -300,11 +300,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = upsertCommand.SqlNow();
                 upsertCommand.CommandText = "INSERT INTO AppNotifications (identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
                                             $"VALUES (@identityId,@notificationId,@unread,@senderId,@timestamp,@data,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,notificationId) DO UPDATE "+
-                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(AppNotifications.modified+1,{sqlNowStr}) "+
+                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {upsertCommand.SqlMax()}(AppNotifications.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.Binary;
@@ -358,9 +358,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                string sqlNowStr = SqlExtensions.SqlNowString(_scopedConnectionFactory.DatabaseType);
+                string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE AppNotifications " +
-                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {SqlExtensions.MaxString(_scopedConnectionFactory.DatabaseType)}(AppNotifications.modified+1,{sqlNowStr}) "+
+                                            $"SET unread = @unread,senderId = @senderId,timestamp = @timestamp,data = @data,modified = {updateCommand.SqlMax()}(AppNotifications.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND notificationId = @notificationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
