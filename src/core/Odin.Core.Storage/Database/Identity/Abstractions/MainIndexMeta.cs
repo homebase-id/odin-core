@@ -657,8 +657,24 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> localTagsAnyOf = null,
             List<Guid> localTagsAllOf = null)
         {
-            await Task.Delay(0);
-            throw new OdinClientException("QueryBatch() no longer supported.");
+
+            var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
+
+            if (cursor == null)
+                cursor = new TimeRowCursor(0, 0);
+
+            if (cursor.rowId == null)
+                cursor.rowId = 0;
+
+            var c2 = new QueryBatchCursor();
+            c2.pagingCursor = cursor;
+            c2.nextBoundaryCursor = stopAtModifiedUnixTimeSeconds;
+
+            var (ldr, mr, c3) = await QueryBatchAsync(driveId, noOfItems, c2, QueryBatchSortOrder.OldestFirst, QueryBatchSortField.OnlyModifiedDate,
+                fileSystemType, null, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf,
+                uniqueIdAnyOf, archivalStatusAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf, localTagsAnyOf, localTagsAllOf);
+
+            return (ldr, mr, c3.pagingCursor.ToJson());
 /*
             if (null == fileSystemType)
             {
@@ -679,14 +695,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 throw new Exception($"{nameof(requiredSecurityGroup)} is required");
             }
-
-            var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
-
-            if (cursor == null)
-                cursor = new TimeRowCursor(0, 0);
-
-            if (cursor.rowId == null)
-                cursor.rowId = 0;
 
             var listWhereAnd = new List<string>();
 
