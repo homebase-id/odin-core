@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,7 +10,6 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
@@ -30,11 +27,10 @@ public static class DriveAliasMigrationPhase2
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var tenantContext = scope.Resolve<TenantContext>();
 
-            var scopedIdentityTransactionFactory = scope.Resolve<ScopedIdentityTransactionFactory>();
             var newDriveManager = scope.Resolve<DriveManagerWithDedicatedTable>();
 
             var outputPath = $"{tenant.PrimaryDomainName}-drive-map.csv";
-            await ExportDriveAliasMap(logger, scopedIdentityTransactionFactory, tenantContext, newDriveManager, tenant, outputPath);
+            await ExportDriveAliasMap(logger, tenantContext, newDriveManager, tenant, outputPath);
             logger.LogInformation($"{tenant} map written to {outputPath}", tenant.PrimaryDomainName, outputPath);
         }
     }
@@ -48,38 +44,40 @@ public static class DriveAliasMigrationPhase2
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var tenantContext = scope.Resolve<TenantContext>();
 
-            var scopedIdentityTransactionFactory = scope.Resolve<ScopedIdentityTransactionFactory>();
-            var newDriveManager = scope.Resolve<DriveManagerWithDedicatedTable>();
-
-            await MoveData(logger, scopedIdentityTransactionFactory, tenantContext, newDriveManager, scope, tenant);
+            await MoveData(logger, tenantContext, scope, tenant);
         }
     }
 
-    private static async Task ExportDriveAliasMap(ILogger logger, ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
-        TenantContext tenantContext, DriveManagerWithDedicatedTable newDriveManager, IdentityRegistration tenant, string outputPath)
+    private static async Task ExportDriveAliasMap(ILogger logger, TenantContext tenantContext,
+        DriveManagerWithDedicatedTable newDriveManager, IdentityRegistration tenant, string outputPath)
     {
-        await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
         var odinContext = CreateOdinContext(tenantContext);
         var allDrives = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
 
-        // only change folders after all drive updates succeed
+        var dotYouRegistryId = tenantContext.DotYouRegistryId;
+        var tenantName = tenantContext.HostOdinId;
+        await using var writer = new StreamWriter(outputPath, false, Encoding.UTF8);
+
+        await writer.WriteLineAsync("dotYouRegistryId,tenantName,driveId,driveAlias");
+
         foreach (var drive in allDrives.Results)
         {
             var oldDriveId = drive.Id;
             var driveAlias = drive.TargetDriveInfo.Alias.Value;
-            WriteRenameCsv(tenantContext, oldDriveId, driveAlias, outputPath);
+            await writer.WriteLineAsync($"\"{dotYouRegistryId}\",\"{tenantName}\",\"{oldDriveId}\",\"{driveAlias}\"");
         }
 
         logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
             tenant.PrimaryDomainName,
             allDrives.Results.Count);
-
-        tx.Commit();
     }
 
-    private static async Task MoveData(ILogger logger, ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
-        TenantContext tenantContext, DriveManagerWithDedicatedTable newDriveManager, ILifetimeScope scope, IdentityRegistration tenant)
+    private static async Task MoveData(ILogger logger, TenantContext tenantContext, ILifetimeScope scope, IdentityRegistration tenant)
     {
+        var scopedIdentityTransactionFactory = scope.Resolve<ScopedIdentityTransactionFactory>();
+
+        var newDriveManager = scope.Resolve<DriveManagerWithDedicatedTable>();
+
         await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
         var odinContext = CreateOdinContext(tenantContext);
         var allDrives = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
@@ -105,42 +103,6 @@ public static class DriveAliasMigrationPhase2
 
         tx.Commit();
     }
-
-    private static void WriteRenameCsv(TenantContext tenantContext, Guid oldDriveId, Guid driveAlias, string outputCsvPath)
-    {
-        var pathManager = tenantContext.TenantPathManager;
-        var dotYouRegistryId = tenantContext.DotYouRegistryId;
-        var tenantName = tenantContext.HostOdinId;
-
-        var entries = new List<(string Source, string Target)>();
-
-        AddMoveEntry(pathManager.GetDrivePayloadPath(oldDriveId), pathManager.GetDrivePayloadPath(driveAlias),
-            TenantPathManager.FilesFolder);
-        AddMoveEntry(pathManager.GetDriveUploadPath(oldDriveId), pathManager.GetDriveUploadPath(driveAlias),
-            TenantPathManager.UploadFolder);
-        AddMoveEntry(pathManager.GetDriveInboxPath(oldDriveId), pathManager.GetDriveInboxPath(driveAlias), TenantPathManager.InboxFolder);
-
-        // Write to CSV
-        using var writer = new StreamWriter(outputCsvPath, false, Encoding.UTF8);
-        writer.WriteLine("dotYouRegistryId,tenantName,sourceFolder,targetFolder");
-
-        foreach (var (source, target) in entries)
-        {
-            writer.WriteLine($"\"{dotYouRegistryId}\",\"{tenantName}\",\"{source}\",\"{target}\"");
-        }
-
-        void AddMoveEntry(string oldPathFull, string newPathFull, string folderBase)
-        {
-            var oldPath = oldPathFull.Replace(folderBase, "");
-            var newPath = newPathFull.Replace(folderBase, "");
-
-            if (Directory.Exists(oldPath))
-            {
-                entries.Add((oldPath, newPath));
-            }
-        }
-    }
-
 
     private static OdinContext CreateOdinContext(TenantContext tenantContext)
     {

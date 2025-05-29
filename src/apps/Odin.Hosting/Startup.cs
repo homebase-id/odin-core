@@ -599,6 +599,7 @@ namespace Odin.Hosting
                     logger.LogInformation("Completed migrating drive alias phase 2.  You should now " +
                                           "remove flag --migrate-drive-alias-phase-1 from docker-compose.yml " +
                                           "and restart");
+                    
                     lifetime.StopApplication();
                 }
 
@@ -630,7 +631,6 @@ namespace Odin.Hosting
                     lifetime.StopApplication();
                 }
                 
-                
                 if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-phase-treux", StringComparer.OrdinalIgnoreCase))
                 {
                     logger.LogInformation("Migrating drive alias phase deuce");
@@ -640,8 +640,8 @@ namespace Odin.Hosting
                     
                     DriveAliasMigrationPhaseThree.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
                     
-                    logger.LogInformation("Completed migrating drive alias phase treux.  You should now remove " +
-                                          "flag --migration-drive-alias-phase-duex from docker-compose.yml " +
+                    logger.LogInformation("Completed migrating drive alias phase 3.  You should now remove " +
+                                          "flag --migration-drive-alias-phase-treux from docker-compose.yml " +
                                           "and restart.  Remember to update tenant services with right drive manager");
                     lifetime.StopApplication();
                 }
