@@ -519,6 +519,8 @@ public class LocalAppMetadataTests
             }
         };
 
+        await Task.Delay(5);
+
         var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
         ClassicAssert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
 
@@ -584,6 +586,8 @@ public class LocalAppMetadataTests
                 IncludeHeaderContent = true
             }
         };
+
+        await Task.Delay(5);
 
         var queryBatchResponse = await callerDriveClient.QueryModified(qmr);
         ClassicAssert.IsTrue(queryBatchResponse.StatusCode == expectedStatusCode);
