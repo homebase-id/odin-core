@@ -99,40 +99,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             await driveTagIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
             await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
 
-            // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
+            // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags" rather than always deleting them
             //
 
             tx.Commit();
 
             return n;
         }
-
-        /*
-        public async Task<int> BaseUpdateEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
-            List<Guid> accessControlList = null,
-            List<Guid> tagIdList = null)
-        {
-            driveMainIndexRecord.identityId = odinIdentity;
-
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var tx = await cn.BeginStackedTransactionAsync();
-
-            var n = 0;
-            n = await driveMainIndex.UpdateAsync(driveMainIndexRecord);
-
-            await driveAclIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-            await driveAclIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, accessControlList);
-            await driveTagIndex.DeleteAllRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
-            await driveTagIndex.InsertRowsAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, tagIdList);
-
-            // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
-            //
-
-            tx.Commit();
-
-            return n;
-        }
-        */
 
         private string SharedWhereAnd(List<string> listWhere, IntRange requiredSecurityGroup, List<Guid> aclAnyOf, List<int> filetypesAnyOf,
             List<int> datatypesAnyOf, List<Guid> globalTransitIdAnyOf, List<Guid> uniqueIdAnyOf, List<Guid> tagsAnyOf, List<Guid> localTagsAnyOf,
@@ -240,10 +213,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
 
         /// <summary>
-        /// Asynchronously retrieves a batch of records from the drive main index, sorted by the specified field (e.g., creation date, user date, or latest change) in the chosen order (newest or oldest first).
+        /// Asynchronously retrieves a batch of records from the drive main index, sorted by the specified field (e.g., creation date, user date, or latest change) 
+        /// in the chosen order (newest or oldest first).
         /// Supports pagination via a cursor and can stop at a specified boundary. Applies various filters for precise record selection.
         /// The choice of <c>sortField</c> affects how modifications are handled; see parameter documentation for details.
-        /// Returns the list of records, a boolean indicating if more rows are available, and the updated cursor for subsequent queries.
+        /// Returns the list of records, a boolean indicating if more rows are available, and the updated cursor for subsequent queries
+        /// **Important** be aware of the same millisecond restriction for AnyChangeDate and OnlyModifiedDate. We might want to 
+        /// consider introducing an await Task.Delay(2) in this function.
         /// </summary>
         /// <param name="driveId">The unique identifier of the drive to query.</param>
         /// <param name="noOfItems">The maximum number of records to return in this batch (must be at least 1).</param>
@@ -253,8 +229,10 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         ///   - <c>CreatedDate</c>: Sorts by the record's creation timestamp, which is fixed at creation. Returns the latest version of a record at query time, but subsequent modifications do not change its sort order, so updated records won't reappear in later pages.
         ///   - <c>UserDate</c>: Sorts by the client-specified date, typically fixed. Returns the latest version of a record at query time, but subsequent modifications do not alter its sort order unless <c>userDate</c> is updated, so updated records typically won't reappear in later pages.
         ///   - <c>AnyChangeDate</c>: Sorts by the most recent change (latest of <c>modified</c> or <c>created</c>), ensuring both new and updated records are included in the order of their last change.
+        ///     Be aware that it does not return results inserted in the same millisecond as the query. If you're running e.g. a TEST you may need to do an await Task.Delay(2);
         ///   - <c>OnlyModifiedDate</c>: (Not yet implemented) Will sort only by the modification date, excluding newly created records.
-        ///   For <c>UserDate</c> or <c>CreatedDate</c>, clients may need to separately query for modifications using <c>OnlyModifiedDate</c> (once implemented) to capture updated records, which could result in duplicates or require additional logic to handle updates.
+        ///     Be aware that it does not return results inserted in the same millisecond as the query. If you're running e.g. a TEST you may need to do an await Task.Delay(2);
+        /// For <c>UserDate</c> or <c>CreatedDate</c>, clients may need to separately query for modifications using <c>OnlyModifiedDate</c> (once implemented) to capture updated records, which could result in duplicates or require additional logic to handle updates.
         /// </param>
         /// <returns>A tuple containing the list of <c>DriveMainIndexRecord</c>, a boolean indicating if more rows are available, and the updated <c>QueryBatchCursor</c>.</returns>
         /// <example>
@@ -453,12 +431,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         }
 
         /// <summary>
-        /// Asynchronously retrieves a batch of records from the drive main index, sorted by the specified field in the chosen order (newest or oldest first).
-        /// For `NewestFirst`, it automatically manages pagination with smart cursor handling, using boundary markers and recursive queries to ensure all records up to the initial newest point are fetched, even with new record additions.
-        /// For `OldestFirst`, it delegates to `QueryBatchAsync` for simple, static pagination. Supports various filters for precise record selection.
-        /// Returns a tuple containing the list of records, a boolean indicating if more rows are available, and the updated cursor for subsequent queries.
+        /// See QueryBatchAsync() for parameter and function details
+        /// This variant introduces smart cursor logic for `NewestFirst` queries. 
+        /// It automatically manages pagination with smart cursor handling, using boundary markers and recursive queries to ensure all 
+        /// records up to the initial newest point are fetched, even with new record additions. It calls recursively to detect any new
+        /// records added. Always ensures up to noOfItems are returned even if one window / boundary is completed.
         /// <example>
-        /// To fetch 10 newest records created before March 15, 2023, from a drive with a specific security group:
+        /// To fetch 10 newest records created after March 15, 2023, from a drive with a specific security group:
         /// <code>
         /// var boundaryInstant = NodaTime.Instant.FromDateTimeUtc(new DateTime(2023, 3, 15, 0, 0, 0, DateTimeKind.Utc));
         /// var cursor = new QueryBatchCursor { stopAtBoundary = new TimeRowCursor(new UnixTimeUtc(boundaryInstant), null) };
@@ -467,10 +446,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         ///     sortField: QueryBatchSortField.CreatedDate, fileSystemType: (int)FileSystemType.Standard, 
         ///     requiredSecurityGroup: new IntRange(1, 5));
         /// </code>
+        /// See this TEST for a detailed walk through example:
+        ///    CursorsBatch07ExampleTest(DatabaseType databaseType)
         /// </example>
         /// </summary>
         /// <returns></returns>
-
         public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(Guid driveId,
             int noOfItems,
             QueryBatchCursor cursor,
@@ -522,7 +502,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
             if (result.Count > 0)
             {
-                // If pagingCursor is null, it means we are getting a the newest data,
+                // If pagingCursor is null, it means we are getting the newest data,
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
                 if (pagingCursorWasNull)
@@ -631,6 +611,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
         /// <summary>
         /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
+        /// This is obsoleted. Should eventually be removed.
         /// </summary>
         /// 
         /// <param name="noOfItems">Maximum number of rows you want back</param>
@@ -675,81 +656,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
                 uniqueIdAnyOf, archivalStatusAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf, localTagsAnyOf, localTagsAllOf);
 
             return (ldr, mr, c3.pagingCursor.ToJson());
-/*
-            if (null == fileSystemType)
-            {
-                throw new OdinSystemException("fileSystemType required in Query Modified");
-            }
-
-            if (noOfItems < 1)
-            {
-                throw new OdinSystemException("Must QueryModified() no less than one item.");
-            }
-
-            if (noOfItems == int.MaxValue)
-            {
-                noOfItems--;
-            }
-
-            if (requiredSecurityGroup == null)
-            {
-                throw new Exception($"{nameof(requiredSecurityGroup)} is required");
-            }
-
-            var listWhereAnd = new List<string>();
-
-            listWhereAnd.Add($"(modified, driveMainIndex.rowId) > ({cursor.Time}, {cursor.rowId})");
-
-            if (stopAtModifiedUnixTimeSeconds != null)
-            {
-                // You can argue if it should be < or <= but important that stopBoundary is
-                // the same for QueryModified and for QueryBatch
-                // Ok, we need an actual cursor with a rowid otherwise the tests will fail for
-                // rows inserted on the same ms.
-                if (stopAtModifiedUnixTimeSeconds.rowId == null)
-                    stopAtModifiedUnixTimeSeconds.rowId = 0; // Must behave like QueryBatchAsync as well as the above rowIdCursor=0 (we're ASCending)
-
-                listWhereAnd.Add($"(modified, driveMainIndex.rowId) < ({stopAtModifiedUnixTimeSeconds.Time.milliseconds}, {stopAtModifiedUnixTimeSeconds.rowId})");
-            }
-
-            string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,
-                uniqueIdAnyOf, tagsAnyOf, localTagsAnyOf, archivalStatusAnyOf, senderidAnyOf, groupIdAnyOf, userdateSpan, tagsAllOf, localTagsAllOf,
-                fileSystemType, driveId);
-
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY modified ASC, driveMainIndex.rowId ASC LIMIT {noOfItems + 1}";
-
-            await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
-
-            cmd.CommandText = stm;
-
-            using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
-            {
-                var result = new List<DriveMainIndexRecord>();
-                byte[] _fileId = null;
-
-                int i = 0;
-                long ts = 0;
-                long rid = 0;
-
-                while (await rdr.ReadAsync())
-                {
-                    var r = driveMainIndex.ReadAllColumns(rdr, driveId);
-                    _fileId = r.fileId.ToByteArray();
-                    result.Add(r);
-                    ts = (long) r.modified.milliseconds;
-                    rid = (long)r.rowId;
-                    i++;
-                    if (i >= noOfItems)
-                        break;
-                }
-
-                if (i > 0) // Should the cursor be set to null if there are no results!?
-                    cursorString = new TimeRowCursor(ts, rid).ToJson();
-
-                return (result, await rdr.ReadAsync(), cursorString);
-            } // using rdr
-*/
         }
 
 
