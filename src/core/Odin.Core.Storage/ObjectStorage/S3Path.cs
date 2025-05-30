@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Odin.Core.Storage.ObjectStorage;
 
@@ -6,6 +7,10 @@ namespace Odin.Core.Storage.ObjectStorage;
 
 public static class S3Path
 {
+    private static readonly Regex SafeChars = new (@"^[a-zA-Z0-9\-_./]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    //
+
     // Combine combines multiple path segments into a single path in an S3 compatible format.
     // See unit test for examples
     public static string Combine(params string[] paths)
@@ -57,5 +62,4 @@ public static class S3Path
             throw new S3StorageException($"Invalid folder name {folderName} (must end with a slash)");
         }
     }
-
 }

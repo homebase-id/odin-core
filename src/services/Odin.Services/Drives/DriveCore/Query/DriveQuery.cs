@@ -395,7 +395,7 @@ public class DriveQuery(
 
     public async Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive)
     {
-        var (count, size) = await tblDriveMainIndex.GetDriveSizeDirtyAsync(drive.Id);
+        var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(drive.Id);
         return (count, size);
     }
 

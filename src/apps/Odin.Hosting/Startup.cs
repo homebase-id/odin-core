@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging;
@@ -99,7 +100,7 @@ namespace Odin.Hosting
             var httpClientFactory = new HttpClientFactory();
             services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-            services.AddSingleton<DriveFileReaderWriter>();
+            services.AddSingleton<FileReaderWriter>();
             services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
             services.AddControllers()
@@ -258,15 +259,16 @@ namespace Odin.Hosting
             // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
             services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
 
+            // Payload storage
             if (_config.S3PayloadStorage.Enabled)
             {
-                services.AddMinioClient(
-                    _config.S3PayloadStorage.Endpoint,
+                services.AddS3AwsPayloadStorage(
                     _config.S3PayloadStorage.AccessKey,
                     _config.S3PayloadStorage.SecretAccessKey,
-                    _config.S3PayloadStorage.Region);
-
-                services.AddS3PayloadStorage(_config.S3PayloadStorage.BucketName);
+                    _config.S3PayloadStorage.ServiceUrl,
+                    _config.S3PayloadStorage.Region,
+                    _config.S3PayloadStorage.ForcePathStyle,
+                    _config.S3PayloadStorage.BucketName);
             }
         }
 
@@ -542,6 +544,8 @@ namespace Odin.Hosting
                     });
             }
 
+
+            // SEB:TODO move this to somewhere else that runs BEFORE the application starts accepting requests
             lifetime.ApplicationStarted.Register(() =>
             {
                 var services = app.ApplicationServices;
@@ -571,15 +575,13 @@ namespace Odin.Hosting
                     throw new OdinSystemException("Cache sanity check failed");
                 }
 
-                // Sanity ping S3 bucket
+                // Ensure S3 bucket exists
                 if (_config.S3PayloadStorage.Enabled)
                 {
-                    var payloadBucket = services.GetRequiredService<S3PayloadStorage>();
-                    var bucketExists = payloadBucket.BucketExistsAsync().GetAwaiter().GetResult();
-                    if (!bucketExists)
-                    {
-                        throw new OdinSystemException("S3 payload bucket sanity check failed");
-                    }
+                    logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
+                        _config.S3PayloadStorage.BucketName, _config.S3PayloadStorage.ServiceUrl);
+                    var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
+                    payloadBucket.CreateBucketAsync().BlockingWait();
                 }
 
                 // Start system background services
@@ -630,7 +632,6 @@ namespace Odin.Hosting
                 logger.LogInformation("Application stopped");
             });
         }
-
 
         private void PrepareEnvironment(OdinConfiguration cfg)
         {

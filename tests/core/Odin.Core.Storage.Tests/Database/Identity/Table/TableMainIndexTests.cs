@@ -108,8 +108,41 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
-            var (count, size) = await tblDriveMainIndex.GetDriveSizeDirtyAsync(driveId);
+            var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(driveId);
             ClassicAssert.AreEqual(count, 5);
+            ClassicAssert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
+        }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task GetTotalSizeAllDrivesAsyncTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId1 = Guid.NewGuid();
+            var driveId2 = Guid.NewGuid();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
+
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId1, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId1, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 2);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId1, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 3);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId2, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId2, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
+
+            var size = await tblDriveMainIndex.GetTotalSizeAllDrivesAsync();
             ClassicAssert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
         }
 
@@ -127,7 +160,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var driveId = Guid.NewGuid();
 
-            var (count, size) = await tblDriveMainIndex.GetDriveSizeDirtyAsync(driveId);
+            var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(driveId);
             ClassicAssert.AreEqual(count, 0);
             ClassicAssert.AreEqual(size, 0);
         }
