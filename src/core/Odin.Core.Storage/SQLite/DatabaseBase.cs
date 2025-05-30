@@ -1,12 +1,13 @@
-﻿using System;
+﻿using Microsoft.Data.Sqlite;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Factory;
+using System;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database;
 
 
 /*

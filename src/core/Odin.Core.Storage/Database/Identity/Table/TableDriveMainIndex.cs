@@ -93,19 +93,15 @@ public class TableDriveMainIndex(
         await using var upsertCommand = cn.CreateCommand();
         await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
 
-        string sqlNowStr;
-        if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-            sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-        else
-            sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+        string sqlNowStr = upsertCommand.SqlNow();
 
         upsertCommand.CommandText =
             "INSERT INTO driveMainIndex (identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrServerData,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
-            $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},NULL) " +
+            $"VALUES (@identityId,@driveId,@fileId,@globalTransitId,@fileState,@requiredSecurityGroup,@fileSystemType,@userDate,@fileType,@dataType,@archivalStatus,@historyStatus,@senderId,@groupId,@uniqueId,@byteCount,@hdrEncryptedKeyHeader,@hdrVersionTag,@hdrAppData,@hdrServerData,@hdrFileMetaData,@hdrTmpDriveAlias,@hdrTmpDriveType,{sqlNowStr},{sqlNowStr}) " +
             "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
-            $"SET globalTransitId = COALESCE(driveMainIndex.globalTransitId, @globalTransitId),fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {sqlNowStr} " +
+            $"SET globalTransitId=COALESCE(driveMainIndex.globalTransitId, @globalTransitId),fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {upsertCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) " +
             "WHERE driveMainIndex.hdrVersionTag = @hdrVersionTag " +
-            "RETURNING created, modified, rowid;";
+            "RETURNING created, driveMainIndex.modified, rowid;";
 
         var upsertParam1 = upsertCommand.CreateParameter();
         upsertParam1.ParameterName = "@identityId";
@@ -229,15 +225,13 @@ public class TableDriveMainIndex(
             if (await rdr.ReadAsync())
             {
                 long created = (long)rdr[0];
-                long? modified = (rdr[1] == DBNull.Value) ? null : (long)rdr[1];
+                long modified = (long)rdr[1];
                 item.created = new UnixTimeUtc(created);
-                if (modified != null)
-                {
-                    item.modified = new UnixTimeUtc((long)modified);
-                    item.hdrVersionTag = useThisNewVersionTag.Value;
-                }
-                else
-                    item.modified = null;
+                item.modified = new UnixTimeUtc(modified);
+
+                if (modified != created)
+                    item.hdrVersionTag = useThisNewVersionTag.Value; // XXX Check
+
                 item.rowId = (long)rdr[2];
                 return 1;
             }
@@ -256,14 +250,9 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
-        string sqlNowStr;
-        if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-            sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-        else
-            sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-
+        string sqlNowStr = updateCommand.SqlNow();
         updateCommand.CommandText =
-            $"UPDATE driveMainIndex SET modified={sqlNowStr},hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
+            $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -293,14 +282,10 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
 
-        string sqlNowStr;
-        if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-            sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-        else
-            sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+        string sqlNowStr = updateCommand.SqlNow();
 
-        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={sqlNowStr}, hdrTransferHistory=@hdrTransferHistory " +
-                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING modified;";
+        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
+                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -381,14 +366,10 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var touchCommand = cn.CreateCommand();
 
-        string sqlNowStr;
-        if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-            sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-        else
-            sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+        string sqlNowStr = touchCommand.SqlNow();
 
         touchCommand.CommandText =
-            $"UPDATE drivemainindex SET modified={sqlNowStr} WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING modified;";
+            $"UPDATE drivemainindex SET modified={touchCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING modified;";
 
         var tparam1 = touchCommand.CreateParameter();
         var tparam3 = touchCommand.CreateParameter();
@@ -410,7 +391,7 @@ public class TableDriveMainIndex(
         {
             if (await rdr.ReadAsync())
             {
-                var modified = (rdr[0] == DBNull.Value) ? 0 : (Int64)rdr[0];
+                var modified = (long)rdr[0];
                 return (1, modified);
             }
         }
