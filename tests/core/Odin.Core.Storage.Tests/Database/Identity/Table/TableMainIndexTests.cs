@@ -108,7 +108,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 4);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 5);
 
-            var (count, size) = await tblDriveMainIndex.GetDriveSizeDirtyAsync(driveId);
+            var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(driveId);
             ClassicAssert.AreEqual(count, 5);
             ClassicAssert.AreEqual(size, 1 + 2 + 3 + 4 + 5);
         }
@@ -160,7 +160,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             var driveId = Guid.NewGuid();
 
-            var (count, size) = await tblDriveMainIndex.GetDriveSizeDirtyAsync(driveId);
+            var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(driveId);
             ClassicAssert.AreEqual(count, 0);
             ClassicAssert.AreEqual(size, 0);
         }
