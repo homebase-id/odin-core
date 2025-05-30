@@ -264,6 +264,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var targetPayloadsPath = Path.Combine(targetPath, TenantPathManager.PayloadsFolder);
             Directory.CreateDirectory(targetPayloadsPath);
 
+            // SEB:TODO update for S3 payloads
             var shards = Directory.GetDirectories(PayloadRoot);
             foreach (var shard in shards)
             {

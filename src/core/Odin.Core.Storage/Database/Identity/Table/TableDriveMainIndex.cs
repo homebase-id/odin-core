@@ -391,7 +391,7 @@ public class TableDriveMainIndex(
         return (0, 0);
     }
 
-    public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
+    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var sizeCommand = cn.CreateCommand();

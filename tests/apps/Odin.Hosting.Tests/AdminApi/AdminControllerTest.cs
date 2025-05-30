@@ -119,28 +119,33 @@ public class AdminControllerTest
     [Test]
     public async Task ItShouldGetSpecificTenantWithNonExistingPayloads()
     {
-        // SEB:TODO this breaks when payload is on S3. Fix it. Look up size in DB instead.
-        await Task.Yield(); Assert.Ignore();
+        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var request = NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true");
+        var response = await apiClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        // var apiClient = WebScaffold.CreateDefaultHttpClient();
-        // var request = NewRequestMessage(HttpMethod.Get,
-        //     "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true");
-        // var response = await apiClient.SendAsync(request);
-        // Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        //
-        // var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
-        // Assert.That(tenant.Id, Is.Not.Null);
-        // Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
-        //
-        // var pm = new TenantPathManager(_config, Guid.Parse(tenant.Id));
-        //
-        // Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
-        // Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
-        // Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
-        // Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
-        // Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        // Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
-        // Assert.That(tenant.PayloadSize, Is.Not.Null.And.EqualTo(0));
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
+        Assert.That(tenant.Id, Is.Not.Null);
+        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+
+        var pm = new TenantPathManager(_config, Guid.Parse(tenant.Id));
+
+        Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
+        Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
+        Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
+        Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
+        Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+
+#if RUN_S3_TESTS
+        var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
+        var bucketName = Environment.GetEnvironmentVariable("S3PayloadStorage__BucketName") ?? "";
+        Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
+#else
+        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
+#endif
+
+        Assert.That(tenant.PayloadSize, Is.Not.Null.And.EqualTo(0));
     }
 
     //
@@ -148,31 +153,36 @@ public class AdminControllerTest
     [Test]
     public async Task ItShouldGetSpecificTenantWithExistingPayload()
     {
-        // SEB:TODO this breaks when payload is on S3. Fix it. Look up size in DB instead.
-        await Task.Yield(); Assert.Ignore();
+        await CreatePayload(TestIdentities.Frodo);
 
-        // await CreatePayload(TestIdentities.Frodo);
-        //
-        // var apiClient = WebScaffold.CreateDefaultHttpClient();
-        // var request = NewRequestMessage(HttpMethod.Get,
-        //     "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true");
-        // var response = await apiClient.SendAsync(request);
-        // Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        //
-        // var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
-        //
-        // Assert.That(tenant.Id, Is.Not.Null);
-        // Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
-        //
-        // var pm = new TenantPathManager(_config, Guid.Parse(tenant.Id));
-        //
-        // Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
-        // Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
-        // Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
-        // Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
-        // Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        // Assert.That(tenant.PayloadPath, Does.StartWith(_tenantDataRootPath));
-        // Assert.That(tenant.PayloadSize, Is.Not.Null.And.GreaterThan(0));
+        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var request = NewRequestMessage(HttpMethod.Get,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true");
+        var response = await apiClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
+
+        Assert.That(tenant.Id, Is.Not.Null);
+        Assert.That(tenant.Id, Is.Not.EqualTo(Guid.Empty));
+
+        var pm = new TenantPathManager(_config, Guid.Parse(tenant.Id));
+
+        Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
+        Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
+        Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
+        Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+
+#if RUN_S3_TESTS
+        var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
+        var bucketName = Environment.GetEnvironmentVariable("S3PayloadStorage__BucketName") ?? "";
+        Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
+#else
+        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
+        Assert.That(tenant.PayloadPath, Does.StartWith(_tenantDataRootPath));
+#endif
+
+        Assert.That(tenant.PayloadSize, Is.Not.Null.And.GreaterThan(0));
     }
 
     //

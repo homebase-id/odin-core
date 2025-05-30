@@ -148,6 +148,7 @@ namespace Odin.Hosting.Tests
             _assertLogEvents = null;
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
+            Environment.SetEnvironmentVariable("Database__Type", "sqlite");
 #if RUN_POSTGRES_TESTS
             PostgresContainer = new PostgreSqlBuilder()
                 .WithImage("postgres:latest")
@@ -162,6 +163,7 @@ namespace Odin.Hosting.Tests
             // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.Identity.Connection.ScopedIdentityConnectionFactory", "Verbose");
 #endif
 
+            Environment.SetEnvironmentVariable("Redis__Enabled", "false");
 #if RUN_REDIS_TESTS
             RedisContainer = new RedisBuilder()
                 .WithImage("redis:latest")
@@ -172,6 +174,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Cache__Level2CacheType", "redis");
 #endif
 
+            Environment.SetEnvironmentVariable("S3PayloadStorage__Enabled", "false");
 #if RUN_S3_TESTS
             Logger.LogInformation("Starting Minio S3 container for tests");
             MinioContainer = new MinioBuilder()
@@ -180,6 +183,7 @@ namespace Odin.Hosting.Tests
                 .WithPassword("minioadmin123")
                 .Build();
             MinioContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("S3PayloadStorage__Enabled", "true");
             Environment.SetEnvironmentVariable("S3PayloadStorage__AccessKey", MinioContainer.GetAccessKey());
             Environment.SetEnvironmentVariable("S3PayloadStorage__SecretAccessKey", MinioContainer.GetSecretKey());
             Environment.SetEnvironmentVariable("S3PayloadStorage__ServiceUrl", MinioContainer.GetConnectionString());
