@@ -3165,7 +3165,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor outCursor = null;
             await tblDriveMainIndex.TestTouchAsync(driveId, f1); // Make sure we can find it
 
-            await Task.Delay(2);
+            await Task.Delay(5);
 
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 1, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange); 
             ClassicAssert.IsTrue(result.Count == 1);
