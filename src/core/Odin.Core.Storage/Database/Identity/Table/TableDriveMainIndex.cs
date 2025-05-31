@@ -282,8 +282,7 @@ public class TableDriveMainIndex(
                 hdrFileMetaData = @hdrFileMetaData,
             WHERE identityId = @identityId
               AND driveId = @driveId
-              AND fileId = @fileId
-              AND hdrVersionTag = @hdrVersionTag;";
+              AND fileId = @fileId";
         
         // Key
         var upsertParam1 = upsertCommand.CreateParameter();
