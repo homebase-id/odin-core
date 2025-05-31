@@ -30,7 +30,7 @@ public abstract class FileSystemStreamWriterBase
     private readonly TenantContext _tenantContext;
 
 
-    private readonly DriveManager _driveManager;
+    private readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
     private readonly ILogger _logger;
 
@@ -38,7 +38,7 @@ public abstract class FileSystemStreamWriterBase
     protected FileSystemStreamWriterBase(
         IDriveFileSystem fileSystem,
         TenantContext tenantContext,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         PeerOutgoingTransferService peerOutgoingTransferService,
         ILogger logger)
     {

@@ -37,7 +37,7 @@ public class LinkPreviewService(
     StaticFileContentService staticFileContentService,
     IHttpContextAccessor httpContextAccessor,
     StandardFileSystem fileSystem,
-    DriveManager driveManager,
+    IDriveManager driveManager,
     ILogger<LinkPreviewService> logger)
 {
     private const string IndexFileKey = "link-preview-service-index-file";

@@ -17,10 +17,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveMetadataController : OdinControllerBase
     {
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
 
 
-        public OwnerDriveMetadataController(DriveManager driveManager)
+        public OwnerDriveMetadataController(IDriveManager driveManager)
         {
             _driveManager = driveManager;
             

@@ -25,7 +25,7 @@ using Odin.Services.Util;
 namespace Odin.Services.AppNotifications.WebSocket
 {
     public class PeerAppNotificationHandler(
-        DriveManager driveManager,
+        IDriveManager driveManager,
         ILogger<PeerAppNotificationHandler> logger,
         PeerAppNotificationService peerAppNotificationService,
         SharedDeviceSocketCollection<PeerAppNotificationHandler> deviceSocketCollection) :

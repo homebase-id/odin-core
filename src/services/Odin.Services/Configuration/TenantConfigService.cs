@@ -35,7 +35,7 @@ public class TenantConfigService
     private readonly CircleNetworkService _dbs;
     private readonly TenantContext _tenantContext;
     private readonly IIdentityRegistry _registry;
-    private readonly DriveManager _driveManager;
+    private readonly IDriveManager _driveManager;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
     private readonly RecoveryService _recoverService;
     private readonly IcrKeyService _icrKeyService;
@@ -47,7 +47,7 @@ public class TenantConfigService
         CircleNetworkService dbs,
         TenantContext tenantContext,
         IIdentityRegistry registry,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         IcrKeyService icrKeyService,
         RecoveryService recoverService,

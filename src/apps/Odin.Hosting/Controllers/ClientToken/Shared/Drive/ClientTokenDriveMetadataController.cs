@@ -18,10 +18,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [AuthorizeValidGuestOrAppToken]
     public class ClientTokenDriveMetadataController : OdinControllerBase
     {
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
 
 
-        public ClientTokenDriveMetadataController(DriveManager driveManager)
+        public ClientTokenDriveMetadataController(IDriveManager driveManager)
         {
             _driveManager = driveManager;
         }

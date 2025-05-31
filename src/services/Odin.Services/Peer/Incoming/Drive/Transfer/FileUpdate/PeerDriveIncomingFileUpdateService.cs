@@ -27,7 +27,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 {
     public class PeerDriveIncomingFileUpdateService(
         ILogger<PeerDriveIncomingFileUpdateService> logger,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         IDriveFileSystem fileSystem,
         IMediator mediator,
         FileSystemResolver fileSystemResolver,

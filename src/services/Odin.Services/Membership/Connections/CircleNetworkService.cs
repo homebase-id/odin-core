@@ -42,7 +42,7 @@ namespace Odin.Services.Membership.Connections
         CircleMembershipService circleMembershipService,
         IMediator mediator,
         CircleDefinitionService circleDefinitionService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         CircleNetworkStorage circleNetworkStorage,
         IdentityDatabase db)

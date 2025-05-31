@@ -64,7 +64,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         CircleNetworkService circleNetworkService,
         ILogger<PeerInboxProcessor> logger,
         PublicPrivateKeyService keyService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         ReactionContentService reactionContentService,
         ICorrelationContext correlationContext)
     {

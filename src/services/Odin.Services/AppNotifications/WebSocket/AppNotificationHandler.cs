@@ -26,7 +26,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 {
     public class AppNotificationHandler(
         PeerInboxProcessor peerInboxProcessor,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         ILogger<AppNotificationHandler> logger,
         SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         :

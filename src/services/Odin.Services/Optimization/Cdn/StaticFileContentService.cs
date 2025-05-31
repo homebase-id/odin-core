@@ -39,7 +39,7 @@ public enum CrossOriginBehavior
 
 public class StaticFileContentService
 {
-    private readonly DriveManager _driveManager;
+    private readonly IDriveManager _driveManager;
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
@@ -48,7 +48,7 @@ public class StaticFileContentService
 
     public StaticFileContentService(
         TenantContext tenantContext,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         StandardFileSystem fileSystem,
         DriveFileReaderWriter driveFileReaderWriter,
         TableKeyValue tableKeyValue)

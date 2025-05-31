@@ -17,7 +17,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveManagementV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveManagementController(DriveManager driveManager, Defragmenter defragmenter) : OdinControllerBase
+    public class OwnerDriveManagementController(IDriveManager driveManager, Defragmenter defragmenter) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]

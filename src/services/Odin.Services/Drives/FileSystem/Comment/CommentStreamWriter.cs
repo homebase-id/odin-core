@@ -24,7 +24,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         ILogger<CommentStreamWriter> logger)
         : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService, logger)
     {

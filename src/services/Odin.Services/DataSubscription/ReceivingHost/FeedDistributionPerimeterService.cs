@@ -32,7 +32,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         FollowerService followerService,
         IMediator mediator,
         TransitInboxBoxStorage inboxBoxStorage,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         ILogger<FeedDistributionPerimeterService> logger)
     {
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadataAsync(UpdateFeedFileMetadataRequest request, IOdinContext odinContext)

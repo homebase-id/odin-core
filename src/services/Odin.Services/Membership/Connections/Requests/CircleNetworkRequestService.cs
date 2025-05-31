@@ -49,7 +49,7 @@ namespace Odin.Services.Membership.Connections.Requests
         ExchangeGrantService exchangeGrantService,
         IcrKeyService icrKeyService,
         CircleMembershipService circleMembershipService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         FollowerService followerService,
         FileSystemResolver fileSystemResolver,
         CircleNetworkVerificationService verificationService,

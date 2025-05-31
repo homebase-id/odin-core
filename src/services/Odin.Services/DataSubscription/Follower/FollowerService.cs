@@ -33,7 +33,7 @@ namespace Odin.Services.DataSubscription.Follower
     public class FollowerService
     {
         private readonly ILogger<FollowerService> _logger;
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
         private readonly IOdinHttpClientFactory _httpClientFactory;
         private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
         private readonly TenantContext _tenantContext;
@@ -47,7 +47,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         public FollowerService(
             ILogger<FollowerService> logger,
-            DriveManager driveManager,
+            IDriveManager driveManager,
             IOdinHttpClientFactory httpClientFactory,
             PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext,

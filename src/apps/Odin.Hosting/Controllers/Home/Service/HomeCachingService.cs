@@ -25,7 +25,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly FileSystemHttpRequestResolver _fsResolver;
 
         private readonly OdinConfiguration _config;
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
 
         public const int PostFileType = 101;
         public const int ChannelFileType = 103;
@@ -34,7 +34,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private readonly ITenantLevel1Cache<HomeCachingService> _cache;
 
         public HomeCachingService(
-            DriveManager driveManager,
+            IDriveManager driveManager,
             OdinConfiguration config,
             FileSystemHttpRequestResolver fsResolver,
             ITenantLevel1Cache<HomeCachingService> cache)

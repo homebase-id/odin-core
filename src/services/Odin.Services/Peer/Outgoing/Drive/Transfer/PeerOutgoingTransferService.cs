@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         IOdinHttpClientFactory odinHttpClientFactory,
         TenantContext tenantContext,
         CircleNetworkService circleNetworkService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
         IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,

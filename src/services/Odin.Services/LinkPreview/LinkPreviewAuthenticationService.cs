@@ -12,7 +12,7 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.LinkPreview;
 
-public class LinkPreviewAuthenticationService(DriveManager driveManager)
+public class LinkPreviewAuthenticationService(IDriveManager driveManager)
 {
     // private readonly SharedOdinContextCache<LinkPreviewAuthenticationService> _cache;
 

@@ -15,7 +15,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class UploadStorageManager(
         DriveFileReaderWriter driveFileReaderWriter,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
     {
