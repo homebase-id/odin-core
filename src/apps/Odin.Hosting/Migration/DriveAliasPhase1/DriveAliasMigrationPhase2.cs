@@ -36,7 +36,10 @@ public static class DriveAliasMigrationPhase2
 
             var newDriveManager = scope.Resolve<DriveManagerWithDedicatedTable>();
 
-            var outputPath = $"{tenant.PrimaryDomainName}-drive-map.csv";
+            var folder = "export";
+            Directory.CreateDirectory(folder);
+            
+            var outputPath = Path.Combine(folder, $"{tenant.PrimaryDomainName}-drive-map.csv");
             await ExportDriveAliasMap(logger, tenantContext, newDriveManager, tenant, outputPath);
             logger.LogInformation($"{tenant} map written to {outputPath}", tenant.PrimaryDomainName, outputPath);
         }
@@ -65,13 +68,13 @@ public static class DriveAliasMigrationPhase2
         var tenantName = tenantContext.HostOdinId;
         await using var writer = new StreamWriter(outputPath, false, Encoding.UTF8);
 
-        await writer.WriteLineAsync("dotYouRegistryId,tenantName,driveId,driveAlias");
+        await writer.WriteLineAsync("dotYouRegistryId,tenantName,driveName,driveId,driveAlias");
 
         foreach (var drive in allDrives.Results)
         {
             var oldDriveId = drive.Id;
             var driveAlias = drive.TargetDriveInfo.Alias.Value;
-            await writer.WriteLineAsync($"\"{dotYouRegistryId}\",\"{tenantName}\",\"{oldDriveId}\",\"{driveAlias}\"");
+            await writer.WriteLineAsync($"\"{dotYouRegistryId}\",\"{tenantName}\",\"{drive.Name}\",\"{oldDriveId}\",\"{driveAlias}\"");
         }
 
         logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
