@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,12 +10,14 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
@@ -86,11 +89,12 @@ public static class DriveAliasMigrationPhase2
 
         await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
         var odinContext = CreateOdinContext(tenantContext);
-        var allDrives = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
+        var allDrivesPage = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
 
         var t = scope.Resolve<TableDriveDefinitions>();
 
-        foreach (var drive in allDrives.Results)
+        var allDrives = allDrivesPage.Results.ToList();
+        foreach (var drive in allDrives)
         {
             var oldDriveId = drive.Id;
             var driveAlias = drive.TargetDriveInfo.Alias.Value;
@@ -107,16 +111,39 @@ public static class DriveAliasMigrationPhase2
             await t.Temp_MigrateInbox(oldDriveId, driveAlias);
             await t.Temp_MigrateOutbox(oldDriveId, driveAlias);
 
+            await MigrateFileMetadata(oldDriveId, driveAlias, scope);
+
             await t.Temp_MigrateDriveDefinitions(oldDriveId, driveAlias);
         }
 
-        await MigrateCircleMembers(allDrives.Results.ToList(), scope);
+        await MigrateCircleMembers(allDrives, scope);
+
 
         logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
             tenant.PrimaryDomainName,
-            allDrives.Results.Count);
+            allDrives.Count);
 
         tx.Commit();
+    }
+
+    private static async Task MigrateFileMetadata(Guid oldDriveId, Guid driveAlias, ILifetimeScope scope)
+    {
+        // get all files on this drive
+        var index = scope.Resolve<TableDriveMainIndex>();
+        var records = await index.GetAllByDriveIdAsync(oldDriveId);
+
+        foreach (var record in records)
+        {
+            var header = ServerFileHeader.FromDriveMainIndexRecord(record);
+            header.FileMetadata.File = new InternalDriveFileId()
+            {
+                FileId = header.FileMetadata.File.FileId,
+                DriveId = driveAlias,
+            };
+            
+        }
+        
+        index.UpsertAllButReactionsAndTransferAsync()
     }
 
     private static async Task MigrateCircleMembers(List<StorageDrive> drives, ILifetimeScope scope)

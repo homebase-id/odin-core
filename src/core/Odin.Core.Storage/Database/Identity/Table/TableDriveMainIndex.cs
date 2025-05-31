@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -19,6 +20,11 @@ public class TableDriveMainIndex(
     : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
+
+    public async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId)
+    {
+        return await base.GetAllByDriveIdAsync(odinIdentity, driveId);
+    }
 
     public async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
     {
@@ -85,7 +91,7 @@ public class TableDriveMainIndex(
         // If it is a new file, and the caller likely didn't set a VersionTag, we'll assign it the new version
         if (item.hdrVersionTag == Guid.Empty)
             item.hdrVersionTag = useThisNewVersionTag.Value;
-        
+
         item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
         item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
 
@@ -238,6 +244,7 @@ public class TableDriveMainIndex(
                 }
                 else
                     item.modified = null;
+
                 item.rowId = (long)rdr[2];
                 return 1;
             }
@@ -327,11 +334,11 @@ public class TableDriveMainIndex(
             if (await rdr.ReadAsync())
             {
                 var modified = (rdr[0] == DBNull.Value) ? 0 : (Int64)rdr[0];
-                return (1,modified);
+                return (1, modified);
             }
         }
 
-        return (0,0);
+        return (0, 0);
     }
 
     public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
@@ -362,7 +369,7 @@ public class TableDriveMainIndex(
         {
             if (await rdr.ReadAsync())
             {
-                var count = (rdr[0] == DBNull.Value) ? 0 : (Int64) rdr[0];
+                var count = (rdr[0] == DBNull.Value) ? 0 : (Int64)rdr[0];
                 var size = (rdr[1] == DBNull.Value) ? 0 : (Int64)rdr[1];
                 return (count, size);
             }
