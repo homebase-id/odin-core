@@ -279,7 +279,7 @@ public class TableDriveMainIndex(
         upsertCommand.CommandText = @"
         UPDATE driveMainIndex
             SET
-                hdrFileMetaData = @hdrFileMetaData,
+                hdrFileMetaData = @hdrFileMetaData
             WHERE identityId = @identityId
               AND driveId = @driveId
               AND fileId = @fileId";

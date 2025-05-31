@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using Autofac;
 using MediatR;
 using Odin.Core.Cache;
@@ -8,7 +7,6 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
@@ -194,6 +192,9 @@ public static class TenantServices
         //Note we need to change these around when going live
         cb.RegisterType<DriveManagerWithDedicatedTable>().InstancePerLifetimeScope();
         cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
+        
+        // // cb.RegisterType<DriveManagerWithDedicatedTable>().InstancePerLifetimeScope();
+        // cb.RegisterType<DriveManagerWithDedicatedTable>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
