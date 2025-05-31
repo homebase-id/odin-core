@@ -642,10 +642,14 @@ namespace Odin.Hosting
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
                     
                     DriveAliasMigrationPhaseThree.UpdateFileSystem(registry, tenantContainer, migrationLogger).BlockingWait();
+
+                    var msg = "Completed migrating drive alias phase 3.  You should now remove " +
+                              "flag --migration-drive-alias-phase-treux from docker-compose.yml " +
+                              "and restart.  Remember to update tenant services with right drive manager";
                     
-                    logger.LogInformation("Completed migrating drive alias phase 3.  You should now remove " +
-                                          "flag --migration-drive-alias-phase-treux from docker-compose.yml " +
-                                          "and restart.  Remember to update tenant services with right drive manager");
+                    logger.LogInformation(msg);
+                    Console.WriteLine(msg);
+                    
                     lifetime.StopApplication();
                 }
             });

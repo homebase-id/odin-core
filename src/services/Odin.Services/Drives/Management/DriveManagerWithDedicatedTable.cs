@@ -58,7 +58,30 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     public async Task<StorageDrive> CreateDriveFromClassicDriveManagerAsync(StorageDriveBase storageDriveBase)
     {
         OdinValidationUtils.AssertIsValidTargetDriveValue(storageDriveBase.TargetDriveInfo);
-        var record = FromStorageDriveBase(storageDriveBase);
+        
+        var driveData = new StorageDriveDetails()
+        {
+            TargetDriveInfo = storageDriveBase.TargetDriveInfo,
+            Metadata = storageDriveBase.Metadata,
+            AllowAnonymousReads = storageDriveBase.AllowAnonymousReads,
+            AllowSubscriptions = storageDriveBase.AllowSubscriptions,
+            OwnerOnly = storageDriveBase.OwnerOnly,
+            Attributes = storageDriveBase.Attributes
+        };
+
+        var record = new DriveDefinitionsRecord
+        {
+            DriveId = storageDriveBase.Id,
+            DriveName = storageDriveBase.Name,
+            DriveType = storageDriveBase.TargetDriveInfo.Type.Value,
+            DriveAlias = storageDriveBase.TargetDriveInfo.Alias.Value,
+            TempOriginalDriveId = storageDriveBase.Id,
+            MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDriveBase.MasterKeyEncryptedStorageKey),
+            EncryptedIdIv64 = storageDriveBase.EncryptedIdIv.ToBase64(),
+            EncryptedIdValue64 = storageDriveBase.EncryptedIdValue.ToBase64(),
+            detailsJson = OdinSystemSerializer.Serialize(driveData),
+        };
+        
         var affectedCount = await _tableDriveDefinitions.UpsertAsync(record);
 
         if (affectedCount != 1)
@@ -118,7 +141,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             DriveId = id,
             DriveName = request.Name,
             DriveType = request.TargetDrive.Type.Value,
-            TempDriveAlias = request.TargetDrive.Alias.Value,
+            DriveAlias = request.TargetDrive.Alias.Value,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(driveKey),
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
@@ -326,32 +349,6 @@ public class DriveManagerWithDedicatedTable : IDriveManager
 
     //
 
-    private static DriveDefinitionsRecord FromStorageDriveBase(StorageDriveBase oldDrive)
-    {
-        var driveData = new StorageDriveDetails()
-        {
-            TargetDriveInfo = oldDrive.TargetDriveInfo,
-            Metadata = oldDrive.Metadata,
-            AllowAnonymousReads = oldDrive.AllowAnonymousReads,
-            AllowSubscriptions = oldDrive.AllowSubscriptions,
-            OwnerOnly = oldDrive.OwnerOnly,
-            Attributes = oldDrive.Attributes
-        };
-
-        var record = new DriveDefinitionsRecord
-        {
-            DriveId = oldDrive.Id,
-            DriveName = oldDrive.Name,
-            DriveType = oldDrive.TargetDriveInfo.Type.Value,
-            TempDriveAlias = oldDrive.TargetDriveInfo.Alias.Value,
-            MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(oldDrive.MasterKeyEncryptedStorageKey),
-            EncryptedIdIv64 = oldDrive.EncryptedIdIv.ToBase64(),
-            EncryptedIdValue64 = oldDrive.EncryptedIdValue.ToBase64(),
-            detailsJson = OdinSystemSerializer.Serialize(driveData),
-        };
-
-        return record;
-    }
 
 
     private async Task<StorageDrive> GetDriveInternal(Guid driveId)
@@ -384,7 +381,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             DriveId = storageDrive.Id,
             DriveName = storageDrive.Name,
             DriveType = storageDrive.TargetDriveInfo.Type.Value,
-            TempDriveAlias = storageDrive.TargetDriveInfo.Alias.Value,
+            DriveAlias = storageDrive.TargetDriveInfo.Alias.Value,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDrive.MasterKeyEncryptedStorageKey),
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),

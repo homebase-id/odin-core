@@ -1457,7 +1457,79 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
+        protected DriveMainIndexRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid driveId)
+        {
+            var result = new List<DriveMainIndexRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveMainIndexRecord();
+            item.identityId = identityId;
+            item.driveId = driveId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.fileId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.globalTransitId = (rdr[2] == DBNull.Value) ? null : new Guid((byte[])rdr[2]);
+            item.fileState = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.requiredSecurityGroup = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
+            item.fileSystemType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.userDate = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.fileType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.dataType = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
+            item.archivalStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
+            item.historyStatus = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
+            item.senderIdNoLengthCheck = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
+            item.groupId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
+            item.uniqueId = (rdr[13] == DBNull.Value) ? null : new Guid((byte[])rdr[13]);
+            item.byteCount = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[14];
+            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
+            item.hdrVersionTag = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[16]);
+            item.hdrAppDataNoLengthCheck = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
+            item.hdrLocalVersionTag = (rdr[18] == DBNull.Value) ? null : new Guid((byte[])rdr[18]);
+            item.hdrLocalAppDataNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrReactionSummaryNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
+            item.hdrServerDataNoLengthCheck = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
+            item.hdrTransferHistoryNoLengthCheck = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
+            item.hdrFileMetaDataNoLengthCheck = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
+            item.hdrTmpDriveAlias = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
+            item.hdrTmpDriveType = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[25]);
+            item.created = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[26]);
+            item.modified = (rdr[27] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[27]);
+            return item;
+       }
+
+        protected virtual async Task<DriveMainIndexRecord> GetFullRecordAsync(Guid identityId,Guid driveId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get3Command = cn.CreateCommand();
+            {
+                get3Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1;"+
+                                             ";";
+                var get3Param1 = get3Command.CreateParameter();
+                get3Param1.ParameterName = "@identityId";
+                get3Command.Parameters.Add(get3Param1);
+                var get3Param2 = get3Command.CreateParameter();
+                get3Param2.ParameterName = "@driveId";
+                get3Command.Parameters.Add(get3Param2);
+
+                get3Param1.Value = identityId.ToByteArray();
+                get3Param2.Value = driveId.ToByteArray();
+                {
+                    using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader3(rdr,identityId,driveId);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected DriveMainIndexRecord ReadRecordFromReader4(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
         {
             var result = new List<DriveMainIndexRecord>();
 #pragma warning disable CS0168
@@ -1501,37 +1573,86 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<DriveMainIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get3Command = cn.CreateCommand();
+            await using var get4Command = cn.CreateCommand();
             {
-                get3Command.CommandText = "SELECT rowId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                get4Command.CommandText = "SELECT rowId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId LIMIT 1;"+
                                              ";";
-                var get3Param1 = get3Command.CreateParameter();
-                get3Param1.ParameterName = "@identityId";
-                get3Command.Parameters.Add(get3Param1);
-                var get3Param2 = get3Command.CreateParameter();
-                get3Param2.ParameterName = "@driveId";
-                get3Command.Parameters.Add(get3Param2);
-                var get3Param3 = get3Command.CreateParameter();
-                get3Param3.ParameterName = "@fileId";
-                get3Command.Parameters.Add(get3Param3);
+                var get4Param1 = get4Command.CreateParameter();
+                get4Param1.ParameterName = "@identityId";
+                get4Command.Parameters.Add(get4Param1);
+                var get4Param2 = get4Command.CreateParameter();
+                get4Param2.ParameterName = "@driveId";
+                get4Command.Parameters.Add(get4Param2);
+                var get4Param3 = get4Command.CreateParameter();
+                get4Param3.ParameterName = "@fileId";
+                get4Command.Parameters.Add(get4Param3);
 
-                get3Param1.Value = identityId.ToByteArray();
-                get3Param2.Value = driveId.ToByteArray();
-                get3Param3.Value = fileId.ToByteArray();
+                get4Param1.Value = identityId.ToByteArray();
+                get4Param2.Value = driveId.ToByteArray();
+                get4Param3.Value = fileId.ToByteArray();
                 {
-                    using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get4Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader3(rdr,identityId,driveId,fileId);
+                        var r = ReadRecordFromReader4(rdr,identityId,driveId,fileId);
                         return r;
                     } // using
                 } //
             } // using
         }
+
+        protected virtual async Task<(List<DriveMainIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.ParameterName = "@rowId";
+                getPaging0Command.Parameters.Add(getPaging0Param1);
+                var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.ParameterName = "@count";
+                getPaging0Command.Parameters.Add(getPaging0Param2);
+
+                getPaging0Param1.Value = inCursor;
+                getPaging0Param2.Value = count+1;
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<DriveMainIndexRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }

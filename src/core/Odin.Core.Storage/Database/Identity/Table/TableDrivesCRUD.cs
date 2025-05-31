@@ -17,7 +17,7 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public record DriveDefinitionsRecord
+    public record DrivesRecord
     {
         private Int64 _rowId;
         public Int64 rowId
@@ -219,13 +219,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
-    } // End of record DriveDefinitionsRecord
+    } // End of record DrivesRecord
 
-    public abstract class TableDriveDefinitionsCRUD
+    public abstract class TableDrivesCRUD
     {
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableDriveDefinitionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableDrivesCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
@@ -237,7 +237,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
-                cmd.CommandText = "DROP TABLE IF EXISTS DriveDefinitions;";
+                cmd.CommandText = "DROP TABLE IF EXISTS Drives;";
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
@@ -247,7 +247,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS DriveDefinitions("
+                "CREATE TABLE IF NOT EXISTS Drives("
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"DriveId BYTEA NOT NULL, "
@@ -267,7 +267,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await cmd.ExecuteNonQueryAsync();
         }
 
-        protected virtual async Task<int> InsertAsync(DriveDefinitionsRecord item)
+        protected virtual async Task<int> InsertAsync(DrivesRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
@@ -282,7 +282,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-                insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO Drives (identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
                                              $"VALUES (@identityId,@DriveId,@DriveAlias,@TempOriginalDriveId,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL)"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -342,7 +342,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<bool> TryInsertAsync(DriveDefinitionsRecord item)
+        protected virtual async Task<bool> TryInsertAsync(DrivesRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
@@ -357,7 +357,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-                insertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
+                insertCommand.CommandText = "INSERT INTO Drives (identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
                                             $"VALUES (@identityId,@DriveId,@DriveAlias,@TempOriginalDriveId,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
@@ -418,7 +418,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> UpsertAsync(DriveDefinitionsRecord item)
+        protected virtual async Task<int> UpsertAsync(DrivesRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
@@ -433,7 +433,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-                upsertCommand.CommandText = "INSERT INTO DriveDefinitions (identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
+                upsertCommand.CommandText = "INSERT INTO Drives (identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
                                             $"VALUES (@identityId,@DriveId,@DriveAlias,@TempOriginalDriveId,@DriveType,@DriveName,@MasterKeyEncryptedStorageKeyJson,@EncryptedIdIv64,@EncryptedIdValue64,@detailsJson,{sqlNowStr},NULL)"+
                                             "ON CONFLICT (identityId,DriveId,DriveType) DO UPDATE "+
                                             $"SET DriveAlias = @DriveAlias,TempOriginalDriveId = @TempOriginalDriveId,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {sqlNowStr} "+
@@ -495,7 +495,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> UpdateAsync(DriveDefinitionsRecord item)
+        protected virtual async Task<int> UpdateAsync(DrivesRecord item)
         {
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
@@ -510,7 +510,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
                 else
                     sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-                updateCommand.CommandText = "UPDATE DriveDefinitions " +
+                updateCommand.CommandText = "UPDATE Drives " +
                                             $"SET DriveAlias = @DriveAlias,TempOriginalDriveId = @TempOriginalDriveId,DriveName = @DriveName,MasterKeyEncryptedStorageKeyJson = @MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64 = @EncryptedIdIv64,EncryptedIdValue64 = @EncryptedIdValue64,detailsJson = @detailsJson,modified = {sqlNowStr} "+
                                             "WHERE (identityId = @identityId AND DriveId = @DriveId AND DriveType = @DriveType) "+
                                             "RETURNING created,modified,rowId;";
@@ -577,7 +577,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
-                getCountCommand.CommandText = "SELECT COUNT(*) FROM DriveDefinitions;";
+                getCountCommand.CommandText = "SELECT COUNT(*) FROM Drives;";
                 var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -606,14 +606,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // SELECT rowId,identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified
-        protected DriveDefinitionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
+        protected DrivesRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
-            var result = new List<DriveDefinitionsRecord>();
+            var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new DriveDefinitionsRecord();
+            var item = new DrivesRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.DriveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
@@ -635,7 +635,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
-                delete0Command.CommandText = "DELETE FROM DriveDefinitions " +
+                delete0Command.CommandText = "DELETE FROM Drives " +
                                              "WHERE identityId = @identityId AND DriveId = @DriveId AND DriveType = @DriveType";
                 var delete0Param1 = delete0Command.CreateParameter();
                 delete0Param1.ParameterName = "@identityId";
@@ -655,14 +655,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected DriveDefinitionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid DriveId)
+        protected DrivesRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid DriveId)
         {
-            var result = new List<DriveDefinitionsRecord>();
+            var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new DriveDefinitionsRecord();
+            var item = new DrivesRecord();
             item.identityId = identityId;
             item.DriveId = DriveId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
@@ -679,12 +679,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<DriveDefinitionsRecord> GetByDriveIdAsync(Guid identityId,Guid DriveId)
+        protected virtual async Task<DrivesRecord> GetByDriveIdAsync(Guid identityId,Guid DriveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                get0Command.CommandText = "SELECT rowId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM Drives " +
                                              "WHERE identityId = @identityId AND DriveId = @DriveId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -710,14 +710,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected DriveDefinitionsRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid DriveType)
+        protected DrivesRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid DriveType)
         {
-            var result = new List<DriveDefinitionsRecord>();
+            var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new DriveDefinitionsRecord();
+            var item = new DrivesRecord();
             item.identityId = identityId;
             item.DriveType = DriveType;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
@@ -734,12 +734,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<List<DriveDefinitionsRecord>> GetByDriveTypeAsync(Guid identityId,Guid DriveType)
+        protected virtual async Task<List<DrivesRecord>> GetByDriveTypeAsync(Guid identityId,Guid DriveType)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,DriveId,DriveAlias,TempOriginalDriveId,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                get1Command.CommandText = "SELECT rowId,DriveId,DriveAlias,TempOriginalDriveId,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM Drives " +
                                              "WHERE identityId = @identityId AND DriveType = @DriveType;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
@@ -756,9 +756,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            return new List<DriveDefinitionsRecord>();
+                            return new List<DrivesRecord>();
                         }
-                        var result = new List<DriveDefinitionsRecord>();
+                        var result = new List<DrivesRecord>();
                         while (true)
                         {
                             result.Add(ReadRecordFromReader1(rdr,identityId,DriveType));
@@ -771,14 +771,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected DriveDefinitionsRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid DriveAlias,Guid DriveType)
+        protected DrivesRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid DriveAlias,Guid DriveType)
         {
-            var result = new List<DriveDefinitionsRecord>();
+            var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new DriveDefinitionsRecord();
+            var item = new DrivesRecord();
             item.identityId = identityId;
             item.DriveAlias = DriveAlias;
             item.DriveType = DriveType;
@@ -795,12 +795,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<DriveDefinitionsRecord> GetByTargetDriveAsync(Guid identityId,Guid DriveAlias,Guid DriveType)
+        protected virtual async Task<DrivesRecord> GetByTargetDriveAsync(Guid identityId,Guid DriveAlias,Guid DriveType)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT rowId,DriveId,TempOriginalDriveId,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                get2Command.CommandText = "SELECT rowId,DriveId,TempOriginalDriveId,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM Drives " +
                                              "WHERE identityId = @identityId AND DriveAlias = @DriveAlias AND DriveType = @DriveType LIMIT 1;"+
                                              ";";
                 var get2Param1 = get2Command.CreateParameter();
@@ -830,14 +830,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected DriveDefinitionsRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid DriveId,Guid DriveType)
+        protected DrivesRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid DriveId,Guid DriveType)
         {
-            var result = new List<DriveDefinitionsRecord>();
+            var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
-            var item = new DriveDefinitionsRecord();
+            var item = new DrivesRecord();
             item.identityId = identityId;
             item.DriveId = DriveId;
             item.DriveType = DriveType;
@@ -854,12 +854,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<DriveDefinitionsRecord> GetAsync(Guid identityId,Guid DriveId,Guid DriveType)
+        protected virtual async Task<DrivesRecord> GetAsync(Guid identityId,Guid DriveId,Guid DriveType)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
-                get3Command.CommandText = "SELECT rowId,DriveAlias,TempOriginalDriveId,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                get3Command.CommandText = "SELECT rowId,DriveAlias,TempOriginalDriveId,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM Drives " +
                                              "WHERE identityId = @identityId AND DriveId = @DriveId AND DriveType = @DriveType LIMIT 1;"+
                                              ";";
                 var get3Param1 = get3Command.CreateParameter();
@@ -889,7 +889,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected virtual async Task<(List<DriveDefinitionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtc? inCursor, long? rowid)
+        protected virtual async Task<(List<DrivesRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtc? inCursor, long? rowid)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -903,7 +903,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging11Command = cn.CreateCommand();
             {
-                getPaging11Command.CommandText = "SELECT rowId,identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM DriveDefinitions " +
+                getPaging11Command.CommandText = "SELECT rowId,identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified FROM Drives " +
                                             "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
                 var getPaging11Param1 = getPaging11Command.CreateParameter();
                 getPaging11Param1.ParameterName = "@created";
@@ -926,7 +926,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     await using (var rdr = await getPaging11Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
-                        var result = new List<DriveDefinitionsRecord>();
+                        var result = new List<DrivesRecord>();
                         UnixTimeUtc? nextCursor;
                         long nextRowId;
                         int n = 0;
