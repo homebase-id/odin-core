@@ -262,15 +262,11 @@ public class TableDriveMainIndex(
     
     public virtual async Task<int> Temp_ResetDriveIdToAlias(DriveMainIndexRecord item)
     {
+        item.identityId = odinIdentity;
+        
         item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
         item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
         item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        item.globalTransitId.AssertGuidNotEmpty("Guid parameter globalTransitId cannot be set to Empty GUID.");
-        item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
-        item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
-
-        item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
-        item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var upsertCommand = cn.CreateCommand();

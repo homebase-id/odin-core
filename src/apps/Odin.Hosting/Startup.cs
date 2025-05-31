@@ -587,7 +587,7 @@ namespace Odin.Hosting
                 {
                     services.StartSystemBackgroundServices().BlockingWait();
                 }
-                //
+                
                 // if (Environment.GetCommandLineArgs().Contains("--migrate-drive-alias-phase-1", StringComparer.OrdinalIgnoreCase))
                 // {
                 //     logger.LogInformation("Migrating drive alias phase 1");
@@ -609,7 +609,7 @@ namespace Odin.Hosting
                     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
                     var migrationLogger = loggerFactory.CreateLogger("Migration");
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-
+                    
                     DriveAliasMigrationPhase2.ExportMap(registry, tenantContainer, migrationLogger).BlockingWait();
                     logger.LogInformation($"Map export to complete (one per tenant)");
                     
@@ -623,11 +623,14 @@ namespace Odin.Hosting
                     var migrationLogger = loggerFactory.CreateLogger("Migration");
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
 
+                    DriveAliasPhase1Migrator.MigrateDriveDefinitions(registry, tenantContainer, migrationLogger).BlockingWait();
+                    
                     DriveAliasMigrationPhase2.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
 
                     logger.LogInformation("Completed migrating drive alias phase 2.  You should now remove " +
                                           "flag --migration-drive-alias-phase-duex from docker-compose.yml " +
                                           "and restart.  Remember to update tenant services with right drive manager");
+                    
                     lifetime.StopApplication();
                 }
                 

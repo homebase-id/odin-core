@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -46,7 +45,7 @@ public static class DriveAliasMigrationPhase2
     public static async Task MigrateData(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
     {
         var allTenants = await registry.GetTenants();
-        foreach (var tenant in allTenants)
+        foreach (var tenant in allTenants.Where(t=>t.PrimaryDomainName.Equals("toddmitchell.me")))
         {
             logger.LogInformation("Drive Migration Phase 2 - Started for tenant {tenant}", tenant.PrimaryDomainName);
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
@@ -89,16 +88,22 @@ public static class DriveAliasMigrationPhase2
         await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
         var odinContext = CreateOdinContext(tenantContext);
         var allDrivesPage = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
-
-        var t = scope.Resolve<TableDriveDefinitions>();
-
         var allDrives = allDrivesPage.Results.ToList();
+
+        if (!allDrives.Any())
+        {
+            throw new OdinSystemException("Did you run step 1?");
+        }
+        
+        var t = scope.Resolve<TableDriveDefinitions>();
         foreach (var drive in allDrives)
         {
             var oldDriveId = drive.Id;
             var driveAlias = drive.TargetDriveInfo.Alias.Value;
-
+            
             await t.Temp_MigrateDriveMainIndex(oldDriveId, driveAlias);
+            await MigrateFileMetadata(drive.TargetDriveInfo, scope);
+            
             await t.Temp_MigrateDriveLocalTagIndex(oldDriveId, driveAlias);
             await t.Temp_MigrateDriveAclIndex(oldDriveId, driveAlias);
             await t.Temp_MigrateDriveTransferHistory(oldDriveId, driveAlias);
@@ -109,14 +114,16 @@ public static class DriveAliasMigrationPhase2
             await t.Temp_MigrateImFollowing(oldDriveId, driveAlias);
             await t.Temp_MigrateInbox(oldDriveId, driveAlias);
             await t.Temp_MigrateOutbox(oldDriveId, driveAlias);
-
-            await MigrateFileMetadata(oldDriveId, drive.TargetDriveInfo, scope);
-
-            await t.Temp_MigrateDriveDefinitions(oldDriveId, driveAlias);
         }
 
         await MigrateCircleMembers(allDrives, scope);
 
+        foreach (var drive in allDrives)
+        {
+            var oldDriveId = drive.Id;
+            var driveAlias = drive.TargetDriveInfo.Alias.Value;
+            await t.Temp_MigrateDriveDefinitions(oldDriveId, driveAlias);
+        }
 
         logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
             tenant.PrimaryDomainName,
@@ -125,11 +132,11 @@ public static class DriveAliasMigrationPhase2
         tx.Commit();
     }
 
-    private static async Task MigrateFileMetadata(Guid oldDriveId, TargetDrive targetDrive, ILifetimeScope scope)
+    private static async Task MigrateFileMetadata(TargetDrive targetDrive, ILifetimeScope scope)
     {
         // get all files on this drive
         var index = scope.Resolve<TableDriveMainIndex>();
-        var records = await index.GetAllByDriveIdAsync(oldDriveId);
+        var records = await index.GetAllByDriveIdAsync(targetDrive.Alias);
 
         foreach (var record in records)
         {
@@ -137,7 +144,6 @@ public static class DriveAliasMigrationPhase2
             header.FileMetadata.File = header.FileMetadata.File with { DriveId = targetDrive.Alias };
 
             var updatedRecord = header.ToDriveMainIndexRecord(targetDrive);
-            updatedRecord.driveId = targetDrive.Alias.Value;
 
             var count = await index.Temp_ResetDriveIdToAlias(updatedRecord);
             if (count != 1)

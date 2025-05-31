@@ -11,6 +11,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
 
@@ -528,13 +529,13 @@ public class DriveManager: IDriveManager
             _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
-        if (odinContext?.Caller?.IsOwner ?? false)
+        var caller = odinContext.Caller;
+        if (caller.IsOwner || caller.SecurityLevel == SecurityGroupType.System)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
 
-        Func<StorageDriveBase, bool> predicate = null;
-        predicate = drive => drive.OwnerOnly == false;
+        Func<StorageDrive, bool> predicate = drive => drive.OwnerOnly == false;
         if (enforceSecurity)
         {
             if (odinContext.Caller.IsAnonymous)

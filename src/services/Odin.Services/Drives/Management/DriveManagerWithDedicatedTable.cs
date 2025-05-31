@@ -12,6 +12,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Util;
 
@@ -58,7 +59,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     {
         OdinValidationUtils.AssertIsValidTargetDriveValue(storageDriveBase.TargetDriveInfo);
         var record = FromStorageDriveBase(storageDriveBase);
-        var affectedCount = await _tableDriveDefinitions.InsertAsync(record);
+        var affectedCount = await _tableDriveDefinitions.UpsertAsync(record);
 
         if (affectedCount != 1)
         {
@@ -410,7 +411,8 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
-        if (odinContext?.Caller?.IsOwner ?? false)
+        var caller = odinContext.Caller;
+        if (caller.IsOwner || caller.SecurityLevel == SecurityGroupType.System)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
@@ -418,7 +420,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         Func<StorageDrive, bool> predicate = drive => drive.OwnerOnly == false;
         if (enforceSecurity)
         {
-            if (odinContext?.Caller?.IsAnonymous ?? true) //default to anonymous 
+            if (caller.IsAnonymous) //default to anonymous 
             {
                 predicate = drive => drive.AllowAnonymousReads && drive.OwnerOnly == false;
             }
