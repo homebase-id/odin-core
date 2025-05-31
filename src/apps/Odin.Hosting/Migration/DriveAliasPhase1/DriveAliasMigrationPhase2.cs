@@ -1,16 +1,22 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 
@@ -94,14 +100,47 @@ public static class DriveAliasMigrationPhase2
             await t.Temp_MigrateDriveAclIndex(oldDriveId, driveAlias);
             await t.Temp_MigrateDriveTransferHistory(oldDriveId, driveAlias);
             await t.Temp_MigrateDriveReactions(oldDriveId, driveAlias);
+            await t.Temp_MigrateDriveTagIndex(oldDriveId, driveAlias);
+
+            await t.Temp_MigrateFollowsMe(oldDriveId, driveAlias);
+            await t.Temp_MigrateImFollowing(oldDriveId, driveAlias);
+            await t.Temp_MigrateInbox(oldDriveId, driveAlias);
+            await t.Temp_MigrateOutbox(oldDriveId, driveAlias);
+
             await t.Temp_MigrateDriveDefinitions(oldDriveId, driveAlias);
         }
+
+        await MigrateCircleMembers(allDrives.Results.ToList(), scope);
 
         logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
             tenant.PrimaryDomainName,
             allDrives.Results.Count);
 
         tx.Commit();
+    }
+
+    private static async Task MigrateCircleMembers(List<StorageDrive> drives, ILifetimeScope scope)
+    {
+        var circleMember = scope.Resolve<TableCircleMember>();
+
+        var allCircleRecords = await circleMember.GetAllCirclesAsync();
+        foreach (var record in allCircleRecords)
+        {
+            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(record.data.ToStringFromUtf8Bytes());
+
+            foreach (var driveGrant in data.CircleGrant.KeyStoreKeyEncryptedDriveGrants)
+            {
+                var theDrive = drives.SingleOrDefault(d => d.Id == driveGrant.DriveId);
+                if (theDrive == null)
+                {
+                    throw new OdinSystemException($"Could not find drive with id {driveGrant.DriveId} in circle grant");
+                }
+
+                driveGrant.DriveId = theDrive.TargetDriveInfo.Alias;
+            }
+        }
+
+        await circleMember.UpsertCircleMembersAsync(allCircleRecords);
     }
 
     private static OdinContext CreateOdinContext(TenantContext tenantContext)

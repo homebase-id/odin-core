@@ -188,6 +188,159 @@ public class TableDriveDefinitions(
         await AssertUpdateSuccess(cn, "DriveReactions", identityId, oldDriveId);
     }
 
+    public async Task Temp_MigrateDriveTagIndex(Guid oldDriveId, Guid driveAlias)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        var identityId = odinIdentity.Id;
+        await using var command = cn.CreateCommand();
+        command.CommandText = "UPDATE DriveTagIndex SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
+
+        var p1 = command.CreateParameter();
+        p1.ParameterName = "@newDriveId";
+        p1.Value = driveAlias.ToByteArray();
+        command.Parameters.Add(p1);
+
+        var p2 = command.CreateParameter();
+        p2.ParameterName = "@identityId";
+        p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
+
+        var p3 = command.CreateParameter();
+        p3.ParameterName = "@oldDriveId";
+        p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
+
+        await command.ExecuteNonQueryAsync();
+
+        await AssertUpdateSuccess(cn, "DriveTagIndex", identityId, oldDriveId);
+    }
+    
+    public async Task Temp_MigrateFollowsMe(Guid oldDriveId, Guid driveAlias)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        var identityId = odinIdentity.Id;
+        await using var command = cn.CreateCommand();
+        command.CommandText = "UPDATE FollowsMe SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
+
+        var p1 = command.CreateParameter();
+        p1.ParameterName = "@newDriveId";
+        p1.Value = driveAlias.ToByteArray();
+        command.Parameters.Add(p1);
+
+        var p2 = command.CreateParameter();
+        p2.ParameterName = "@identityId";
+        p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
+
+        var p3 = command.CreateParameter();
+        p3.ParameterName = "@oldDriveId";
+        p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
+
+        await command.ExecuteNonQueryAsync();
+
+        await AssertUpdateSuccess(cn, "FollowsMe", identityId, oldDriveId);
+    }
+
+    public async Task Temp_MigrateImFollowing(Guid oldDriveId, Guid driveAlias)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        var identityId = odinIdentity.Id;
+        await using var command = cn.CreateCommand();
+        command.CommandText = "UPDATE ImFollowing SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
+
+        var p1 = command.CreateParameter();
+        p1.ParameterName = "@newDriveId";
+        p1.Value = driveAlias.ToByteArray();
+        command.Parameters.Add(p1);
+
+        var p2 = command.CreateParameter();
+        p2.ParameterName = "@identityId";
+        p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
+
+        var p3 = command.CreateParameter();
+        p3.ParameterName = "@oldDriveId";
+        p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
+
+        await command.ExecuteNonQueryAsync();
+
+        await AssertUpdateSuccess(cn, "ImFollowing", identityId, oldDriveId);
+    }
+    
+    public async Task Temp_MigrateInbox(Guid oldDriveId, Guid driveAlias)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        var identityId = odinIdentity.Id;
+        await using var command = cn.CreateCommand();
+        command.CommandText = "UPDATE Inbox SET boxId = @newDriveId WHERE identityId = @identityId AND boxId = @oldDriveId";
+
+        var p1 = command.CreateParameter();
+        p1.ParameterName = "@newDriveId";
+        p1.Value = driveAlias.ToByteArray();
+        command.Parameters.Add(p1);
+
+        var p2 = command.CreateParameter();
+        p2.ParameterName = "@identityId";
+        p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
+
+        var p3 = command.CreateParameter();
+        p3.ParameterName = "@oldDriveId";
+        p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
+
+        await command.ExecuteNonQueryAsync();
+
+        await using var validateCommand = cn.CreateCommand();
+        validateCommand.CommandText = $"SELECT COUNT(*) FROM Inbox WHERE identityId = @identityId AND boxId = @oldDriveId";
+
+        var v1 = validateCommand.CreateParameter();
+        v1.ParameterName = "@identityId";
+        v1.Value = identityId.ToByteArray();
+        validateCommand.Parameters.Add(v1);
+
+        var v2 = validateCommand.CreateParameter();
+        v2.ParameterName = "@oldDriveId";
+        v2.Value = oldDriveId.ToByteArray();
+        validateCommand.Parameters.Add(v2);
+
+        var count = await validateCommand.ExecuteScalarAsync();
+        if (Convert.ToInt32(count) > 0)
+        {
+            throw new OdinSystemException(
+                $"Found {Convert.ToInt32(count)} rows remaining in table Inbox for old driveId {oldDriveId} on identityId {identityId}");
+        }
+    }
+    
+    public async Task Temp_MigrateOutbox(Guid oldDriveId, Guid driveAlias)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        var identityId = odinIdentity.Id;
+        await using var command = cn.CreateCommand();
+        command.CommandText = "UPDATE outbox SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
+
+        var p1 = command.CreateParameter();
+        p1.ParameterName = "@newDriveId";
+        p1.Value = driveAlias.ToByteArray();
+        command.Parameters.Add(p1);
+
+        var p2 = command.CreateParameter();
+        p2.ParameterName = "@identityId";
+        p2.Value = identityId.ToByteArray();
+        command.Parameters.Add(p2);
+
+        var p3 = command.CreateParameter();
+        p3.ParameterName = "@oldDriveId";
+        p3.Value = oldDriveId.ToByteArray();
+        command.Parameters.Add(p3);
+
+        await command.ExecuteNonQueryAsync();
+
+        await AssertUpdateSuccess(cn, "outbox", identityId, oldDriveId);
+    }
+    
     public async Task Temp_MigrateDriveDefinitions(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -214,7 +367,7 @@ public class TableDriveDefinitions(
 
         await AssertUpdateSuccess(cn, "DriveDefinitions", identityId, oldDriveId);
     }
-
+    
     private static async Task AssertUpdateSuccess(IConnectionWrapper cn, string tableName, Guid identityId, Guid oldDriveId)
     {
         await using var validateCommand = cn.CreateCommand();

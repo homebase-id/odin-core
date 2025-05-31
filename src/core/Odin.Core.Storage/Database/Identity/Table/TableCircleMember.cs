@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -118,5 +119,10 @@ public class TableCircleMember(
         }
 
         tx.Commit();
+    }
+
+    public Task<List<CircleMemberRecord>> GetAllCirclesAsync()
+    {
+        return base.GetAllCirclesAsync(odinIdentity.Id);
     }
 }

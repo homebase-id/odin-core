@@ -21,7 +21,7 @@ namespace Odin.Hosting.Migration.DriveAliasPhase1;
 
 public static class DriveAliasMigrationPhaseThree
 {
-    public static async Task MigrateData(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
+    public static async Task UpdateFileSystem(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
     {
         var allTenants = await registry.GetTenants();
         foreach (var tenant in allTenants)
