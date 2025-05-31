@@ -12,42 +12,42 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
-public class TableDriveDefinitions(
+public class TableDrives(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveDefinitionsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableDrivesCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public async Task<DriveDefinitionsRecord> GetAsync(Guid driveId)
+    public async Task<DrivesRecord> GetAsync(Guid driveId)
     {
         return await base.GetByDriveIdAsync(odinIdentity, driveId);
     }
 
-    public async Task<List<DriveDefinitionsRecord>> GetDrivesByType(Guid driveType)
+    public async Task<List<DrivesRecord>> GetDrivesByType(Guid driveType)
     {
         return await base.GetByDriveTypeAsync(odinIdentity, driveType);
     }
 
-    public new async Task<int> InsertAsync(DriveDefinitionsRecord item)
+    public new async Task<int> InsertAsync(DrivesRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public new async Task<int> UpsertAsync(DriveDefinitionsRecord item)
+    public new async Task<int> UpsertAsync(DrivesRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
-    public async Task<(List<DriveDefinitionsRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor)
+    public async Task<(List<DrivesRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor)
     {
         return await base.PagingByCreatedAsync(count, odinIdentity, inCursor, null);
     }
 
-    public async Task<DriveDefinitionsRecord> GetByTargetDrive(Guid driveAlias, Guid driveType)
+    public async Task<DrivesRecord> GetByTargetDrive(Guid driveAlias, Guid driveType)
     {
         return await base.GetByTargetDriveAsync(odinIdentity, driveAlias, driveType);
     }
@@ -341,12 +341,12 @@ public class TableDriveDefinitions(
         await AssertUpdateSuccess(cn, "outbox", identityId, oldDriveId);
     }
     
-    public async Task Temp_MigrateDriveDefinitions(Guid oldDriveId, Guid driveAlias)
+    public async Task Temp_MigrateDrives(Guid oldDriveId, Guid driveAlias)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         var identityId = odinIdentity.Id;
         await using var command = cn.CreateCommand();
-        command.CommandText = "UPDATE DriveDefinitions SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
+        command.CommandText = "UPDATE Drives SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
 
         var p1 = command.CreateParameter();
         p1.ParameterName = "@newDriveId";
@@ -365,7 +365,7 @@ public class TableDriveDefinitions(
 
         await command.ExecuteNonQueryAsync();
 
-        await AssertUpdateSuccess(cn, "DriveDefinitions", identityId, oldDriveId);
+        await AssertUpdateSuccess(cn, "Drives", identityId, oldDriveId);
     }
     
     private static async Task AssertUpdateSuccess(IConnectionWrapper cn, string tableName, Guid identityId, Guid oldDriveId)

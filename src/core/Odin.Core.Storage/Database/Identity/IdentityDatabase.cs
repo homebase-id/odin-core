@@ -36,7 +36,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableKeyUniqueThreeValue),
         typeof(TableKeyValue),
         typeof(TableOutbox),
-        typeof(TableDriveDefinitions)
+        typeof(TableDrives)
     ];
 
     //
@@ -93,8 +93,8 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     private Lazy<TableOutbox> _outbox;
     public TableOutbox Outbox => LazyResolve(ref _outbox);
 
-    private Lazy<TableDriveDefinitions> _driveDefinitions;
-    public TableDriveDefinitions DriveDefinitions => LazyResolve(ref _driveDefinitions);
+    private Lazy<TableDrives> _driveDefinitions;
+    public TableDrives Drives => LazyResolve(ref _driveDefinitions);
 
     //
     // Table cache convenience properties

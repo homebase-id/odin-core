@@ -98,7 +98,7 @@ public static class DriveAliasMigrationPhase2
             throw new OdinSystemException("Did you run step 1?");
         }
         
-        var t = scope.Resolve<TableDriveDefinitions>();
+        var t = scope.Resolve<TableDrives>();
         foreach (var drive in allDrives)
         {
             var oldDriveId = drive.Id;
@@ -125,7 +125,7 @@ public static class DriveAliasMigrationPhase2
         {
             var oldDriveId = drive.Id;
             var driveAlias = drive.TargetDriveInfo.Alias.Value;
-            await t.Temp_MigrateDriveDefinitions(oldDriveId, driveAlias);
+            await t.Temp_MigrateDrives(oldDriveId, driveAlias);
         }
 
         logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",

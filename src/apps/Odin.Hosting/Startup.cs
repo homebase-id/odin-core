@@ -623,7 +623,7 @@ namespace Odin.Hosting
                     var migrationLogger = loggerFactory.CreateLogger("Migration");
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
 
-                    DriveAliasPhase1Migrator.MigrateDriveDefinitions(registry, tenantContainer, migrationLogger).BlockingWait();
+                    DriveAliasPhase1Migrator.MigrateDrives(registry, tenantContainer, migrationLogger).BlockingWait();
                     
                     DriveAliasMigrationPhase2.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
 
