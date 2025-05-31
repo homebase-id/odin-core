@@ -10,7 +10,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
@@ -111,7 +110,7 @@ public static class DriveAliasMigrationPhase2
             await t.Temp_MigrateInbox(oldDriveId, driveAlias);
             await t.Temp_MigrateOutbox(oldDriveId, driveAlias);
 
-            await MigrateFileMetadata(oldDriveId, driveAlias, scope);
+            await MigrateFileMetadata(oldDriveId, drive.TargetDriveInfo, scope);
 
             await t.Temp_MigrateDriveDefinitions(oldDriveId, driveAlias);
         }
@@ -126,7 +125,7 @@ public static class DriveAliasMigrationPhase2
         tx.Commit();
     }
 
-    private static async Task MigrateFileMetadata(Guid oldDriveId, Guid driveAlias, ILifetimeScope scope)
+    private static async Task MigrateFileMetadata(Guid oldDriveId, TargetDrive targetDrive, ILifetimeScope scope)
     {
         // get all files on this drive
         var index = scope.Resolve<TableDriveMainIndex>();
@@ -135,15 +134,17 @@ public static class DriveAliasMigrationPhase2
         foreach (var record in records)
         {
             var header = ServerFileHeader.FromDriveMainIndexRecord(record);
-            header.FileMetadata.File = new InternalDriveFileId()
+            header.FileMetadata.File = header.FileMetadata.File with { DriveId = targetDrive.Alias };
+
+            var updatedRecord = header.ToDriveMainIndexRecord(targetDrive);
+            updatedRecord.driveId = targetDrive.Alias.Value;
+
+            var count = await index.Temp_ResetDriveIdToAlias(updatedRecord);
+            if (count != 1)
             {
-                FileId = header.FileMetadata.File.FileId,
-                DriveId = driveAlias,
-            };
-            
+                throw new OdinSystemException("Too many rows updated for filemetadata");
+            }
         }
-        
-        index.UpsertAllButReactionsAndTransferAsync()
     }
 
     private static async Task MigrateCircleMembers(List<StorageDrive> drives, ILifetimeScope scope)

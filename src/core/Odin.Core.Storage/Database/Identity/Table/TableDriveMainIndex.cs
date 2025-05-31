@@ -258,6 +258,61 @@ public class TableDriveMainIndex(
         // Unreachable return 0;
     }
 
+    
+    
+    public virtual async Task<int> Temp_ResetDriveIdToAlias(DriveMainIndexRecord item)
+    {
+        item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+        item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+        item.globalTransitId.AssertGuidNotEmpty("Guid parameter globalTransitId cannot be set to Empty GUID.");
+        item.groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
+        item.uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
+
+        item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
+        item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var upsertCommand = cn.CreateCommand();
+        await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
+        
+        upsertCommand.CommandText = @"
+        UPDATE driveMainIndex
+            SET
+                hdrFileMetaData = @hdrFileMetaData,
+            WHERE identityId = @identityId
+              AND driveId = @driveId
+              AND fileId = @fileId
+              AND hdrVersionTag = @hdrVersionTag;";
+        
+        // Key
+        var upsertParam1 = upsertCommand.CreateParameter();
+        upsertParam1.ParameterName = "@identityId";
+        upsertCommand.Parameters.Add(upsertParam1);
+        var upsertParam2 = upsertCommand.CreateParameter();
+        upsertParam2.ParameterName = "@driveId";
+        upsertCommand.Parameters.Add(upsertParam2);
+        var upsertParam3 = upsertCommand.CreateParameter();
+        upsertParam3.ParameterName = "@fileId";
+        upsertCommand.Parameters.Add(upsertParam3);
+        
+        // the only thing I need to change
+        var upsertParam25 = upsertCommand.CreateParameter();
+        upsertParam25.ParameterName = "@hdrFileMetaData";
+        upsertCommand.Parameters.Add(upsertParam25);
+        
+        upsertParam1.Value = item.identityId.ToByteArray();
+        upsertParam2.Value = item.driveId.ToByteArray();
+        upsertParam3.Value = item.fileId.ToByteArray();
+        
+        upsertParam25.Value = item.hdrFileMetaData;
+        
+        int rowsAffected = await upsertCommand.ExecuteNonQueryAsync();
+        return rowsAffected;
+        
+    }
+    
+    
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
