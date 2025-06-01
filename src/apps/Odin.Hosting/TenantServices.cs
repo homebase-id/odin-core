@@ -232,6 +232,7 @@ public static class TenantServices
             .As<INotificationHandler<AllReactionsByFileDeleted>>();
 
         cb.RegisterType<AppRegistrationService>()
+            .AsSelf()
             .As<IAppRegistrationService>()
             .InstancePerLifetimeScope();
 

@@ -12,6 +12,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -38,7 +39,7 @@ public static class DriveAliasMigrationPhase2
 
             var folder = "export";
             Directory.CreateDirectory(folder);
-            
+
             var outputPath = Path.Combine(folder, $"{tenant.PrimaryDomainName}-drive-map.csv");
             await ExportDriveAliasMap(logger, tenantContext, newDriveManager, tenant, outputPath);
             logger.LogInformation($"{tenant} map written to {outputPath}", tenant.PrimaryDomainName, outputPath);
@@ -48,7 +49,7 @@ public static class DriveAliasMigrationPhase2
     public static async Task MigrateData(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
     {
         var allTenants = await registry.GetTenants();
-        foreach (var tenant in allTenants.Where(t=>t.PrimaryDomainName.Equals("toddmitchell.me")))
+        foreach (var tenant in allTenants.Where(t => t.PrimaryDomainName.Equals("toddmitchell.me")))
         {
             logger.LogInformation("Drive Migration Phase 2 - Started for tenant {tenant}", tenant.PrimaryDomainName);
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
@@ -97,16 +98,16 @@ public static class DriveAliasMigrationPhase2
         {
             throw new OdinSystemException("Did you run step 1?");
         }
-        
+
         var t = scope.Resolve<TableDrives>();
         foreach (var drive in allDrives)
         {
             var oldDriveId = drive.Id;
             var driveAlias = drive.TargetDriveInfo.Alias.Value;
-            
+
             await t.Temp_MigrateDriveMainIndex(oldDriveId, driveAlias);
             await MigrateFileMetadata(drive.TargetDriveInfo, scope);
-            
+
             await t.Temp_MigrateDriveLocalTagIndex(oldDriveId, driveAlias);
             await t.Temp_MigrateDriveAclIndex(oldDriveId, driveAlias);
             await t.Temp_MigrateDriveTransferHistory(oldDriveId, driveAlias);
@@ -120,6 +121,8 @@ public static class DriveAliasMigrationPhase2
         }
 
         await MigrateCircleMembers(allDrives, scope);
+        await MigrateAppRegistration(allDrives, scope);
+        await MigrateConnections(allDrives, scope);
 
         foreach (var drive in allDrives)
         {
@@ -179,6 +182,19 @@ public static class DriveAliasMigrationPhase2
 
         await circleMember.UpsertCircleMembersAsync(allCircleRecords);
     }
+
+    private static async Task MigrateAppRegistration(List<StorageDrive> drives, ILifetimeScope scope)
+    {
+        // update the exchange grants for all registered apps
+        var svc = scope.Resolve<AppRegistrationService>();
+        await svc.Temp_ReconcileDrives();
+    }
+
+    private static async Task MigrateConnections(List<StorageDrive> drives, ILifetimeScope scope)
+    {
+        //IdentityConnectionRegistration
+    }
+
 
     private static OdinContext CreateOdinContext(TenantContext tenantContext)
     {
