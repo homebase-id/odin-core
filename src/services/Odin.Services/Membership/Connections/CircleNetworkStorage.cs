@@ -60,46 +60,48 @@ public class CircleNetworkStorage
 
     public async Task Temp_ReconcileDriveGrants(List<StorageDrive> drives, IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
-        var icrAccessRecord = MapToStorageIcrAccessRecord(icr);
-        var odinHashId = icr.OdinId.ToHashId();
-
-        await using var tx = await _db.BeginStackedTransactionAsync();
-
-        //Reconcile circle grants in the table
-        await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity);
-        foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
-        {
-            var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
-            var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
-
-            if (!isMember)
-            {
-                await _circleMembershipService.AddCircleMemberAsync(circleId, icr.OdinId, circleGrant, DomainType.Identity);
-            }
-        }
-
-        // remove all app grants,
-        await _db.AppGrants.DeleteByIdentityAsync(odinHashId);
-
-        // Now write the latest
-        foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
-        {
-            foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
-            {
-                await _db.AppGrants.UpsertAsync(new AppGrantsRecord()
-                {
-                    odinHashId = odinHashId,
-                    appId = appId,
-                    circleId = circleId,
-                    data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
-                });
-            }
-        }
-
-        var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
-        await _db.Connections.UpsertAsync(record);
-
-        tx.Commit();
+        await Task.CompletedTask;
+        
+        // var icrAccessRecord = MapToStorageIcrAccessRecord(icr);
+        // var odinHashId = icr.OdinId.ToHashId();
+        //
+        // await using var tx = await _db.BeginStackedTransactionAsync();
+        //
+        // //Reconcile circle grants in the table
+        // await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity);
+        // foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
+        // {
+        //     var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
+        //     var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
+        //
+        //     if (!isMember)
+        //     {
+        //         await _circleMembershipService.AddCircleMemberAsync(circleId, icr.OdinId, circleGrant, DomainType.Identity);
+        //     }
+        // }
+        //
+        // // remove all app grants,
+        // await _db.AppGrants.DeleteByIdentityAsync(odinHashId);
+        //
+        // // Now write the latest
+        // foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
+        // {
+        //     foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
+        //     {
+        //         await _db.AppGrants.UpsertAsync(new AppGrantsRecord()
+        //         {
+        //             odinHashId = odinHashId,
+        //             appId = appId,
+        //             circleId = circleId,
+        //             data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
+        //         });
+        //     }
+        // }
+        //
+        // var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
+        // await _db.Connections.UpsertAsync(record);
+        //
+        // tx.Commit();
     }
 
     [SuppressMessage("ReSharper", "AccessToDisposedClosure")]

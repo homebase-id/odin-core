@@ -103,6 +103,7 @@ public class DriveManager: IDriveManager
             var sdb = new StorageDriveBase()
             {
                 Id = id,
+                TempOriginalDriveId = id,
                 Name = request.Name,
                 TargetDriveInfo = request.TargetDrive,
                 Metadata = request.Metadata,
@@ -530,7 +531,7 @@ public class DriveManager: IDriveManager
         }
 
         var caller = odinContext.Caller;
-        if (caller.IsOwner || caller.SecurityLevel == SecurityGroupType.System)
+        if (caller?.IsOwner ?? false || caller?.SecurityLevel == SecurityGroupType.System)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }

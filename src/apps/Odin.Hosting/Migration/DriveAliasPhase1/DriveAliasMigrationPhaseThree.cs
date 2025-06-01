@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -34,9 +35,9 @@ public static class DriveAliasMigrationPhaseThree
             // only change folders after all drive updates succeed
             foreach (var drive in allDrives.Results)
             {
-                var oldDriveId = drive.Id;
+                var oldDriveId = drive.TempOriginalDriveId;
                 var driveAlias = drive.TargetDriveInfo.Alias.Value;
-        
+                
                 RenameFolders(tenantContext, oldDriveId, driveAlias);
             }
 

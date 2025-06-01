@@ -6,7 +6,6 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
-using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 
@@ -45,6 +44,8 @@ namespace Odin.Services.Drives
             get => _inner.TargetDriveInfo;
             set { }
         }
+
+        public override Guid TempOriginalDriveId => _inner.TempOriginalDriveId;
 
         public override string Metadata
         {
@@ -153,6 +154,8 @@ namespace Odin.Services.Drives
     {
         public virtual Guid Id { get; init; }
 
+        public virtual Guid TempOriginalDriveId { get; init; }
+        
         public virtual string Name { get; set; }
 
         /// <summary>

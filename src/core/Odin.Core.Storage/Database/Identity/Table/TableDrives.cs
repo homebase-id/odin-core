@@ -340,32 +340,23 @@ public class TableDrives(
 
         await AssertUpdateSuccess(cn, "outbox", identityId, oldDriveId);
     }
-    
-    public async Task Temp_MigrateDrives(Guid oldDriveId, Guid driveAlias)
+
+    public async Task Temp_Truncate()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        var identityId = odinIdentity.Id;
-        await using var command = cn.CreateCommand();
-        command.CommandText = "UPDATE Drives SET DriveId = @newDriveId WHERE identityId = @identityId AND DriveId = @oldDriveId";
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM Drives;";
+        await cmd.ExecuteNonQueryAsync();
+    }
+    
+    public async Task Temp_CleanupOldTables()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
-        var p1 = command.CreateParameter();
-        p1.ParameterName = "@newDriveId";
-        p1.Value = driveAlias.ToByteArray();
-        command.Parameters.Add(p1);
-
-        var p2 = command.CreateParameter();
-        p2.ParameterName = "@identityId";
-        p2.Value = identityId.ToByteArray();
-        command.Parameters.Add(p2);
-
-        var p3 = command.CreateParameter();
-        p3.ParameterName = "@oldDriveId";
-        p3.Value = oldDriveId.ToByteArray();
-        command.Parameters.Add(p3);
-
-        await command.ExecuteNonQueryAsync();
-
-        await AssertUpdateSuccess(cn, "Drives", identityId, oldDriveId);
+        // kill the old drive definition table during this upgrade
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DROP TABLE IF EXISTS DriveDefinitions;";
+        await cmd.ExecuteNonQueryAsync();
     }
     
     private static async Task AssertUpdateSuccess(IConnectionWrapper cn, string tableName, Guid identityId, Guid oldDriveId)

@@ -58,7 +58,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     public async Task<StorageDrive> CreateDriveFromClassicDriveManagerAsync(StorageDriveBase storageDriveBase)
     {
         OdinValidationUtils.AssertIsValidTargetDriveValue(storageDriveBase.TargetDriveInfo);
-        
+
         var driveData = new StorageDriveDetails()
         {
             TargetDriveInfo = storageDriveBase.TargetDriveInfo,
@@ -71,7 +71,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
 
         var record = new DrivesRecord
         {
-            DriveId = storageDriveBase.Id,
+            DriveId = storageDriveBase.TargetDriveInfo.Alias.Value,
             DriveName = storageDriveBase.Name,
             DriveType = storageDriveBase.TargetDriveInfo.Type.Value,
             DriveAlias = storageDriveBase.TargetDriveInfo.Alias.Value,
@@ -81,14 +81,14 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             EncryptedIdValue64 = storageDriveBase.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
         };
-        
+
         var affectedCount = await _tableDrives.UpsertAsync(record);
 
         if (affectedCount != 1)
         {
             throw new OdinSystemException($"Failed to migrate drive {storageDriveBase.Name}");
         }
-        
+
         var storageDrive = ToStorageDrive(record);
         storageDrive.EnsureDirectories();
         CacheDrive(storageDrive);
@@ -350,7 +350,6 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     //
 
 
-
     private async Task<StorageDrive> GetDriveInternal(Guid driveId)
     {
         var record = await _tableDrives.GetAsync(driveId);
@@ -409,7 +408,13 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         }
 
         var caller = odinContext.Caller;
-        if (caller.IsOwner || caller.SecurityLevel == SecurityGroupType.System)
+        if (caller?.IsOwner ?? false)
+        {
+            return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
+        }
+
+        var level = caller?.SecurityLevel ?? SecurityGroupType.Anonymous;
+        if (level == SecurityGroupType.System)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
@@ -430,9 +435,11 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     private StorageDrive ToStorageDrive(DrivesRecord record)
     {
         var driveDetails = OdinSystemSerializer.Deserialize<StorageDriveDetails>(record.detailsJson);
+
         StorageDriveBase sdb = new()
         {
             Id = record.DriveId,
+            TempOriginalDriveId = record.TempOriginalDriveId,
             Name = record.DriveName,
             TargetDriveInfo = new TargetDrive()
             {

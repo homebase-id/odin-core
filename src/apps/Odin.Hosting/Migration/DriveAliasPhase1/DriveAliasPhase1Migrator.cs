@@ -6,6 +6,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -31,6 +32,7 @@ public static class DriveAliasPhase1Migrator
 
             var odinContext = CreateOdinContext(tenantContext);
             await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
+            
             var successfullyMigrated = await MigrateDriveDefinitions(logger, odinContext, tenant.PrimaryDomainName, scope);
             
             logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}", tenant.PrimaryDomainName,
@@ -45,8 +47,13 @@ public static class DriveAliasPhase1Migrator
     private static async Task<int> MigrateDriveDefinitions(ILogger logger, OdinContext odinContext, string tenantPrimaryDomain,
         ILifetimeScope scope)
     {
+        
+        // cleanup
+        
+        var t = scope.Resolve<TableDrives>();
+        await t.Temp_Truncate();
+        
         var newDriveManager = scope.Resolve<DriveManagerWithDedicatedTable>();
-
         var count = await newDriveManager.MigrateDrivesFromClassDriveManager();
 
         //

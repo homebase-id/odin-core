@@ -35,13 +35,13 @@ public static class DriveAliasMigrationPhase2
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var tenantContext = scope.Resolve<TenantContext>();
 
-            var newDriveManager = scope.Resolve<DriveManagerWithDedicatedTable>();
+            var oldDriveManager = scope.Resolve<DriveManager>();
 
             var folder = "export";
             Directory.CreateDirectory(folder);
 
             var outputPath = Path.Combine(folder, $"{tenant.PrimaryDomainName}-drive-map.csv");
-            await ExportDriveAliasMap(logger, tenantContext, newDriveManager, tenant, outputPath);
+            await ExportDriveAliasMap(logger, tenantContext, oldDriveManager, tenant, outputPath);
             logger.LogInformation($"{tenant} map written to {outputPath}", tenant.PrimaryDomainName, outputPath);
         }
     }
@@ -60,10 +60,10 @@ public static class DriveAliasMigrationPhase2
     }
 
     private static async Task ExportDriveAliasMap(ILogger logger, TenantContext tenantContext,
-        DriveManagerWithDedicatedTable newDriveManager, IdentityRegistration tenant, string outputPath)
+        DriveManager oldDriveManager, IdentityRegistration tenant, string outputPath)
     {
         var odinContext = CreateOdinContext(tenantContext);
-        var allDrives = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
+        var allDrives = await oldDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
 
         var dotYouRegistryId = tenantContext.DotYouRegistryId;
         var tenantName = tenantContext.HostOdinId;
@@ -100,37 +100,33 @@ public static class DriveAliasMigrationPhase2
         }
 
         var t = scope.Resolve<TableDrives>();
+
         foreach (var drive in allDrives)
         {
-            var oldDriveId = drive.Id;
-            var driveAlias = drive.TargetDriveInfo.Alias.Value;
-
-            await t.Temp_MigrateDriveMainIndex(oldDriveId, driveAlias);
+            var oldDriveId = drive.TempOriginalDriveId;
+            var newDriveId = drive.Id;
+            
+            await t.Temp_MigrateDriveMainIndex(oldDriveId, newDriveId);
             await MigrateFileMetadata(drive.TargetDriveInfo, scope);
+            
+            await t.Temp_MigrateDriveLocalTagIndex(oldDriveId, newDriveId);
+            await t.Temp_MigrateDriveAclIndex(oldDriveId, newDriveId);
+            await t.Temp_MigrateDriveTransferHistory(oldDriveId, newDriveId);
+            await t.Temp_MigrateDriveReactions(oldDriveId, newDriveId);
+            await t.Temp_MigrateDriveTagIndex(oldDriveId, newDriveId);
 
-            await t.Temp_MigrateDriveLocalTagIndex(oldDriveId, driveAlias);
-            await t.Temp_MigrateDriveAclIndex(oldDriveId, driveAlias);
-            await t.Temp_MigrateDriveTransferHistory(oldDriveId, driveAlias);
-            await t.Temp_MigrateDriveReactions(oldDriveId, driveAlias);
-            await t.Temp_MigrateDriveTagIndex(oldDriveId, driveAlias);
-
-            await t.Temp_MigrateFollowsMe(oldDriveId, driveAlias);
-            await t.Temp_MigrateImFollowing(oldDriveId, driveAlias);
-            await t.Temp_MigrateInbox(oldDriveId, driveAlias);
-            await t.Temp_MigrateOutbox(oldDriveId, driveAlias);
+            await t.Temp_MigrateFollowsMe(oldDriveId, newDriveId);
+            await t.Temp_MigrateImFollowing(oldDriveId, newDriveId);
+            await t.Temp_MigrateInbox(oldDriveId, newDriveId);
+            await t.Temp_MigrateOutbox(oldDriveId, newDriveId);
         }
 
         await MigrateCircleMembers(allDrives, scope);
         await MigrateAppRegistration(allDrives, scope);
         await MigrateConnections(allDrives, scope);
 
-        foreach (var drive in allDrives)
-        {
-            var oldDriveId = drive.Id;
-            var driveAlias = drive.TargetDriveInfo.Alias.Value;
-            await t.Temp_MigrateDrives(oldDriveId, driveAlias);
-        }
-
+        await t.Temp_CleanupOldTables();
+        
         logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
             tenant.PrimaryDomainName,
             allDrives.Count);
@@ -170,17 +166,48 @@ public static class DriveAliasMigrationPhase2
 
             foreach (var driveGrant in data.CircleGrant.KeyStoreKeyEncryptedDriveGrants)
             {
-                var theDrive = drives.SingleOrDefault(d => d.Id == driveGrant.DriveId);
+                var theDrive = drives.SingleOrDefault(d => d.TempOriginalDriveId == driveGrant.DriveId);
                 if (theDrive == null)
                 {
                     throw new OdinSystemException($"Could not find drive with id {driveGrant.DriveId} in circle grant");
                 }
 
-                driveGrant.DriveId = theDrive.TargetDriveInfo.Alias;
+                driveGrant.DriveId = theDrive.Id;
             }
+
+            record.data = OdinSystemSerializer.Serialize(data).ToUtf8ByteArray();
         }
 
         await circleMember.UpsertCircleMembersAsync(allCircleRecords);
+    }
+    
+    private static async Task MigrateAppGrants(List<StorageDrive> drives, ILifetimeScope scope)
+    {
+        await Task.CompletedTask;
+
+        // var appGrants = scope.Resolve<TableAppGrants>();
+        //
+        //
+        // var allCircleRecords = await circleMember.GetAllCirclesAsync();
+        // foreach (var record in allCircleRecords)
+        // {
+        //     var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(record.data.ToStringFromUtf8Bytes());
+        //
+        //     foreach (var driveGrant in data.CircleGrant.KeyStoreKeyEncryptedDriveGrants)
+        //     {
+        //         var theDrive = drives.SingleOrDefault(d => d.TempOriginalDriveId == driveGrant.DriveId);
+        //         if (theDrive == null)
+        //         {
+        //             throw new OdinSystemException($"Could not find drive with id {driveGrant.DriveId} in circle grant");
+        //         }
+        //
+        //         driveGrant.DriveId = theDrive.Id;
+        //     }
+        //
+        //     record.data = OdinSystemSerializer.Serialize(data).ToUtf8ByteArray();
+        // }
+        //
+        // await circleMember.UpsertCircleMembersAsync(allCircleRecords);
     }
 
     private static async Task MigrateAppRegistration(List<StorageDrive> drives, ILifetimeScope scope)
@@ -193,6 +220,7 @@ public static class DriveAliasMigrationPhase2
     private static async Task MigrateConnections(List<StorageDrive> drives, ILifetimeScope scope)
     {
         //IdentityConnectionRegistration
+        await Task.CompletedTask;
     }
 
 
