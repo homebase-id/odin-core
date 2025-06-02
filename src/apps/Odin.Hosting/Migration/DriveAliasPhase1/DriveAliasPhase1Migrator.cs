@@ -60,7 +60,7 @@ public static class DriveAliasPhase1Migrator
         // validate all drives are exactly copied
         //
 
-        var oldDriveManger = scope.Resolve<DriveManagerWithDedicatedTable>();
+        var oldDriveManger = scope.Resolve<DriveManager>();
         var oldDrivesPage = await oldDriveManger.GetDrivesAsync(PageOptions.All, odinContext);
         var newDrivesPage = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
 
@@ -95,7 +95,7 @@ public static class DriveAliasPhase1Migrator
             Caller = new CallerContext(
                 odinId: (OdinId)"system.domain",
                 masterKey: null,
-                securityLevel: SecurityGroupType.System,
+                securityLevel: SecurityGroupType.Owner,
                 circleIds: null,
                 tokenType: ClientTokenType.Other)
         };

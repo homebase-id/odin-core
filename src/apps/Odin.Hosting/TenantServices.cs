@@ -189,11 +189,8 @@ public static class TenantServices
             .As<INotificationHandler<DriveDefinitionAddedNotification>>()
             .InstancePerLifetimeScope();
 
-        //Note we need to change these around when going live
-        // cb.RegisterType<DriveManagerWithDedicatedTable>().InstancePerLifetimeScope();
-        // cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
-        
-        // // cb.RegisterType<DriveManagerWithDedicatedTable>().InstancePerLifetimeScope();
+        //TODO remove DriveManager when we finalize dropping drive alias
+        cb.RegisterType<DriveManager>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<DriveManagerWithDedicatedTable>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();

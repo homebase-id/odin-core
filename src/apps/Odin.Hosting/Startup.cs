@@ -587,22 +587,7 @@ namespace Odin.Hosting
                 {
                     services.StartSystemBackgroundServices().BlockingWait();
                 }
-                
-                // if (Environment.GetCommandLineArgs().Contains("--migrate-drive-alias-phase-1", StringComparer.OrdinalIgnoreCase))
-                // {
-                //     logger.LogInformation("Migrating drive alias phase 1");
-                //     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-                //     var migrationLogger = loggerFactory.CreateLogger("Migration");
-                //     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-                //     DriveAliasPhase1Migrator.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
-                //
-                //     logger.LogInformation("Completed migrating drive alias phase 2.  You should now " +
-                //                           "remove flag --migrate-drive-alias-phase-1 from docker-compose.yml " +
-                //                           "and restart");
-                //     
-                //     lifetime.StopApplication();
-                // }
-
+             
                 if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-export-map", StringComparer.OrdinalIgnoreCase))
                 {
                     logger.LogInformation("Migrating drive alias phase deuce");
@@ -616,7 +601,7 @@ namespace Odin.Hosting
                     lifetime.StopApplication();
                 }
                 
-                if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-phase-duex", StringComparer.OrdinalIgnoreCase))
+                if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-phase-one", StringComparer.OrdinalIgnoreCase))
                 {
                     logger.LogInformation("Migrating drive alias phase deuce");
                     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
@@ -627,14 +612,14 @@ namespace Odin.Hosting
                     
                     DriveAliasMigrationPhase2.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
 
-                    logger.LogInformation("Completed migrating drive alias phase 2.  You should now remove " +
-                                          "flag --migration-drive-alias-phase-duex from docker-compose.yml " +
+                    logger.LogInformation("Completed migrating drive alias phase one.  You should now remove " +
+                                          "flag --migration-drive-alias-phase-one from docker-compose.yml " +
                                           "and restart.  Remember to update tenant services with right drive manager");
                     
                     lifetime.StopApplication();
                 }
                 
-                if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-phase-treux", StringComparer.OrdinalIgnoreCase))
+                if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-phase-two", StringComparer.OrdinalIgnoreCase))
                 {
                     logger.LogInformation("Migrating drive alias phase deuce");
                     var loggerFactory = services.GetRequiredService<ILoggerFactory>();
@@ -643,8 +628,8 @@ namespace Odin.Hosting
                     
                     DriveAliasMigrationPhaseThree.UpdateFileSystem(registry, tenantContainer, migrationLogger).BlockingWait();
 
-                    var msg = "Completed migrating drive alias phase 3.  You should now remove " +
-                              "flag --migration-drive-alias-phase-treux from docker-compose.yml " +
+                    var msg = "Completed migrating drive alias phase two.  You should now remove " +
+                              "flag --migration-drive-alias-phase-two from docker-compose.yml " +
                               "and restart.  Remember to update tenant services with right drive manager";
                     
                     logger.LogInformation(msg);

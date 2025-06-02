@@ -337,6 +337,13 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     {
         int count = 0;
         var oldDrives = await DriveStorage.GetByCategoryAsync<StorageDriveBase>(_tblKeyThreeValue, DriveManager.DriveDataType);
+
+
+        if (!oldDrives?.Any() ?? false)
+        {
+            _logger.LogWarning("MigrateDrivesFromClassDriveManager -> no drives in old drive manager");
+        }
+        
         foreach (var oldDrive in oldDrives)
         {
             await CreateDriveFromClassicDriveManagerAsync(oldDrive);

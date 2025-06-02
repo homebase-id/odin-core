@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,8 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.Factory;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -49,13 +52,24 @@ public static class DriveAliasMigrationPhase2
     public static async Task MigrateData(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
     {
         var allTenants = await registry.GetTenants();
-        foreach (var tenant in allTenants.Where(t => t.PrimaryDomainName.Equals("toddmitchell.me")))
+        foreach (var tenant in allTenants)
         {
-            logger.LogInformation("Drive Migration Phase 2 - Started for tenant {tenant}", tenant.PrimaryDomainName);
+            logger.LogInformation("Drive Migration - Started for tenant {tenant}", tenant.PrimaryDomainName);
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var tenantContext = scope.Resolve<TenantContext>();
+            try
+            {
+                var scopedIdentityTransactionFactory = scope.Resolve<ScopedIdentityTransactionFactory>();
+                await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
+                await MoveData(logger, tenantContext, scope);
 
-            await MoveData(logger, tenantContext, scope, tenant);
+                tx.Commit();
+                logger.LogInformation("Migration completed for tenant {tenant}", tenant.PrimaryDomainName);
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "Failed for tenant {t}", tenant);
+            }
         }
     }
 
@@ -83,20 +97,24 @@ public static class DriveAliasMigrationPhase2
             allDrives.Results.Count);
     }
 
-    private static async Task MoveData(ILogger logger, TenantContext tenantContext, ILifetimeScope scope, IdentityRegistration tenant)
+    private static async Task MoveData(ILogger logger, TenantContext tenantContext, ILifetimeScope scope)
     {
-        var scopedIdentityTransactionFactory = scope.Resolve<ScopedIdentityTransactionFactory>();
-
         var newDriveManager = scope.Resolve<DriveManagerWithDedicatedTable>();
-
-        await using var tx = await scopedIdentityTransactionFactory.BeginStackedTransactionAsync();
         var odinContext = CreateOdinContext(tenantContext);
         var allDrivesPage = await newDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
         var allDrives = allDrivesPage.Results.ToList();
 
         if (!allDrives.Any())
         {
-            throw new OdinSystemException("Did you run step 1?");
+            var oldDriveManager = scope.Resolve<DriveManager>();
+            var oldDrives = await oldDriveManager.GetDrivesAsync(PageOptions.All, odinContext);
+            if (oldDrives.Results.Any())
+            {
+                throw new OdinSystemException("drives were not migrated to new Drives table");
+            }
+
+            logger.LogWarning("Tenant has no old drives; stopping");
+            return;
         }
 
         var t = scope.Resolve<TableDrives>();
@@ -105,10 +123,10 @@ public static class DriveAliasMigrationPhase2
         {
             var oldDriveId = drive.TempOriginalDriveId;
             var newDriveId = drive.Id;
-            
+
             await t.Temp_MigrateDriveMainIndex(oldDriveId, newDriveId);
             await MigrateFileMetadata(drive.TargetDriveInfo, scope);
-            
+
             await t.Temp_MigrateDriveLocalTagIndex(oldDriveId, newDriveId);
             await t.Temp_MigrateDriveAclIndex(oldDriveId, newDriveId);
             await t.Temp_MigrateDriveTransferHistory(oldDriveId, newDriveId);
@@ -121,17 +139,11 @@ public static class DriveAliasMigrationPhase2
             await t.Temp_MigrateOutbox(oldDriveId, newDriveId);
         }
 
-        await MigrateCircleMembers(allDrives, scope);
+        await MigrateCircleMembers(allDrives, scope, logger);
         await MigrateAppRegistration(allDrives, scope);
         await MigrateConnections(allDrives, scope);
 
         await t.Temp_CleanupOldTables();
-        
-        logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
-            tenant.PrimaryDomainName,
-            allDrives.Count);
-
-        tx.Commit();
     }
 
     private static async Task MigrateFileMetadata(TargetDrive targetDrive, ILifetimeScope scope)
@@ -145,27 +157,59 @@ public static class DriveAliasMigrationPhase2
             var header = ServerFileHeader.FromDriveMainIndexRecord(record);
             header.FileMetadata.File = header.FileMetadata.File with { DriveId = targetDrive.Alias };
 
-            var updatedRecord = header.ToDriveMainIndexRecord(targetDrive);
-
-            var count = await index.Temp_ResetDriveIdToAlias(updatedRecord);
-            if (count != 1)
+            try
             {
-                throw new OdinSystemException("Too many rows updated for filemetadata");
+                var updatedRecord = header.ToDriveMainIndexRecord(targetDrive);
+                var count = await index.Temp_ResetDriveIdToAlias(updatedRecord);
+                if (count != 1)
+                {
+                    throw new OdinSystemException("Too many rows updated for filemetadata");
+                }
+            }
+            catch (OdinDatabaseValidationException)
+            {
+                //gulp
             }
         }
     }
 
-    private static async Task MigrateCircleMembers(List<StorageDrive> drives, ILifetimeScope scope)
+    private static async Task MigrateCircleMembers(List<StorageDrive> drives, ILifetimeScope scope, ILogger logger)
     {
         var circleMember = scope.Resolve<TableCircleMember>();
 
         var allCircleRecords = await circleMember.GetAllCirclesAsync();
+
+        if (!allCircleRecords.Any())
+        {
+            logger.LogWarning("No circle records found; skipping");
+            return;
+        }
+
+        var fuxored = allCircleRecords.Select(record =>
+        {
+            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(record.data.ToStringFromUtf8Bytes());
+            var fucked = data.CircleGrant.KeyStoreKeyEncryptedDriveGrants.Where(g => g.DriveId == g.PermissionedDrive.Drive.Alias);
+            return new
+            {
+                cid = data.CircleGrant.CircleId,
+                data.DomainName,
+                fucked = fucked.ToList()
+            };
+        }).Where(f => f.fucked.Any()).ToList();
+
+
         foreach (var record in allCircleRecords)
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(record.data.ToStringFromUtf8Bytes());
 
             foreach (var driveGrant in data.CircleGrant.KeyStoreKeyEncryptedDriveGrants)
             {
+                if (driveGrant.DriveId == driveGrant.PermissionedDrive.Drive.Alias)
+                {
+                    // record already changed; this allows us to run this again (and again)
+                    continue;
+                }
+
                 var theDrive = drives.SingleOrDefault(d => d.TempOriginalDriveId == driveGrant.DriveId);
                 if (theDrive == null)
                 {
@@ -180,7 +224,7 @@ public static class DriveAliasMigrationPhase2
 
         await circleMember.UpsertCircleMembersAsync(allCircleRecords);
     }
-    
+
     private static async Task MigrateAppGrants(List<StorageDrive> drives, ILifetimeScope scope)
     {
         await Task.CompletedTask;
@@ -233,7 +277,7 @@ public static class DriveAliasMigrationPhase2
             Caller = new CallerContext(
                 odinId: (OdinId)"system.domain",
                 masterKey: null,
-                securityLevel: SecurityGroupType.System,
+                securityLevel: SecurityGroupType.Owner,
                 circleIds: null,
                 tokenType: ClientTokenType.Other)
         };

@@ -1,10 +1,10 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -55,7 +55,7 @@ public static class DriveAliasMigrationPhaseThree
         // payloads
         var oldFolderPath = pathManager.GetDrivePayloadPath(oldDriveId).Replace(TenantPathManager.FilesFolder, "");
         var newFolderPath = pathManager.GetDrivePayloadPath(driveAlias).Replace(TenantPathManager.FilesFolder, "");
-        EnsureMoved(oldFolderPath, newFolderPath);
+        // EnsureMoved(oldFolderPath, newFolderPath);
 
         var oldUploadFolder = pathManager.GetDriveUploadPath(oldDriveId).Replace(TenantPathManager.UploadFolder, "");
         var newUploadFolder = pathManager.GetDriveUploadPath(driveAlias).Replace(TenantPathManager.UploadFolder, "");
@@ -89,7 +89,7 @@ public static class DriveAliasMigrationPhaseThree
             Caller = new CallerContext(
                 odinId: (OdinId)"system.domain",
                 masterKey: null,
-                securityLevel: SecurityGroupType.System,
+                securityLevel: SecurityGroupType.Owner,
                 circleIds: null,
                 tokenType: ClientTokenType.Other)
         };
