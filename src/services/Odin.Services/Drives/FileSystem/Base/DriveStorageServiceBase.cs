@@ -288,22 +288,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            if (directMatchOnly)
+            var nextSizeUp = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
+            if (null == nextSizeUp)
             {
                 return (Stream.Null, null);
             }
-
-            //TODO: add more logic here to compare width and height separately or together
-            var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
-            if (null == nextSizeUp)
-            {
-                nextSizeUp = thumbs.LastOrDefault();
-                if (null == nextSizeUp)
-                {
-                    return (Stream.Null, null);
-                }
-            }
-
+            
             try
             {
                 var stream = longTermStorageManager.GetThumbnailStream(
