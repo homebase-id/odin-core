@@ -563,6 +563,7 @@ namespace Odin.Hosting
                 }
 
                 // Sanity ping cache
+                logger.LogInformation("Level2CacheType: {Level2CacheType}", _config.Cache.Level2CacheType);
                 var cache = services.GetRequiredService<IGlobalLevel2Cache>();
                 cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
                 var pong = cache.TryGet<string>("ping");
@@ -572,6 +573,7 @@ namespace Odin.Hosting
                 }
 
                 // Sanity ping S3 bucket
+                logger.LogInformation("S3PayloadStorage enabled: {enabled}", _config.S3PayloadStorage.Enabled);
                 if (_config.S3PayloadStorage.Enabled)
                 {
                     var payloadBucket = services.GetRequiredService<S3PayloadStorage>();
