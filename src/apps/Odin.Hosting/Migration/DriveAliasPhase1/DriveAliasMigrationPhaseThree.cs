@@ -23,7 +23,7 @@ public static class DriveAliasMigrationPhaseThree
         var allTenants = await registry.GetTenants();
         foreach (var tenant in allTenants)
         {
-            logger.LogInformation("Drive Migration Phase Three - Started for tenant {tenant}", tenant.PrimaryDomainName);
+            logger.LogInformation("\n\n\n\nDrive Migration Phase Three - Started for tenant {tenant}", tenant.PrimaryDomainName);
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var tenantContext = scope.Resolve<TenantContext>();
 
@@ -38,7 +38,7 @@ public static class DriveAliasMigrationPhaseThree
                 var oldDriveId = drive.TempOriginalDriveId;
                 var driveAlias = drive.TargetDriveInfo.Alias.Value;
                 
-                RenameFolders(tenantContext, oldDriveId, driveAlias);
+                RenameFolders(tenantContext, oldDriveId, driveAlias, logger);
             }
 
             logger.LogInformation("Drive completed for tenant {tenant}. Drive Count: {count}",
@@ -48,14 +48,14 @@ public static class DriveAliasMigrationPhaseThree
         }
     }
 
-    private static void RenameFolders(TenantContext tenantContext, Guid oldDriveId, Guid driveAlias)
+    private static void RenameFolders(TenantContext tenantContext, Guid oldDriveId, Guid driveAlias, ILogger logger)
     {
         var pathManager = tenantContext.TenantPathManager;
 
         // payloads
         var oldFolderPath = pathManager.GetDrivePayloadPath(oldDriveId).Replace(TenantPathManager.FilesFolder, "");
         var newFolderPath = pathManager.GetDrivePayloadPath(driveAlias).Replace(TenantPathManager.FilesFolder, "");
-        // EnsureMoved(oldFolderPath, newFolderPath);
+        EnsureMoved(oldFolderPath, newFolderPath);
 
         var oldUploadFolder = pathManager.GetDriveUploadPath(oldDriveId).Replace(TenantPathManager.UploadFolder, "");
         var newUploadFolder = pathManager.GetDriveUploadPath(driveAlias).Replace(TenantPathManager.UploadFolder, "");
@@ -75,6 +75,7 @@ public static class DriveAliasMigrationPhaseThree
 
             if (Directory.Exists(oldPath))
             {
+                logger.LogInformation("Renaming [{old}] to {new}", oldPath, newPath);
                 Directory.Move(oldPath, newPath!);
             }
         }
