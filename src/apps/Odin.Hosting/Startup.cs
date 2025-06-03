@@ -597,7 +597,7 @@ namespace Odin.Hosting
                     var migrationLogger = loggerFactory.CreateLogger("Migration");
                     var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
                     
-                    DriveAliasMigrationPhase2.ExportMap(registry, tenantContainer, migrationLogger).BlockingWait();
+                    DriveAliasMigrationPhase2.ExportMap(registry, tenantContainer, migrationLogger, config.Host.SystemDataRootPath).BlockingWait();
                     logger.LogInformation($"Map export to complete (one per tenant)");
                     
                     lifetime.StopApplication();

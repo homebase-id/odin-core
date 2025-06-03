@@ -20,6 +20,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
@@ -29,7 +30,8 @@ namespace Odin.Hosting.Migration.DriveAliasPhase1;
 
 public static class DriveAliasMigrationPhase2
 {
-    public static async Task ExportMap(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger)
+    public static async Task ExportMap(IIdentityRegistry registry, MultiTenantContainer tenantContainer, ILogger logger,
+        string exportPath)
     {
         var allTenants = await registry.GetTenants();
         foreach (var tenant in allTenants)
@@ -37,10 +39,9 @@ public static class DriveAliasMigrationPhase2
             logger.LogInformation("Drive Migration Phase 2 - Started for tenant {tenant}", tenant.PrimaryDomainName);
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var tenantContext = scope.Resolve<TenantContext>();
-
             var oldDriveManager = scope.Resolve<DriveManager>();
 
-            var folder = "export";
+            var folder = Path.Combine(exportPath, "export");
             Directory.CreateDirectory(folder);
 
             var outputPath = Path.Combine(folder, $"{tenant.PrimaryDomainName}-drive-map.csv");
