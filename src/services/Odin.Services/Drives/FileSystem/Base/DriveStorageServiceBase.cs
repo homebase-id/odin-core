@@ -288,7 +288,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            var nextSizeUp = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
+            var nextSizeUp = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly);
             if (null == nextSizeUp)
             {
                 return (Stream.Null, null);
