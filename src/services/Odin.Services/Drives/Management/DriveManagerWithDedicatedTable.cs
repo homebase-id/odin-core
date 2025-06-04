@@ -119,8 +119,9 @@ public class DriveManagerWithDedicatedTable : IDriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
-        var existingDrive = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
-        if (null != existingDrive)
+
+        var existingDriveByTargetDriveAsync = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
+        if (null != existingDriveByTargetDriveAsync)
         {
             throw new OdinClientException("Drive by alias and type already exists", OdinClientErrorCode.InvalidDrive);
         }
@@ -157,8 +158,21 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             TempOriginalDriveId = id
         };
 
-        await _tableDrives.InsertAsync(record);
-        storageKey.Wipe();
+        try
+        {
+            await _tableDrives.InsertAsync(record);
+        }
+        catch (OdinDatabaseException e)
+        {
+            if (e.IsUniqueConstraintViolation)
+            {
+                throw new OdinClientException("Existing drive", OdinClientErrorCode.InvalidDrive);
+            }
+        }
+        finally
+        {
+            storageKey.Wipe();
+        }
 
         var storageDrive = ToStorageDrive(record);
         storageDrive.EnsureDirectories();

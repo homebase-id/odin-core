@@ -240,7 +240,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 cmd.CommandText = "DROP TABLE IF EXISTS Drives;";
                 await cmd.ExecuteNonQueryAsync();
             }
-            
             var rowid = "";
             if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
@@ -251,7 +250,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 "CREATE TABLE IF NOT EXISTS Drives("
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"DriveId BYTEA NOT NULL, "
+                   +"DriveId BYTEA NOT NULL UNIQUE, "
                    +"DriveAlias BYTEA NOT NULL, "
                    +"TempOriginalDriveId BYTEA NOT NULL, "
                    +"DriveType BYTEA NOT NULL, "
