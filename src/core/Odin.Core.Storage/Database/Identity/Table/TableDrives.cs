@@ -47,7 +47,7 @@ public class TableDrives(
         return await base.PagingByCreatedAsync(count, odinIdentity, inCursor, null);
     }
 
-    public async Task<DrivesRecord> GetByTargetDrive(Guid driveAlias, Guid driveType)
+    public async Task<DrivesRecord> GetByTargetDriveAsync(Guid driveAlias, Guid driveType)
     {
         return await base.GetByTargetDriveAsync(odinIdentity, driveAlias, driveType);
     }

@@ -50,13 +50,14 @@ namespace Odin.Services.Drives
         public override string Metadata
         {
             get => _inner.Metadata;
-            set { }
+            set => _inner.Metadata = value;
         }
 
         public override bool IsReadonly
         {
             get => _inner.IsReadonly;
-            set { }
+            set => _inner.IsReadonly = value;
+
         }
 
         public override bool AllowSubscriptions

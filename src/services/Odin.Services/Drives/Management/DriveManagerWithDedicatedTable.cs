@@ -119,6 +119,12 @@ public class DriveManagerWithDedicatedTable : IDriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
+        var existingDrive = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
+        if (null != existingDrive)
+        {
+            throw new OdinClientException("Drive by alias and type already exists", OdinClientErrorCode.InvalidDrive);
+        }
+
         var mk = odinContext.Caller.GetMasterKey();
 
         var driveKey = new SymmetricKeyEncryptedAes(mk);
@@ -151,7 +157,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             TempOriginalDriveId = id
         };
 
-        await _tableDrives.UpsertAsync(record);
+        await _tableDrives.InsertAsync(record);
         storageKey.Wipe();
 
         var storageDrive = ToStorageDrive(record);
@@ -278,7 +284,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
 
     public async Task<StorageDrive> GetDriveAsync(TargetDrive targetDrive, bool failIfInvalid = false)
     {
-        var record = await _tableDrives.GetByTargetDrive(targetDrive.Alias.Value, targetDrive.Type.Value);
+        var record = await _tableDrives.GetByTargetDriveAsync(targetDrive.Alias.Value, targetDrive.Type.Value);
         if (record == null)
         {
             if (failIfInvalid)
@@ -351,7 +357,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         {
             _logger.LogWarning("MigrateDrivesFromClassDriveManager -> no drives in old drive manager");
         }
-        
+
         foreach (var oldDrive in oldDrives)
         {
             await CreateDriveFromClassicDriveManagerAsync(oldDrive);
@@ -387,7 +393,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             IsReadonly = storageDrive.IsReadonly,
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
-            Attributes = storageDrive.Attributes
+            Attributes = storageDrive.Attributes,
         };
 
         var record = new DrivesRecord
@@ -400,6 +406,7 @@ public class DriveManagerWithDedicatedTable : IDriveManager
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(details),
+            TempOriginalDriveId = storageDrive.TempOriginalDriveId
         };
 
         return record;
