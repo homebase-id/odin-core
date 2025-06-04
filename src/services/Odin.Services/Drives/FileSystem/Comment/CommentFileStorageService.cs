@@ -18,7 +18,7 @@ public class CommentFileStorageService(
     ILoggerFactory loggerFactory,
     IMediator mediator,
     IDriveAclAuthorizationService driveAclAuthorizationService,
-    DriveManager driveManager,
+    IDriveManager driveManager,
     LongTermStorageManager longTermStorageManager,
     UploadStorageManager uploadStorageManager,
     OrphanTestUtil orphanTestUtil,

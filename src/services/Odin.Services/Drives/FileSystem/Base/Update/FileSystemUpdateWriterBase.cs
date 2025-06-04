@@ -28,11 +28,11 @@ namespace Odin.Services.Drives.FileSystem.Base.Update;
 /// </summary>
 public abstract class FileSystemUpdateWriterBase
 {
-    private readonly DriveManager _driveManager;
+    private readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
 
     /// <summary />
-    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, DriveManager driveManager,
+    protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, IDriveManager driveManager,
         PeerOutgoingTransferService peerOutgoingTransferService)
     {
         FileSystem = fileSystem;

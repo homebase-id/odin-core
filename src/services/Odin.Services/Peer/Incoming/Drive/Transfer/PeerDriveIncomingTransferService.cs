@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
     public class PeerDriveIncomingTransferService(
         ILogger<PeerDriveIncomingTransferService> logger,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         IDriveFileSystem fileSystem,
         IMediator mediator,
         PushNotificationService pushNotificationService,

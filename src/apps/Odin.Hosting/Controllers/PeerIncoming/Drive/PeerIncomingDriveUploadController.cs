@@ -51,7 +51,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly OdinConfiguration _odinConfiguration;
         private readonly ILogger<PeerIncomingDriveUploadController> _logger;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
 
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly PushNotificationService _pushNotificationService;
@@ -60,7 +60,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly IMediator _mediator;
 
         /// <summary />
-        public PeerIncomingDriveUploadController(DriveManager driveManager,
+        public PeerIncomingDriveUploadController(IDriveManager driveManager,
             IMediator mediator, 
             FileSystemResolver fileSystemResolver,
             PushNotificationService pushNotificationService,

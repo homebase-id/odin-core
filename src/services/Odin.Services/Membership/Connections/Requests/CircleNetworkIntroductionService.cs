@@ -45,7 +45,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private readonly PeerOutbox _peerOutbox;
     private readonly IdentityDatabase _db;
     private readonly PushNotificationService _pushNotificationService;
-    private readonly DriveManager _driveManager;
+    private readonly IDriveManager _driveManager;
 
     /// <summary>
     /// Enables introducing identities to each other
@@ -59,7 +59,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         IMediator mediator,
         PeerOutbox peerOutbox,
         PushNotificationService pushNotificationService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         TenantContext tenantContext,
         IdentityDatabase db)
         : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)

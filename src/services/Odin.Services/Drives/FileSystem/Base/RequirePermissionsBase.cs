@@ -7,7 +7,7 @@ namespace Odin.Services.Drives.FileSystem.Base;
 
 public abstract class RequirePermissionsBase
 {
-    protected abstract DriveManager DriveManager { get; }
+    protected abstract IDriveManager DriveManager { get; }
 
     /// <summary>
     /// Enforces drive permissions when reading files

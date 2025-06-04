@@ -13,7 +13,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
 {
     public class StandardFileDriveQueryService(
         ILogger<StandardFileDriveQueryService> logger,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         DriveQuery driveQuery,
         StandardFileDriveStorageService storage,
         IdentityDatabase db)

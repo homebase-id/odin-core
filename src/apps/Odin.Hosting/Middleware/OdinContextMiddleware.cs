@@ -191,7 +191,7 @@ namespace Odin.Hosting.Middleware
                 masterKey: null,
                 securityLevel: SecurityGroupType.Authenticated);
 
-            var driveManager = httpContext.RequestServices.GetRequiredService<DriveManager>();
+            var driveManager = httpContext.RequestServices.GetRequiredService<IDriveManager>();
             var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
 
             if (!anonymousDrives.Results.Any())

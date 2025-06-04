@@ -335,11 +335,12 @@ public class CollaborationChatPushNotificationTests
         await member1.Configuration.DisableAutoAcceptIntroductions(true);
         await member2.Configuration.DisableAutoAcceptIntroductions(true);
 
-        await collabChat.DriveManager.CreateDrive(collabChannelDrive, "Test collab chat drive 001", "",
+        var createDriveResponse = await collabChat.DriveManager.CreateDrive(collabChannelDrive, "Test collab chat drive 001", "",
             allowAnonymousReads: false,
             allowSubscriptions: true, //required for distributing push notifications
             attributes: IsCollaborativeChannelAttributes);
 
+        Assert.That(createDriveResponse.IsSuccessStatusCode, Is.True);
 
         var permissions = TestUtils.CreatePermissionGrantRequest(collabChannelDrive, DrivePermission.ReadWrite);
         await collabChat.Network.CreateCircle(collabChatCircleId, "circle with some access", permissions);

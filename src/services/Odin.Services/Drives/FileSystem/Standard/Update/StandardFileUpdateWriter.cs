@@ -15,7 +15,7 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
     /// <summary />
     public StandardFileUpdateWriter(StandardFileSystem fileSystem,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        DriveManager driveManager)
+        IDriveManager driveManager)
         : base(fileSystem, driveManager, peerOutgoingTransferService)
     {
     }

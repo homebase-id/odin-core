@@ -11,6 +11,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
 
@@ -24,19 +25,19 @@ namespace Odin.Services.Drives.Management;
 /// <summary>
 /// Manages drive creation, metadata updates, and their overall definitions
 /// </summary>
-public class DriveManager
+public class DriveManager: IDriveManager
 {
     internal static readonly Guid DriveContextKey = Guid.Parse("4cca76c6-3432-4372-bef8-5f05313c0376");
     private static readonly ThreeKeyValueStorage DriveStorage = TenantSystemStorage.CreateThreeKeyValueStorage(DriveContextKey);
     internal static readonly byte[] DriveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
 
-    private readonly ILogger<DriveManager> _logger;
+    private readonly ILogger<IDriveManager> _logger;
     private readonly IMediator _mediator;
 
     // SEB:NOTE we can't use LxCache here since multiple key and list retrieval
     // are required, so we leave _driveCache for now
-    private readonly SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> _driveCache;
-    private readonly SharedAsyncLock<DriveManager> _createDriveLock;
+    private readonly SharedConcurrentDictionary<IDriveManager, Guid, StorageDrive> _driveCache;
+    private readonly SharedAsyncLock<IDriveManager> _createDriveLock;
 
     private readonly TenantContext _tenantContext;
     private readonly TableKeyThreeValue _tblKeyThreeValue;
@@ -44,9 +45,9 @@ public class DriveManager
     private readonly DriveManagerWithDedicatedTable _driveWithDedicatedTable;
 
     public DriveManager(
-        ILogger<DriveManager> logger,
-        SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> driveCache,
-        SharedAsyncLock<DriveManager> createDriveLock,
+        ILogger<IDriveManager> logger,
+        SharedConcurrentDictionary<IDriveManager, Guid, StorageDrive> driveCache,
+        SharedAsyncLock<IDriveManager> createDriveLock,
         IMediator mediator,
         TenantContext tenantContext,
         TableKeyThreeValue tblKeyThreeValue,
@@ -102,6 +103,7 @@ public class DriveManager
             var sdb = new StorageDriveBase()
             {
                 Id = id,
+                TempOriginalDriveId = id,
                 Name = request.Name,
                 TargetDriveInfo = request.TargetDrive,
                 Metadata = request.Metadata,
@@ -127,7 +129,6 @@ public class DriveManager
             
             try
             {
-                // await _driveWithDedicatedTable.CreateDriveAsync(id, request, odinContext);
                 await _driveWithDedicatedTable.CreateDriveFromClassicDriveManagerAsync(sdb);
             }
             catch (Exception e)
@@ -529,13 +530,13 @@ public class DriveManager
             _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
-        if (odinContext?.Caller?.IsOwner ?? false)
+        var caller = odinContext.Caller;
+        if (caller?.IsOwner ?? false || caller?.SecurityLevel == SecurityGroupType.System)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
 
-        Func<StorageDriveBase, bool> predicate = null;
-        predicate = drive => drive.OwnerOnly == false;
+        Func<StorageDrive, bool> predicate = drive => drive.OwnerOnly == false;
         if (enforceSecurity)
         {
             if (odinContext.Caller.IsAnonymous)

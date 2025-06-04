@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using Autofac;
 using MediatR;
 using Odin.Core.Cache;
@@ -8,7 +7,6 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
@@ -191,9 +189,9 @@ public static class TenantServices
             .As<INotificationHandler<DriveDefinitionAddedNotification>>()
             .InstancePerLifetimeScope();
 
-        cb.RegisterType<DriveManagerWithDedicatedTable>().InstancePerLifetimeScope();
-        cb.RegisterType<DriveManager>().InstancePerLifetimeScope();
-        // cb.RegisterType<DriveManager>().As<IDriveManager>().InstancePerLifetimeScope();
+        //TODO remove DriveManager when we finalize dropping drive alias
+        cb.RegisterType<DriveManager>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<DriveManagerWithDedicatedTable>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
@@ -231,6 +229,7 @@ public static class TenantServices
             .As<INotificationHandler<AllReactionsByFileDeleted>>();
 
         cb.RegisterType<AppRegistrationService>()
+            .AsSelf()
             .As<IAppRegistrationService>()
             .InstancePerLifetimeScope();
 

@@ -8,7 +8,7 @@ namespace Odin.Services.Drives.Management;
 
 public interface IDriveManager
 {
-    Task<StorageDrive> CreateDriveAsync(Guid driveId, CreateDriveRequest request, IOdinContext odinContext);
+    Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext);
     Task SetDriveReadModeAsync(Guid driveId, bool allowAnonymous, IOdinContext odinContext);
     Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext);
     Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext);

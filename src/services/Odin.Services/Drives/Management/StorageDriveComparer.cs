@@ -23,7 +23,7 @@ public static class StorageDriveComparer
             return diffs;
         }
 
-        if (drive1.Id != drive2.Id) diffs.Add("Id differs");
+        if (drive1.TargetDriveInfo.Alias != drive2.Id) diffs.Add("alias and id differ");
 
         if (drive1.Name != drive2.Name) diffs.Add("Name differs");
         if (!Equals(drive1.TargetDriveInfo, drive2.TargetDriveInfo)) diffs.Add("TargetDriveInfo differs");
@@ -56,7 +56,7 @@ public static class StorageDriveComparer
 
         foreach (var d1 in list1)
         {
-            if (lookup2.TryGetValue(d1.Id, out var d2))
+            if (lookup2.TryGetValue(d1.TargetDriveInfo.Alias, out var d2))
             {
                 var differences = GetDifferences(d1, d2);
                 if (differences.Count > 0)
@@ -64,7 +64,7 @@ public static class StorageDriveComparer
                     mismatched.Add((d1, d2, differences));
                 }
 
-                lookup2.Remove(d1.Id); // Remove matched
+                lookup2.Remove(d1.TargetDriveInfo.Alias); // Remove matched
             }
             else
             {

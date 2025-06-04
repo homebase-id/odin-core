@@ -23,7 +23,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 {
     public class Defragmenter(
         ILogger<Defragmenter> logger,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         DriveFileReaderWriter driveFileReaderWriter)
     {
 
