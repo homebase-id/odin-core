@@ -186,19 +186,6 @@ public static class DriveAliasMigrationPhase2
             return;
         }
 
-        var fuxored = allCircleRecords.Select(record =>
-        {
-            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(record.data.ToStringFromUtf8Bytes());
-            var fucked = data.CircleGrant.KeyStoreKeyEncryptedDriveGrants.Where(g => g.DriveId == g.PermissionedDrive.Drive.Alias);
-            return new
-            {
-                cid = data.CircleGrant.CircleId,
-                data.DomainName,
-                fucked = fucked.ToList()
-            };
-        }).Where(f => f.fucked.Any()).ToList();
-
-
         foreach (var record in allCircleRecords)
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(record.data.ToStringFromUtf8Bytes());

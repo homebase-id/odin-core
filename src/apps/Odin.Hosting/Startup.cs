@@ -553,7 +553,7 @@ namespace Odin.Hosting
                 // Load identity registry
                 var registry = services.GetRequiredService<IIdentityRegistry>();
                 registry.LoadRegistrations().BlockingWait();
-                // DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
+                DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
 
                 // Check for singleton dependencies
                 if (env.IsDevelopment())
