@@ -49,14 +49,12 @@ using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
-using Odin.Hosting.Migration.DriveAliasPhase1;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.Concurrency;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
 using StackExchange.Redis;
-using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Hosting
 {
@@ -588,56 +586,6 @@ namespace Odin.Hosting
                 if (config.Job.SystemJobsEnabled)
                 {
                     services.StartSystemBackgroundServices().BlockingWait();
-                }
-             
-                if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-export-map", StringComparer.OrdinalIgnoreCase))
-                {
-                    logger.LogInformation("Migrating drive alias phase deuce");
-                    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-                    var migrationLogger = loggerFactory.CreateLogger("Migration");
-                    var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-                    
-                    DriveAliasMigrationPhase2.ExportMap(registry, tenantContainer, migrationLogger, config.Host.SystemDataRootPath).BlockingWait();
-                    logger.LogInformation($"Map export to complete (one per tenant)");
-                    
-                    lifetime.StopApplication();
-                }
-                
-                if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-phase-one", StringComparer.OrdinalIgnoreCase))
-                {
-                    logger.LogInformation("Migrating drive alias phase deuce");
-                    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-                    var migrationLogger = loggerFactory.CreateLogger("Migration");
-                    var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-
-                    DriveAliasPhase1Migrator.MigrateDrives(registry, tenantContainer, migrationLogger).BlockingWait();
-                    
-                    DriveAliasMigrationPhase2.MigrateData(registry, tenantContainer, migrationLogger).BlockingWait();
-
-                    logger.LogInformation("Completed migrating drive alias phase one.  You should now remove " +
-                                          "flag --migration-drive-alias-phase-one from docker-compose.yml " +
-                                          "and restart.  Remember to update tenant services with right drive manager");
-                    
-                    lifetime.StopApplication();
-                }
-                
-                if (Environment.GetCommandLineArgs().Contains("--migration-drive-alias-phase-two", StringComparer.OrdinalIgnoreCase))
-                {
-                    logger.LogInformation("Migrating drive alias phase deuce");
-                    var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-                    var migrationLogger = loggerFactory.CreateLogger("Migration");
-                    var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-                    
-                    DriveAliasMigrationPhaseThree.UpdateFileSystem(registry, tenantContainer, migrationLogger).BlockingWait();
-
-                    var msg = "Completed migrating drive alias phase two.  You should now remove " +
-                              "flag --migration-drive-alias-phase-two from docker-compose.yml " +
-                              "and restart.  Remember to update tenant services with right drive manager";
-                    
-                    logger.LogInformation(msg);
-                    Console.WriteLine(msg);
-                    
-                    lifetime.StopApplication();
                 }
             });
 
