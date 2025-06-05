@@ -237,6 +237,7 @@ namespace Odin.Hosting.Tests
             CreateLogs();
 
             _webserver = Program.CreateHostBuilder([]).Build();
+            _webserver.BeforeApplicationStarting([]);
             _webserver.Start();
 
             if (setupOwnerAccounts)
@@ -264,6 +265,7 @@ namespace Odin.Hosting.Tests
             if (null != _webserver)
             {
                 _webserver.StopAsync().GetAwaiter().GetResult();
+                _webserver.AfterApplicationStopped();
                 _webserver.Dispose();
             }
 
