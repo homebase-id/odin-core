@@ -652,9 +652,7 @@ public static class HostExtensions
 
         // Set startWebServer false to NOT start the web server, when returning from this method.
         // e.g. if you have one-off cmdline migrations or some check went haywire.
-        var startWebServer = true;
-
-        startWebServer = !args.Contains("dont-start-the-web-server");
+        var startWebServer = host.ProcessCommandLineArgs(args);
 
         return startWebServer;
     }
@@ -692,5 +690,21 @@ public static class HostExtensions
         // DON'T PUT ANYTHING BELOW THIS LINE
         logger.LogDebug("Finished clean up in {method}", nameof(AfterApplicationStopped));
     }
+
+    //
+
+    // Returns true if the web server should be started, false if it should not.
+    private static bool ProcessCommandLineArgs(this IHost host, string[] args)
+    {
+        if (args.Contains("dont-start-the-web-server"))
+        {
+            // This is a one-off command example, don't start the web server.
+            return false;
+        }
+
+        return true;
+    }
+
+    //
 
 }
