@@ -656,11 +656,6 @@ public static class HostExtensions
 
         startWebServer = !args.Contains("dont-start-the-web-server");
 
-        if (!startWebServer)
-        {
-            host.AfterApplicationStopped();
-        }
-
         return startWebServer;
     }
 
