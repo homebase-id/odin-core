@@ -557,7 +557,8 @@ public class PeerDriveQueryService(
         
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
-            throw new OdinSystemException($"Unhandled peer error response from [{odinId}]: {response.StatusCode}");
+            logger.LogWarning("Unhandled peer error response from [{odinId}]: {response.StatusCode}", odinId, response.StatusCode);
+            throw new OdinClientException($"Unhandled peer error response from [{odinId}]: {response.StatusCode}");
         }
     }
 

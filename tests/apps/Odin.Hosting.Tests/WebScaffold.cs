@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -240,10 +241,16 @@ namespace Odin.Hosting.Tests
 
             if (setupOwnerAccounts)
             {
-                foreach (var odinId in TestIdentities.All.Keys)
+                // foreach (var odinId in TestIdentities.All.Keys)
+                // {
+                //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
+                // }
+                
+                Parallel.ForEach(TestIdentities.All.Keys, odinId =>
                 {
                     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
-                }
+                });
+
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);
