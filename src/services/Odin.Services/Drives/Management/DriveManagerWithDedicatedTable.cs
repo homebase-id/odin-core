@@ -33,11 +33,6 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     private readonly IMediator _mediator;
     private readonly TenantContext _tenantContext;
     private readonly TableDrives _tableDrives;
-    private readonly TableKeyThreeValue _tblKeyThreeValue;
-
-    private static readonly ThreeKeyValueStorage
-        DriveStorage = TenantSystemStorage.CreateThreeKeyValueStorage(DriveManager.DriveContextKey);
-
 
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
@@ -46,15 +41,13 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         SharedConcurrentDictionary<DriveManagerWithDedicatedTable, Guid, StorageDrive> driveCache,
         IMediator mediator,
         TenantContext tenantContext,
-        TableDrives tableDrives,
-        TableKeyThreeValue tblKeyThreeValue)
+        TableDrives tableDrives)
     {
         _logger = logger;
         _driveCache = driveCache;
         _mediator = mediator;
         _tenantContext = tenantContext;
         _tableDrives = tableDrives;
-        _tblKeyThreeValue = tblKeyThreeValue;
     }
 
     public async Task<StorageDrive> CreateDriveFromClassicDriveManagerAsync(StorageDriveBase storageDriveBase)
@@ -360,30 +353,6 @@ public class DriveManagerWithDedicatedTable : IDriveManager
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
-
-    internal async Task<int> MigrateDrivesFromClassDriveManager()
-    {
-        int count = 0;
-        var oldDrives = await DriveStorage.GetByCategoryAsync<StorageDriveBase>(_tblKeyThreeValue, DriveManager.DriveDataType);
-
-
-        if (!oldDrives?.Any() ?? false)
-        {
-            _logger.LogWarning("MigrateDrivesFromClassDriveManager -> no drives in old drive manager");
-        }
-
-        foreach (var oldDrive in oldDrives)
-        {
-            await CreateDriveFromClassicDriveManagerAsync(oldDrive);
-            _logger.LogInformation("Copying drive {name}", oldDrive.Name);
-            count++;
-        }
-
-        return count;
-    }
-
-    //
-
 
     private async Task<StorageDrive> GetDriveInternal(Guid driveId)
     {
