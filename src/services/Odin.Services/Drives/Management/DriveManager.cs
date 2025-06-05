@@ -25,10 +25,10 @@ namespace Odin.Services.Drives.Management;
 /// <summary>
 /// Manages drive creation, metadata updates, and their overall definitions
 /// </summary>
-public class DriveManagerWithDedicatedTable : IDriveManager
+public class DriveManager : IDriveManager
 {
-    private readonly ILogger<DriveManagerWithDedicatedTable> _logger;
-    private readonly SharedConcurrentDictionary<DriveManagerWithDedicatedTable, Guid, StorageDrive> _driveCache;
+    private readonly ILogger<DriveManager> _logger;
+    private readonly SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> _driveCache;
 
     private readonly IMediator _mediator;
     private readonly TenantContext _tenantContext;
@@ -37,8 +37,8 @@ public class DriveManagerWithDedicatedTable : IDriveManager
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
     /// </summary>
-    public DriveManagerWithDedicatedTable(ILogger<DriveManagerWithDedicatedTable> logger,
-        SharedConcurrentDictionary<DriveManagerWithDedicatedTable, Guid, StorageDrive> driveCache,
+    public DriveManager(ILogger<DriveManager> logger,
+        SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> driveCache,
         IMediator mediator,
         TenantContext tenantContext,
         TableDrives tableDrives)
