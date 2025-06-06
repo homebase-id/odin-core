@@ -591,7 +591,7 @@ public static class HostExtensions
 {
     private static bool _didCleanUp;
 
-    public static bool BeforeApplicationStarting(this IHost host, string[] args)
+    public static IHost BeforeApplicationStarting(this IHost host, string[] args)
     {
         _didCleanUp = false;
 
@@ -650,20 +650,16 @@ public static class HostExtensions
         //
         logger.LogDebug("Finished initialization in {method}", nameof(BeforeApplicationStarting));
 
-        // Set startWebServer false to NOT start the web server, when returning from this method.
-        // e.g. if you have one-off cmdline migrations or some check went haywire.
-        var startWebServer = host.ProcessCommandLineArgs(args);
-
-        return startWebServer;
+        return host;
     }
 
     //
 
-    public static void AfterApplicationStopped(this IHost host)
+    public static IHost AfterApplicationStopped(this IHost host)
     {
         if (_didCleanUp)
         {
-            return;
+            return host;
         }
         _didCleanUp = true;
 
@@ -687,14 +683,16 @@ public static class HostExtensions
         //
         services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
 
-        // DON'T PUT ANYTHING BELOW THIS LINE
+        // DON'T PUT ANY CLEANUP BELOW THIS LINE
         logger.LogDebug("Finished clean up in {method}", nameof(AfterApplicationStopped));
+
+        return host;
     }
 
     //
 
     // Returns true if the web server should be started, false if it should not.
-    private static bool ProcessCommandLineArgs(this IHost host, string[] args)
+    public static bool ProcessCommandLineArgs(this IHost host, string[] args)
     {
         if (args.Contains("dont-start-the-web-server"))
         {

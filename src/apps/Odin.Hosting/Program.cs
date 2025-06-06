@@ -52,8 +52,8 @@ namespace Odin.Hosting
                 try
                 {
                     Log.Information("Identity-host version: {Version}", Version.VersionText);
-                    var host = CreateHostBuilder(args).Build();
-                    if (host.BeforeApplicationStarting(args))
+                    var host = CreateHostBuilder(args).Build().BeforeApplicationStarting(args);
+                    if (host.ProcessCommandLineArgs(args))
                     {
                         Log.Information("Starting web host");
                         host.Run();
@@ -74,6 +74,10 @@ namespace Odin.Hosting
                 return 0;
             }
         }
+
+        //
+
+
 
         //
 
