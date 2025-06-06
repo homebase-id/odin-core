@@ -267,6 +267,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
                 OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry);
 
+                await Task.Delay(5);
+
                 // crucial - it should return in query modified so apps can sync locally
                 var queryModifiedResponse = await svc.GetModified(new QueryModifiedRequest()
                 {

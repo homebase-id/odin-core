@@ -195,6 +195,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                     ResultOptions = resultOptions
                 };
 
+                await Task.Delay(5);
+
                 var getModifiedResponse = await svc.GetModified(request);
                 ClassicAssert.IsTrue(getModifiedResponse.IsSuccessStatusCode, $"Failed status code.  Value was {getModifiedResponse.StatusCode}");
                 var batch = getModifiedResponse.Content;
