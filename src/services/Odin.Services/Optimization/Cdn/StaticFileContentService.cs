@@ -43,21 +43,21 @@ public class StaticFileContentService
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _staticFileConfigStorage;
-    private readonly DriveFileReaderWriter _driveFileReaderWriter;
+    private readonly FileReaderWriter _fileReaderWriter;
     private readonly TableKeyValue _tableKeyValue;
 
     public StaticFileContentService(
         TenantContext tenantContext,
         IDriveManager driveManager,
         StandardFileSystem fileSystem,
-        DriveFileReaderWriter driveFileReaderWriter,
+        FileReaderWriter driveFileReaderWriter,
         TableKeyValue tableKeyValue)
     {
         _tenantContext = tenantContext;
 
         _driveManager = driveManager;
         _fileSystem = fileSystem;
-        _driveFileReaderWriter = driveFileReaderWriter;
+        _fileReaderWriter = driveFileReaderWriter;
         _tableKeyValue = tableKeyValue;
 
         const string staticFileContextKey = "3609449a-2f7f-4111-b300-3408a920aa2e";
@@ -159,9 +159,9 @@ public class StaticFileContentService
 
         var ms = new MemoryStream();
         await OdinSystemSerializer.Serialize(ms, sectionOutputList, sectionOutputList.GetType());
-        string finalTargetPath = Path.Combine(targetFolder, filename);
+        var finalTargetPath = Path.Combine(targetFolder, filename);
         ms.Seek(0L, SeekOrigin.Begin);
-        var bytesWritten = _driveFileReaderWriter.WriteStreamAsync(finalTargetPath, ms);
+        await _fileReaderWriter.WriteStreamAsync(finalTargetPath, ms);
 
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
@@ -180,7 +180,7 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         var imageBytes = Convert.FromBase64String(image64);
-        await _driveFileReaderWriter.WriteAllBytesAsync(finalTargetPath, imageBytes);
+        await _fileReaderWriter.WriteAllBytesAsync(finalTargetPath, imageBytes);
 
         var config = new StaticFileConfiguration()
         {
@@ -200,7 +200,7 @@ public class StaticFileContentService
         string targetFolder = EnsurePath();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        await _driveFileReaderWriter.WriteStringAsync(finalTargetPath, json);
+        await _fileReaderWriter.WriteStringAsync(finalTargetPath, json);
 
         var config = new StaticFileConfiguration()
         {
@@ -239,14 +239,14 @@ public class StaticFileContentService
             }
         }
 
-        var fileStream = _driveFileReaderWriter.OpenStreamForReading(targetFile);
+        var fileStream = _fileReaderWriter.OpenStreamForReading(targetFile);
         return (config, fileExists: true, fileStream);
     }
 
     private string EnsurePath()
     {
         string targetFolder = _tenantContext.TenantPathManager.StaticPath;
-        _driveFileReaderWriter.CreateDirectory(targetFolder);
+        _fileReaderWriter.CreateDirectory(targetFolder);
         return targetFolder;
     }
 

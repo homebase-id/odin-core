@@ -57,7 +57,6 @@ using Odin.Services.Configuration.VersionUpgrade.Version2tov3;
 using Odin.Services.Configuration.VersionUpgrade.Version3tov4;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.DriveCore.Storage.Gugga;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Fingering;
 using Odin.Services.LinkMetaExtractor;
@@ -193,7 +192,7 @@ public static class TenantServices
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
-        cb.RegisterType<OrphanTestUtil>().InstancePerLifetimeScope();
+        // cb.RegisterType<OrphanTestUtil>().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().InstancePerLifetimeScope();
 
@@ -313,7 +312,7 @@ public static class TenantServices
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
-
+        
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
 
@@ -323,7 +322,15 @@ public static class TenantServices
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
 
-        cb.RegisterType<Defragmenter>().InstancePerLifetimeScope();
+        // Payload storage
+        if (odinConfig.S3PayloadStorage.Enabled)
+        {
+            cb.RegisterType<PayloadS3ReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
+        }
+        else
+        {
+            cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
+        }
     }
 
     //

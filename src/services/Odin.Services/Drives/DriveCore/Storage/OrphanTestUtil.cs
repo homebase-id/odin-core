@@ -1,3 +1,5 @@
+#if false
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,8 +15,8 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 public class OrphanTestUtil(
     ILogger<OrphanTestUtil> logger,
-    DriveFileReaderWriter driveFileReaderWriter,
-    IDriveManager driveManager,
+    IPayloadReaderWriter payloadReaderWriter,
+    DriveManager driveManager,
     TenantContext tenantContext
     )
 {
@@ -77,7 +79,7 @@ public class OrphanTestUtil(
 
         var expectedThumbnails = payloadDescriptor.Thumbnails?.ToList() ?? [];
         var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-        if (driveFileReaderWriter.DirectoryExists(dir))
+        if (payloadReaderWriter.DirectoryExists(dir))
         {
             return [];
         }
@@ -129,3 +131,5 @@ public class OrphanTestUtil(
         return Directory.GetFiles(dir!, searchPattern);
     }
 }
+
+#endif

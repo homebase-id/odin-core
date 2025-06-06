@@ -14,7 +14,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
     /// </summary>
     public class UploadStorageManager(
-        DriveFileReaderWriter driveFileReaderWriter,
+        FileReaderWriter fileReaderWriter,
         IDriveManager driveManager,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
@@ -24,7 +24,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<bool> TempFileExists(TempFile tempFile, string extension)
         {
             string path = await GetTempFilenameAndPathInternal(tempFile, extension);
-            return driveFileReaderWriter.FileExists(path);
+            return fileReaderWriter.FileExists(path);
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string path = await GetTempFilenameAndPathInternal(tempFile, extension);
 
             logger.LogDebug("Getting temp file bytes for [{path}]", path);
-            var bytes = await driveFileReaderWriter.GetAllFileBytesAsync(path);
+            var bytes = await fileReaderWriter.GetAllFileBytesAsync(path);
             logger.LogDebug("Got {count} bytes from {path}", bytes.Length, path);
             return bytes;
         }
@@ -47,7 +47,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             string path = await GetTempFilenameAndPathInternal(tempFile, extension, true);
             logger.LogDebug("Writing temp file: {filePath}", path);
-            var bytesWritten = await driveFileReaderWriter.WriteStreamAsync(path, stream);
+            var bytesWritten = await fileReaderWriter.WriteStreamAsync(path, stream);
             if (bytesWritten == 0)
             {
                 // Sanity #1
@@ -82,7 +82,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             ];
 
             // clean up the transfer header and metadata since we keep those in the inbox
-            driveFileReaderWriter.DeleteFiles(additionalFiles);
+            fileReaderWriter.DeleteFiles(additionalFiles);
         }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     });
                 });
 
-                driveFileReaderWriter.DeleteFiles(targetFiles);
+                fileReaderWriter.DeleteFiles(targetFiles);
             }
             catch (Exception e)
             {

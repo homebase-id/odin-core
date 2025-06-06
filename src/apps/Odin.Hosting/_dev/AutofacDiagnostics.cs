@@ -40,14 +40,13 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Certificate.CertificateServiceFactory), "8a3e1c27"},
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
-        {typeof(Odin.Services.Drives.DriveCore.Storage.DriveFileReaderWriter), "d78f7501"},
+        {typeof(Odin.Services.Drives.DriveCore.Storage.FileReaderWriter), "d78f7501"},
         {typeof(Odin.Services.Registry.IIdentityRegistry), "f13e00fd"},
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationUniqueIdGenerator), "e6f1c919"},
-        {typeof(Odin.Core.Storage.ObjectStorage.IS3PayloadStorage), "e50a0714"},
-        {typeof(Odin.Core.Storage.ObjectStorage.S3PayloadStorage), "e50a0714"},
+        {typeof(Odin.Core.Storage.ObjectStorage.IS3PayloadStorage), "0dddfbe1"},
     };
 
     //
