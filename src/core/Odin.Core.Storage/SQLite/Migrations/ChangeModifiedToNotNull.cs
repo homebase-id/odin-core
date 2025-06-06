@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.System;
 
 namespace Odin.Core.Storage.SQLite.Migrations;
 
@@ -62,6 +63,22 @@ namespace Odin.Core.Storage.SQLite.Migrations;
 
 public static class ChangeModifiedToNotNull
 {
+    public static async Task ExecuteAsync(SystemDatabase db)
+    {
+        await using var tx = await db.BeginStackedTransactionAsync();
+
+        var command = tx.CreateCommand();
+
+        command.CommandText =
+            """
+            UPDATE Jobs SET modified = created WHERE modified IS NULL;
+            """;
+
+        await command.ExecuteNonQueryAsync();
+
+        tx.Commit();
+    }
+
     public static async Task ExecuteAsync(IdentityDatabase db)
     {
         await using var tx = await db.BeginStackedTransactionAsync();
@@ -70,8 +87,16 @@ public static class ChangeModifiedToNotNull
 
         command.CommandText =
             """
-            -- TODO
+            UPDATE Drives SET modified = created WHERE modified IS NULL;
+            UPDATE DriveMainIndex SET modified = created WHERE modified IS NULL;
+            UPDATE AppNotifications SET modified = created WHERE modified IS NULL;
+            UPDATE Connections SET modified = created WHERE modified IS NULL;
+            UPDATE ImFollowing SET modified = created WHERE modified IS NULL;
+            UPDATE FollowsMe SET modified = created WHERE modified IS NULL;
+            UPDATE Inbox SET modified = created WHERE modified IS NULL;
+            UPDATE Outbox SET modified = created WHERE modified IS NULL;
             """;
+
         await command.ExecuteNonQueryAsync();
 
         tx.Commit();

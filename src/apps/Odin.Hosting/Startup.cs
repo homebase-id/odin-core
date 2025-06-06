@@ -704,6 +704,9 @@ public static class HostExtensions
 
         if (args.Length > 0 && args[0] == "--change-modified-not-null")
         {
+            var systemDatabase = host.Services.GetRequiredService<SystemDatabase>();
+            ChangeModifiedToNotNull.ExecuteAsync(systemDatabase).BlockingWait();
+
             var multitenantContainer = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
             var registry = host.Services.GetRequiredService<IIdentityRegistry>();
             var registrations = registry.GetTenants().Result;
