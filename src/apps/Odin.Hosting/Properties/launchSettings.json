@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": "--migration-drive-alias-phase-one"
+      "commandLineArgs": ""
     }
   }
 }
