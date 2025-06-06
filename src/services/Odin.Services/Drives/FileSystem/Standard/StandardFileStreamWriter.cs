@@ -22,7 +22,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         StandardFileSystem fileSystem,
         TenantContext tenantContext,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         ILogger<StandardFileStreamWriter> logger)
         : base(fileSystem, tenantContext, driveManager, peerOutgoingTransferService, logger)
     {

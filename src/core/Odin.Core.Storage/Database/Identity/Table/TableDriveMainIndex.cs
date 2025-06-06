@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -19,6 +20,11 @@ public class TableDriveMainIndex(
     : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
+
+    public async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId)
+    {
+        return await base.GetAllByDriveIdAsync(odinIdentity, driveId);
+    }
 
     public async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
     {
@@ -60,7 +66,7 @@ public class TableDriveMainIndex(
 
     public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
-        return base.ReadRecordFromReader2(rdr, odinIdentity.Id, driveId);
+        return base.ReadRecordFromReader0(rdr, odinIdentity.Id, driveId);
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
@@ -85,7 +91,7 @@ public class TableDriveMainIndex(
         // If it is a new file, and the caller likely didn't set a VersionTag, we'll assign it the new version
         if (item.hdrVersionTag == Guid.Empty)
             item.hdrVersionTag = useThisNewVersionTag.Value;
-        
+
         item.hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
         item.hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
 
@@ -230,7 +236,7 @@ public class TableDriveMainIndex(
                 item.modified = new UnixTimeUtc(modified);
 
                 if (modified != created)
-                    item.hdrVersionTag = useThisNewVersionTag.Value; // XXX Check
+                    item.hdrVersionTag = useThisNewVersionTag.Value;
 
                 item.rowId = (long)rdr[2];
                 return 1;
@@ -238,13 +244,62 @@ public class TableDriveMainIndex(
             else
             {
                 throw new OdinClientException($"Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
-                // throw new OdinDatabaseVersionTagMismatchException(DatabaseType.Unknown, $"Mismatching version tag {item.hdrVersionTag}");
             }
         }
 
         // Unreachable return 0;
     }
 
+    
+    
+    public virtual async Task<int> Temp_ResetDriveIdToAlias(DriveMainIndexRecord item)
+    {
+        item.identityId = odinIdentity;
+        
+        item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+        item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var upsertCommand = cn.CreateCommand();
+        await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
+        
+        upsertCommand.CommandText = @"
+        UPDATE driveMainIndex
+            SET
+                hdrFileMetaData = @hdrFileMetaData
+            WHERE identityId = @identityId
+              AND driveId = @driveId
+              AND fileId = @fileId";
+        
+        // Key
+        var upsertParam1 = upsertCommand.CreateParameter();
+        upsertParam1.ParameterName = "@identityId";
+        upsertCommand.Parameters.Add(upsertParam1);
+        var upsertParam2 = upsertCommand.CreateParameter();
+        upsertParam2.ParameterName = "@driveId";
+        upsertCommand.Parameters.Add(upsertParam2);
+        var upsertParam3 = upsertCommand.CreateParameter();
+        upsertParam3.ParameterName = "@fileId";
+        upsertCommand.Parameters.Add(upsertParam3);
+        
+        // the only thing I need to change
+        var upsertParam25 = upsertCommand.CreateParameter();
+        upsertParam25.ParameterName = "@hdrFileMetaData";
+        upsertCommand.Parameters.Add(upsertParam25);
+        
+        upsertParam1.Value = item.identityId.ToByteArray();
+        upsertParam2.Value = item.driveId.ToByteArray();
+        upsertParam3.Value = item.fileId.ToByteArray();
+        
+        upsertParam25.Value = item.hdrFileMetaData;
+        
+        int rowsAffected = await upsertCommand.ExecuteNonQueryAsync();
+        return rowsAffected;
+        
+    }
+    
+    
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -312,11 +367,11 @@ public class TableDriveMainIndex(
             if (await rdr.ReadAsync())
             {
                 var modified = (rdr[0] == DBNull.Value) ? 0 : (Int64)rdr[0];
-                return (1,modified);
+                return (1, modified);
             }
         }
 
-        return (0,0);
+        return (0, 0);
     }
 
     public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
@@ -347,7 +402,7 @@ public class TableDriveMainIndex(
         {
             if (await rdr.ReadAsync())
             {
-                var count = (rdr[0] == DBNull.Value) ? 0 : (Int64) rdr[0];
+                var count = (rdr[0] == DBNull.Value) ? 0 : (Int64)rdr[0];
                 var size = (rdr[1] == DBNull.Value) ? 0 : (Int64)rdr[1];
                 return (count, size);
             }

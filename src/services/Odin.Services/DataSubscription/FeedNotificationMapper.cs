@@ -26,7 +26,7 @@ namespace Odin.Services.DataSubscription
     /// </summary>
     public class FeedNotificationMapper(
         ILogger<FeedNotificationMapper> logger,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         PushNotificationService pushNotificationService,
         TenantContext tenantContext)
         : INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<NewFeedItemReceived>,

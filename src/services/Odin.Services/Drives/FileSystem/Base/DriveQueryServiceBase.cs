@@ -25,7 +25,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         protected DriveQueryServiceBase(
             ILogger logger,
-            DriveManager driveManager,
+            IDriveManager driveManager,
             DriveQuery driveQuery,
             DriveStorageServiceBase storage,
             IdentityDatabase db
@@ -38,7 +38,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             _db = db;
         }
 
-        protected override DriveManager DriveManager { get; }
+        protected override IDriveManager DriveManager { get; }
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages

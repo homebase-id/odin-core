@@ -25,7 +25,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [ApiController]
     [Route(PeerApiPathConstants.DriveV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
-    public class PeerIncomingDriveQueryController(DriveManager driveManager) : OdinControllerBase
+    public class PeerIncomingDriveQueryController(IDriveManager driveManager) : OdinControllerBase
     {
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)

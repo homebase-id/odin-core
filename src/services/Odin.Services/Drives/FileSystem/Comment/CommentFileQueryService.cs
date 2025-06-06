@@ -15,7 +15,7 @@ namespace Odin.Services.Drives.FileSystem.Comment
     {
         public CommentFileQueryService(
             ILogger<CommentFileQueryService> logger,
-            DriveManager driveManager,
+            IDriveManager driveManager,
             DriveQuery driveQuery,
             CommentFileStorageService commentStorage, IdentityDatabase db) :
             base(logger, driveManager, driveQuery, commentStorage, db)

@@ -16,7 +16,7 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
     public CommentFileUpdateWriter(
         CommentFileSystem fileSystem,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        DriveManager driveManager)
+        IDriveManager driveManager)
         : base(fileSystem, driveManager, peerOutgoingTransferService)
     {
     }

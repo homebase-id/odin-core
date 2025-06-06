@@ -711,7 +711,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var targetDrive = new TargetDrive()
             {
-                Alias = Guid.Parse("99888555-0000-0000-0000-000000004445"),
+                Alias = Guid.NewGuid(),
                 Type = Guid.NewGuid()
             };
 

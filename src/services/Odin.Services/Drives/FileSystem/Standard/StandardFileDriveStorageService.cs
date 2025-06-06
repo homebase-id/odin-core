@@ -17,7 +17,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
         ILoggerFactory loggerFactory,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
         OrphanTestUtil orphanTestUtil,

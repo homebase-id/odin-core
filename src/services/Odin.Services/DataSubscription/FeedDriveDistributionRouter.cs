@@ -33,7 +33,7 @@ namespace Odin.Services.DataSubscription
     public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
         private readonly FollowerService _followerService;
-        private readonly DriveManager _driveManager;
+        private readonly IDriveManager _driveManager;
         private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
         private readonly TenantContext _tenantContext;
         private readonly CircleNetworkService _circleNetworkService;
@@ -50,7 +50,7 @@ namespace Odin.Services.DataSubscription
         public FeedDriveDistributionRouter(
             FollowerService followerService,
             PeerOutgoingTransferService peerOutgoingTransferService,
-            DriveManager driveManager,
+            IDriveManager driveManager,
             TenantContext tenantContext,
             CircleNetworkService circleNetworkService,
             IDriveAclAuthorizationService driveAcl,

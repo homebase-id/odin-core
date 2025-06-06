@@ -36,7 +36,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         ILoggerFactory loggerFactory,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
-        DriveManager driveManager,
+        IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
         OrphanTestUtil orphanTestUtil,
@@ -44,7 +44,7 @@ namespace Odin.Services.Drives.FileSystem.Base
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
-        protected override DriveManager DriveManager { get; } = driveManager;
+        protected override IDriveManager DriveManager { get; } = driveManager;
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> of which the inheriting class manages
