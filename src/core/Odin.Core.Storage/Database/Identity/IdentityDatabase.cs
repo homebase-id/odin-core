@@ -39,75 +39,97 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableDrives)
     ];
 
-    //
-    // Put all database table caches alphabetically here.
-    // Don't forget to add the cache to the lazy properties as well.
-    //
-    public static readonly ImmutableList<Type> TableCacheTypes = [
-        typeof(TableKeyValueCache),
-    ];
-
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
 
     //
     // Table convenience properties
     //
+
+    // AppGrants
     private Lazy<TableAppGrants> _appGrants;
     public TableAppGrants AppGrants => LazyResolve(ref _appGrants);
+
+    // AppNotifications
     private Lazy<TableAppNotifications> _appNotifications;
     public TableAppNotifications AppNotifications => LazyResolve(ref _appNotifications);
+
+    // Circle
     private Lazy<TableCircle> _circle;
     public TableCircle Circle => LazyResolve(ref _circle);
+
+    // CircleMember
     private Lazy<TableCircleMember> _circleMember;
     public TableCircleMember CircleMember => LazyResolve(ref _circleMember);
+
+    // Connections
     private Lazy<TableConnections> _connections;
     public TableConnections Connections => LazyResolve(ref _connections);
+
+    // DriveAclIndex
     private Lazy<TableDriveAclIndex> _driveAclIndex;
-
     public TableDriveAclIndex DriveAclIndex => LazyResolve(ref _driveAclIndex);
-    private Lazy<TableDriveMainIndex> _driveMainIndex;
-    public TableDriveMainIndex DriveMainIndex => LazyResolve(ref _driveMainIndex);
-    private Lazy<TableDriveReactions> _driveReactions;
 
-    private Lazy<TableDriveTagIndex> _driveTagIndex;
-    public TableDriveTagIndex DriveTagIndex => LazyResolve(ref _driveTagIndex);
-
+    // DriveLocalTagIndex
     private Lazy<TableDriveLocalTagIndex> _driveLocalTagIndex;
     public TableDriveLocalTagIndex DriveLocalTagIndex => LazyResolve(ref _driveLocalTagIndex);
 
-    public TableDriveReactions DriveReactions => LazyResolve(ref _driveReactions);
-    private Lazy<TableFollowsMe> _followsMe;
-    public TableFollowsMe FollowsMe => LazyResolve(ref _followsMe);
-    private Lazy<TableImFollowing> _imFollowing;
-    public TableImFollowing ImFollowing => LazyResolve(ref _imFollowing);
-    private Lazy<TableInbox> _inbox;
-    public TableInbox Inbox => LazyResolve(ref _inbox);
-    private Lazy<TableKeyThreeValue> _keyThreeValue;
-    public TableKeyThreeValue KeyThreeValue => LazyResolve(ref _keyThreeValue);
-    private Lazy<TableKeyTwoValue> _keyTwoValue;
-    public TableKeyTwoValue KeyTwoValue => LazyResolve(ref _keyTwoValue);
-    private Lazy<TableKeyUniqueThreeValue> _keyUniqueThreeValue;
-    public TableKeyUniqueThreeValue KeyUniqueThreeValue => LazyResolve(ref _keyUniqueThreeValue);
-    private Lazy<TableKeyValue> _keyValue;
-    public TableKeyValue KeyValue => LazyResolve(ref _keyValue);
-    private Lazy<TableOutbox> _outbox;
-    public TableOutbox Outbox => LazyResolve(ref _outbox);
+    // DriveMainIndex
+    private Lazy<TableDriveMainIndex> _driveMainIndex;
+    public TableDriveMainIndex DriveMainIndex => LazyResolve(ref _driveMainIndex);
 
+    // DriveReactions
+    private Lazy<TableDriveReactions> _driveReactions;
+    public TableDriveReactions DriveReactions => LazyResolve(ref _driveReactions);
+
+    // Drives
     private Lazy<TableDrives> _driveDefinitions;
     public TableDrives Drives => LazyResolve(ref _driveDefinitions);
 
-    //
-    // Table cache convenience properties
-    //
-    private Lazy<TableKeyValueCache> _keyValueCache;
-    public TableKeyValueCache KeyValueCache => LazyResolve(ref _keyValueCache);
+    // DriveTagIndex
+    private Lazy<TableDriveTagIndex> _driveTagIndex;
+    public TableDriveTagIndex DriveTagIndex => LazyResolve(ref _driveTagIndex);
 
-    private Lazy<TableDriveTransferHistory> _tableDriveTransferHistory;
-    public TableDriveTransferHistory TableDriveTransferHistory => LazyResolve(ref _tableDriveTransferHistory);
+    // DriveTransferHistory
+    private Lazy<TableDriveTransferHistory> _driveTransferHistory;
+    public TableDriveTransferHistory DriveTransferHistory => LazyResolve(ref _driveTransferHistory);
+
+    // FollowsMe
+    private Lazy<TableFollowsMe> _followsMe;
+    public TableFollowsMe FollowsMe => LazyResolve(ref _followsMe);
+
+    // ImFollowing
+    private Lazy<TableImFollowing> _imFollowing;
+    public TableImFollowing ImFollowing => LazyResolve(ref _imFollowing);
+
+    // Inbox
+    private Lazy<TableInbox> _inbox;
+    public TableInbox Inbox => LazyResolve(ref _inbox);
+
+    // KeyThreeValue
+    private Lazy<TableKeyThreeValue> _keyThreeValue;
+    public TableKeyThreeValue KeyThreeValue => LazyResolve(ref _keyThreeValue);
+
+    // KeyTwoValue
+    private Lazy<TableKeyTwoValue> _keyTwoValue;
+    public TableKeyTwoValue KeyTwoValue => LazyResolve(ref _keyTwoValue);
+
+    // KeyUniqueThreeValue
+    private Lazy<TableKeyUniqueThreeValue> _keyUniqueThreeValue;
+    public TableKeyUniqueThreeValue KeyUniqueThreeValue => LazyResolve(ref _keyUniqueThreeValue);
+
+    // KeyValue
+    private Lazy<TableKeyValue> _keyValue;
+    public TableKeyValue KeyValue => LazyResolve(ref _keyValue);
+
+    // Outbox
+    private Lazy<TableOutbox> _outbox;
+    public TableOutbox Outbox => LazyResolve(ref _outbox);
 
     //
-    // Abstraction convenience properties (resolved, not injected)
+    // Abstraction convenience properties
     //
+
+    // MainIndexMeta
     private Lazy<MainIndexMeta> _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
 

@@ -24,7 +24,7 @@ namespace Odin.Services.Configuration
         public DevelopmentSection Development { get; init; }
 
         public LoggingSection Logging { get; init; }
-        public JobSection Job { get; init; }
+        public BackgroundServicesSection BackgroundServices { get; init; }
         public CertificateRenewalSection CertificateRenewal { get; init; }
 
         public MailgunSection Mailgun { get; init; }
@@ -50,7 +50,7 @@ namespace Odin.Services.Configuration
         {
             Host = new HostSection(config);
             Logging = new LoggingSection(config);
-            Job = new JobSection(config);
+            BackgroundServices = new BackgroundServicesSection(config);
             Registry = new RegistrySection(config);
             Mailgun = new MailgunSection(config);
             Admin = new AdminSection(config);
@@ -287,26 +287,26 @@ namespace Odin.Services.Configuration
 
         //
 
-        public class JobSection
+        public class BackgroundServicesSection
         {
             public int EnsureCertificateProcessorIntervalSeconds { get; init; }
             public int InboxOutboxReconciliationIntervalSeconds { get; init; }
             public int JobCleanUpIntervalSeconds { get; init; }
-            public bool SystemJobsEnabled { get; init; }
-            public bool TenantJobsEnabled { get; init; }
+            public bool SystemBackgroundServicesEnabled { get; init; }
+            public bool TenantBackgroundServicesEnabled { get; init; }
 
-            public JobSection()
+            public BackgroundServicesSection()
             {
                 // Mockable support
             }
 
-            public JobSection(IConfiguration config)
+            public BackgroundServicesSection(IConfiguration config)
             {
-                EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Job:EnsureCertificateProcessorIntervalSeconds");
-                InboxOutboxReconciliationIntervalSeconds = config.Required<int>("Job:InboxOutboxReconciliationIntervalSeconds");
-                JobCleanUpIntervalSeconds = config.Required<int>("Job:JobCleanUpIntervalSeconds");
-                SystemJobsEnabled = config.GetOrDefault("Job:SystemJobsEnabled", true);
-                TenantJobsEnabled = config.GetOrDefault("Job:TenantJobsEnabled", true);
+                EnsureCertificateProcessorIntervalSeconds = config.Required<int>("BackgroundServices:EnsureCertificateProcessorIntervalSeconds");
+                InboxOutboxReconciliationIntervalSeconds = config.Required<int>("BackgroundServices:InboxOutboxReconciliationIntervalSeconds");
+                JobCleanUpIntervalSeconds = config.Required<int>("BackgroundServices:JobCleanUpIntervalSeconds");
+                SystemBackgroundServicesEnabled = config.GetOrDefault("BackgroundServices:SystemBackgroundServicesEnabled", true);
+                TenantBackgroundServicesEnabled = config.GetOrDefault("BackgroundServices:TenantBackgroundServicesEnabled", true);
             }
         }
 

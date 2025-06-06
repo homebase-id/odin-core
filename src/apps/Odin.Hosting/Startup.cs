@@ -18,7 +18,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging;
@@ -29,6 +28,7 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
+using Odin.Core.Util;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
@@ -268,6 +268,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 _config.S3PayloadStorage.ForcePathStyle,
                 _config.S3PayloadStorage.BucketName);
         }
+
     }
 
     // ConfigureContainer is where you can register things directly
@@ -542,87 +543,32 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 });
         }
 
-
-        // SEB:TODO move this to somewhere else that runs BEFORE the application starts accepting requests
         lifetime.ApplicationStarted.Register(() =>
         {
-            var services = app.ApplicationServices;
-
-            // Create system database
-            var systemDatabase = services.GetRequiredService<SystemDatabase>();
-            systemDatabase.CreateDatabaseAsync().BlockingWait();
-
-            // Load identity registry
-            var registry = services.GetRequiredService<IIdentityRegistry>();
-            registry.LoadRegistrations().BlockingWait();
-            DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
-
-            // Check for singleton dependencies
-            if (env.IsDevelopment())
-            {
-                var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-                new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
-            }
-
-            // Sanity ping cache
-            logger.LogInformation("Level2CacheType: {Level2CacheType}", _config.Cache.Level2CacheType);
-            var cache = services.GetRequiredService<IGlobalLevel2Cache>();
-            cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
-            var pong = cache.TryGet<string>("ping");
-            if (pong != "pong")
-            {
-                throw new OdinSystemException("Cache sanity check failed");
-            }
-
-            // Ensure S3 bucket exists
-            logger.LogInformation("S3PayloadStorage enabled: {enabled}", _config.S3PayloadStorage.Enabled);
-            if (_config.S3PayloadStorage.Enabled)
-            {
-                logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
-                    _config.S3PayloadStorage.BucketName, _config.S3PayloadStorage.ServiceUrl);
-                var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
-                payloadBucket.CreateBucketAsync().BlockingWait();
-            }
-
-            // Start system background services
-            if (config.Job.SystemJobsEnabled)
-            {
-                services.StartSystemBackgroundServices().BlockingWait();
-            }
+            // NOTE:
+            // This is called AFTER the app has started and is accepting requests.
+            // If you want stuff done BEFORE the app starts accepting requests,
+            // put it in HostExtensions.PreApplicationStarted (below).
         });
 
         lifetime.ApplicationStopping.Register(() =>
         {
+            // NOTE:
+            // This is called BEFORE the app has stopped accepting requests.
+            // If you want stuff done AFTER the app stops accepting requests,
+            // put it in HostExtensions.PostApplicationStopped (below).
             logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",
                 config.Host.ShutdownTimeoutSeconds);
-
-            var services = app.ApplicationServices;
-
-            //
-            // Shutdown all tenant background services
-            //
-            services.ShutdownTenantBackgroundServices().BlockingWait();
-
-            //
-            // Shutdown system background services
-            //
-            services.ShutdownSystemBackgroundServices().BlockingWait();
-
-            //
-            // Wait for any registered fire-and-forget tasks to complete
-            //
-            services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
-
-            // DON'T PUT ANYTHING BELOW THIS LINE
-            logger.LogInformation("Background services stopped");
         });
 
         lifetime.ApplicationStopped.Register(() =>
         {
-            // DON'T PUT ANYTHING BELOW THIS LINE
-            logger.LogInformation("Application stopped");
+            var host = app.ApplicationServices.GetRequiredService<IHost>();
+            host.AfterApplicationStopped();
         });
     }
+
+    //
 
     private void PrepareEnvironment(OdinConfiguration cfg)
     {
@@ -639,4 +585,124 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             throw new OdinSystemException($"{nameof(section.CertificateAuthorityAssociatedEmail)} is not configured");
         }
     }
+}
+
+//
+
+public static class HostExtensions
+{
+    private static bool _didCleanUp;
+
+    public static IHost BeforeApplicationStarting(this IHost host, string[] args)
+    {
+        _didCleanUp = false;
+
+        var services = host.Services;
+        var logger = services.GetRequiredService<ILogger<Startup>>();
+        var config = services.GetRequiredService<OdinConfiguration>();
+
+        logger.LogDebug("Starting initialization in {method}", nameof(BeforeApplicationStarting));
+
+        // Create system database
+        var systemDatabase = services.GetRequiredService<SystemDatabase>();
+        systemDatabase.CreateDatabaseAsync().BlockingWait();
+
+        // Load identity registry
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        registry.LoadRegistrations().BlockingWait();
+        DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
+
+        // Check for singleton dependencies
+        if (Env.IsDevelopment())
+        {
+            var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+            new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
+        }
+
+        // Sanity ping cache
+        logger.LogInformation("Level2CacheType: {Level2CacheType}", config.Cache.Level2CacheType);
+        var cache = services.GetRequiredService<IGlobalLevel2Cache>();
+        cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
+        var pong = cache.TryGet<string>("ping");
+        if (pong != "pong")
+        {
+            throw new OdinSystemException("Cache sanity check failed");
+        }
+
+        // Ensure S3 bucket exists
+        logger.LogInformation("S3PayloadStorage enabled: {enabled}", config.S3PayloadStorage.Enabled);
+        if (config.S3PayloadStorage.Enabled)
+        {
+            logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
+                config.S3PayloadStorage.BucketName, config.S3PayloadStorage.ServiceUrl);
+            var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
+            payloadBucket.CreateBucketAsync().BlockingWait();
+        }
+
+        // Start system background services
+        if (config.BackgroundServices.SystemBackgroundServicesEnabled)
+        {
+            services.StartSystemBackgroundServices().BlockingWait();
+        }
+
+        //
+        // DON'T PUT ANY INITIALIZATION CODE BELOW THIS LINE
+        //
+        logger.LogDebug("Finished initialization in {method}", nameof(BeforeApplicationStarting));
+
+        return host;
+    }
+
+    //
+
+    public static IHost AfterApplicationStopped(this IHost host)
+    {
+        if (_didCleanUp)
+        {
+            return host;
+        }
+        _didCleanUp = true;
+
+        var services = host.Services;
+        var logger = services.GetRequiredService<ILogger<Startup>>();
+
+        logger.LogDebug("Starting clean up in {method}", nameof(AfterApplicationStopped));
+
+        //
+        // Shutdown all tenant background services
+        //
+        services.ShutdownTenantBackgroundServices().BlockingWait();
+
+        //
+        // Shutdown system background services
+        //
+        services.ShutdownSystemBackgroundServices().BlockingWait();
+
+        //
+        // Wait for any registered fire-and-forget tasks to complete
+        //
+        services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
+
+        // DON'T PUT ANY CLEANUP BELOW THIS LINE
+        logger.LogDebug("Finished clean up in {method}", nameof(AfterApplicationStopped));
+
+        return host;
+    }
+
+    //
+
+    // Returns true if the web server should be started, false if it should not.
+    public static bool ProcessCommandLineArgs(this IHost host, string[] args)
+    {
+        if (args.Contains("dont-start-the-web-server"))
+        {
+            // This is a one-off command example, don't start the web server.
+            return false;
+        }
+
+        return true;
+    }
+
+    //
+
 }
