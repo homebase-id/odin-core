@@ -78,7 +78,7 @@ public class JobManagerTests
             {
                 SystemDataRootPath = _tempPath
             },
-            Job = new OdinConfiguration.JobSection
+            BackgroundServices = new OdinConfiguration.BackgroundServicesSection
             {
                 JobCleanUpIntervalSeconds = 120
             }

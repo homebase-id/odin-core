@@ -583,7 +583,7 @@ namespace Odin.Hosting
                 }
 
                 // Start system background services
-                if (config.Job.SystemJobsEnabled)
+                if (config.BackgroundServices.SystemBackgroundServicesEnabled)
                 {
                     services.StartSystemBackgroundServices().BlockingWait();
                 }

@@ -18,7 +18,7 @@ public class UpdateCertificatesBackgroundService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var interval = TimeSpan.FromSeconds(odinConfig.Job.EnsureCertificateProcessorIntervalSeconds);
+        var interval = TimeSpan.FromSeconds(odinConfig.BackgroundServices.EnsureCertificateProcessorIntervalSeconds);
         
         while (!stoppingToken.IsCancellationRequested)
         {
