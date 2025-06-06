@@ -23,6 +23,8 @@ public class SystemDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<ISy
     //
     // Convenience properties
     //
+
+    // Jobs
     private Lazy<TableJobs> _jobs;
     public TableJobs Jobs => LazyResolve(ref _jobs);
 
