@@ -29,7 +29,6 @@ public static class DriveFileUtility
     // public const int MaxTinyThumbLength = 1 * 1024;  MOVED TO ThumbNailContent.MaxTinyThumbLength
 
 
-
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
@@ -177,7 +176,7 @@ public static class DriveFileUtility
         var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
         if (null == nextSizeUp)
         {
-            nextSizeUp = thumbs.LastOrDefault();
+            nextSizeUp = thumbs.MaxBy(g => g.PixelWidth);
             if (null == nextSizeUp)
             {
                 return null;
