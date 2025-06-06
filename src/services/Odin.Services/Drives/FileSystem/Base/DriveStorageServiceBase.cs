@@ -368,23 +368,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
         }
-
-        /*
-        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-
-            if (null == header)
-            {
-                _logger.LogDebug($"Permission check called on non-existing file {file}");
-                return false;
-            }
-
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
-        }
-        */
-
+        
         public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
         {
             if (null == header)
