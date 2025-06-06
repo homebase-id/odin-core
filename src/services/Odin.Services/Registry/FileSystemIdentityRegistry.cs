@@ -212,7 +212,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         CacheCertificate(registration);
         await InitializeOdinContextCache(registration);
-        if (_config.Job.TenantJobsEnabled)
+        if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
         {
             await StartBackgroundServices(registration);
         }
@@ -477,7 +477,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
                 CacheCertificate(registration);
                 await InitializeOdinContextCache(registration);
-                if (_config.Job.TenantJobsEnabled)
+                if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
                 {
                     await StartBackgroundServices(registration);
                 }
