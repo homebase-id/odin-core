@@ -261,16 +261,9 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
         private async Task<SharedSecretEncryptedFileHeader> LookupFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file)
         {
-            
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
-            {
-                Alias = file.TargetDrive.Alias,
-                Type = file.TargetDrive.Type
-            });
-
-            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-
+            var driveId = file.TargetDrive.Alias;
             WebOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
             var result = await queryService.GetFileByGlobalTransitId(driveId, file.GlobalTransitId, WebOdinContext, excludePreviewThumbnail: false);
             return result;
         }
@@ -278,7 +271,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private async Task<SharedSecretEncryptedFileHeader> LookupHeaderByUniqueId(Guid clientUniqueId, TargetDrive targetDrive)
         {
             
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(targetDrive);
+            var driveId = targetDrive.Alias;
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
             var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, WebOdinContext, excludePreviewThumbnail: false);
             return result;
