@@ -218,34 +218,19 @@ namespace Odin.Services.Base
             }
         }
 
-        /// <summary>
-        /// Returns the encryption key specific to this app.  This is only available
-        /// when the owner is making an HttpRequest.
-        /// </summary>
-        /// <returns></returns>
-        public bool HasDriveId(TargetDrive drive, out Guid? driveId)
-        {
-            if (null == drive)
-            {
-                throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
-            }
-
-            driveId = GetDriveIdInternal(drive);
-            return driveId.HasValue;
-        }
-
         public Guid GetDriveId(TargetDrive drive)
         {
-            OdinValidationUtils.AssertIsValidTargetDriveValue(drive);
-
-            var driveId = GetDriveIdInternal(drive);
-
-            if (driveId.HasValue)
-            {
-                return driveId.Value;
-            }
-
-            throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+            return drive.Alias;
+            // OdinValidationUtils.AssertIsValidTargetDriveValue(drive);
+            //
+            // var driveId = GetDriveIdInternal(drive);
+            //
+            // if (driveId.HasValue)
+            // {
+            //     return driveId.Value;
+            // }
+            //
+            // throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
 
         private Guid? GetDriveIdInternal(TargetDrive drive)

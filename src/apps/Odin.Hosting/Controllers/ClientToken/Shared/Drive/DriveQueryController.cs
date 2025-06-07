@@ -50,7 +50,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("batch")]
         public new async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
-            
             return await base.QueryBatch(request);
         }
 

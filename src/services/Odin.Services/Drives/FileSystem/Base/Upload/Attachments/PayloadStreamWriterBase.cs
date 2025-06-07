@@ -209,7 +209,7 @@ public abstract class PayloadStreamWriterBase
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = file.TargetDrive.Alias
         };
     }
 }

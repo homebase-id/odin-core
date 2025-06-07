@@ -49,9 +49,6 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
 
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)
     {
-        // var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-        // return grant != null && grant.PermissionedDrive.Permission.HasFlag(permission);
-
         if (null == _driveGrants)
         {
             return false;
