@@ -177,7 +177,7 @@ public class LinkPreviewService(
     {
         // logger.LogDebug("Try parse post file with channel key: [{ck}] postKey: [{pk}]", channelKey, postKey);
 
-        var (success, targetDrive, driveId) = await TryGetChannelDrive(channelKey, odinContext);
+        var (success, targetDrive) = await TryGetChannelDrive(channelKey, odinContext);
         if (!success)
         {
             return (false, null, null, null);
@@ -192,7 +192,7 @@ public class LinkPreviewService(
 
         var fileId = new InternalDriveFileId()
         {
-            DriveId = driveId.GetValueOrDefault(),
+            DriveId = targetDrive.Alias,
             FileId = postFile.FileId
         };
 
@@ -280,8 +280,6 @@ public class LinkPreviewService(
 
     private async Task<SharedSecretEncryptedFileHeader> FindPost(string postKey, IOdinContext odinContext, TargetDrive targetDrive)
     {
-        var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
-
         SharedSecretEncryptedFileHeader postFile;
         // if post is a guid, it is the Tag on a file
         if (Guid.TryParse(postKey, out var postIdAsTag))
@@ -305,7 +303,7 @@ public class LinkPreviewService(
                 IncludeTransferHistory = false
             };
 
-            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, options, odinContext);
+            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId: targetDrive.Alias, uid, options, odinContext);
             // logger.LogDebug("Searching for post with key [{pk}] using post as Slug: {uid}] result: {result}",
             //     postKey,
             //     uid,
@@ -334,13 +332,11 @@ public class LinkPreviewService(
             IncludeTransferHistory = false,
         };
 
-        var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
-        var result = await fileSystem.Query.GetBatch(driveId, qp, options, odinContext);
+        var result = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
         return result.SearchResults.FirstOrDefault();
     }
 
-    private async Task<(bool success, TargetDrive targetDrive, Guid? driveId)> TryGetChannelDrive(string channelKey,
-        IOdinContext odinContext)
+    private async Task<(bool success, TargetDrive targetDrive)> TryGetChannelDrive(string channelKey, IOdinContext odinContext)
     {
         TargetDrive targetDrive = null;
         if (Guid.TryParse(channelKey, out var channelId))
@@ -351,47 +347,41 @@ public class LinkPreviewService(
                 Alias = channelId,
                 Type = SystemDriveConstants.ChannelDriveType
             };
+
+            return (true, targetDrive);
         }
-        else
+
+        //look up slug
+        // get the channel drive on all drives of type SystemDriveConstants.ChannelDriveType
+        //chnl.fileMetadata.appData.content.slug === channelKey
+
+        var channelDrivesPage = await driveManager.GetDrivesAsync(
+            SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
+
+        foreach (var drive in channelDrivesPage.Results)
         {
-            //look up slug
-            // get the channel drive on all drives of type SystemDriveConstants.ChannelDriveType
-            //chnl.fileMetadata.appData.content.slug === channelKey
-
-            var channelDrivesPaging = await driveManager.GetDrivesAsync(
-                SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
-
-            foreach (var drive in channelDrivesPaging.Results)
+            var file = await QueryBatchFirstFile(drive.TargetDriveInfo, odinContext, fileType: ChannelDefinitionFileType);
+            if (null != file)
             {
-                var file = await QueryBatchFirstFile(drive.TargetDriveInfo, odinContext, fileType: ChannelDefinitionFileType);
-                if (null != file)
+                var postContent = OdinSystemSerializer.Deserialize<PostContent>(file.FileMetadata.AppData.Content);
+                if (channelKey!.Equals(postContent.Slug, StringComparison.InvariantCultureIgnoreCase))
                 {
-                    var postContent = OdinSystemSerializer.Deserialize<PostContent>(file.FileMetadata.AppData.Content);
-                    if (channelKey!.Equals(postContent.Slug, StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        targetDrive = file.TargetDrive;
-                        break;
-                    }
+                    targetDrive = file.TargetDrive;
+                    break;
                 }
             }
-
-            // slug was not found
-            if (targetDrive == null)
-            {
-                // logger.LogDebug("Channel key {ck} was not found on any channel drives", channelKey);
-                return (false, null, null);
-            }
         }
 
-        if (!odinContext.PermissionsContext.HasDriveId(targetDrive, out var driveId))
+        // slug was not found
+        if (targetDrive == null)
         {
-            // logger.LogDebug("link preview does not have access to drive for channel-key: {ck}; " +
-            //                 "falling back to generic preview", channelKey);
-            return (false, null, null);
+            // logger.LogDebug("Channel key {ck} was not found on any channel drives", channelKey);
+            return (false, null);
         }
+
 
         // logger.LogDebug("TargetDrive {td} found by channelKey: {ck}", targetDrive.ToString(), channelKey);
-        return (true, targetDrive, driveId);
+        return (true, targetDrive);
     }
 
     private async Task WriteGenericPreview(string indexFilePath)

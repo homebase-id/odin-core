@@ -54,12 +54,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier request)
         {
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
-            {
-                Alias = request.TargetDrive.Alias,
-                Type = request.TargetDrive.Type
-            });
-
+            var driveId = request.TargetDrive.Alias;
             WebOdinContext.PermissionsContext.AssertCanReadDrive(driveId);
 
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
@@ -295,7 +290,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Firstly resolve all drives to ensure we have access to do a complete deletion
             foreach (var request in batchRequest.Requests)
             {
-                var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+                var driveId = request.File.TargetDrive.Alias;
                 WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
 
@@ -327,7 +322,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         protected async Task<IActionResult> HardDeleteFile([FromBody] DeleteFileRequest request)
         {
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = request.File.TargetDrive.Alias;
 
             if (request.Recipients != null && request.Recipients.Any())
             {
@@ -363,7 +358,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         private async Task<DeleteFileResult> PerformFileDelete(DeleteFileRequest request)
         {
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = request.File.TargetDrive.Alias;
             var requestRecipients = request.Recipients;
 
             OdinValidationUtils.AssertValidRecipientList(request.Recipients, allowEmpty: true);

@@ -218,17 +218,6 @@ namespace Odin.Services.Base
             }
         }
 
-        public bool HasDriveId(TargetDrive drive, out Guid? driveId)
-        {
-            if (null == drive)
-            {
-                throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
-            }
-
-            driveId = GetDriveIdInternal(drive);
-            return driveId.HasValue;
-        }
-
         public Guid GetDriveId(TargetDrive drive)
         {
             return drive.Alias;
