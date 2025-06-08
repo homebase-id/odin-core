@@ -75,7 +75,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         InternalDriveFileId file;
-        var driveId = odinContext.PermissionsContext.GetDriveId(instructionSet!.StorageOptions!.Drive);
+        var driveId = instructionSet!.StorageOptions!.Drive.Alias;
         var overwriteFileId = instructionSet.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
         // odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
@@ -598,7 +598,7 @@ public abstract class FileSystemStreamWriterBase
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = file.TargetDrive.Alias
         };
     }
 }

@@ -148,7 +148,7 @@ namespace Odin.Services.Base
 
         public void AssertHasDrivePermission(TargetDrive targetDrive, DrivePermission permission)
         {
-            var driveId = this.GetDriveId(targetDrive);
+            var driveId = targetDrive.Alias;
             if (!this.HasDrivePermission(driveId, permission))
             {
                 throw new OdinSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
@@ -218,7 +218,7 @@ namespace Odin.Services.Base
             }
         }
 
-        public Guid GetDriveId(TargetDrive drive)
+        public Guid GetDriveIdxx(TargetDrive drive)
         {
             return drive.Alias;
             // OdinValidationUtils.AssertIsValidTargetDriveValue(drive);
@@ -232,21 +232,7 @@ namespace Odin.Services.Base
             //
             // throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
-
-        private Guid? GetDriveIdInternal(TargetDrive drive)
-        {
-            foreach (var key in PermissionGroups.Keys)
-            {
-                var group = PermissionGroups[key];
-                var driveId = group.GetDriveId(drive);
-                if (driveId.HasValue)
-                {
-                    return driveId.Value;
-                }
-            }
-
-            return null;
-        }
+        
 
         public TargetDrive GetTargetDrive(Guid driveId)
         {

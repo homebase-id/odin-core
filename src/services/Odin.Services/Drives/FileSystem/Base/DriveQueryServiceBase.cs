@@ -269,7 +269,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
+            var driveId = file.TargetDrive.Alias;
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId, GetFileSystemType());

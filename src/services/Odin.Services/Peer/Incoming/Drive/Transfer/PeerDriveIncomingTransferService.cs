@@ -53,7 +53,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata,
             IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+            var driveId = transferInstructionSet.TargetDrive.Alias;
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
@@ -196,7 +196,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileSystemType fileSystemType,
             IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
+            var driveId = targetDrive.Alias;
 
             //TODO: add checks if the sender can write comments if this is a comment
             await fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
@@ -254,8 +254,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileSystemType fileSystemType,
             IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
-
+            var driveId = targetDrive.Alias;
             await fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
             var item = new TransferInboxItem()
@@ -326,8 +325,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             PeerFileWriter writer = new PeerFileWriter(logger, FileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
-            var decryptedKeyHeader =
-                DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader, odinContext);
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
+                odinContext);
 
             if (metadata.IsEncrypted == false)
             {

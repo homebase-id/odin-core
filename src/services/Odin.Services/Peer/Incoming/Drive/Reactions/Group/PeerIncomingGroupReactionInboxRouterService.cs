@@ -68,7 +68,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
             //HACK: use random guid for the fileId UID constraint since we can have multiple
             //senders sending an add/delete reaction for the same gtid
             FileId = Guid.NewGuid(),
-            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive),
+            DriveId = file.TargetDrive.Alias,
             TransferFileType = TransferFileType.Normal,
             GlobalTransitId = file.GlobalTransitId.GetValueOrDefault(),
             FileSystemType = request.FileSystemType,

@@ -835,8 +835,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 var rawIcrKey = odinContext.PermissionsContext.GetIcrKey();
                 outgoingRequest.TempEncryptedIcrKey = new SymmetricKeyEncryptedAes(tempRawKey, rawIcrKey);
 
-                var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
-                var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(feedDriveId);
+                var feedDriveStorageKey = odinContext.PermissionsContext.GetDriveStorageKey(SystemDriveConstants.FeedDrive.Alias);
                 outgoingRequest.TempEncryptedFeedDriveStorageKey = new SymmetricKeyEncryptedAes(tempRawKey, feedDriveStorageKey);
             }
 
