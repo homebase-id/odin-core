@@ -232,7 +232,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             //Firstly resolve all drives to ensure we have access to do a complete deletion
             foreach (var request in batchRequest.Requests)
             {
-                var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+                var driveId = request.TargetDrive.Alias;
                 WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
             }
 
@@ -252,7 +252,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     MaxRecords = int.MaxValue
                 };
 
-                var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.TargetDrive);
+                var driveId = request.TargetDrive.Alias;
 
                 var queryResults = await GetHttpFileSystemResolver().ResolveFileSystem()
                     .Query.GetBatch(driveId, qp, options, WebOdinContext);

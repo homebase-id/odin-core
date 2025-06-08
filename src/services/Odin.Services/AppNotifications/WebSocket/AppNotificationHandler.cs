@@ -348,7 +348,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                         foreach (var td in options.Drives)
                         {
-                            var driveId = odinContext.PermissionsContext.GetDriveId(td);
+                            var driveId = td.Alias;
                             odinContext.PermissionsContext.AssertCanReadDrive(driveId);
                             drives.Add(driveId);
                         }

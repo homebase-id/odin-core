@@ -66,7 +66,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
-                var driveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                var driveId = SystemDriveConstants.FeedDrive.Alias;
 
                 if (request.FileId.GlobalTransitId == Guid.Empty)
                 {
@@ -269,7 +269,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             try
             {
                 logger.LogDebug("RouteFeedRequestToInbox for gtid: {gtid}", request.FileId.GlobalTransitId);
-                var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
                 logger.LogDebug("Found feed drive id {id}", feedDriveId);
 
                 // Write to temp file

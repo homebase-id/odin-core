@@ -60,12 +60,11 @@ public abstract class FileSystemUpdateWriterBase
             //  There must be a local file that will be updated - then sent out to recipients
             //  the outbox is used, and we can write the result to the local file in the transfer history
 
-            var driveId = odinContext.PermissionsContext.GetDriveId(instructionSet.File.TargetDrive);
 
             // File to overwrite
             InternalDriveFileId file = new InternalDriveFileId()
             {
-                DriveId = driveId,
+                DriveId = instructionSet.File.TargetDrive.Alias,
                 FileId = instructionSet.File.FileId.GetValueOrDefault()
             };
 
