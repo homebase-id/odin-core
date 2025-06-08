@@ -84,12 +84,11 @@ namespace Odin.Services.DataSubscription
             {
                 _logger.LogDebug("FeedDriveDistributionRouter should distribute is true. IsCollabChannel: {collabDrive} ",
                     isCollaborationChannel);
-                
+
                 var deleteNotification = notification as DriveFileDeletedNotification;
-                var isEncryptedFile =
-                    (deleteNotification != null &&
-                     deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
-                    notification.ServerFileHeader.FileMetadata.IsEncrypted;
+                var isEncryptedFile = (deleteNotification != null &&
+                                       deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
+                                      notification.ServerFileHeader.FileMetadata.IsEncrypted;
 
                 if (odinContext.Caller.IsOwner)
                 {
@@ -273,7 +272,11 @@ namespace Odin.Services.DataSubscription
             //
             // Get followers for this drive and merge with followers who want everything
             //
-            var td = odinContext.PermissionsContext.GetTargetDrive(driveId);
+            var td = new TargetDrive()
+            {
+                Alias = driveId,
+                Type = SystemDriveConstants.ChannelDriveType
+            };
             var driveFollowers = await _followerService.GetFollowersAsync(td, maxRecords, cursor: "", odinContext);
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotificationsAsync(maxRecords, cursor: "", odinContext);
 
@@ -388,8 +391,8 @@ namespace Odin.Services.DataSubscription
             }
 
             // find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities =
-                await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembersAsync(SystemCircleConstants.ConfirmedConnectionsCircleId,
+                odinContext);
 
             // NOTE!
             // 

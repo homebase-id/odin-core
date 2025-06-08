@@ -74,7 +74,6 @@ public static class DriveFileUtility
                 break;
         }
 
-
         var clientFileHeader = new SharedSecretEncryptedFileHeader()
         {
             FileId = header.FileMetadata.File.FileId,

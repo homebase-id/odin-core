@@ -7,7 +7,6 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
-using Odin.Services.Util;
 using Serilog;
 
 namespace Odin.Services.Base
@@ -146,15 +145,6 @@ namespace Odin.Services.Base
             }
         }
 
-        public void AssertHasDrivePermission(TargetDrive targetDrive, DrivePermission permission)
-        {
-            var driveId = targetDrive.Alias;
-            if (!this.HasDrivePermission(driveId, permission))
-            {
-                throw new OdinSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
-            }
-        }
-
         public bool HasPermission(int permissionKey)
         {
             if (_isSystem)
@@ -218,22 +208,6 @@ namespace Odin.Services.Base
             }
         }
 
-        public Guid GetDriveIdxx(TargetDrive drive)
-        {
-            return drive.Alias;
-            // OdinValidationUtils.AssertIsValidTargetDriveValue(drive);
-            //
-            // var driveId = GetDriveIdInternal(drive);
-            //
-            // if (driveId.HasValue)
-            // {
-            //     return driveId.Value;
-            // }
-            //
-            // throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
-        }
-        
-
         public TargetDrive GetTargetDrive(Guid driveId)
         {
             foreach (var key in PermissionGroups.Keys)
@@ -276,8 +250,7 @@ namespace Odin.Services.Base
 
                 if (grantCount > 1)
                 {
-                    var td = GetTargetDrive(driveId);
-                    Log.Warning("Permission group with Key [{key}] has {grantCount} grants for drive [{td}]", key, grantCount, td);
+                    Log.Warning("Permission group with Key [{key}] has {grantCount} grants for drive [{driveId}]", key, grantCount, driveId);
                 }
 
                 var value = storageKey?.GetKey() ?? Array.Empty<byte>();
