@@ -34,7 +34,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
+        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive.Alias, DrivePermission.React);
 
         await RouteReactionActionToInboxAsync(TransferInstructionType.AddReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
@@ -47,7 +47,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
+        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive.Alias, DrivePermission.React);
 
         await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
