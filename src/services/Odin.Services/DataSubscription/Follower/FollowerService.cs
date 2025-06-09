@@ -332,13 +332,12 @@ namespace Odin.Services.DataSubscription.Follower
             var feedDrive = SystemDriveConstants.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
-
-            var driveId = (await _driveManager.GetDriveIdByAliasAsync(feedDrive, true)).GetValueOrDefault();
+            
             var driveGrants = new List<DriveGrant>()
             {
                 new()
                 {
-                    DriveId = driveId,
+                    DriveId = feedDrive.Alias,
                     KeyStoreKeyEncryptedStorageKey = null,
                     PermissionedDrive = new PermissionedDrive()
                     {

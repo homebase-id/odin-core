@@ -68,19 +68,6 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
     /// when the owner is making an HttpRequest.
     /// </summary>
     /// <returns></returns>
-    public Guid? GetDriveId(TargetDrive drive)
-    {
-        // trying to avoid updating the data for this drive alias shutdown, but I still scan to ensure the drive has been granted
-        var grant = _driveGrants?.FirstOrDefault(g => g.PermissionedDrive.Drive == drive);
-        // return grant?.DriveId; 
-        return grant?.PermissionedDrive.Drive.Alias;
-    }
-
-    /// <summary>
-    /// Returns the encryption key specific to this app.  This is only available
-    /// when the owner is making an HttpRequest.
-    /// </summary>
-    /// <returns></returns>
     public SensitiveByteArray? GetDriveStorageKey(Guid driveId, out int grantsCount)
     {
         grantsCount = 0;

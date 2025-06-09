@@ -150,7 +150,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         if (notificationOptions.Recipients?.Any() ?? false)
                         {
-                            var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive);
+                            var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive.Alias);
                             if (!drive.AllowSubscriptions)
                             {
                                 throw new OdinSecurityException(

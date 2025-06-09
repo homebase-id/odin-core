@@ -35,7 +35,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         IDriveManager driveManager,
         ILogger<FeedDistributionPerimeterService> logger)
     {
-        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadataAsync(UpdateFeedFileMetadataRequest request, IOdinContext odinContext)
+        public async Task<PeerTransferResponse> AcceptUpdatedFileMetadataAsync(UpdateFeedFileMetadataRequest request,
+            IOdinContext odinContext)
         {
             logger.LogDebug("AcceptUpdatedFileMetadata called");
             await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
@@ -55,10 +56,10 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             }
 
             logger.LogDebug("Looking up drive {d}", request.FileId.TargetDrive);
-            var driveId2 = await driveManager.GetDriveIdByAliasAsync(request.FileId.TargetDrive);
-            logger.LogDebug("Found Drive by alias up driveid: {d}", driveId2.GetValueOrDefault());
-            var drive = await driveManager.GetDriveAsync(driveId2.GetValueOrDefault());
-            logger.LogDebug("Found storage drive: {d} (used drive id: {did})", drive.Name, driveId2.GetValueOrDefault());
+            var driveId2 = request.FileId.TargetDrive.Alias;
+            logger.LogDebug("Found Drive by alias up driveid: {d}", driveId2);
+            var drive = await driveManager.GetDriveAsync(driveId2);
+            logger.LogDebug("Found storage drive: {d} (used drive id: {did})", drive.Name, driveId2);
 
             Log.Debug(
                 "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Looking up Internal file",
@@ -264,7 +265,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             return fileId;
         }
 
-        private async Task<PeerTransferResponse> RouteFeedRequestToInboxAsync(UpdateFeedFileMetadataRequest request, IOdinContext odinContext)
+        private async Task<PeerTransferResponse> RouteFeedRequestToInboxAsync(UpdateFeedFileMetadataRequest request,
+            IOdinContext odinContext)
         {
             try
             {
@@ -278,7 +280,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     File = await fileSystem.Storage.CreateInternalFileId(feedDriveId),
                     StorageType = TempStorageType.Inbox
                 };
-                
+
                 var stream = OdinSystemSerializer.Serialize(request.FileMetadata).ToUtf8ByteArray().ToMemoryStream();
                 await fileSystem.Storage.WriteTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream,
                     odinContext);

@@ -6,9 +6,6 @@ namespace Odin.Services.Authorization.ExchangeGrants
 {
     public class DriveGrant : IGenericCloneable<DriveGrant>
     {
-        /// <summary>
-        /// The internal drive id being granted access
-        /// </summary>
         public Guid DriveId { get; set; }
         public PermissionedDrive PermissionedDrive { get; set; }
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }

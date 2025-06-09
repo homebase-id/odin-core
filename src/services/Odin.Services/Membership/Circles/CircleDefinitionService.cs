@@ -137,14 +137,14 @@ namespace Odin.Services.Membership.Circles
             foreach (var dgr in driveGrantRequests)
             {
                 //fail if the drive is invalid
-                var driveId = await driveManager.GetDriveIdByAliasAsync(dgr.PermissionedDrive.Drive);
+                var driveId = dgr.PermissionedDrive.Drive.Alias;
 
                 if (driveId == null)
                 {
                     throw new OdinClientException("Invalid drive specified on DriveGrantRequest", OdinClientErrorCode.InvalidGrantNonExistingDrive);
                 }
 
-                var drive = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
+                var drive = await driveManager.GetDriveAsync(driveId);
 
                 //Allow access when OwnerOnly AND the only permission is Write or React; TODO: this defeats purpose of owneronly drive, i think
                 var hasValidPermission = dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) ||

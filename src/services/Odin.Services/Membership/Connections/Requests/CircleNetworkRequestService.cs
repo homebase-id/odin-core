@@ -25,7 +25,6 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
-using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections.Verification;
@@ -49,7 +48,6 @@ namespace Odin.Services.Membership.Connections.Requests
         ExchangeGrantService exchangeGrantService,
         IcrKeyService icrKeyService,
         CircleMembershipService circleMembershipService,
-        IDriveManager driveManager,
         FollowerService followerService,
         FileSystemResolver fileSystemResolver,
         CircleNetworkVerificationService verificationService,
@@ -549,9 +547,9 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 if (originalRequest.TempEncryptedFeedDriveStorageKey != null)
                 {
-                    var feedDriveId = await driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
+                    var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
                     var patchedContext = OdinContextUpgrades.PrepForSynchronizeChannelFiles(odinContext,
-                        feedDriveId.GetValueOrDefault(),
+                        feedDriveId,
                         tempKey,
                         originalRequest.TempEncryptedFeedDriveStorageKey,
                         originalRequest.TempEncryptedIcrKey);
