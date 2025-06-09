@@ -249,9 +249,14 @@ public class DriveManager : IDriveManager
         }
 
         var drive = await GetDriveInternal(driveId);
-        if (drive == null && failIfInvalid)
+        if (drive == null)
         {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+            if (failIfInvalid)
+            {
+                throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+            }
+
+            return null;
         }
 
         CacheDrive(drive);
