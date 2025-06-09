@@ -32,9 +32,11 @@ public class CircleMembershipService(
     ILogger<CircleMembershipService> logger,
     IdentityDatabase db)
 {
-    public async Task Temp_MigrateDriveId()
+    public async Task Temp_ReconcileCircleAndAppGrants()
     {
         await using var tx = await db.BeginStackedTransactionAsync();
+
+        logger.LogInformation("Migrating Circle Grants");
 
         var allCircleMembers = await db.CircleMember.GetAllCirclesAsync();
         foreach (var cmr in allCircleMembers)
@@ -54,6 +56,7 @@ public class CircleMembershipService(
             await db.CircleMember.UpsertAsync(cmr);
         }
 
+        logger.LogInformation("Migrating App Grants");
         var allAppGrants = await db.AppGrants.GetAllAsync();
         foreach (var appGrant in allAppGrants)
         {
