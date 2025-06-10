@@ -647,7 +647,10 @@ public static class HostExtensions
 
         if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
         {
+            logger.LogDebug("Starting drive-grant migration; stopping host");
             MigrateDriveGrants(services).GetAwaiter().GetResult();
+            logger.LogDebug("Finished drive-grant migration; stopping host");
+            host.StopAsync().BlockingWait();
         }
 
         //
