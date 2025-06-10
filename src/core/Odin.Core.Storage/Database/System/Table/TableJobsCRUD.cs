@@ -453,9 +453,14 @@ namespace Odin.Core.Storage.Database.System.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -563,9 +568,14 @@ namespace Odin.Core.Storage.Database.System.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     return true;
                 }
@@ -674,9 +684,14 @@ namespace Odin.Core.Storage.Database.System.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -784,9 +799,14 @@ namespace Odin.Core.Storage.Database.System.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -863,7 +883,7 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobHashNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
             item.lastErrorNoLengthCheck = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
             item.created = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
-            item.modified = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[19]);
+            item.modified = (rdr[19] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[19]); // HACK
             return item;
        }
 
@@ -912,7 +932,7 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobHashNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
             item.lastErrorNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
             item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[17]);
-            item.modified = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
+            item.modified = (rdr[18] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[18]); // HACK
             return item;
        }
 

@@ -225,9 +225,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -282,9 +287,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return true;
@@ -340,9 +350,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -397,9 +412,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -457,7 +477,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[8] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[8]); // HACK
             return item;
        }
 
@@ -504,7 +524,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[6] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[6]); // HACK
             return item;
        }
 

@@ -141,9 +141,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -176,9 +181,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return true;
@@ -212,9 +222,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -247,9 +262,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long modified = (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
+                    else
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -298,7 +318,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 throw new Exception("Too little data in attestationId...");
             item.status = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.modified = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.modified = (rdr[4] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[4]); // HACK
             return item;
        }
 
@@ -339,7 +359,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.status = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
             return item;
        }
 
