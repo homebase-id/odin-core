@@ -705,14 +705,13 @@ public static class HostExtensions
         {
             var services = host.Services;
             var logger = services.GetRequiredService<ILogger<Startup>>();
-            
+
             logger.LogDebug("Starting drive-grant migration; stopping host");
             MigrateDriveGrants(services).GetAwaiter().GetResult();
             logger.LogDebug("Finished drive-grant migration; stopping host");
             return false;
         }
         
-
         return true;
     }
 

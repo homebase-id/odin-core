@@ -14,7 +14,7 @@ public abstract class DriveStatusControllerBase(
     TransitInboxBoxStorage peerInbox) : OdinControllerBase
 {
     [HttpGet("status")]
-    public async Task<IActionResult> GetStatus(Guid alias)
+    public async Task<IActionResult> GetStatus(Guid alias, Guid type)
     {
         var driveId = alias;
         var status = new DriveStatus()
