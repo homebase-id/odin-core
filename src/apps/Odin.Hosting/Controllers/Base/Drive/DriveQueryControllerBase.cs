@@ -10,19 +10,19 @@ namespace Odin.Hosting.Controllers.Base.Drive
     {
         protected async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request)
         {
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
+            var driveId = request.QueryParams.TargetDrive.Alias;
             var batch = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetModified(driveId, request.QueryParams, request.ResultOptions, WebOdinContext);
             return batch;
         }
 
         protected async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
+            var driveId = request.QueryParams.TargetDrive.Alias;
             var batch = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions(), WebOdinContext);
             return QueryBatchResponse.FromResult(batch);
         }
 
-        protected async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
+        protected async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)    
         {
             var collection = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatchCollection(request, WebOdinContext);
             return collection;

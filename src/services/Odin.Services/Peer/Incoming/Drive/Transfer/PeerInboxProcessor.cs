@@ -75,7 +75,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
         {
             int actualBatchSize = batchSize < 1 ? 1 : batchSize;
-            var driveId = odinContext.PermissionsContext.GetDriveId(targetDrive);
+            var driveId = targetDrive.Alias;
             logger.LogDebug("Processing Inbox -> Getting Pending Items (chatty) for drive {driveId} with requested " +
                             "batchSize: {batchSize}; actualBatchSize: {actualBatchSize}", driveId,
                 batchSize, actualBatchSize);

@@ -37,6 +37,12 @@ public class TableAppGrants(
         return await base.GetByOdinHashIdAsync(odinIdentity, odinHashId);
     }
 
+    public async Task<List<AppGrantsRecord>> GetAllAsync()
+    {
+        return await base.GetAllAsync(odinIdentity);
+    }
+
+
     public async Task DeleteByIdentityAsync(Guid odinHashId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

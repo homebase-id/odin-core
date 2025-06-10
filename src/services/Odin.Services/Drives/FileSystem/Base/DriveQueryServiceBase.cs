@@ -134,13 +134,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             foreach (var query in request.Queries)
             {
                 var targetDrive = query.QueryParams.TargetDrive;
-
-                var canReadDrive = permissionContext.HasDriveId(targetDrive, out var driveIdValue) &&
-                                   permissionContext.HasDrivePermission(driveIdValue.GetValueOrDefault(), DrivePermission.Read);
-
+                var driveId = targetDrive.Alias;
+                var canReadDrive = permissionContext.HasDrivePermission(driveId, DrivePermission.Read);
                 if (canReadDrive)
                 {
-                    var driveId = driveIdValue.GetValueOrDefault();
                     var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
                     {
                         IncludeHeaderContent = true,
@@ -272,7 +269,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
+            var driveId = file.TargetDrive.Alias;
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId, GetFileSystemType());

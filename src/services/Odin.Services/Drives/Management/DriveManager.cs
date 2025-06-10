@@ -50,47 +50,6 @@ public class DriveManager : IDriveManager
         _tableDrives = tableDrives;
     }
 
-    public async Task<StorageDrive> CreateDriveFromClassicDriveManagerAsync(StorageDriveBase storageDriveBase)
-    {
-        OdinValidationUtils.AssertIsValidTargetDriveValue(storageDriveBase.TargetDriveInfo);
-
-        var driveData = new StorageDriveDetails()
-        {
-            TargetDriveInfo = storageDriveBase.TargetDriveInfo,
-            Metadata = storageDriveBase.Metadata,
-            AllowAnonymousReads = storageDriveBase.AllowAnonymousReads,
-            AllowSubscriptions = storageDriveBase.AllowSubscriptions,
-            OwnerOnly = storageDriveBase.OwnerOnly,
-            Attributes = storageDriveBase.Attributes
-        };
-
-        var record = new DrivesRecord
-        {
-            DriveId = storageDriveBase.TargetDriveInfo.Alias.Value,
-            DriveName = storageDriveBase.Name,
-            DriveType = storageDriveBase.TargetDriveInfo.Type.Value,
-            DriveAlias = storageDriveBase.TargetDriveInfo.Alias.Value,
-            TempOriginalDriveId = storageDriveBase.Id,
-            MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDriveBase.MasterKeyEncryptedStorageKey),
-            EncryptedIdIv64 = storageDriveBase.EncryptedIdIv.ToBase64(),
-            EncryptedIdValue64 = storageDriveBase.EncryptedIdValue.ToBase64(),
-            detailsJson = OdinSystemSerializer.Serialize(driveData),
-        };
-
-        var affectedCount = await _tableDrives.UpsertAsync(record);
-
-        if (affectedCount != 1)
-        {
-            throw new OdinSystemException($"Failed to migrate drive {storageDriveBase.Name}");
-        }
-
-        var storageDrive = ToStorageDrive(record);
-        storageDrive.EnsureDirectories();
-        CacheDrive(storageDrive);
-
-        return storageDrive;
-    }
-
     public async Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
         if (string.IsNullOrEmpty(request?.Name))
@@ -255,6 +214,10 @@ public class DriveManager : IDriveManager
         odinContext.Caller.AssertHasMasterKey();
 
         StorageDrive storageDrive = await GetDriveInternal(driveId);
+        if (null == storageDrive)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
         storageDrive.Metadata = metadata;
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
 
@@ -265,6 +228,12 @@ public class DriveManager : IDriveManager
     {
         odinContext.Caller.AssertHasMasterKey();
         StorageDrive storageDrive = await GetDriveInternal(driveId);
+        
+        if (null == storageDrive)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+        
         storageDrive.Attributes = attributes;
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
@@ -280,41 +249,18 @@ public class DriveManager : IDriveManager
         }
 
         var drive = await GetDriveInternal(driveId);
-        if (drive == null && failIfInvalid)
-        {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-        }
-
-        CacheDrive(drive);
-        return drive;
-    }
-
-    public async Task<StorageDrive> GetDriveAsync(TargetDrive targetDrive, bool failIfInvalid = false)
-    {
-        var record = await _tableDrives.GetByTargetDriveAsync(targetDrive.Alias.Value, targetDrive.Type.Value);
-        if (record == null)
+        if (drive == null)
         {
             if (failIfInvalid)
             {
-                throw new OdinClientException($"Invalid target drive {targetDrive}", OdinClientErrorCode.InvalidDrive);
+                throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
             }
 
             return null;
         }
 
-        return ToStorageDrive(record);
-    }
-
-    public async Task<Guid?> GetDriveIdByAliasAsync(TargetDrive targetDrive, bool failIfInvalid = false)
-    {
-        var cachedDrive = _driveCache.SingleOrDefault(d => d.Value.TargetDriveInfo == targetDrive).Value;
-        if (null != cachedDrive)
-        {
-            return cachedDrive.Id;
-        }
-
-        var drive = await GetDriveAsync(targetDrive, failIfInvalid);
-        return drive?.Id;
+        CacheDrive(drive);
+        return drive;
     }
 
     public async Task<PagedResult<StorageDrive>> GetDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)

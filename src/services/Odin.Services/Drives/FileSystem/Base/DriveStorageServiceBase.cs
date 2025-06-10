@@ -358,23 +358,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
         }
-
-        /*
-        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-
-            if (null == header)
-            {
-                _logger.LogDebug($"Permission check called on non-existing file {file}");
-                return false;
-            }
-
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
-        }
-        */
-
+        
         public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
         {
             if (null == header)
@@ -891,9 +875,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             // Method assumes you ensured the file was unique by some other method
 
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
-            await AssertCanWriteToDrive(feedDriveId.GetValueOrDefault(), odinContext);
-            var file = await this.CreateInternalFileId(feedDriveId.GetValueOrDefault());
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+            await AssertCanWriteToDrive(feedDriveId, odinContext);
+            var file = await this.CreateInternalFileId(feedDriveId);
 
             var serverMetadata = new ServerMetadata()
             {
@@ -928,7 +912,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             AssertValidFileSystemType(header.ServerMetadata);
 
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             if (file.DriveId != feedDriveId)
             {
                 throw new OdinSystemException("Method cannot be used on drive");
@@ -971,7 +955,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderInternal(file, odinContext);
             AssertValidFileSystemType(header.ServerMetadata);
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
 
             if (file.DriveId != feedDriveId)
             {
@@ -991,7 +975,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             if (targetFile.DriveId != feedDriveId)
             {
                 throw new OdinSystemException("Cannot update reaction preview on this drive");
@@ -1381,9 +1365,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<bool> ShouldRaiseDriveEventAsync(InternalDriveFileId file)
+        private Task<bool> ShouldRaiseDriveEventAsync(InternalDriveFileId file)
         {
-            return file.DriveId != (await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive));
+            return Task.FromResult(file.DriveId != SystemDriveConstants.TransientTempDrive.Alias);
         }
 
         private async Task<bool> TryShouldRaiseDriveEventAsync(InternalDriveFileId file)

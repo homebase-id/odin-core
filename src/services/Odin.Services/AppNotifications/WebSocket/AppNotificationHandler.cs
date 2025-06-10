@@ -221,7 +221,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public async Task Handle(InboxItemReceivedNotification notification, CancellationToken cancellationToken)
         {
-            var notificationDriveId = notification.OdinContext.PermissionsContext.GetDriveId(notification.TargetDrive);
+            var notificationDriveId = notification.TargetDrive.Alias;
             var translated = new TranslatedClientNotification(notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
                 {
@@ -348,7 +348,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                         foreach (var td in options.Drives)
                         {
-                            var driveId = odinContext.PermissionsContext.GetDriveId(td);
+                            var driveId = td.Alias;
                             odinContext.PermissionsContext.AssertCanReadDrive(driveId);
                             drives.Add(driveId);
                         }

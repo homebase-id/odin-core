@@ -194,7 +194,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             IDriveFileSystem fs,
             IOdinContext odinContext)
         {
-            var targetDriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive);
+            var targetDriveId = file.TargetDrive.Alias;
 
             SharedSecretEncryptedFileHeader header =
                 await fs.Query.GetFileByGlobalTransitId(targetDriveId, file.GlobalTransitId.GetValueOrDefault(), odinContext);

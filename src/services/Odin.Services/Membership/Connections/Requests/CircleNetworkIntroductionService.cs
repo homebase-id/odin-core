@@ -92,7 +92,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         OdinValidationUtils.AssertNotNull(group, nameof(group));
         OdinValidationUtils.AssertValidRecipientList(group.Recipients, allowEmpty: false);
 
-        var driveId = (await _driveManager.GetDriveAsync(SystemDriveConstants.TransientTempDrive)).Id;
+        var driveId = SystemDriveConstants.TransientTempDrive.Alias;
 
         async Task<bool> EnqueueOutboxItem(OdinId recipient, Introduction introduction)
         {
@@ -181,7 +181,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         introduction.Timestamp = UnixTimeUtc.Now();
         var introducer = odinContext.GetCallerOdinIdOrFail();
 
-        var driveId = await _driveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive);
+        var driveId = SystemDriveConstants.TransientTempDrive.Alias;
 
         //Store the introductions by the identity to which you're being introduces
         foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
@@ -203,7 +203,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 Received = UnixTimeUtc.Now()
             };
 
-            await SaveAndEnqueueToConnect(iid, driveId.GetValueOrDefault());
+            await SaveAndEnqueueToConnect(iid, driveId);
         }
 
         var notification = new IntroductionsReceivedNotification()

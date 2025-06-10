@@ -29,12 +29,11 @@ namespace Odin.Services.Authorization.ExchangeGrants
             _logger = logger;
             _driveManager = driveManager;
         }
-        
+
         /// <summary>
         /// Creates an <see cref="ExchangeGrant"/> using the specified key store key
         /// </summary>
         public async Task<ExchangeGrant> CreateExchangeGrantAsync(
-
             SensitiveByteArray keyStoreKey,
             PermissionSet permissionSet,
             IEnumerable<DriveGrantRequest>? driveGrantRequests,
@@ -48,8 +47,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 foreach (var req in driveGrantRequests)
                 {
                     //Note: fail the whole operation (CreateExchangeGrant) if an invalid drive is specified (the true flag will ensure we throw an exception)
-                    var driveId = await _driveManager.GetDriveIdByAliasAsync(req.PermissionedDrive.Drive, true);
-                    var drive = await _driveManager.GetDriveAsync(driveId.GetValueOrDefault(), true);
+                    var driveId = req.PermissionedDrive.Drive.Alias;
+                    var drive = await _driveManager.GetDriveAsync(driveId, true);
 
                     var driveGrant = CreateDriveGrant(drive, req.PermissionedDrive.Permission, keyStoreKey, masterKey);
                     driveGrants.Add(driveGrant);
@@ -76,7 +75,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// <param name="masterKey"></param>
         /// <param name="tokenType"></param>
         /// <returns></returns>
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant, SensitiveByteArray? masterKey,
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant,
+            SensitiveByteArray? masterKey,
             ClientTokenType tokenType)
         {
             if (grant.IsRevoked)
@@ -98,10 +98,12 @@ namespace Odin.Services.Authorization.ExchangeGrants
             return token;
         }
 
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray? keyStoreKey, ClientTokenType tokenType,
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray? keyStoreKey,
+            ClientTokenType tokenType,
             SensitiveByteArray? sharedSecret = null)
         {
-            var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(keyStoreKey, tokenType, sharedSecret: sharedSecret);
+            var (accessReg, clientAccessToken) =
+                await this.CreateClientAccessTokenInternal(keyStoreKey, tokenType, sharedSecret: sharedSecret);
             return (accessReg, clientAccessToken);
         }
 
@@ -110,7 +112,6 @@ namespace Odin.Services.Authorization.ExchangeGrants
             Dictionary<Guid, ExchangeGrant>? grants,
             AccessRegistration accessReg,
             IOdinContext odinContext,
-            
             List<int>? additionalPermissionKeys = null,
             bool includeAnonymousDrives = false,
             DrivePermission anonymousDrivePermission = DrivePermission.Read)
@@ -125,15 +126,12 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 {
                     var exchangeGrant = grants[key];
 
-                    var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey,
+                    var pg = new PermissionGroup(
+                        exchangeGrant.PermissionSet,
+                        exchangeGrant.KeyStoreKeyEncryptedDriveGrants,
+                        grantKeyStoreKey,
                         exchangeGrant.KeyStoreKeyEncryptedIcrKey);
                     permissionGroupMap.Add(key.ToString(), pg);
-
-                    foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
-                    {
-                        _logger.LogTrace(
-                            $"Auth Token with Id: [{authToken.Id}] Access granted to drive [{x.DriveId}] (alias:{x.PermissionedDrive.Drive.Alias} | type: {x.PermissionedDrive.Drive.Type})");
-                    }
                 }
             }
 
@@ -146,7 +144,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
             if (additionalPermissionKeys != null)
             {
-                permissionGroupMap.Add("additional_permissions", new PermissionGroup(new PermissionSet(additionalPermissionKeys), null, null, null));
+                permissionGroupMap.Add("additional_permissions",
+                    new PermissionGroup(new PermissionSet(additionalPermissionKeys), null, null, null));
             }
 
             var permissionCtx = new PermissionContext(
@@ -170,7 +169,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
         //
 
-        private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey, SensitiveByteArray? masterKey)
+        private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey,
+            SensitiveByteArray? masterKey)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey);
 
@@ -198,7 +198,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
             return dk;
         }
 
-        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray? keyStoreKey, ClientTokenType tokenType,
+        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray? keyStoreKey,
+            ClientTokenType tokenType,
             AccessRegistrationClientType clientType = AccessRegistrationClientType.Other, SensitiveByteArray? sharedSecret = null)
         {
             var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();

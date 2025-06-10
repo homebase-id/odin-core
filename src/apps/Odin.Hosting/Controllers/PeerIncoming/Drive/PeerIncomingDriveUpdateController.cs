@@ -92,7 +92,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _fileSystem = ResolveFileSystem(updateInstructionSet.FileSystemType);
 
                 //S1000, S2000 - can the sender write the content to the target drive?
-                var driveId = WebOdinContext.PermissionsContext.GetDriveId(updateInstructionSet.Request.File.TargetDrive);
+                var driveId = updateInstructionSet.Request.File.TargetDrive.Alias;
                 await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
                 //End Optimizations
 

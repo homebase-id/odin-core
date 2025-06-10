@@ -55,6 +55,7 @@ using Odin.Services.Background;
 using Odin.Services.Concurrency;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
+using Odin.Services.Membership.CircleMembership;
 using StackExchange.Redis;
 
 namespace Odin.Hosting;
@@ -117,8 +118,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 options.JsonSerializerOptions.WriteIndented = OdinSystemSerializer.JsonSerializerOptions.WriteIndented;
                 options.JsonSerializerOptions.AllowTrailingCommas = OdinSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
                 options.JsonSerializerOptions.DefaultBufferSize = OdinSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
-                options.JsonSerializerOptions.DefaultIgnoreCondition =
-                    OdinSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
+                options.JsonSerializerOptions.DefaultIgnoreCondition = OdinSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
                 options.JsonSerializerOptions.DictionaryKeyPolicy = OdinSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
                 options.JsonSerializerOptions.PropertyNamingPolicy = OdinSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
                 options.JsonSerializerOptions.ReadCommentHandling = OdinSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
@@ -661,6 +661,7 @@ public static class HostExtensions
         {
             return host;
         }
+
         _didCleanUp = true;
 
         var services = host.Services;
@@ -699,10 +700,40 @@ public static class HostExtensions
             // This is a one-off command example, don't start the web server.
             return false;
         }
+        
+        if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
+        {
+            var services = host.Services;
+            var logger = services.GetRequiredService<ILogger<Startup>>();
 
+            logger.LogDebug("Starting drive-grant migration; stopping host");
+            MigrateDriveGrants(services).GetAwaiter().GetResult();
+            logger.LogDebug("Finished drive-grant migration; stopping host");
+            return false;
+        }
+        
         return true;
     }
 
     //
 
+    private static async Task MigrateDriveGrants(IServiceProvider services)
+    {
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        registry.LoadRegistrations().BlockingWait();
+
+        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+        var migrationLogger = loggerFactory.CreateLogger("Migration");
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+
+        var allTenants = await registry.GetTenants();
+
+        foreach (var tenant in allTenants)
+        {
+            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
+            migrationLogger.LogInformation("Starting migration for {tenant}; id: {id}", tenant.PrimaryDomainName, tenant.Id);
+            var circleMembershipService = scope.Resolve<CircleMembershipService>();
+            await circleMembershipService.Temp_ReconcileCircleAndAppGrants();
+        }
+    }
 }

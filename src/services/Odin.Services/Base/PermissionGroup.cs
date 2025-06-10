@@ -49,15 +49,12 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
 
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)
     {
-        // var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-        // return grant != null && grant.PermissionedDrive.Permission.HasFlag(permission);
-
         if (null == _driveGrants)
         {
             return false;
         }
 
-        var hasPermission = _driveGrants.Any(g => g.PermissionedDrive.Drive.Alias == driveId && g.PermissionedDrive.Permission.HasFlag(permission));
+        var hasPermission = _driveGrants.Any(g => g.DriveId == driveId && g.PermissionedDrive.Permission.HasFlag(permission));
         return hasPermission;
     }
 
@@ -71,23 +68,10 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
     /// when the owner is making an HttpRequest.
     /// </summary>
     /// <returns></returns>
-    public Guid? GetDriveId(TargetDrive drive)
-    {
-        // trying to avoid updating the data for this drive alias shutdown, but I still scan to ensure the drive has been granted
-        var grant = _driveGrants?.FirstOrDefault(g => g.PermissionedDrive.Drive == drive);
-        // return grant?.DriveId; 
-        return grant?.PermissionedDrive.Drive.Alias;
-    }
-
-    /// <summary>
-    /// Returns the encryption key specific to this app.  This is only available
-    /// when the owner is making an HttpRequest.
-    /// </summary>
-    /// <returns></returns>
     public SensitiveByteArray? GetDriveStorageKey(Guid driveId, out int grantsCount)
     {
         grantsCount = 0;
-        var grants = _driveGrants?.Where(g => g.PermissionedDrive.Drive.Alias == driveId).ToList();
+        var grants = _driveGrants?.Where(g => g.DriveId == driveId).ToList();
 
         if (grants == null)
         {
@@ -95,13 +79,6 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         }
 
         grantsCount = grants.Count();
-
-        // var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
-        // var grant = grants?.FirstOrDefault();
-        // if (null == grant)
-        // {
-        //     return null;
-        // }
 
         foreach (var grant in grants)
         {
@@ -140,7 +117,7 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
 
     public TargetDrive? GetTargetDrive(Guid driveId)
     {
-        var grant = _driveGrants?.FirstOrDefault(g => g.PermissionedDrive.Drive.Alias == driveId);
+        var grant = _driveGrants?.FirstOrDefault(g => g.DriveId == driveId);
         return grant?.PermissionedDrive.Drive;
     }
 
