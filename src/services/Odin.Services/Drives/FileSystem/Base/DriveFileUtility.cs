@@ -172,15 +172,15 @@ public static class DriveFileUtility
             return null;
         }
 
-        //TODO: add more logic here to compare width and height separately or together
-        var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
+        int marginWidth = (width * 91) / 100;
+        int marginHeight = (height * 91) / 100;
+
+        var sorted = thumbs.OrderBy(t => t.PixelWidth * t.PixelHeight).ToList();
+        var nextSizeUp = sorted.FirstOrDefault(t => t.PixelHeight > marginHeight && t.PixelWidth > marginWidth);
+
         if (null == nextSizeUp)
         {
-            nextSizeUp = thumbs.MaxBy(g => g.PixelWidth);
-            if (null == nextSizeUp)
-            {
-                return null;
-            }
+            return sorted.LastOrDefault();
         }
 
         return nextSizeUp;
