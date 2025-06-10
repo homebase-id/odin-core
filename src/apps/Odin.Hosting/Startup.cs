@@ -645,14 +645,6 @@ public static class HostExtensions
             services.StartSystemBackgroundServices().BlockingWait();
         }
 
-        if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
-        {
-            logger.LogDebug("Starting drive-grant migration; stopping host");
-            MigrateDriveGrants(services).GetAwaiter().GetResult();
-            logger.LogDebug("Finished drive-grant migration; stopping host");
-            host.StopAsync().BlockingWait();
-        }
-
         //
         // DON'T PUT ANY INITIALIZATION CODE BELOW THIS LINE
         //
@@ -708,6 +700,18 @@ public static class HostExtensions
             // This is a one-off command example, don't start the web server.
             return false;
         }
+        
+        if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
+        {
+            var services = host.Services;
+            var logger = services.GetRequiredService<ILogger<Startup>>();
+            
+            logger.LogDebug("Starting drive-grant migration; stopping host");
+            MigrateDriveGrants(services).GetAwaiter().GetResult();
+            logger.LogDebug("Finished drive-grant migration; stopping host");
+            return false;
+        }
+        
 
         return true;
     }
