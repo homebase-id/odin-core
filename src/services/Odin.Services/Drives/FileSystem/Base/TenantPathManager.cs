@@ -51,8 +51,6 @@ public class TenantPathManager
     public const string UploadFolder = "uploads";
     public const string InboxFolder = "inbox";
     public const string FilesFolder = "files";
-    public const string DeletePayloadExtension = ".p-deleted";
-    public const string DeletedThumbExtension = ".t-deleted";
     public const string PayloadDelimiter = "-";
     public const string TransitThumbnailKeyDelimiter = "|";
     public const string RegJson = "reg.json";

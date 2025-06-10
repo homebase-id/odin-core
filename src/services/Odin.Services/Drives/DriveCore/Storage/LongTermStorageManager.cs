@@ -202,14 +202,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             
             var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
 
-            var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
-            logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
-                pathAndFilename,
-                target);
-
             if (await payloadReaderWriter.FileExistsAsync(pathAndFilename))
             {
-                await payloadReaderWriter.MoveFileAsync(pathAndFilename, target);
+                await payloadReaderWriter.DeleteFileAsync(pathAndFilename);
             }
             else
             {
@@ -223,11 +218,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
                 var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
 
-                var thumbnailTarget = thumbnailFilenameAndPath.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
-
                 if (await payloadReaderWriter.FileExistsAsync(thumbnailFilenameAndPath))
                 {
-                    await payloadReaderWriter.MoveFileAsync(thumbnailFilenameAndPath, thumbnailTarget);
+                    await payloadReaderWriter.DeleteFileAsync(thumbnailFilenameAndPath);
                 }
                 else
                 {
