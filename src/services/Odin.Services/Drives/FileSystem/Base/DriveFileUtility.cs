@@ -176,7 +176,7 @@ public static class DriveFileUtility
         int marginHeight = (height * 91) / 100;
 
         var sorted = thumbs.OrderBy(t => t.PixelWidth * t.PixelHeight).ToList();
-        var nextSizeUp = sorted.FirstOrDefault(t => t.PixelHeight > marginHeight && t.PixelWidth > marginWidth);
+        var nextSizeUp = sorted.FirstOrDefault(t => t.PixelHeight >= marginHeight && t.PixelWidth >= marginWidth);
 
         if (null == nextSizeUp)
         {
