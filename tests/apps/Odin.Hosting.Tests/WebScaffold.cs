@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading.Tasks;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -195,14 +196,7 @@ namespace Odin.Hosting.Tests
 
             Console.WriteLine($"Log file Path: [{LogFilePath}]");
 
-            Environment.SetEnvironmentVariable("Job__Enabled", "false");
-            Environment.SetEnvironmentVariable("Job__ConnectionPooling", "false");
-            Environment.SetEnvironmentVariable("Job__EnableJobBackgroundService", "false");
-            Environment.SetEnvironmentVariable("Job__CronBatchSize", "100");
-            Environment.SetEnvironmentVariable("Job__BackgroundJobStartDelaySeconds", "10");
-            Environment.SetEnvironmentVariable("Job__CronProcessingInterval", "5");
-            Environment.SetEnvironmentVariable("Job__EnsureCertificateProcessorIntervalSeconds", "1000");
-            Environment.SetEnvironmentVariable("Job__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
+            Environment.SetEnvironmentVariable("BackgroundServices__EnsureCertificateProcessorIntervalSeconds", "1000");
 
             Environment.SetEnvironmentVariable("CertificateRenewal__NumberOfCertificateValidationTries", "3");
             Environment.SetEnvironmentVariable("CertificateRenewal__UseCertificateAuthorityProductionServers", "false");
@@ -235,15 +229,21 @@ namespace Odin.Hosting.Tests
             CreateData();
             CreateLogs();
 
-            _webserver = Program.CreateHostBuilder([]).Build();
+            _webserver = Program.CreateHostBuilder([]).Build().BeforeApplicationStarting([]);
             _webserver.Start();
 
             if (setupOwnerAccounts)
             {
-                foreach (var odinId in TestIdentities.All.Keys)
+                // foreach (var odinId in TestIdentities.All.Keys)
+                // {
+                //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
+                // }
+                
+                Parallel.ForEach(TestIdentities.All.Keys, odinId =>
                 {
                     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
-                }
+                });
+
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);

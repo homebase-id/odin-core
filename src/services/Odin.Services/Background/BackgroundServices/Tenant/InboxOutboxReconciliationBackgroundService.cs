@@ -43,7 +43,7 @@ public class InboxOutboxReconciliationBackgroundService(
                 logger.LogInformation("Recovered {count} inbox items", recoveredOutboxItems);
             }
 
-            var interval = TimeSpan.FromSeconds(config.Job.InboxOutboxReconciliationIntervalSeconds);
+            var interval = TimeSpan.FromSeconds(config.BackgroundServices.InboxOutboxReconciliationIntervalSeconds);
             logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
             await SleepAsync(interval, stoppingToken);
         }

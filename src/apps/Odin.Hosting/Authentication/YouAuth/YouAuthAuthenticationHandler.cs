@@ -198,7 +198,7 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticationTicket> CreateAnonYouAuthTicketAsync(IOdinContext odinContext)
         {
-            var driveManager = Context.RequestServices.GetRequiredService<DriveManager>();
+            var driveManager = Context.RequestServices.GetRequiredService<IDriveManager>();
             var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
 
             if (!anonymousDrives.Results.Any())

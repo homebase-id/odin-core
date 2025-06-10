@@ -6,7 +6,6 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
-using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 
@@ -46,16 +45,19 @@ namespace Odin.Services.Drives
             set { }
         }
 
+        public override Guid TempOriginalDriveId => _inner.TempOriginalDriveId;
+
         public override string Metadata
         {
             get => _inner.Metadata;
-            set { }
+            set => _inner.Metadata = value;
         }
 
         public override bool IsReadonly
         {
             get => _inner.IsReadonly;
-            set { }
+            set => _inner.IsReadonly = value;
+
         }
 
         public override bool AllowSubscriptions
@@ -124,7 +126,7 @@ namespace Odin.Services.Drives
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
         {
             var decryptedDriveId = AesCbc.Decrypt(this.EncryptedIdValue, storageKey, this.EncryptedIdIv);
-            if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, this.Id.ToByteArray()))
+            if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, this.TempOriginalDriveId.ToByteArray()))
             {
                 throw new OdinSecurityException("Invalid key storage attempted to encrypt data");
             }
@@ -153,6 +155,8 @@ namespace Odin.Services.Drives
     {
         public virtual Guid Id { get; init; }
 
+        public virtual Guid TempOriginalDriveId { get; init; }
+        
         public virtual string Name { get; set; }
 
         /// <summary>

@@ -212,7 +212,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         CacheCertificate(registration);
         await InitializeOdinContextCache(registration);
-        if (_config.Job.TenantJobsEnabled)
+        if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
         {
             await StartBackgroundServices(registration);
         }
@@ -477,7 +477,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
                 CacheCertificate(registration);
                 await InitializeOdinContextCache(registration);
-                if (_config.Job.TenantJobsEnabled)
+                if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
                 {
                     await StartBackgroundServices(registration);
                 }
@@ -524,7 +524,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
 
-        var driveManager = scope.Resolve<DriveManager>();
+        var driveManager = scope.Resolve<IDriveManager>();
         await driveManager.LoadCacheAsync();
 
         var tenantConfigService = scope.Resolve<TenantConfigService>();

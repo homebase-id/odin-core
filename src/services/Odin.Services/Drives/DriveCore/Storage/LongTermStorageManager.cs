@@ -200,44 +200,34 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string payloadKey = payloadDescriptor.Key;
             UnixTimeUtcUnique payloadUid = payloadDescriptor.Uid;
             
-            Benchmark.Milliseconds(logger, nameof(HardDeletePayloadFile), () =>
+            var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
+
+            if (driveFileReaderWriter.FileExists(pathAndFilename))
             {
-                var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
+                driveFileReaderWriter.DeleteFile(pathAndFilename);
+            }
+            else
+            {
+                logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
+            }
 
-                var target = pathAndFilename.Replace(".payload", TenantPathManager.DeletePayloadExtension);
-                logger.LogDebug("HardDeletePayloadFile -> attempting to rename [{source}] to [{dest}]",
-                    pathAndFilename,
-                    target);
+            foreach (var thumbnail in payloadDescriptor.Thumbnails)
+            {
+                //var thumbnailFileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
+                //var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+                //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
+                var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
 
-                if (driveFileReaderWriter.FileExists(pathAndFilename))
+                if (driveFileReaderWriter.FileExists(thumbnailFilenameAndPath))
                 {
-                    driveFileReaderWriter.MoveFile(pathAndFilename, target);
+                    driveFileReaderWriter.DeleteFile(thumbnailFilenameAndPath);
                 }
                 else
                 {
-                    logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
+                    logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
+                        thumbnailFilenameAndPath);
                 }
-
-                foreach (var thumbnail in payloadDescriptor.Thumbnails)
-                {
-                    //var thumbnailFileName = TenantPathManager.GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
-                    //var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-                    //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
-                    var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
-
-                    var thumbnailTarget = thumbnailFilenameAndPath.Replace(".thumb", TenantPathManager.DeletedThumbExtension);
-
-                    if (driveFileReaderWriter.FileExists(thumbnailFilenameAndPath))
-                    {
-                        driveFileReaderWriter.MoveFile(thumbnailFilenameAndPath, thumbnailTarget);
-                    }
-                    else
-                    {
-                        logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
-                            thumbnailFilenameAndPath);
-                    }
-                }
-            });
+            }
         }
 
         public Task TryHardDeleteListOfPayloadFiles(StorageDrive drive, Guid fileId, List<PayloadDescriptor> descriptors)

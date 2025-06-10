@@ -50,6 +50,8 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.ObjectStorage.S3PayloadStorage), "e50a0714"},
     };
 
+    //
+
     public void AssertSingletonDependencies()
     {
         var sw = Stopwatch.StartNew();
@@ -57,12 +59,17 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         // Check root
         CheckSingletonDependencies(root, logger);
 
-        // Check tenant
-        var tenantScope = root.Resolve<IMultiTenantContainerAccessor>().GetTenantScopesForDiagnostics().First();
-        CheckSingletonDependencies(tenantScope, logger);
+        // Check first available tenant
+        var tenantScope = root.Resolve<IMultiTenantContainerAccessor>().GetTenantScopesForDiagnostics().FirstOrDefault();
+        if (tenantScope != null)
+        {
+            CheckSingletonDependencies(tenantScope, logger);
+        }
 
         logger.LogDebug("Singleton dependency check took {ElapsedMilliseconds}ms", sw.ElapsedMilliseconds);
     }
+
+    //
     
     private void CheckSingletonDependencies(ILifetimeScope container, ILogger logger)
     {
@@ -149,8 +156,6 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
                 }
             }
         }
-
-
     }
 
     //
@@ -194,6 +199,8 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         // Convert hash to a readable string
         return BitConverter.ToString(hashBytes, 0, 8 / 2).Replace("-", "").ToLower();
     }
+
+    //
 
     private static IEnumerable<Type> GetImplementationsOfInterface(Type interfaceType)
     {
