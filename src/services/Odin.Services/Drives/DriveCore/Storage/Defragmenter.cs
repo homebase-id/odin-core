@@ -68,7 +68,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         }
 
 
-        public async Task VerifyFolder(Guid driveId, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task VerifyPayloadsFolder(Guid driveId, IDriveFileSystem fs, IOdinContext odinContext)
         {
             var headerCache = new Dictionary<Guid, FileMetadata>();
 
@@ -78,6 +78,8 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             {
                 for (int second = 0; second < 16; second++)
                 {
+                    // Find kataloger der er for meget?
+
                     var nibblepath = Path.Combine(first.ToString("x"), second.ToString("x"));
                     var dirpath = Path.Combine(rootpath, nibblepath);
                     var files = GetFilesInDirectory(dirpath, "*.*", 24);
@@ -104,6 +106,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                                 break;
                             case TenantPathManager.FileType.Invalid:
                                 logger.LogDebug($"Invalid file {file} in {dirpath}");
+                                // Probably delete
                                 continue;
                         }
 
@@ -158,7 +161,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             await CheckDriveFileIntegrity(targetDrive, fs, odinContext);
 
-            await VerifyFolder(driveId, fs, odinContext);
+            await VerifyPayloadsFolder(driveId, fs, odinContext);
 
             // VerifyInbox()...
         }
@@ -176,7 +179,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             // Fake Michael's identity
             var fakePathManager = new TenantPathManager(config, Guid.Parse("c1b588ba-8971-46e1-b8bd-105999fa8ddb"));
 
-            await VerifyFolder(Guid.Parse("35531928375d4bef8e250c419a8e870d"), fs, odinContext);
+            await VerifyPayloadsFolder(Guid.Parse("35531928375d4bef8e250c419a8e870d"), fs, odinContext);
         }
 
         /// <summary>

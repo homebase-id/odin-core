@@ -55,6 +55,9 @@ public class DefraggerTest
         var t = await ownerClient.DriveManager.GetDrives();
         var drives = t.Content.Results;
 
+        // XXX Todd
+        // Please upload a header + a payload and a thumb or two
+
         foreach (var drive in drives)
         {
             // this calls to the server and on the server side you will perform the defrag

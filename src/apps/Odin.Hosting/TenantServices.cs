@@ -66,6 +66,7 @@ using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.DriveCore.Storage.Gugga;
 
 namespace Odin.Hosting;
 
@@ -151,6 +152,8 @@ public static class TenantServices
             .AsSelf()
             .InstancePerLifetimeScope();
 
+
+        cb.RegisterType<Defragmenter>().AsSelf().SingleInstance();
 
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
