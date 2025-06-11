@@ -13,6 +13,13 @@ namespace Odin.Core.Storage.ObjectStorage;
 
 #nullable enable
 
+//
+// SEB:NOTE
+// There is not TryRetry here because S3 SDK already has retry logic built-in.
+// It defaults to 3 retries with exponential backoff.
+// Can be overridden by configuring the AmazonS3Config when creating the client.
+//
+
 public class S3AwsStorage : IS3Storage
 {
     private readonly ILogger<S3AwsStorage> _logger;
