@@ -77,7 +77,8 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (odinContext.Caller.OdinId == identityToFollow)
             {
-                throw new OdinClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
+                throw new OdinClientException(
+                    "Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
                     OdinClientErrorCode.InvalidRecipient);
             }
 
@@ -145,6 +146,7 @@ namespace Odin.Services.DataSubscription.Follower
                             { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
+
                 tx.Commit();
             }
 
@@ -211,7 +213,8 @@ namespace Odin.Services.DataSubscription.Follower
         /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
-        public async Task<CursoredResult<OdinId>> GetFollowersAsync(TargetDrive targetDrive, int max, string cursor, IOdinContext odinContext)
+        public async Task<CursoredResult<OdinId>> GetFollowersAsync(TargetDrive targetDrive, int max, string cursor,
+            IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -264,7 +267,8 @@ namespace Odin.Services.DataSubscription.Follower
             return result;
         }
 
-        public async Task<CursoredResult<string>> GetIdentitiesIFollowAsync(Guid driveAlias, int max, string cursor, IOdinContext odinContext)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollowAsync(Guid driveAlias, int max, string cursor,
+            IOdinContext odinContext)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
@@ -328,13 +332,12 @@ namespace Odin.Services.DataSubscription.Follower
             var feedDrive = SystemDriveConstants.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
-
-            var driveId = (await _driveManager.GetDriveIdByAliasAsync(feedDrive, true)).GetValueOrDefault();
+            
             var driveGrants = new List<DriveGrant>()
             {
                 new()
                 {
-                    DriveId = driveId,
+                    DriveId = feedDrive.Alias,
                     KeyStoreKeyEncryptedStorageKey = null,
                     PermissionedDrive = new PermissionedDrive()
                     {
@@ -385,7 +388,7 @@ namespace Odin.Services.DataSubscription.Follower
                 return;
             }
 
-            var feedDriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             var channelDrives = await GetChannelsIFollow(odinId, odinContext, definition);
 
             var request = new QueryBatchCollectionRequest()
@@ -510,15 +513,16 @@ namespace Odin.Services.DataSubscription.Follower
                     DriveId = feedDriveId
                 };
 
-                await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext, bypassCallerCheck: true);
+                await _standardFileSystem.Storage.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext,
+                    bypassCallerCheck: true);
             }
         }
 
         private async Task<IEnumerable<PerimeterDriveData>> GetChannelsIFollow(OdinId odinId, IOdinContext odinContext,
             FollowerDefinition definition)
         {
-            var channelDrives =
-                await _peerDriveQueryService.GetDrivesByTypeAsync(odinId, SystemDriveConstants.ChannelDriveType, FileSystemType.Standard, odinContext);
+            var channelDrives = await _peerDriveQueryService.GetDrivesByTypeAsync(odinId, SystemDriveConstants.ChannelDriveType,
+                FileSystemType.Standard, odinContext);
 
             if (null == channelDrives)
             {

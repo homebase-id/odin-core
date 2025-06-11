@@ -12,30 +12,6 @@ namespace Odin.Services.Base;
 
 public static class OdinContextUpgrades
 {
-    // public static IOdinContext UpgradeForFileDelete(IOdinContext odinContext, Guid driveId)
-    // {
-    //     var patchedContext = odinContext.Clone();
-    //
-    //     //Note TryAdd because this might have already been added when multiple files are coming in
-    //     patchedContext.PermissionsContext.PermissionGroups.TryAdd("read-drive",
-    //         new PermissionGroup(
-    //             new PermissionSet([]),
-    //             new List<DriveGrant>()
-    //             {
-    //                 new
-    //                 {
-    //                     DriveId = driveId,
-    //                     PermissionedDrive = new PermissionedDrive
-    //                     {
-    //                         Drive = null,
-    //                         Permission = DrivePermission.Read,
-    //                     },
-    //                     KeyStoreKeyEncryptedStorageKey = null
-    //                 }
-    //             }, null, null));
-    //
-    //     return patchedContext;
-    // }
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();

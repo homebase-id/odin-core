@@ -93,7 +93,7 @@ public class StaticFileContentService
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = (await _driveManager.GetDriveIdByAliasAsync(qp.TargetDrive, true)).GetValueOrDefault();
+            var driveId = qp.TargetDrive.Alias;
 
             var options = new QueryBatchResultOptions()
             {

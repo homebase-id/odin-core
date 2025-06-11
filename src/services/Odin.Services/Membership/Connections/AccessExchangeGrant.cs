@@ -12,24 +12,17 @@ namespace Odin.Services.Membership.Connections;
 /// </summary>
 public class AccessExchangeGrant
 {
-    //TODO: this is a horrible name.  fix. 
-    public AccessExchangeGrant()
-    {
-        this.CircleGrants = new();
-        this.AppGrants = new();
-    }
-
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
 
     /// <summary>
     /// The permissions granted from a given circle.  The key is the circle Id.
     /// </summary>
-    public Dictionary<Guid, CircleGrant> CircleGrants { get; set; }
+    public Dictionary<Guid, CircleGrant> CircleGrants { get; set; } = new();
 
     /// <summary>
     /// The permissions granted from being with-in a circle that has been authorized by an App.  The main key is the AppId.  The second key is the CircleId
     /// </summary>
-    public Dictionary<Guid, Dictionary<Guid, AppCircleGrant>> AppGrants { get; set; }
+    public Dictionary<Guid, Dictionary<Guid, AppCircleGrant>> AppGrants { get; set; } = new();
 
     public AccessRegistration AccessRegistration { get; set; }
 

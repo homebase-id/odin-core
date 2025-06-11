@@ -56,7 +56,7 @@ public abstract class OdinControllerBase : ControllerBase
         return new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = WebOdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = file.TargetDrive.Alias
         };
     }
 

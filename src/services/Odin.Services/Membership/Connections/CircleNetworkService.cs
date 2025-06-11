@@ -121,7 +121,7 @@ namespace Odin.Services.Membership.Connections
                 var transientTempDrive = SystemDriveConstants.TransientTempDrive;
                 var transientTempDriveGrant = new DriveGrant()
                 {
-                    DriveId = (await driveManager.GetDriveIdByAliasAsync(transientTempDrive)).GetValueOrDefault(),
+                    DriveId = transientTempDrive.Alias,
                     PermissionedDrive = new()
                     {
                         Drive = transientTempDrive,
@@ -697,8 +697,8 @@ namespace Odin.Services.Membership.Connections
                 {
                     foreach (var expectedDriveGrant in definition.DriveGrants)
                     {
-                        var driveId = await driveManager.GetDriveIdByAliasAsync(expectedDriveGrant.PermissionedDrive.Drive);
-                        var driveInfo = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
+                        var driveId = expectedDriveGrant.PermissionedDrive.Drive.Alias;
+                        var driveInfo = await driveManager.GetDriveAsync(driveId);
 
                         var grantedDrive = circleGrant.KeyStoreKeyEncryptedDriveGrants.SingleOrDefault(dg =>
                             dg.PermissionedDrive == expectedDriveGrant.PermissionedDrive);

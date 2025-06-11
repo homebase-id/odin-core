@@ -43,7 +43,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             FileMetadata metadata,
             IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(transferInstructionSet.Request.File.TargetDrive);
+            var driveId = transferInstructionSet.Request.File.TargetDrive.Alias;
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet.FileSystemType, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.

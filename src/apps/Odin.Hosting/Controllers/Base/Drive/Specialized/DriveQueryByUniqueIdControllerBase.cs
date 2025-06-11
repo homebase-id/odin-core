@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderByUniqueId([FromQuery] Guid clientUniqueId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
-            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
+            var result = await GetFileHeaderByUniqueIdInternal(clientUniqueId, alias);
             if (result == null)
             {
                 return NotFound();
@@ -31,7 +31,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
             FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias);
             if (null == header)
             {
                 return NotFound();
@@ -61,7 +61,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
             [FromQuery] int height,
             [FromQuery] string payloadKey)
         {
-            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias, type);
+            var header = await this.GetFileHeaderByUniqueIdInternal(clientUniqueId, alias);
             if (null == header)
             {
                 return NotFound();
@@ -84,16 +84,9 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
                 });
         }
 
-        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid alias, Guid type)
+        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid driveId)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-
-            var driveId = WebOdinContext.PermissionsContext.GetDriveId(new TargetDrive()
-            {
-                Alias = alias,
-                Type = type
-            });
-
             var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext);
             return result;
         }

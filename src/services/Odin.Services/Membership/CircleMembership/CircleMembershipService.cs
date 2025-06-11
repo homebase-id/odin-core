@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -31,6 +32,53 @@ public class CircleMembershipService(
     ILogger<CircleMembershipService> logger,
     IdentityDatabase db)
 {
+    public async Task Temp_ReconcileCircleAndAppGrants()
+    {
+        await using var tx = await db.BeginStackedTransactionAsync();
+
+        logger.LogInformation("Migrating Circle Grants");
+
+        var allCircleMembers = await db.CircleMember.GetAllCirclesAsync();
+        foreach (var cmr in allCircleMembers)
+        {
+            var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(cmr.data.ToStringFromUtf8Bytes());
+
+            //convert the driveId to the alias
+            var updatedDriveIdList = storageData.CircleGrant.KeyStoreKeyEncryptedDriveGrants.Select(g => new DriveGrant
+            {
+                DriveId = g.PermissionedDrive.Drive.Alias,
+                PermissionedDrive = g.PermissionedDrive, // keep for now
+                KeyStoreKeyEncryptedStorageKey = g.KeyStoreKeyEncryptedStorageKey
+            });
+            
+            storageData.CircleGrant.KeyStoreKeyEncryptedDriveGrants = updatedDriveIdList.ToList();
+            cmr.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
+            await db.CircleMember.UpsertAsync(cmr);
+        }
+
+        logger.LogInformation("Migrating App Grants");
+        var allAppGrants = await db.AppGrants.GetAllAsync();
+        foreach (var appGrant in allAppGrants)
+        {
+            var storageData = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
+            
+            var updatedAppGrantDriveIdList = storageData.KeyStoreKeyEncryptedDriveGrants.Select(g => new DriveGrant
+            {
+                DriveId = g.PermissionedDrive.Drive.Alias,
+                PermissionedDrive = g.PermissionedDrive, // keep for now
+                KeyStoreKeyEncryptedStorageKey = g.KeyStoreKeyEncryptedStorageKey
+            });
+            
+            storageData.KeyStoreKeyEncryptedDriveGrants= updatedAppGrantDriveIdList.ToList();
+            appGrant.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
+
+            await db.AppGrants.UpsertAsync(appGrant);
+        }
+
+        tx.Commit();
+    }
+    
+    
     public async Task DeleteMemberFromAllCirclesAsync(AsciiDomainName domainName, DomainType domainType)
     {
         //Note: I updated this to delete by a given domain type so when you login via youauth, your ICR circles are not deleted -_-
