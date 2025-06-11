@@ -243,6 +243,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             return "";
         }
 
+        // SEB:TODO update for S3 payloads
+        if (_config.S3PayloadStorage.Enabled)
+        {
+            throw new OdinSystemException("Copying registrations with S3 payloads is not supported yet.");
+        }
+
         var disabled = registration.Disabled;
         await ToggleDisabled(domain, true);
         try
@@ -264,7 +270,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             var targetPayloadsPath = Path.Combine(targetPath, TenantPathManager.PayloadsFolder);
             Directory.CreateDirectory(targetPayloadsPath);
 
-            // SEB:TODO update for S3 payloads
             var shards = Directory.GetDirectories(PayloadRoot);
             foreach (var shard in shards)
             {
