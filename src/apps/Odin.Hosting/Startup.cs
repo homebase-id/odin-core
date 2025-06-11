@@ -548,23 +548,25 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             // NOTE:
             // This is called AFTER the app has started and is accepting requests.
             // If you want stuff done BEFORE the app starts accepting requests,
-            // put it in HostExtensions.PreApplicationStarted (below).
+            // put it in HostExtensions.BeforeApplicationStarting (below).
         });
 
         lifetime.ApplicationStopping.Register(() =>
         {
             // NOTE:
             // This is called BEFORE the app has stopped accepting requests.
-            // If you want stuff done AFTER the app stops accepting requests,
-            // put it in HostExtensions.PostApplicationStopped (below).
             logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",
                 config.Host.ShutdownTimeoutSeconds);
+
+            var host = app.ApplicationServices.GetRequiredService<IHost>();
+            host.OnApplicationStopping();
         });
 
         lifetime.ApplicationStopped.Register(() =>
         {
-            var host = app.ApplicationServices.GetRequiredService<IHost>();
-            host.AfterApplicationStopped();
+            // NOTE:
+            // This is called AFTER the app has stopped accepting requests.
+            // But it's not always being called. Or so it seems.
         });
     }
 
@@ -655,7 +657,7 @@ public static class HostExtensions
 
     //
 
-    public static IHost AfterApplicationStopped(this IHost host)
+    public static IHost OnApplicationStopping(this IHost host)
     {
         if (_didCleanUp)
         {
@@ -667,7 +669,7 @@ public static class HostExtensions
         var services = host.Services;
         var logger = services.GetRequiredService<ILogger<Startup>>();
 
-        logger.LogDebug("Starting clean up in {method}", nameof(AfterApplicationStopped));
+        logger.LogDebug("Starting clean up in {method}", nameof(OnApplicationStopping));
 
         //
         // Shutdown all tenant background services
@@ -685,7 +687,7 @@ public static class HostExtensions
         services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
 
         // DON'T PUT ANY CLEANUP BELOW THIS LINE
-        logger.LogDebug("Finished clean up in {method}", nameof(AfterApplicationStopped));
+        logger.LogDebug("Finished clean up in {method}", nameof(OnApplicationStopping));
 
         return host;
     }
@@ -695,7 +697,7 @@ public static class HostExtensions
     // Returns true if the web server should be started, false if it should not.
     public static bool ProcessCommandLineArgs(this IHost host, string[] args)
     {
-        if (args.Contains("dont-start-the-web-server"))
+        if (args.Contains("--dont-start-the-web-server"))
         {
             // This is a one-off command example, don't start the web server.
             return false;
@@ -720,8 +722,6 @@ public static class HostExtensions
     private static async Task MigrateDriveGrants(IServiceProvider services)
     {
         var registry = services.GetRequiredService<IIdentityRegistry>();
-        registry.LoadRegistrations().BlockingWait();
-
         var loggerFactory = services.GetRequiredService<ILoggerFactory>();
         var migrationLogger = loggerFactory.CreateLogger("Migration");
         var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
