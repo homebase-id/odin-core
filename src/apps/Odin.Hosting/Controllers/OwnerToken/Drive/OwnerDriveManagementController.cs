@@ -7,8 +7,6 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.DriveCore.Storage.Gugga;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -17,13 +15,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveManagementV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveManagementController(IDriveManager driveManager, Defragmenter defragmenter) : OdinControllerBase
+    public class OwnerDriveManagementController(
+        DriveManager driveManager
+        // Defragmenter defragmenter
+        ) : OdinControllerBase
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody] GetDrivesRequest request)
         {
-            
             var drives = await driveManager.GetDrivesAsync(new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
             var clientDriveData = drives.Results.Select(drive =>
@@ -57,7 +57,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("updatemetadata")]
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
         {
-            
             await driveManager.UpdateMetadataAsync(request.TargetDrive.Alias, request.Metadata, WebOdinContext);
             return true;
         }
@@ -82,7 +81,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             await driveManager.SetDriveAllowSubscriptionsAsync(request.TargetDrive.Alias, request.AllowSubscriptions, WebOdinContext);
             return Ok();
         }
-        
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpGet("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
@@ -105,14 +104,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
             return page;
         }
-        
-        [HttpPost("defrag")]
-        public async Task<IActionResult> DefragDrive([FromBody] TargetDrive targetDrive)
-        {
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            await defragmenter.DefragDrive(targetDrive, fs, WebOdinContext);
-            return Ok();
-        }
+
+        // [HttpPost("defrag")]
+        // public async Task<IActionResult> DefragDrive([FromBody] TargetDrive targetDrive)
+        // {
+        //     var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+        //     await defragmenter.DefragDrive(targetDrive, fs, WebOdinContext);
+        //     return Ok();
+        // }
     }
 
     public class UpdateDriveDefinitionRequest

@@ -243,6 +243,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             return "";
         }
 
+        // SEB:TODO update for S3 payloads
+        if (_config.S3PayloadStorage.Enabled)
+        {
+            throw new OdinSystemException("Copying registrations with S3 payloads is not supported yet.");
+        }
+
         var disabled = registration.Disabled;
         await ToggleDisabled(domain, true);
         try

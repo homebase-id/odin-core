@@ -99,7 +99,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         var httpClientFactory = new HttpClientFactory();
         services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-        services.AddSingleton<DriveFileReaderWriter>();
+        services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
         services.AddControllers()
@@ -257,16 +257,18 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
         services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
 
+        // Payload storage
         if (_config.S3PayloadStorage.Enabled)
         {
-            services.AddMinioClient(
-                _config.S3PayloadStorage.Endpoint,
+            services.AddS3AwsPayloadStorage(
                 _config.S3PayloadStorage.AccessKey,
                 _config.S3PayloadStorage.SecretAccessKey,
-                _config.S3PayloadStorage.Region);
-
-            services.AddS3PayloadStorage(_config.S3PayloadStorage.BucketName);
+                _config.S3PayloadStorage.ServiceUrl,
+                _config.S3PayloadStorage.Region,
+                _config.S3PayloadStorage.ForcePathStyle,
+                _config.S3PayloadStorage.BucketName);
         }
+
     }
 
     // ConfigureContainer is where you can register things directly
@@ -627,16 +629,14 @@ public static class HostExtensions
             throw new OdinSystemException("Cache sanity check failed");
         }
 
-        // Sanity ping S3 bucket
+        // Ensure S3 bucket exists
         logger.LogInformation("S3PayloadStorage enabled: {enabled}", config.S3PayloadStorage.Enabled);
         if (config.S3PayloadStorage.Enabled)
         {
-            var payloadBucket = services.GetRequiredService<S3PayloadStorage>();
-            var bucketExists = payloadBucket.BucketExistsAsync().GetAwaiter().GetResult();
-            if (!bucketExists)
-            {
-                throw new OdinSystemException("S3 payload bucket sanity check failed");
-            }
+            logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
+                config.S3PayloadStorage.BucketName, config.S3PayloadStorage.ServiceUrl);
+            var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
+            payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
         // Start system background services

@@ -57,7 +57,7 @@ public class TenantPathManager
 
     public readonly string RootPath; // e.g. /data/tenants
     public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
-    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads
+    public readonly string RootPayloadsPath;  // e.g. /data/tenants/payloads OR empty string if S3 is enabled
 
     public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
     public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
@@ -67,7 +67,7 @@ public class TenantPathManager
     public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
 
     public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
-    public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives
+    public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
 
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
@@ -77,7 +77,16 @@ public class TenantPathManager
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
-        RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder);
+
+        if (config.S3PayloadStorage.Enabled)
+        {
+            // Payloads on S3 is anchored to the root of the bucket
+            RootPayloadsPath = string.Empty;
+        }
+        else
+        {
+            RootPayloadsPath = Path.Combine(RootPath, PayloadsFolder);
+        }
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
@@ -155,12 +164,11 @@ public class TenantPathManager
         return Path.Combine(highNibble.ToString(), lowNibble.ToString());
     }
 
-    public string GetPayloadDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
+    public string GetPayloadDirectory(Guid driveId, Guid fileId)
     {
         var root = GetDrivePayloadPath(driveId);
         var subdir = GetPayloadDirectoryFromGuid(fileId);
         var path = Path.Combine(root, subdir);
-        if (ensureExists) Directory.CreateDirectory(path);
         return path;
     }
 
@@ -174,22 +182,20 @@ public class TenantPathManager
         return GetBasePayloadFileName(payloadKey, uid.ToString());
     }
 
-
     public static string GetBasePayloadFileNameAndExtension(string payloadKey, UnixTimeUtcUnique uid)
     {
         return $"{GetBasePayloadFileName(payloadKey, uid)}{PayloadExtension}";
     }
-
 
     internal static string GetPayloadFileName(Guid fileId, string key, UnixTimeUtcUnique uid)
     {
         return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{GetBasePayloadFileNameAndExtension(key, uid)}";
     }
 
-    public string GetPayloadDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, bool ensureExists = false)
+    public string GetPayloadDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid)
     {
         var fileName = GetPayloadFileName(fileId, payloadKey, payloadUid);
-        var dir = GetPayloadDirectory(driveId, fileId, ensureExists);
+        var dir = GetPayloadDirectory(driveId, fileId);
         return Path.Combine(dir, fileName);
     }
 
@@ -218,9 +224,9 @@ public class TenantPathManager
     }
 
 
-    internal string GetThumbnailDirectory(Guid driveId, Guid fileId, bool ensureExists = false)
+    internal string GetThumbnailDirectory(Guid driveId, Guid fileId)
     {
-        return GetPayloadDirectory(driveId, fileId, ensureExists);
+        return GetPayloadDirectory(driveId, fileId);
     }
 
     public static string GetThumbnailFileName(Guid fileId, string key, UnixTimeUtcUnique uid, int width, int height)
@@ -234,7 +240,7 @@ public class TenantPathManager
     public string GetThumbnailDirectoryAndFileName(Guid driveId, Guid fileId, string payloadKey, UnixTimeUtcUnique payloadUid, int thumbWidth, int thumbHeight)
     {
         var fileName = GetThumbnailFileName(fileId, payloadKey, payloadUid, thumbWidth, thumbHeight);
-        var dir = GetThumbnailDirectory(driveId, fileId, false);
+        var dir = GetThumbnailDirectory(driveId, fileId);
         return Path.Combine(dir, fileName);
     }
 

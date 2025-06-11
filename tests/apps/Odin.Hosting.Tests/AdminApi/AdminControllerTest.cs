@@ -136,9 +136,16 @@ public class AdminControllerTest
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
         Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
         Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
-        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
-        Assert.That(tenant.PayloadSize, Is.Not.Null.And.EqualTo(0));
 
+#if RUN_S3_TESTS
+        var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
+        var bucketName = Environment.GetEnvironmentVariable("S3PayloadStorage__BucketName") ?? "";
+        Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
+#else
+        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
+#endif
+
+        Assert.That(tenant.PayloadSize, Is.Not.Null.And.EqualTo(0));
     }
 
     //
@@ -164,9 +171,17 @@ public class AdminControllerTest
         Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
         Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
-        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
         Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+
+#if RUN_S3_TESTS
+        var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
+        var bucketName = Environment.GetEnvironmentVariable("S3PayloadStorage__BucketName") ?? "";
+        Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
+#else
+        Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
         Assert.That(tenant.PayloadPath, Does.StartWith(_tenantDataRootPath));
+#endif
+
         Assert.That(tenant.PayloadSize, Is.Not.Null.And.GreaterThan(0));
     }
 
@@ -230,6 +245,8 @@ public class AdminControllerTest
 
     //
 
+#if !RUN_S3_TESTS
+    // SEB:TODO update for S3 payloads
     [Test]
     public async Task ItShouldExportTenant()
     {
@@ -290,6 +307,7 @@ public class AdminControllerTest
         ClassicAssert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "registrations")));
         ClassicAssert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "payloads")));
     }
+#endif
 
     //
 

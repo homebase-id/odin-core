@@ -31,6 +31,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
+using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
 
@@ -77,6 +78,10 @@ namespace Odin.Hosting.Tests
 
 #if RUN_REDIS_TESTS
         protected RedisContainer  RedisContainer;
+#endif
+
+#if RUN_S3_TESTS
+        protected MinioContainer MinioContainer = null!;
 #endif
 
         static WebScaffold()
@@ -143,6 +148,7 @@ namespace Odin.Hosting.Tests
             _assertLogEvents = null;
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
+            Environment.SetEnvironmentVariable("Database__Type", "sqlite");
 #if RUN_POSTGRES_TESTS
             PostgresContainer = new PostgreSqlBuilder()
                 .WithImage("postgres:latest")
@@ -157,6 +163,7 @@ namespace Odin.Hosting.Tests
             // Environment.SetEnvironmentVariable("Serilog__MinimumLevel__Override__Odin.Core.Storage.Database.Identity.Connection.ScopedIdentityConnectionFactory", "Verbose");
 #endif
 
+            Environment.SetEnvironmentVariable("Redis__Enabled", "false");
 #if RUN_REDIS_TESTS
             RedisContainer = new RedisBuilder()
                 .WithImage("redis:latest")
@@ -165,6 +172,24 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Redis__Enabled", "true");
             Environment.SetEnvironmentVariable("Redis__Configuration", RedisContainer.GetConnectionString());
             Environment.SetEnvironmentVariable("Cache__Level2CacheType", "redis");
+#endif
+
+            Environment.SetEnvironmentVariable("S3PayloadStorage__Enabled", "false");
+#if RUN_S3_TESTS
+            Logger.LogInformation("Starting Minio S3 container for tests");
+            MinioContainer = new MinioBuilder()
+                .WithImage("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+                .WithUsername("minioadmin")
+                .WithPassword("minioadmin123")
+                .Build();
+            MinioContainer.StartAsync().GetAwaiter().GetResult();
+            Environment.SetEnvironmentVariable("S3PayloadStorage__Enabled", "true");
+            Environment.SetEnvironmentVariable("S3PayloadStorage__AccessKey", MinioContainer.GetAccessKey());
+            Environment.SetEnvironmentVariable("S3PayloadStorage__SecretAccessKey", MinioContainer.GetSecretKey());
+            Environment.SetEnvironmentVariable("S3PayloadStorage__ServiceUrl", MinioContainer.GetConnectionString());
+            Environment.SetEnvironmentVariable("S3PayloadStorage__Region", "meh");
+            Environment.SetEnvironmentVariable("S3PayloadStorage__ForcePathStyle", "true");
+            Environment.SetEnvironmentVariable("S3PayloadStorage__BucketName", "odin-payloads");
 #endif
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
@@ -269,6 +294,12 @@ namespace Odin.Hosting.Tests
             RedisContainer?.StopAsync().Wait();
             RedisContainer?.DisposeAsync().AsTask().Wait();
             RedisContainer = null;
+#endif
+
+#if RUN_S3_TESTS
+            MinioContainer?.StopAsync().Wait();
+            MinioContainer?.DisposeAsync().AsTask().Wait();
+            MinioContainer = null;
 #endif
 
             this.DeleteData();

@@ -341,7 +341,7 @@ public class TableDriveMainIndex(
         return (0, 0);
     }
 
-    public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
+    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var sizeCommand = cn.CreateCommand();
@@ -378,7 +378,36 @@ public class TableDriveMainIndex(
         return (-1, -1);
     }
 
+    public async Task<long> GetTotalSizeAllDrivesAsync()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
 
+        cmd.CommandText =
+            """
+            SELECT CAST(COALESCE(SUM(byteCount), 0) AS BIGINT)
+            FROM DriveMainIndex
+            WHERE identityId=@identityId;
+            """;
+
+        var identityId = cmd.CreateParameter();
+        identityId.ParameterName = "@identityId";
+        identityId.Value = odinIdentity.IdAsByteArray();
+        cmd.Parameters.Add(identityId);
+
+        var size = 0L;
+        await using (var rdr = await cmd.ExecuteReaderAsync())
+        {
+            if (await rdr.ReadAsync())
+            {
+                size = rdr[0] == DBNull.Value ? 0 : (long)rdr[0];
+            }
+        }
+
+        return size;
+    }
+
+    
     /// <summary>
     /// For testing only. Updates the updatedTimestamp for the supplied item.
     /// </summary>
