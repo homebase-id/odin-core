@@ -7,6 +7,7 @@ using AngleSharp.Css.Dom;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Query;
@@ -82,14 +83,15 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
                     var nibblepath = Path.Combine(first.ToString("x"), second.ToString("x"));
                     var dirpath = Path.Combine(rootpath, nibblepath);
-                    var files = GetFilesInDirectory(dirpath, "*.*", 24);
+                    var files = GetFilesInDirectory(dirpath, "*.*", 0); // XXX <--- 24 !
 
                     if (files == null)
                         continue;
 
-                    foreach (var file in files)
+                    foreach (var fileAndDirectory in files)
                     {
-                        var fileType = TenantPathManager.ParseFileType(file);
+                        var fileName = Path.GetFileName(fileAndDirectory);
+                        var fileType = TenantPathManager.ParseFileType(fileName);
                         Guid fileId = Guid.Empty;
                         ParsedPayloadFileRecord parsedFile = null;
                         ParsedThumbnailFileRecord parsedThumb = null;
@@ -97,22 +99,22 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                         switch (fileType)
                         {
                             case TenantPathManager.FileType.Payload:
-                                parsedFile = TenantPathManager.ParsePayloadFilename(file);
+                                parsedFile = TenantPathManager.ParsePayloadFilename(fileName);
                                 fileId = parsedFile.FileId;
                                 break;
                             case TenantPathManager.FileType.Thumbnail:
-                                parsedThumb = TenantPathManager.ParseThumbnailFilename(file);
+                                parsedThumb = TenantPathManager.ParseThumbnailFilename(fileName);
                                 fileId = parsedThumb.FileId;
                                 break;
                             case TenantPathManager.FileType.Invalid:
-                                logger.LogDebug($"Invalid file {file} in {dirpath}");
+                                logger.LogDebug($"Invalid file {fileName} in {dirpath}");
                                 // Probably delete
                                 continue;
                         }
 
                         if (TenantPathManager.GetPayloadDirectoryFromGuid(fileId) != nibblepath)
                         {
-                            logger.LogDebug($"File placed in incorrect directory {file} in {dirpath}");
+                            logger.LogDebug($"File placed in incorrect directory {fileAndDirectory} in {dirpath}");
                             continue;
                         }
 
@@ -129,7 +131,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                         {
                             if (!HasHeaderPayload(header, parsedFile))
                             {
-                                logger.LogDebug($"File {file} is not present in the header, marked for deletion");
+                                logger.LogDebug($"File {fileAndDirectory} is not present in the header, marked for deletion");
                                 // Move for deletion
                                 continue;
                             }
@@ -139,7 +141,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                         {
                             if (!HasHeaderThumbnail(header, parsedThumb))
                             {
-                                logger.LogDebug($"Thumb {file} is not present in the database header, marked for deletion");
+                                logger.LogDebug($"Thumb {fileAndDirectory} is not present in the database header, marked for deletion");
                                 // Move for deletion
                                 continue;
                             }
@@ -151,6 +153,23 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             }
         }
 
+        void FileTouch(string pathAndName)
+        {
+            string directory = Path.GetDirectoryName(pathAndName);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            if (File.Exists(pathAndName))
+            {
+                File.SetLastWriteTime(pathAndName, DateTime.Now);
+            }
+            else
+            {
+                File.Create(pathAndName).Dispose();
+            }
+        }
 
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
@@ -159,27 +178,22 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         {
             var driveId = targetDrive.Alias;
 
+            //
+            // Insert Three Junk Files
+            //
+            //var f1 = Guid.NewGuid();
+            //var s1 = tenantContext.TenantPathManager.GetPayloadDirectoryAndFileName(driveId, f1, "junk", UnixTimeUtcUnique.Now());
+            //FileTouch(s1);
+            //var s2 = tenantContext.TenantPathManager.GetThumbnailDirectoryAndFileName(driveId, f1, "junk", UnixTimeUtcUnique.Now(), 10, 10);
+            //FileTouch(s2);
+            //s2 = s2 + ".junk";
+            //FileTouch(s2);
+
             await CheckDriveFileIntegrity(targetDrive, fs, odinContext);
 
             await VerifyPayloadsFolder(driveId, fs, odinContext);
 
             // VerifyInbox()...
-        }
-
-        private async Task FakeIt(IDriveFileSystem fs, IOdinContext odinContext)
-        {
-            OdinConfiguration config = new OdinConfiguration()
-            {
-                Host = new OdinConfiguration.HostSection()
-                {
-                    TenantDataRootPath = "c:\\temp\\odin\\"
-                }
-            };
-
-            // Fake Michael's identity
-            var fakePathManager = new TenantPathManager(config, Guid.Parse("c1b588ba-8971-46e1-b8bd-105999fa8ddb"));
-
-            await VerifyPayloadsFolder(Guid.Parse("35531928375d4bef8e250c419a8e870d"), fs, odinContext);
         }
 
         /// <summary>
@@ -243,6 +257,18 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             var file = new InternalDriveFileId(drive.Id, fileId);
             var header = await fs.Storage.GetServerFileHeader(file, odinContext);
 
+            // CORRUPT HEADERS WITH THIS CODE
+            // 
+            //if (Random.Shared.NextDouble() < 0.5)
+            //{
+            //    foreach (var payload in header.FileMetadata.Payloads)
+            //    {
+            //        File.Delete(tenantContext.TenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid));
+            //        foreach (var thumb in payload.Thumbnails)
+            //            File.Delete(tenantContext.TenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid, thumb.PixelWidth, thumb.PixelHeight));
+            //    }
+            //}
+
             var sl = await CheckPayloadsIntegrity(drive, header);
 
             if (sl != null)
@@ -280,21 +306,6 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 return null;
         }
 
-        private void CleanOrphanedPayloadsAndThumbnails(StorageDrive drive, ServerFileHeader header)
-        {
-            var fileId = header.FileMetadata.File.FileId;
-            var payloads = header.FileMetadata.Payloads.ToList();
-
-            var payloadDir = tenantContext.TenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-            var searchPattern = OrphanTestUtil.GetPayloadSearchMask(fileId);
-            var orphans = GetFilesInDirectory(payloadDir, searchPattern, 24); // Get all files matching fileId-*-* but they must be at least 24 hours old
-
-            foreach (var orphan in orphans)
-            {
-                // File.Delete(tenantContext.TenantPathManager.GetPayloadDirectoryAndFileName(orphan drive, fileId, orphan.Key, orphan.Uid);
-            }
-        }
-
         /// <summary>
         /// Get files matching the pattern that are at least minAgeHours old
         /// We don't want to risk getting recent files
@@ -317,13 +328,5 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             return files;
         }
 
-        private InternalDriveFileId GetInternalFile(StorageDrive drive, Guid fileId)
-        {
-            return new InternalDriveFileId()
-            {
-                FileId = fileId,
-                DriveId = drive.Id
-            };
-        }
     }
 }

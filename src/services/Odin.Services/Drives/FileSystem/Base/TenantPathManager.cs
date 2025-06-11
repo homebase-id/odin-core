@@ -284,10 +284,11 @@ public class TenantPathManager
         // fileId is 1fedce18c0022900efbb396f9796d3d0
         // payload key is prfl_pic
         // payload UID is 113599297775861760
-        var parts = filename.Split(TenantPathManager.PayloadDelimiter);
+        string cleanedFilename = filename.Replace(PayloadExtension, "");
+        var parts = cleanedFilename.Split(TenantPathManager.PayloadDelimiter);
         return new ParsedPayloadFileRecord()
         {
-            FileId = Guid.Parse(parts[0]),
+            FileId = new Guid(parts[0]),
             Key = parts[1],
             Uid = new UnixTimeUtcUnique(long.Parse(parts[2]))
         };
@@ -311,7 +312,9 @@ public class TenantPathManager
         // width = 400
         // height 400
 
-        var parts = filename.Split(TenantPathManager.PayloadDelimiter);
+        string cleanedFilename = filename.Replace(ThumbnailExtension, "");
+        var parts = cleanedFilename.Split(TenantPathManager.PayloadDelimiter);
+
         var fileNameOnDisk = parts[0]; // not used
         var payloadKeyOnDisk = parts[1];
         var payloadUidOnDisk = long.Parse(parts[2]);
@@ -322,7 +325,7 @@ public class TenantPathManager
 
         return new ParsedThumbnailFileRecord
         {
-            FileId = Guid.Parse(fileNameOnDisk),
+            FileId = new Guid(fileNameOnDisk),
             Key = payloadKeyOnDisk,
             Uid = new UnixTimeUtcUnique(payloadUidOnDisk),
             Width = widthOnDisk,

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -55,19 +56,20 @@ public class DefraggerTest
         _scaffold.AssertLogEvents();
     }
 
+
     [Test]
     [Explicit]
     public async Task DefragDriveTest()
     {
         var ownerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await UploadFile(targetDrive, TestIdentities.Samwise);
+
+
         var t = await ownerClient.DriveManager.GetDrives();
         var drives = t.Content.Results;
 
-        // XXX Todd
-        // Please upload a header + a payload and a thumb or two
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await UploadFile(targetDrive);
-        
         foreach (var drive in drives)
         {
             // this calls to the server and on the server side you will perform the defrag
@@ -76,9 +78,8 @@ public class DefraggerTest
         }
     }
 
-    private async Task UploadFile(TargetDrive targetDrive)
+    private async Task UploadFile(TargetDrive targetDrive, TestIdentity identity)
     {
-        var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
@@ -145,7 +146,5 @@ public class DefraggerTest
                 CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
             }
         }
-
-        // 
     }
 }
