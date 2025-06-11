@@ -41,6 +41,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             foreach (var payloadDescriptor in metadata.Payloads ?? [])
             {
                 bool payloadExists = await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payloadDescriptor);
+
                 if (!payloadExists)
                 {
                     missingPayloads.Add(TenantPathManager.GetPayloadFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid));
@@ -49,6 +50,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
                 {
                     var thumbExists = await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
+
                     if (!thumbExists)
                     {
                         missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid, thumbnailDescriptor.PixelWidth,
@@ -348,6 +350,15 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 .Select(f => f.FullName)
                 .ToArray();
             return files;
+        }
+
+        private InternalDriveFileId GetInternalFile(StorageDrive drive, Guid fileId)
+        {
+            return new InternalDriveFileId()
+            {
+                FileId = fileId,
+                DriveId = drive.Id
+            };
         }
     }
 }
