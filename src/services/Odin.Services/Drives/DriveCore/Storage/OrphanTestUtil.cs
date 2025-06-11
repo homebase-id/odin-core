@@ -45,7 +45,7 @@ public class OrphanTestUtil(
         return false;
     }
 
-    private List<ParsedPayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
+    public static List<ParsedPayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
     {
         // examine all payload files for a given fileId, regardless of key.
         // we'll compare the file below before deleting

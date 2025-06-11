@@ -293,6 +293,15 @@ public class TenantPathManager
         };
     }
 
+    public static string ResolvePayloadFilename(ParsedPayloadFileRecord  fileRecord)
+    {
+        // file name on disk: 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
+        // fileId is 1fedce18c0022900efbb396f9796d3d0
+        // payload key is prfl_pic
+        // payload UID is 113599297775861760
+        return GetPayloadFileName(fileRecord.FileId, fileRecord.Key, fileRecord.Uid);
+    }
+
     public static ParsedThumbnailFileRecord ParseThumbnailFilename(string filename)
     {
         // filename = "1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-400x400.thumb"

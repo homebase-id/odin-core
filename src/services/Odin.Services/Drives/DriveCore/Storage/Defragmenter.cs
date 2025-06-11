@@ -349,14 +349,5 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                 .ToArray();
             return files;
         }
-
-        private InternalDriveFileId GetInternalFile(StorageDrive drive, Guid fileId)
-        {
-            return new InternalDriveFileId()
-            {
-                FileId = fileId,
-                DriveId = drive.Id
-            };
-        }
     }
 }
