@@ -219,6 +219,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
 
+            Console.WriteLine($"Data path: [{TestDataPath}]");
             Console.WriteLine($"Log file Path: [{LogFilePath}]");
 
             Environment.SetEnvironmentVariable("BackgroundServices__EnsureCertificateProcessorIntervalSeconds", "1000");
@@ -385,7 +386,7 @@ namespace Odin.Hosting.Tests
             Directory.CreateDirectory(LogFilePath);
         }
 
-        private void DeleteData()
+        public void DeleteData()
         {
             if (Directory.Exists(TestDataPath))
             {

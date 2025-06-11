@@ -1060,7 +1060,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                if (success)
+                // if (success)
                 {
                     // Cleanup zombied payloads only if the file got moved and 
                     var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);

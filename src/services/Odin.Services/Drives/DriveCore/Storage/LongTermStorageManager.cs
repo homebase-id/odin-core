@@ -208,7 +208,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
             else
             {
-                logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
+                // logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
             }
 
             foreach (var thumbnail in payloadDescriptor.Thumbnails)
@@ -224,8 +224,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
                 else
                 {
-                    logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
-                        thumbnailFilenameAndPath);
+                    // logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
+                        // thumbnailFilenameAndPath);
                 }
             }
         }
