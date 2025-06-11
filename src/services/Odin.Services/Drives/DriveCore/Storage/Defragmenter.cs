@@ -21,46 +21,9 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         DriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         TenantContext tenantContext
-        )
+    )
     {
         private TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
-
-        // Copied from another class
-        private async Task<List<string>> GetMissingPayloadsAsync(FileMetadata metadata)
-        {
-            var missingPayloads = new List<string>();
-            var drive = await driveManager.GetDriveAsync(metadata.File.DriveId);
-
-            // special exception *eye roll*.  really need to root this feed thing out of the core
-            if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
-            {
-                return missingPayloads;
-            }
-
-            var fileId = metadata.File.FileId;
-            foreach (var payloadDescriptor in metadata.Payloads ?? [])
-            {
-                bool payloadExists = await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payloadDescriptor);
-
-                if (!payloadExists)
-                {
-                    missingPayloads.Add(TenantPathManager.GetPayloadFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid));
-                }
-
-                foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
-                {
-                    var thumbExists = await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
-
-                    if (!thumbExists)
-                    {
-                        missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid, thumbnailDescriptor.PixelWidth,
-                            thumbnailDescriptor.PixelHeight));
-                    }
-                }
-            }
-
-            return missingPayloads;
-        }
 
         private bool HasHeaderPayload(FileMetadata header, ParsedPayloadFileRecord fileRecord)
         {
@@ -194,7 +157,6 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             var driveId = targetDrive.Alias;
 
             await CheckDriveFileIntegrity(targetDrive, fs, odinContext);
-
 
             await VerifyFolder(driveId, fs, odinContext);
 
