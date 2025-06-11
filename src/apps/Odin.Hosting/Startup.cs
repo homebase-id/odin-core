@@ -696,6 +696,8 @@ public static class HostExtensions
     // Returns true if the web server should be started, false if it should not.
     public static bool ProcessCommandLineArgs(this IHost host, string[] args)
     {
+        var logger = host.Services.GetRequiredService<ILogger<Startup>>();
+
         if (args.Contains("dont-start-the-web-server"))
         {
             // This is a one-off command example, don't start the web server.
@@ -705,6 +707,8 @@ public static class HostExtensions
         if (args.Length > 0 && args[0] == "--change-modified-not-null")
         {
             var systemDatabase = host.Services.GetRequiredService<SystemDatabase>();
+
+            logger.LogInformation("ChangeModifiedToNotNull: system database");
             ChangeModifiedToNotNull.ExecuteAsync(systemDatabase).BlockingWait();
 
             var multitenantContainer = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
@@ -714,6 +718,7 @@ public static class HostExtensions
             {
                 var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
                 var db = scope.Resolve<IdentityDatabase>();
+                logger.LogInformation("ChangeModifiedToNotNull: {domain}", registration.PrimaryDomainName);
                 ChangeModifiedToNotNull.ExecuteAsync(db).BlockingWait();
             }
             return false;
