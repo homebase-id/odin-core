@@ -245,6 +245,8 @@ public class AdminControllerTest
 
     //
 
+#if !RUN_S3_TESTS
+    // SEB:TODO update for S3 payloads
     [Test]
     public async Task ItShouldExportTenant()
     {
@@ -305,6 +307,7 @@ public class AdminControllerTest
         ClassicAssert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "registrations")));
         ClassicAssert.IsTrue(Directory.Exists(Path.Combine(_exportTargetPath, "frodo.dotyou.cloud", "payloads")));
     }
+#endif
 
     //
 
