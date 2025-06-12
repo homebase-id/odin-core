@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
 using Microsoft.Extensions.Logging;
@@ -33,7 +34,7 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<string> LookupZoneApex(string domain)
+    public async Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default)
     {
         domain = domain.ToLower();
         if (!AsciiDomainNameValidator.TryValidateDomain(domain))
@@ -41,7 +42,7 @@ public class DnsLookupService : IDnsLookupService
             return "";
         }
 
-        var result = await _authoritativeDnsLookup.LookupZoneApex(domain);
+        var result = await _authoritativeDnsLookup.LookupZoneApexAsync(domain, cancellationToken);
 
         return result;
     }
@@ -118,12 +119,12 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain)
+    public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(string domain, CancellationToken cancellationToken = default)
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
         var dnsConfigs = GetDnsConfiguration(domain);
-        var authority = await _authoritativeDnsLookup.LookupDomainAuthority(domain);
+        var authority = await _authoritativeDnsLookup.LookupDomainAuthorityAsync(domain, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
         {
             foreach (var record in dnsConfigs)
@@ -140,14 +141,15 @@ public class DnsLookupService : IDnsLookupService
         };
         foreach (var record in dnsConfigs)
         {
-            var (recordStatus, records) = await VerifyDnsRecord(
+            var (recordStatus, records) = await VerifyDnsRecordAsync(
                 authority.NameServers,
                 queryOptions,
                 domain,
                 record.Name,
                 record.Type,
                 record.Value,
-                record.AltValue);
+                record.AltValue,
+                cancellationToken);
 
             record.QueryResults[authority.AuthoritativeNameServer] = recordStatus;
             record.Records[authority.AuthoritativeNameServer] = records.ToArray();
@@ -160,7 +162,7 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain)
+    public async Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatusAsync(string domain, CancellationToken cancellationToken = default)
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
@@ -175,14 +177,15 @@ public class DnsLookupService : IDnsLookupService
         {
             foreach (var record in dnsConfigs)
             {
-                var (recordStatus, records) = await VerifyDnsRecord(
+                var (recordStatus, records) = await VerifyDnsRecordAsync(
                     new [] {resolver},
                     queryOptions,
                     domain,
                     record.Name,
                     record.Type,
                     record.Value,
-                    record.AltValue);
+                    record.AltValue,
+                    cancellationToken);
 
                 record.QueryResults[resolver] = recordStatus;
                 record.Records[resolver] = records.ToArray();
@@ -218,7 +221,7 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<bool> IsManagedDomainAvailable(string prefix, string apex)
+    public async Task<bool> IsManagedDomainAvailableAsync(string prefix, string apex, CancellationToken cancellationToken = default)
     {
         var domain = prefix + "." + apex;
         AsciiDomainNameValidator.AssertValidDomain(domain);
@@ -229,7 +232,7 @@ public class DnsLookupService : IDnsLookupService
 
         var recordTypes = new[] { QueryType.A, QueryType.CNAME, QueryType.SOA, QueryType.AAAA };
 
-        if (await DnsRecordsOfTypeExists(resolver, domain, recordTypes))
+        if (await DnsRecordsOfTypeExists(resolver, domain, recordTypes, cancellationToken))
         {
             return false;
         }
@@ -238,7 +241,7 @@ public class DnsLookupService : IDnsLookupService
         {
             if (record.Name != "")
             {
-                if (await DnsRecordsOfTypeExists(resolver, record.Name + "." + domain, recordTypes))
+                if (await DnsRecordsOfTypeExists(resolver, record.Name + "." + domain, recordTypes, cancellationToken))
                 {
                     return false;
                 }
@@ -270,14 +273,15 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private async Task<(DnsLookupRecordStatus, List<string> records)> VerifyDnsRecord(
+    private async Task<(DnsLookupRecordStatus, List<string> records)> VerifyDnsRecordAsync(
         IReadOnlyCollection<string> resolvers,
         DnsQueryOptions options,
         string domain,
         string label,
         string type,
         string expectedValue,
-        string expectedAltValue)
+        string expectedAltValue,
+        CancellationToken cancellationToken = default)
     {
         var result = DnsLookupRecordStatus.Unknown;
         List<string> records;
@@ -294,7 +298,7 @@ public class DnsLookupService : IDnsLookupService
 
         // Bail if any AAAA records on domain
         var recordType = QueryType.AAAA;
-        var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
+        var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
         if (response?.Answers.AaaaRecords().Any() == true)
         {
             records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? [];
@@ -306,7 +310,7 @@ public class DnsLookupService : IDnsLookupService
             {
                 case "A":
                     recordType = QueryType.A;
-                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
                     records = response?.Answers.ARecords().Select(x => x.Address.ToString()).ToList() ?? [];
                     result = VerifyDnsValue(records, expectedValue, expectedAltValue);
                     break;
@@ -314,7 +318,7 @@ public class DnsLookupService : IDnsLookupService
                 case "ALIAS":
                 case "CNAME":
                     recordType = QueryType.CNAME;
-                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger);
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
                     records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? [];
                     result = VerifyDnsValue(records, expectedValue, expectedAltValue);
                     break;
@@ -366,7 +370,7 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private async Task<bool> DnsRecordsOfTypeExists(string resolver, string domain, QueryType[] recordTypes)
+    private async Task<bool> DnsRecordsOfTypeExists(string resolver, string domain, QueryType[] recordTypes, CancellationToken cancellationToken = default)
     {
         var dnsQueryOptions = new DnsQueryOptions
         {
@@ -376,7 +380,7 @@ public class DnsLookupService : IDnsLookupService
 
         foreach (var recordType in recordTypes)
         {
-            var response = await _dnsClient.Query(resolver, domain, recordType, dnsQueryOptions);
+            var response = await _dnsClient.Query(resolver, domain, recordType, dnsQueryOptions, cancellationToken: cancellationToken);
             if (response.Answers.Count > 0)
             {
                 return true;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Certes;
 using Certes.Acme;
@@ -16,7 +17,7 @@ namespace Odin.Services.Certificate;
 
 #nullable enable
 
-// Certes:
+// SEB:NOTE Certes is no longer maintained and does not support CancellationToken.
 // https://github.com/fszlin/certes
 // https://github.com/fszlin/certes/blob/main/docs/APIv2.md
 
@@ -50,7 +51,7 @@ public sealed class CertesAcme : ICertesAcme
     
     //
 
-    public async Task<AcmeAccount> CreateAccount(string contactEmail)
+    public async Task<AcmeAccount> CreateAccount(string contactEmail, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Creating account for {contactEmail}", contactEmail);
         var sw = Stopwatch.StartNew();
@@ -66,7 +67,7 @@ public sealed class CertesAcme : ICertesAcme
     
     //
 
-    public async Task<KeysAndCertificates> CreateCertificate(AcmeAccount acmeAccount, string[] domains)
+    public async Task<KeysAndCertificates> CreateCertificate(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
         
@@ -103,34 +104,41 @@ public sealed class CertesAcme : ICertesAcme
         //
         // Create order
         //
+        cancellationToken.ThrowIfCancellationRequested();
         var order = await acme.NewOrder(domains);
         
         //
         // Authorize and challenge
         //
+        cancellationToken.ThrowIfCancellationRequested();
         var authzs = await order.Authorizations();
         
         foreach (var authz in authzs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var challenge = await authz.Http();
 
             _logger.LogDebug("Adding challenge token {token}", challenge.Token);
             _tokenCache.Set(challenge.Token, challenge.KeyAuthz);
 
+            cancellationToken.ThrowIfCancellationRequested();
             await challenge.Validate();
         }
 
         //
         // Wait for all authorizations to be valid
         //
+        cancellationToken.ThrowIfCancellationRequested();
         authzs = await order.Authorizations();
         foreach (var authz in authzs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var resource = await authz.Resource();
             var maxAttempts = 60;
             while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid)
             {
-                await Task.Delay(1000);
+                await Task.Delay(1000, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 resource = await authz.Resource();
             }
 
@@ -144,13 +152,15 @@ public sealed class CertesAcme : ICertesAcme
         //
         // Finalize order and wait for order status to be valid
         //
+        cancellationToken.ThrowIfCancellationRequested();
         await order.Finalize(csr.Generate());
         {
             var resource = await order.Resource();
             var maxAttempts = 60;
             while (--maxAttempts > 0 && resource.Status != OrderStatus.Valid)
             {
-                await Task.Delay(1000);
+                await Task.Delay(1000, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 resource = await order.Resource();
             }
         
@@ -164,6 +174,7 @@ public sealed class CertesAcme : ICertesAcme
         //
         // Download certificate
         //
+        cancellationToken.ThrowIfCancellationRequested();
         var cert = await order.Download();
 
         //
@@ -189,7 +200,7 @@ public sealed class CertesAcme : ICertesAcme
                 sb.AppendLine(issuer.ToPem());
             }
 
-            var stagingRoots = await DownloadStagingRootCerts();
+            var stagingRoots = await DownloadStagingRootCerts(cancellationToken);
             foreach (var stagingRoot in stagingRoots)
             {
                 sb.AppendLine(stagingRoot);
@@ -210,7 +221,7 @@ public sealed class CertesAcme : ICertesAcme
     
     //
     
-    private async Task<List<string>> DownloadStagingRootCerts()
+    private async Task<List<string>> DownloadStagingRootCerts(CancellationToken cancellationToken = default)
     {
         var result = new List<string>();
         var uris = new[]
@@ -223,8 +234,8 @@ public sealed class CertesAcme : ICertesAcme
         foreach (var uri in uris)
         {
             _logger.LogInformation("Downloading staging certitiate: {uri}", uri);
-            var response = await httpClient.GetAsync(uri);
-            var cert = await response.Content.ReadAsStringAsync();
+            var response = await httpClient.GetAsync(uri, cancellationToken);
+            var cert = await response.Content.ReadAsStringAsync(cancellationToken);
             result.Add(cert);
         }
 
@@ -238,12 +249,7 @@ public sealed class CertesAcme : ICertesAcme
 
 public sealed class AcmeHttp01TokenCache : IAcmeHttp01TokenCache
 {
-    private readonly MemoryCache _cache;
-
-    public AcmeHttp01TokenCache()
-    {
-        _cache = new MemoryCache(new MemoryCacheOptions());
-    }
+    private readonly MemoryCache _cache = new(new MemoryCacheOptions());
 
     //
 

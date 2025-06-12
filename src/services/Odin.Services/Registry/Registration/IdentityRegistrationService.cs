@@ -86,9 +86,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<string> LookupZoneApex(string domain)
+    public Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default)
     {
-        return _dnsLookupService.LookupZoneApex(domain);
+        return _dnsLookupService.LookupZoneApexAsync(domain, cancellationToken);
     }
 
     //
@@ -121,7 +121,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     // Managed Domain
     //
 
-    public async Task<bool> IsManagedDomainAvailable(string prefix, string apex)
+    public async Task<bool> IsManagedDomainAvailable(string prefix, string apex, CancellationToken cancellationToken = default)
     {
         var domain = prefix + "." + apex;
 
@@ -136,7 +136,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return false;
         }
 
-        return await _dnsLookupService.IsManagedDomainAvailable(prefix, apex);
+        return await _dnsLookupService.IsManagedDomainAvailableAsync(prefix, apex, cancellationToken);
     }
 
     //
@@ -236,16 +236,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain)
+    public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain, CancellationToken cancellationToken = default)
     {
-        return _dnsLookupService.GetAuthoritativeDomainDnsStatus(domain);
+        return _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
     }
 
     //
 
-    public Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain)
+    public Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain, CancellationToken cancellationToken = default)
     {
-        return _dnsLookupService.GetExternalDomainDnsStatus(domain);
+        return _dnsLookupService.GetExternalDomainDnsStatusAsync(domain, cancellationToken);
     }
 
     //

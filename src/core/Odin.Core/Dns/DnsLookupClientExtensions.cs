@@ -22,10 +22,10 @@ public static class DnsLookupClientExtensions
         DnsQueryOptions? queryOptions = null,
         CancellationToken cancellationToken = default)
     {
-        var nameServer = await ResolveNameServer(resolverAddressOrHostName);
+        var nameServer = await ResolveNameServer(resolverAddressOrHostName, cancellationToken);
         var dnsQuestion = new DnsQuestion(query, queryType);
         queryOptions ??= new DnsQueryOptions();
-        var response = await client.QueryServerAsync(new[] { nameServer }, dnsQuestion, queryOptions, cancellationToken);
+        var response = await client.QueryServerAsync([nameServer], dnsQuestion, queryOptions, cancellationToken);
         return response;
     }
 
@@ -37,7 +37,7 @@ public static class DnsLookupClientExtensions
         string domain,
         QueryType queryType,
         DnsQueryOptions? queryOptions = null,
-        ILogger? logger = default,
+        ILogger? logger = null,
         CancellationToken cancellationToken = default)
     {
         using var cts = new CancellationTokenSource();
@@ -46,7 +46,7 @@ public static class DnsLookupClientExtensions
         var nameServerLookups = new List<Task<NameServer>>();
         foreach (var resolver in resolverAddressesOrHostNames)
         {
-            nameServerLookups.Add(ResolveNameServer(resolver));
+            nameServerLookups.Add(ResolveNameServer(resolver, linkedCts.Token));
         }
         var nameServers = await Task.WhenAll(nameServerLookups);
 
@@ -101,16 +101,16 @@ public static class DnsLookupClientExtensions
             return response;
         }
 
-        return default;
+        return null;
     }
 
     //
 
-    private static async Task<NameServer> ResolveNameServer(string resolverAddressOrHostName)
+    private static async Task<NameServer> ResolveNameServer(string resolverAddressOrHostName, CancellationToken cancellationToken = default)
     {
         if (!IPAddress.TryParse(resolverAddressOrHostName, out var nameServerIp))
         {
-            var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName);
+            var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName, cancellationToken);
             nameServerIp = ips.First();
         }
         return new NameServer(nameServerIp);

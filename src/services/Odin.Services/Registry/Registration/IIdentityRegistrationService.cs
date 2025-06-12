@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Configuration;
 
@@ -10,7 +11,7 @@ namespace Odin.Services.Registry.Registration;
 /// </summary>
 public interface IIdentityRegistrationService
 {
-    Task<string> LookupZoneApex(string domain);
+    Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns a list of domains managed by this identity host.
@@ -29,14 +30,14 @@ public interface IIdentityRegistrationService
     /// Verifies if DNS records are correctly configured using authoritative name servers
     /// </summary>
     /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain);
+    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain, CancellationToken cancellationToken = default);
 
 
     /// <summary>
     /// Verifies if DNS records are correctly configured using external name servers
     /// </summary>
     /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain);
+    Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Create identity on own or managed domain
@@ -48,7 +49,7 @@ public interface IIdentityRegistrationService
     // Managed Domain
     //
     
-    Task<bool> IsManagedDomainAvailable(string prefix, string apex);
+    Task<bool> IsManagedDomainAvailable(string prefix, string apex, CancellationToken cancellationToken = default);
     public Task DeleteManagedDomain(string prefix, string apex);
     public Task CreateManagedDomain(string prefix, string apex);
     

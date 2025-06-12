@@ -37,14 +37,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             var s = r.hdrReactionSummary;
             var m = r.modified;
-            ClassicAssert.IsTrue(m == null);
+            ClassicAssert.IsTrue(m == r.created);
 
             var s2 = "a new summary";
             await tblDriveMainIndex.UpdateReactionSummaryAsync(driveId, f1, s2);
             var r2 = await tblDriveMainIndex.GetAsync(driveId, f1);
             var m2 = r2.modified;
             ClassicAssert.IsTrue(r2.hdrReactionSummary == s2);
-            ClassicAssert.IsTrue(m2 != null);
+            ClassicAssert.IsTrue(m2 != r2.created);
         }
 
         [Test]
@@ -70,14 +70,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r = await tblDriveMainIndex.GetAsync(driveId, f1);
             var s = r.hdrTransferHistory;
             var m = r.modified;
-            ClassicAssert.IsTrue(m == null);
+            ClassicAssert.IsTrue(m == r.created);
 
             var s2 = "a new transfer status";
             var (count, modified) = await tblDriveMainIndex.UpdateTransferSummaryAsync(driveId, f1, s2);
             var r2 = await tblDriveMainIndex.GetAsync(driveId, f1);
             var m2 = r2.modified;
             ClassicAssert.IsTrue(r2.hdrTransferHistory == s2);
-            ClassicAssert.IsTrue(m2 != null);
+            ClassicAssert.IsTrue(m2 != r2.created);
         }
 
         [Test]
@@ -257,7 +257,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // The SQL clock is not necessarily precisely the same as the C# clock. Proven empirically...
 
-            ClassicAssert.IsTrue(rec.modified == null);
+            ClassicAssert.IsTrue(rec.modified == rec.created);
             ClassicAssert.IsTrue(rec.created.AddSeconds(+1) >= cts1);
             ClassicAssert.IsTrue(rec.created.AddSeconds(-1) <= cts2);
 
@@ -271,7 +271,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             ClassicAssert.IsTrue((md.created.AddSeconds(1) >= cts1) && (md.created.AddSeconds(-1) <= cts2));
 
-            if (md.modified != null)
+            if (md.modified != md.created)
                 Assert.Fail();
 
             if (md.fileType != 7)
@@ -429,7 +429,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             });
 
             var md = await tblDriveMainIndex.GetAsync(driveId, k1);
-            if (md.modified != null)
+            if (md.modified != md.created)
                 Assert.Fail();
 
             md.fileType = 8;
@@ -562,7 +562,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Retrieve the record and verify
             var md = await tblDriveMainIndex.GetAsync(driveId, k1);
             ClassicAssert.IsNotNull(md, "Retrieved record is null");
-            ClassicAssert.IsNull(md.modified, "Retrieved record should not have 'modified' set");
+            ClassicAssert.IsTrue(md.modified == md.created, "Retrieved record should not have 'modified' set");
 
             // Validate all fields match between ndr and md
             ClassicAssert.AreEqual(ndr.driveId, md.driveId, "DriveId mismatch");
@@ -709,7 +709,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Retrieve the record and verify
             var md = await tblDriveMainIndex.GetAsync(driveId, k1);
             ClassicAssert.IsNotNull(md, "Retrieved record is null");
-            ClassicAssert.IsNull(md.modified, "Retrieved record should not have 'modified' set");
+            ClassicAssert.IsTrue(md.modified == md.created, "Retrieved record should not have 'modified' set");
 
             // Validate all fields match between ndr and md
             ClassicAssert.AreEqual(ndr.driveId, md.driveId, "DriveId mismatch");

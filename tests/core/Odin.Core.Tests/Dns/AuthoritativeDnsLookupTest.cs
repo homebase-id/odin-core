@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
 using NUnit.Framework;
@@ -16,7 +17,7 @@ public class AuthoritativeDnsLookupTest
         var logStore = new LogEventMemoryStore();
         var logger = TestLogFactory.CreateConsoleLogger<AuthoritativeDnsLookup>(logStore, LogEventLevel.Verbose);
         var lookup = new AuthoritativeDnsLookup(logger, new LookupClient());
-        var result = await lookup.LookupRootAuthority();
+        var result = await lookup.LookupRootAuthorityAsync(CancellationToken.None);
         Assert.That(result.AuthoritativeDomain, Is.EqualTo(""));
         Assert.That(result.AuthoritativeNameServer, Is.EqualTo("a.root-servers.net"));
         Assert.That(result.NameServers, Does.Contain("a.root-servers.net"));
@@ -69,7 +70,7 @@ public class AuthoritativeDnsLookupTest
         var logStore = new LogEventMemoryStore();
         var logger = TestLogFactory.CreateConsoleLogger<AuthoritativeDnsLookup>(logStore, LogEventLevel.Verbose);
         var lookup = new AuthoritativeDnsLookup(logger, new LookupClient());
-        var result = await lookup.LookupDomainAuthority(domain);
+        var result = await lookup.LookupDomainAuthorityAsync(domain, CancellationToken.None);
         Assert.That(result.Exception, Is.Null);
         Assert.That(result.AuthoritativeDomain, Is.EqualTo(expectedAuthorityDomain));
         Assert.That(result.AuthoritativeNameServer, Is.EqualTo(expectedAuthorityNameserver));
@@ -99,7 +100,7 @@ public class AuthoritativeDnsLookupTest
         var logStore = new LogEventMemoryStore();
         var logger = TestLogFactory.CreateConsoleLogger<AuthoritativeDnsLookup>(logStore, LogEventLevel.Verbose);
         var lookup = new AuthoritativeDnsLookup(logger, new LookupClient());
-        var result = await lookup.LookupZoneApex(domain);
+        var result = await lookup.LookupZoneApexAsync(domain, CancellationToken.None);
 
         Assert.That(result, Is.EqualTo(expectedZoneApex));
         LogEvents.AssertEvents(logStore.GetLogEvents());

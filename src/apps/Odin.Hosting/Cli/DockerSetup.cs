@@ -622,7 +622,7 @@ public static class DockerSetup
 
         var authoritativeDnsLookup = new AuthoritativeDnsLookup(logger, lookupClient);
 
-        var authoritativeResult = authoritativeDnsLookup.LookupDomainAuthority(domain).Result;
+        var authoritativeResult = authoritativeDnsLookup.LookupDomainAuthorityAsync(domain, CancellationToken.None).Result;
         if (authoritativeResult.Exception != null)
         {
             return (null, authoritativeResult.Exception.Message);
