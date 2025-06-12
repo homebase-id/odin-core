@@ -73,8 +73,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _created = value;
                }
         }
-        private UnixTimeUtc? _modified;
-        public UnixTimeUtc? modified
+        private UnixTimeUtc _modified;
+        public UnixTimeUtc modified
         {
            get {
                    return _modified;
@@ -112,7 +112,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    +"attestationId BYTEA NOT NULL UNIQUE, "
                    +"status BIGINT NOT NULL, "
                    +"created BIGINT NOT NULL, "
-                   +"modified BIGINT  "
+                   +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
             await conn.ExecuteNonQueryAsync(cmd);
@@ -125,12 +125,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 string sqlNowStr;
                 sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                             $"VALUES (@attestationId,@status,{sqlNowStr},NULL)"+
+                                           $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Int32;
                 insertParam2.ParameterName = "@status";
                 insertCommand.Parameters.Add(insertParam2);
                 insertParam1.Value = item.attestationId;
@@ -139,12 +141,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -160,13 +164,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 string sqlNowStr;
                 sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                            $"VALUES (@attestationId,@status,{sqlNowStr},NULL) " +
+                                            $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.Int32;
                 insertParam2.ParameterName = "@status";
                 insertCommand.Parameters.Add(insertParam2);
                 insertParam1.Value = item.attestationId;
@@ -175,12 +181,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return true;
@@ -196,14 +204,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 string sqlNowStr;
                 sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 upsertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
-                                            $"VALUES (@attestationId,@status,{sqlNowStr},NULL)"+
+                                            $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                            $"SET status = @status,modified = {sqlNowStr} "+
+                                            $"SET status = @status,modified = MAX(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.Int32;
                 upsertParam2.ParameterName = "@status";
                 upsertCommand.Parameters.Add(upsertParam2);
                 upsertParam1.Value = item.attestationId;
@@ -212,12 +222,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -233,13 +245,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 string sqlNowStr;
                 sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
                 updateCommand.CommandText = "UPDATE AttestationStatus " +
-                                            $"SET status = @status,modified = {sqlNowStr} "+
+                                            $"SET status = @status,modified = MAX(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@attestationId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.Int32;
                 updateParam2.ParameterName = "@status";
                 updateCommand.Parameters.Add(updateParam2);
                 updateParam1.Value = item.attestationId;
@@ -248,12 +262,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -302,7 +318,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 throw new Exception("Too little data in attestationId...");
             item.status = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.modified = (rdr[4] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[4]);
+            item.modified = (rdr[4] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[4]); // HACK
             return item;
        }
 
@@ -316,6 +332,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 delete0Command.CommandText = "DELETE FROM AttestationStatus " +
                                              "WHERE attestationId = @attestationId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.Binary;
                 delete0Param1.ParameterName = "@attestationId";
                 delete0Command.Parameters.Add(delete0Param1);
 
@@ -342,7 +359,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.status = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
             return item;
        }
 
@@ -360,6 +377,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                              "WHERE attestationId = @attestationId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
                 get0Param1.ParameterName = "@attestationId";
                 get0Command.Parameters.Add(get0Param1);
 

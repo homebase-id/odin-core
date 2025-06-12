@@ -431,6 +431,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 }
             };
 
+            await Task.Delay(5);
+
             var uploadedFileResponse1 = await driveClient.QueryModified(q);
             ClassicAssert.IsTrue(uploadedFileResponse1.IsSuccessStatusCode);
             var uploadedFile1 = uploadedFileResponse1.Content.SearchResults.FirstOrDefault();

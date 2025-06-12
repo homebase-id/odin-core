@@ -194,6 +194,8 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                 }
             };
 
+            await Task.Delay(5);
+
             var getBatchResponse = await merryAppClient.TransitQuery.GetModified(request);
             ClassicAssert.IsTrue(getBatchResponse.IsSuccessStatusCode);
             ClassicAssert.IsNotNull(getBatchResponse.Content);

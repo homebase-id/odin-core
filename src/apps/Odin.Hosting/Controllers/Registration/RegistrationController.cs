@@ -42,7 +42,7 @@ public class RegistrationController : ControllerBase
     {
         domain = domain.Trim();
         ValidateDomain(domain);
-        var zoneApex = await _regService.LookupZoneApex(domain);
+        var zoneApex = await _regService.LookupZoneApexAsync(domain, HttpContext.RequestAborted);
         return new JsonResult(zoneApex);
     }
 
@@ -72,7 +72,7 @@ public class RegistrationController : ControllerBase
     {
         domain = domain.Trim();
         ValidateDomain(domain);
-        var (resolved, _) = await _regService.GetExternalDomainDnsStatus(domain);
+        var (resolved, _) = await _regService.GetExternalDomainDnsStatus(domain, HttpContext.RequestAborted);
         return new JsonResult(resolved);
     }
 
@@ -126,7 +126,7 @@ public class RegistrationController : ControllerBase
         apex = apex.Trim();
         try
         {
-            var result = await _regService.IsManagedDomainAvailable(prefix, apex);
+            var result = await _regService.IsManagedDomainAvailable(prefix, apex, HttpContext.RequestAborted);
             return new JsonResult(result);
         }
         catch (Exception)
@@ -156,7 +156,7 @@ public class RegistrationController : ControllerBase
             throw new BadRequestException(message: "Invalid or expired Invitation Code");
         }
 
-        var available = await _regService.IsManagedDomainAvailable(prefix, apex);
+        var available = await _regService.IsManagedDomainAvailable(prefix, apex, HttpContext.RequestAborted);
         if (!available)
         {
             return Problem(
@@ -216,7 +216,7 @@ public class RegistrationController : ControllerBase
     {
         domain = domain.Trim();
         ValidateDomain(domain);
-        var (success, dnsConfig) = await _regService.GetAuthoritativeDomainDnsStatus(domain);
+        var (success, dnsConfig) = await _regService.GetAuthoritativeDomainDnsStatus(domain, HttpContext.RequestAborted);
         if (!includeAlias)
         {
             dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
@@ -269,7 +269,7 @@ public class RegistrationController : ControllerBase
         //
         // Check that our new domain can be looked up using authoritative nameservers
         //
-        var (resolved, _) = await _regService.GetAuthoritativeDomainDnsStatus(domain);
+        var (resolved, _) = await _regService.GetAuthoritativeDomainDnsStatus(domain, HttpContext.RequestAborted);
         if (!resolved)
         {
             return Problem(

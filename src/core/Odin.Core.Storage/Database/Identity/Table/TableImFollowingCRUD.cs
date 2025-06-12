@@ -69,8 +69,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _created = value;
                }
         }
-        private UnixTimeUtc? _modified;
-        public UnixTimeUtc? modified
+        private UnixTimeUtc _modified;
+        public UnixTimeUtc modified
         {
            get {
                    return _modified;
@@ -115,7 +115,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"identity TEXT NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
                    +"created BIGINT NOT NULL, "
-                   +"modified BIGINT  "
+                   +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,identity,driveId)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0ImFollowing ON ImFollowing(identityId,identity);"
@@ -129,21 +129,20 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
-                                             $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},NULL)"+
+                                           $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.String;
                 insertParam2.ParameterName = "@identity";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Binary;
                 insertParam3.ParameterName = "@driveId";
                 insertCommand.Parameters.Add(insertParam3);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -153,12 +152,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return 1;
@@ -173,22 +174,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
-                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},NULL) " +
+                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@identityId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.String;
                 insertParam2.ParameterName = "@identity";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Binary;
                 insertParam3.ParameterName = "@driveId";
                 insertCommand.Parameters.Add(insertParam3);
                 insertParam1.Value = item.identityId.ToByteArray();
@@ -198,12 +198,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return true;
@@ -218,23 +220,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = upsertCommand.SqlNow();
                 upsertCommand.CommandText = "INSERT INTO ImFollowing (identityId,identity,driveId,created,modified) " +
-                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},NULL)"+
+                                            $"VALUES (@identityId,@identity,@driveId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,identity,driveId) DO UPDATE "+
-                                            $"SET modified = {sqlNowStr} "+
+                                            $"SET modified = {upsertCommand.SqlMax()}(ImFollowing.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@identityId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.String;
                 upsertParam2.ParameterName = "@identity";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.DbType = DbType.Binary;
                 upsertParam3.ParameterName = "@driveId";
                 upsertCommand.Parameters.Add(upsertParam3);
                 upsertParam1.Value = item.identityId.ToByteArray();
@@ -244,12 +245,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return 1;
@@ -264,22 +267,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-                    sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-                else
-                    sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
+                string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE ImFollowing " +
-                                            $"SET modified = {sqlNowStr} "+
+                                            $"SET modified = {updateCommand.SqlMax()}(ImFollowing.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND identity = @identity AND driveId = @driveId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@identityId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.String;
                 updateParam2.ParameterName = "@identity";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.DbType = DbType.Binary;
                 updateParam3.ParameterName = "@driveId";
                 updateCommand.Parameters.Add(updateParam3);
                 updateParam1.Value = item.identityId.ToByteArray();
@@ -289,12 +291,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
-                    long? modified = (rdr[1] == DBNull.Value) ? null : (long) rdr[1];
                     item.created = new UnixTimeUtc(created);
-                    if (modified != null)
-                        item.modified = new UnixTimeUtc((long)modified);
+                    if (rdr[1] == DBNull.Value)
+                         item.modified = item.created;
                     else
-                        item.modified = null;
+                    {
+                         long modified = (long) rdr[1];
+                         item.modified = new UnixTimeUtc((long)modified);
+                    }
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return 1;
@@ -344,7 +348,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identity = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
             item.driveId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.created = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.modified = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
+            item.modified = (rdr[5] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[5]); // HACK
             return item;
        }
 
@@ -356,12 +360,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Command.CommandText = "DELETE FROM ImFollowing " +
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.Binary;
                 delete0Param1.ParameterName = "@identityId";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.DbType = DbType.String;
                 delete0Param2.ParameterName = "@identity";
                 delete0Command.Parameters.Add(delete0Param2);
                 var delete0Param3 = delete0Command.CreateParameter();
+                delete0Param3.DbType = DbType.Binary;
                 delete0Param3.ParameterName = "@driveId";
                 delete0Command.Parameters.Add(delete0Param3);
 
@@ -388,7 +395,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
             return item;
        }
 
@@ -401,9 +408,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND identity = @identity;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
                 get0Param1.ParameterName = "@identityId";
                 get0Command.Parameters.Add(get0Param1);
                 var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.String;
                 get0Param2.ParameterName = "@identity";
                 get0Command.Parameters.Add(get0Param2);
 
@@ -443,7 +452,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
-            item.modified = (rdr[2] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[2]);
+            item.modified = (rdr[2] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[2]); // HACK
             return item;
        }
 
@@ -459,12 +468,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                              "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
+                get1Param1.DbType = DbType.Binary;
                 get1Param1.ParameterName = "@identityId";
                 get1Command.Parameters.Add(get1Param1);
                 var get1Param2 = get1Command.CreateParameter();
+                get1Param2.DbType = DbType.String;
                 get1Param2.ParameterName = "@identity";
                 get1Command.Parameters.Add(get1Param2);
                 var get1Param3 = get1Command.CreateParameter();
+                get1Param3.DbType = DbType.Binary;
                 get1Param3.ParameterName = "@driveId";
                 get1Command.Parameters.Add(get1Param3);
 
@@ -502,9 +514,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 getPaging0Command.CommandText = "SELECT rowId,identityId,identity,driveId,created,modified FROM ImFollowing " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
+                getPaging0Param1.DbType = DbType.Int64;
                 getPaging0Param1.ParameterName = "@rowId";
                 getPaging0Command.Parameters.Add(getPaging0Param1);
                 var getPaging0Param2 = getPaging0Command.CreateParameter();
+                getPaging0Param2.DbType = DbType.Int64;
                 getPaging0Param2.ParameterName = "@count";
                 getPaging0Command.Parameters.Add(getPaging0Param2);
 

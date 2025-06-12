@@ -24,9 +24,11 @@ using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Core.Storage.SQLite.Migrations;
 using Odin.Core.Tasks;
 using Odin.Core.Util;
 using Odin.Services.Admin.Tenants;
@@ -702,8 +704,8 @@ public static class HostExtensions
             // This is a one-off command example, don't start the web server.
             return false;
         }
-        
-        if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
+
+        if (args.Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
         {
             var services = host.Services;
             var logger = services.GetRequiredService<ILogger<Startup>>();
@@ -713,7 +715,7 @@ public static class HostExtensions
             logger.LogDebug("Finished drive-grant migration; stopping host");
             return false;
         }
-        
+
         return true;
     }
 

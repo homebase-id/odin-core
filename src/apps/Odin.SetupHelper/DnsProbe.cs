@@ -8,7 +8,7 @@ namespace Odin.SetupHelper;
 public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authoritativeDnsLookup, ILookupClient lookupClient)
 {
     public record ResolveIpResult(string Ip, string Message);
-    public async Task<ResolveIpResult> ResolveIpAsync(string domainName)
+    public async Task<ResolveIpResult> ResolveIpAsync(string domainName, CancellationToken cancellationToken = default)
     {
         domainName = domainName.ToLower();
         if (!AsciiDomainNameValidator.TryValidateDomain(domainName))
@@ -22,7 +22,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
             return result with { Message = $"{result.Message} [cache hit]" };
         }
     
-        var authorityLookup = await LookupDomainAuthority(domainName);
+        var authorityLookup = await LookupDomainAuthority(domainName, cancellationToken);
         if (authorityLookup.Authority == "")
         {
             return new ResolveIpResult("", authorityLookup.Message);
@@ -36,7 +36,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
             UseCache = false,
         };
         
-        var queryResponse = await lookupClient.Query(resolvers, domainName, QueryType.A, options);
+        var queryResponse = await lookupClient.Query(resolvers, domainName, QueryType.A, options, cancellationToken: cancellationToken);
         var aRecord = queryResponse?.Answers.ARecords().FirstOrDefault();
         if (aRecord != null)
         {
@@ -48,7 +48,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
         var cNameRecord = queryResponse?.Answers.CnameRecords().FirstOrDefault();
         while (cNameRecord != null)
         {
-            authorityLookup = await LookupDomainAuthority(cNameRecord.CanonicalName);
+            authorityLookup = await LookupDomainAuthority(cNameRecord.CanonicalName, cancellationToken);
             if (authorityLookup.Authority == "")
             {
                 return new ResolveIpResult("", authorityLookup.Message);
@@ -56,7 +56,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
 
             resolvers = [authorityLookup.Authority];
             
-            queryResponse = await lookupClient.Query(resolvers, cNameRecord.CanonicalName, QueryType.A, options);
+            queryResponse = await lookupClient.Query(resolvers, cNameRecord.CanonicalName, QueryType.A, options, cancellationToken: cancellationToken);
             aRecord = queryResponse?.Answers.ARecords().FirstOrDefault(); // SEB:TODO handle multiple A records
             if (aRecord != null)
             {
@@ -76,7 +76,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
     //
     
     public record AuthorityResult(string Authority, string Message);
-    public async Task<AuthorityResult> LookupDomainAuthority(string domainName)
+    public async Task<AuthorityResult> LookupDomainAuthority(string domainName, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"domain-authority:{domainName}";
         if (cache.TryGet<AuthorityResult>(cacheKey, out var result) && result != null)
@@ -84,7 +84,7 @@ public class DnsProbe(IGenericMemoryCache cache, IAuthoritativeDnsLookup authori
             return result with { Message = $"{result.Message} [cache hit]" };
         }
     
-        var authoritativeResult = await authoritativeDnsLookup.LookupDomainAuthority(domainName);
+        var authoritativeResult = await authoritativeDnsLookup.LookupDomainAuthorityAsync(domainName, cancellationToken);
         if (authoritativeResult.Exception != null)
         {
             result = new AuthorityResult("", authoritativeResult.Exception.Message);  

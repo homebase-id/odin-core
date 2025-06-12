@@ -54,20 +54,16 @@ public class TableDriveLocalTagIndex(
         await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
 
         string sqlNowStr;
-        string forUpdate;
-        if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
-        {
-            sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
-            forUpdate = "";
-        }
-        else
-        {
-            sqlNowStr = "EXTRACT(EPOCH FROM NOW() AT TIME ZONE 'UTC') * 1000";
-            forUpdate = "FOR UPDATE";
-        }
 
         using (var selectCommand = cn.CreateCommand())
         {
+            sqlNowStr = selectCommand.SqlNow();
+            string forUpdate;
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                forUpdate = "";
+            else
+                forUpdate = "FOR UPDATE";
+
             selectCommand.CommandText = $"SELECT 1 FROM driveMainIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
 
             var param1 = selectCommand.CreateParameter();
@@ -96,7 +92,7 @@ public class TableDriveLocalTagIndex(
         updateCommand.CommandText =
             $"""
             UPDATE driveMainIndex
-            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {sqlNowStr}
+            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr})
             WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId
                   AND COALESCE(hdrLocalVersionTag, @emptyGuid) = @hdrLocalVersionTag
             """;
