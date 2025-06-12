@@ -30,7 +30,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (header.File.FileId != fileRecord.FileId)
                 return false;
 
-            foreach (var record in header.Payloads)
+            foreach (var record in header.Payloads ?? [])
                 if ((record.Key == fileRecord.Key) && (record.Uid.uniqueTime == fileRecord.Uid.uniqueTime))
                     return true;
 
@@ -42,9 +42,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (header.File.FileId != fileRecord.FileId)
                 return false;
 
-            foreach (var record in header.Payloads)
+            foreach (var record in header.Payloads ?? [])
                 if ((record.Key == fileRecord.Key) && (record.Uid.uniqueTime == fileRecord.Uid.uniqueTime))
-                    foreach (var thumbnail in record.Thumbnails)
+                    foreach (var thumbnail in record.Thumbnails ?? [])
                         if (thumbnail.PixelWidth == fileRecord.Width && thumbnail.PixelHeight == fileRecord.Height)
                             return true;
 
