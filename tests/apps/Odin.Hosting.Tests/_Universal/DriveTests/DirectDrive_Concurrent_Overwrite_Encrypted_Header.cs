@@ -1,9 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Net;
-using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
@@ -11,7 +9,6 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.Performance;
-using Minio.DataModel.Notification;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests;
 

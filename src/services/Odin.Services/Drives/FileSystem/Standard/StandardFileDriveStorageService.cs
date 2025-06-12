@@ -20,10 +20,17 @@ namespace Odin.Services.Drives.FileSystem.Standard
         IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
-        OrphanTestUtil orphanTestUtil,
+        //OrphanTestUtil orphanTestUtil,
         IdentityDatabase db)
-        : DriveStorageServiceBase(loggerFactory, mediator, driveAclAuthorizationService, driveManager, longTermStorageManager,
-            uploadStorageManager, orphanTestUtil, db)
+        : DriveStorageServiceBase(
+            loggerFactory,
+            mediator,
+            driveAclAuthorizationService,
+            driveManager,
+            longTermStorageManager,
+            uploadStorageManager,
+            // orphanTestUtil,
+            db)
     {
         public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
         {

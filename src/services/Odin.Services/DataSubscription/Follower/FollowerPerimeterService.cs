@@ -46,7 +46,7 @@ namespace Odin.Services.DataSubscription.Follower
                 {
                     //use try/catch since GetDriveId will throw an exception
                     //TODO: update PermissionContext with a better method
-                    var drives = request.Channels.Select(chan => odinContext.PermissionsContext.GetDriveId(chan));
+                    var drives = request.Channels.Select(chan => chan.Alias);
                     var allHaveReadAccess = drives.All(driveId =>
                         odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
                     if (!allHaveReadAccess)

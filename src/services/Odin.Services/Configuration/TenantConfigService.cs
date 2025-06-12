@@ -489,9 +489,7 @@ public class TenantConfigService
 
     private async Task<bool> CreateDriveIfNotExistsAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
-
-
-        var drive = await _driveManager.GetDriveIdByAliasAsync(request.TargetDrive, false);
+        var drive = await _driveManager.GetDriveAsync(request.TargetDrive.Alias);
 
         if (null == drive)
         {

@@ -21,8 +21,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         public async Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(qp.TargetDrive);
-            var results = await fileSystem.Query.GetModified(driveId, qp, options, odinContext);
+            var results = await fileSystem.Query.GetModified(qp.TargetDrive.Alias, qp, options, odinContext);
             return results;
         }
 
@@ -34,8 +33,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
         public async Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext)
         {
-            var driveId = odinContext.PermissionsContext.GetDriveId(qp.TargetDrive);
-            var results = await fileSystem.Query.GetBatch(driveId, qp, options, odinContext);
+            var results = await fileSystem.Query.GetBatch(qp.TargetDrive.Alias, qp, options, odinContext);
             return results;
         }
 
@@ -43,7 +41,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = odinContext.PermissionsContext.GetDriveId(targetDrive),
+                DriveId = targetDrive.Alias,
                 FileId = fileId
             };
 
@@ -66,7 +64,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = odinContext.PermissionsContext.GetDriveId(targetDrive),
+                DriveId = targetDrive.Alias,
                 FileId = fileId
             };
 
@@ -96,7 +94,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         {
             var file = new InternalDriveFileId()
             {
-                DriveId = odinContext.PermissionsContext.GetDriveId(targetDrive),
+                DriveId = targetDrive.Alias,
                 FileId = fileId
             };
 

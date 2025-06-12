@@ -150,7 +150,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             var fileId = new InternalDriveFileId()
             {
                 FileId = remoteGlobalTransitIdFileIdentifier.GlobalTransitId,
-                DriveId = odinContext.PermissionsContext.GetDriveId(SystemDriveConstants.TransientTempDrive)
+                DriveId = SystemDriveConstants.TransientTempDrive.Alias
             };
 
             var result = await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext);

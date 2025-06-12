@@ -34,7 +34,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
+        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive.Alias, DrivePermission.React);
 
         await RouteReactionActionToInboxAsync(TransferInstructionType.AddReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
@@ -47,7 +47,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
         OdinValidationUtils.AssertNotNull(request.File, nameof(request.File));
         request.File.AssertIsValid(FileIdentifierType.GlobalTransitId);
 
-        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive, DrivePermission.React);
+        odinContext.PermissionsContext.AssertHasDrivePermission(request.File.TargetDrive.Alias, DrivePermission.React);
 
         await RouteReactionActionToInboxAsync(TransferInstructionType.DeleteReaction, request, odinContext);
         return PeerResponseCode.AcceptedIntoInbox;
@@ -68,7 +68,7 @@ public class PeerIncomingGroupReactionInboxRouterService(
             //HACK: use random guid for the fileId UID constraint since we can have multiple
             //senders sending an add/delete reaction for the same gtid
             FileId = Guid.NewGuid(),
-            DriveId = odinContext.PermissionsContext.GetDriveId(file.TargetDrive),
+            DriveId = file.TargetDrive.Alias,
             TransferFileType = TransferFileType.Normal,
             GlobalTransitId = file.GlobalTransitId.GetValueOrDefault(),
             FileSystemType = request.FileSystemType,

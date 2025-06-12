@@ -61,7 +61,7 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
         // };
 
         // var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
-        var referenceFileDriveId = odinContext.PermissionsContext.GetDriveId(referencedFile.TargetDrive);
+        var referenceFileDriveId = referencedFile.TargetDrive.Alias;
         var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId,
             referencedFile.GlobalTransitId, odinContext);
         var referencedFileReactionPreview = referencedFileHeader.FileMetadata.ReactionPreview ?? new ReactionSummary();

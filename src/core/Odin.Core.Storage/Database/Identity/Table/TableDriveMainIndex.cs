@@ -249,56 +249,6 @@ public class TableDriveMainIndex(
 
         // Unreachable return 0;
     }
-
-    
-    
-    public virtual async Task<int> Temp_ResetDriveIdToAlias(DriveMainIndexRecord item)
-    {
-        item.identityId = odinIdentity;
-        
-        item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-        item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await using var upsertCommand = cn.CreateCommand();
-        await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
-        
-        upsertCommand.CommandText = @"
-        UPDATE driveMainIndex
-            SET
-                hdrFileMetaData = @hdrFileMetaData
-            WHERE identityId = @identityId
-              AND driveId = @driveId
-              AND fileId = @fileId";
-        
-        // Key
-        var upsertParam1 = upsertCommand.CreateParameter();
-        upsertParam1.ParameterName = "@identityId";
-        upsertCommand.Parameters.Add(upsertParam1);
-        var upsertParam2 = upsertCommand.CreateParameter();
-        upsertParam2.ParameterName = "@driveId";
-        upsertCommand.Parameters.Add(upsertParam2);
-        var upsertParam3 = upsertCommand.CreateParameter();
-        upsertParam3.ParameterName = "@fileId";
-        upsertCommand.Parameters.Add(upsertParam3);
-        
-        // the only thing I need to change
-        var upsertParam25 = upsertCommand.CreateParameter();
-        upsertParam25.ParameterName = "@hdrFileMetaData";
-        upsertCommand.Parameters.Add(upsertParam25);
-        
-        upsertParam1.Value = item.identityId.ToByteArray();
-        upsertParam2.Value = item.driveId.ToByteArray();
-        upsertParam3.Value = item.fileId.ToByteArray();
-        
-        upsertParam25.Value = item.hdrFileMetaData;
-        
-        int rowsAffected = await upsertCommand.ExecuteNonQueryAsync();
-        return rowsAffected;
-        
-    }
-    
     
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
@@ -374,7 +324,7 @@ public class TableDriveMainIndex(
         return (0, 0);
     }
 
-    public async Task<(Int64, Int64)> GetDriveSizeDirtyAsync(Guid driveId)
+    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var sizeCommand = cn.CreateCommand();
@@ -411,7 +361,36 @@ public class TableDriveMainIndex(
         return (-1, -1);
     }
 
+    public async Task<long> GetTotalSizeAllDrivesAsync()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
 
+        cmd.CommandText =
+            """
+            SELECT CAST(COALESCE(SUM(byteCount), 0) AS BIGINT)
+            FROM DriveMainIndex
+            WHERE identityId=@identityId;
+            """;
+
+        var identityId = cmd.CreateParameter();
+        identityId.ParameterName = "@identityId";
+        identityId.Value = odinIdentity.IdAsByteArray();
+        cmd.Parameters.Add(identityId);
+
+        var size = 0L;
+        await using (var rdr = await cmd.ExecuteReaderAsync())
+        {
+            if (await rdr.ReadAsync())
+            {
+                size = rdr[0] == DBNull.Value ? 0 : (long)rdr[0];
+            }
+        }
+
+        return size;
+    }
+
+    
     /// <summary>
     /// For testing only. Updates the updatedTimestamp for the supplied item.
     /// </summary>

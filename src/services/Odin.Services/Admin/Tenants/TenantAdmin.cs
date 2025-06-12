@@ -2,11 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Admin.Tenants.Jobs;
+using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
+using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Admin.Tenants;
 #nullable enable
@@ -14,8 +18,10 @@ namespace Odin.Services.Admin.Tenants;
 public class TenantAdmin(
     ILogger<TenantAdmin> logger,
     ILoggerFactory loggerFactory,
+    OdinConfiguration config,
     IJobManager jobManager,
-    IIdentityRegistry identityRegistry)
+    IIdentityRegistry identityRegistry,
+    IMultiTenantContainerAccessor multiTenantContainerAccessor)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -26,10 +32,10 @@ public class TenantAdmin(
     public async Task<List<TenantModel>> GetTenants(bool includePayload)
     {
         var result = new List<TenantModel>();
-        var identities = await identityRegistry.GetList();
-        foreach (var identityRegistration in identities.Results)
+        var identities = await identityRegistry.GetTenants();
+        foreach (var identity in identities)
         {
-            result.Add(await Map(identityRegistration, includePayload));
+            result.Add(await Map(identity, includePayload));
         }
         return result;
     }
@@ -129,8 +135,21 @@ public class TenantAdmin(
 
             if (includePayload)
             {
-                result.PayloadPath = Path.Combine(fsir.PayloadRoot, result.Id);
-                result.PayloadSize = await GetDirectoryByteSizeAsync(result.PayloadPath);
+                var tenantScope = multiTenantContainerAccessor.GetTenantScope(identityRegistration.PrimaryDomainName);
+                var driveMainIndex = tenantScope.Resolve<TableDriveMainIndex>();
+                var sizeAllDrives = await driveMainIndex.GetTotalSizeAllDrivesAsync();
+
+                if (config.S3PayloadStorage.Enabled)
+                {
+                    result.PayloadPath = Path.Combine(
+                        config.S3PayloadStorage.ServiceUrl, config.S3PayloadStorage.BucketName, result.Id);
+                }
+                else
+                {
+                    result.PayloadPath = Path.Combine(fsir.PayloadRoot, result.Id);
+                }
+
+                result.PayloadSize = sizeAllDrives;
             }
         }
 

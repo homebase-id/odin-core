@@ -57,6 +57,7 @@ using Odin.Services.Background;
 using Odin.Services.Concurrency;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
+using Odin.Services.Membership.CircleMembership;
 using StackExchange.Redis;
 
 namespace Odin.Hosting;
@@ -100,7 +101,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         var httpClientFactory = new HttpClientFactory();
         services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-        services.AddSingleton<DriveFileReaderWriter>();
+        services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
 
         services.AddControllers()
@@ -119,8 +120,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 options.JsonSerializerOptions.WriteIndented = OdinSystemSerializer.JsonSerializerOptions.WriteIndented;
                 options.JsonSerializerOptions.AllowTrailingCommas = OdinSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
                 options.JsonSerializerOptions.DefaultBufferSize = OdinSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
-                options.JsonSerializerOptions.DefaultIgnoreCondition =
-                    OdinSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
+                options.JsonSerializerOptions.DefaultIgnoreCondition = OdinSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
                 options.JsonSerializerOptions.DictionaryKeyPolicy = OdinSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
                 options.JsonSerializerOptions.PropertyNamingPolicy = OdinSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
                 options.JsonSerializerOptions.ReadCommentHandling = OdinSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
@@ -259,16 +259,18 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
         services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
 
+        // Payload storage
         if (_config.S3PayloadStorage.Enabled)
         {
-            services.AddMinioClient(
-                _config.S3PayloadStorage.Endpoint,
+            services.AddS3AwsPayloadStorage(
                 _config.S3PayloadStorage.AccessKey,
                 _config.S3PayloadStorage.SecretAccessKey,
-                _config.S3PayloadStorage.Region);
-
-            services.AddS3PayloadStorage(_config.S3PayloadStorage.BucketName);
+                _config.S3PayloadStorage.ServiceUrl,
+                _config.S3PayloadStorage.Region,
+                _config.S3PayloadStorage.ForcePathStyle,
+                _config.S3PayloadStorage.BucketName);
         }
+
     }
 
     // ConfigureContainer is where you can register things directly
@@ -548,23 +550,25 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             // NOTE:
             // This is called AFTER the app has started and is accepting requests.
             // If you want stuff done BEFORE the app starts accepting requests,
-            // put it in HostExtensions.PreApplicationStarted (below).
+            // put it in HostExtensions.BeforeApplicationStarting (below).
         });
 
         lifetime.ApplicationStopping.Register(() =>
         {
             // NOTE:
             // This is called BEFORE the app has stopped accepting requests.
-            // If you want stuff done AFTER the app stops accepting requests,
-            // put it in HostExtensions.PostApplicationStopped (below).
             logger.LogDebug("Waiting max {ShutdownTimeoutSeconds}s for requests and jobs to complete",
                 config.Host.ShutdownTimeoutSeconds);
+
+            var host = app.ApplicationServices.GetRequiredService<IHost>();
+            host.OnApplicationStopping();
         });
 
         lifetime.ApplicationStopped.Register(() =>
         {
-            var host = app.ApplicationServices.GetRequiredService<IHost>();
-            host.AfterApplicationStopped();
+            // NOTE:
+            // This is called AFTER the app has stopped accepting requests.
+            // But it's not always being called. Or so it seems.
         });
     }
 
@@ -629,16 +633,14 @@ public static class HostExtensions
             throw new OdinSystemException("Cache sanity check failed");
         }
 
-        // Sanity ping S3 bucket
+        // Ensure S3 bucket exists
         logger.LogInformation("S3PayloadStorage enabled: {enabled}", config.S3PayloadStorage.Enabled);
         if (config.S3PayloadStorage.Enabled)
         {
-            var payloadBucket = services.GetRequiredService<S3PayloadStorage>();
-            var bucketExists = payloadBucket.BucketExistsAsync().GetAwaiter().GetResult();
-            if (!bucketExists)
-            {
-                throw new OdinSystemException("S3 payload bucket sanity check failed");
-            }
+            logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
+                config.S3PayloadStorage.BucketName, config.S3PayloadStorage.ServiceUrl);
+            var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
+            payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
         // Start system background services
@@ -657,18 +659,19 @@ public static class HostExtensions
 
     //
 
-    public static IHost AfterApplicationStopped(this IHost host)
+    public static IHost OnApplicationStopping(this IHost host)
     {
         if (_didCleanUp)
         {
             return host;
         }
+
         _didCleanUp = true;
 
         var services = host.Services;
         var logger = services.GetRequiredService<ILogger<Startup>>();
 
-        logger.LogDebug("Starting clean up in {method}", nameof(AfterApplicationStopped));
+        logger.LogDebug("Starting clean up in {method}", nameof(OnApplicationStopping));
 
         //
         // Shutdown all tenant background services
@@ -686,7 +689,7 @@ public static class HostExtensions
         services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
 
         // DON'T PUT ANY CLEANUP BELOW THIS LINE
-        logger.LogDebug("Finished clean up in {method}", nameof(AfterApplicationStopped));
+        logger.LogDebug("Finished clean up in {method}", nameof(OnApplicationStopping));
 
         return host;
     }
@@ -696,9 +699,7 @@ public static class HostExtensions
     // Returns true if the web server should be started, false if it should not.
     public static bool ProcessCommandLineArgs(this IHost host, string[] args)
     {
-        var logger = host.Services.GetRequiredService<ILogger<Startup>>();
-
-        if (args.Contains("dont-start-the-web-server"))
+        if (args.Contains("--dont-start-the-web-server"))
         {
             // This is a one-off command example, don't start the web server.
             return false;
@@ -706,6 +707,7 @@ public static class HostExtensions
 
         if (args.Length > 0 && args[0] == "--change-modified-not-null")
         {
+            var logger = host.Services.GetRequiredService<ILogger<Startup>>();
             var systemDatabase = host.Services.GetRequiredService<SystemDatabase>();
 
             logger.LogInformation("ChangeModifiedToNotNull: system database");
@@ -724,9 +726,37 @@ public static class HostExtensions
             return false;
         }
 
+        if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
+        {
+            var services = host.Services;
+            var logger = services.GetRequiredService<ILogger<Startup>>();
+
+            logger.LogDebug("Starting drive-grant migration; stopping host");
+            MigrateDriveGrants(services).GetAwaiter().GetResult();
+            logger.LogDebug("Finished drive-grant migration; stopping host");
+            return false;
+        }
+
         return true;
     }
 
     //
 
+    private static async Task MigrateDriveGrants(IServiceProvider services)
+    {
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+        var migrationLogger = loggerFactory.CreateLogger("Migration");
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+
+        var allTenants = await registry.GetTenants();
+
+        foreach (var tenant in allTenants)
+        {
+            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
+            migrationLogger.LogInformation("Starting migration for {tenant}; id: {id}", tenant.PrimaryDomainName, tenant.Id);
+            var circleMembershipService = scope.Resolve<CircleMembershipService>();
+            await circleMembershipService.Temp_ReconcileCircleAndAppGrants();
+        }
+    }
 }

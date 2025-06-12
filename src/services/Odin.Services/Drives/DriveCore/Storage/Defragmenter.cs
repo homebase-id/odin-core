@@ -19,6 +19,8 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.DriveCore.Storage;
 
+#if false
+
 namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 {
     public class Defragmenter(
@@ -104,10 +106,10 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
             if (driveFileReaderWriter != null)
                 await Task.Delay(0); // NOP to avoid warning. Delete when class is finished
 
-            var driveId = await driveManager.GetDriveIdByAliasAsync(targetDrive, true);
-            var storageDrive = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
+            var driveId = targetDrive.Alias;
+            var storageDrive = await driveManager.GetDriveAsync(driveId);
 
-            var batch = await fs.Query.GetBatch(driveId.GetValueOrDefault(), query, options, odinContext);
+            var batch = await fs.Query.GetBatch(driveId, query, options, odinContext);
 
             logger.LogDebug("Defragmenting drive {driveName}.  File count: {fc}", storageDrive.Name, batch.SearchResults.Count());
             
@@ -159,3 +161,4 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         }
     }
 }
+#endif

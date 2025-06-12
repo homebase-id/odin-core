@@ -507,11 +507,12 @@ namespace Odin.Services.Configuration
         public class S3PayloadStorageSection
         {
             public bool Enabled { get; init; }
-            public string Endpoint { get; init; } = "";
-            public string BucketName { get; init; } = "";
             public string AccessKey { get; init; } = "";
             public string SecretAccessKey { get; init; } = "";
+            public string ServiceUrl { get; init; } = "";
             public string Region { get; init; } = "";
+            public bool ForcePathStyle { get; init; } = false;
+            public string BucketName { get; init; } = "";
 
             public S3PayloadStorageSection()
             {
@@ -523,11 +524,12 @@ namespace Odin.Services.Configuration
                 Enabled = config.GetOrDefault("S3PayloadStorage:Enabled", false);
                 if (Enabled)
                 {
-                    Endpoint = config.Required<string>("S3PayloadStorage:Endpoint");
-                    BucketName = config.Required<string>("S3PayloadStorage:BucketName");
                     AccessKey = config.Required<string>("S3PayloadStorage:AccessKey");
                     SecretAccessKey = config.Required<string>("S3PayloadStorage:SecretAccessKey");
-                    Region = config.GetOrDefault("S3PayloadStorage:Region", ""); // Is this AWS only?
+                    ServiceUrl = config.Required<string>("S3PayloadStorage:ServiceUrl");
+                    Region = config.GetOrDefault("S3PayloadStorage:Region", "");
+                    ForcePathStyle = config.GetOrDefault("S3PayloadStorage:ForcePathStyle", false);
+                    BucketName = config.Required<string>("S3PayloadStorage:BucketName");
                 }
             }
         }

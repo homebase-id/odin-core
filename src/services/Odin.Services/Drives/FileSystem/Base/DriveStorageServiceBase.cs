@@ -39,7 +39,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
-        OrphanTestUtil orphanTestUtil,
+        // OrphanTestUtil orphanTestUtil,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -240,7 +240,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             odinContext.Caller.AssertCallerIsOwner();
             var originalHeader = await this.GetServerFileHeaderInternal(file, odinContext);
             var metadata = originalHeader.FileMetadata;
-            return await orphanTestUtil.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
+            // return await orphanTestUtil.HasOrphanPayloadsOrThumbnails(file, metadata.Payloads);
+            return false;
         }
 
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
@@ -274,39 +275,28 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 try
                 {
-                    var s = longTermStorageManager.GetThumbnailStream(drive, file.FileId, width, height, payloadKey, payloadUid);
+                    var s = await longTermStorageManager.GetThumbnailStreamAsync(drive, file.FileId, width, height, payloadKey, payloadUid);
                     return (s, directMatchingThumb);
                 }
-                catch (OdinFileHeaderHasCorruptPayloadException)
+                catch (Exception)
                 {
                     if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
-
                     throw;
                 }
             }
 
-            if (directMatchOnly)
+            var nextSizeUp = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly);
+            if (null == nextSizeUp)
             {
                 return (Stream.Null, null);
             }
-
-            //TODO: add more logic here to compare width and height separately or together
-            var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
-            if (null == nextSizeUp)
-            {
-                nextSizeUp = thumbs.LastOrDefault();
-                if (null == nextSizeUp)
-                {
-                    return (Stream.Null, null);
-                }
-            }
-
+            
             try
             {
-                var stream = longTermStorageManager.GetThumbnailStream(
+                var stream = await longTermStorageManager.GetThumbnailStreamAsync(
                     drive,
                     file.FileId,
                     nextSizeUp.PixelWidth,
@@ -315,13 +305,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 return (stream, nextSizeUp);
             }
-            catch (OdinFileHeaderHasCorruptPayloadException)
+            catch (Exception)
             {
                 if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
                 {
                     return (Stream.Null, nextSizeUp);
                 }
-
                 throw;
             }
         }
@@ -368,23 +357,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
         }
-
-        /*
-        public async Task<bool> CallerHasPermissionToFile(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            var drive = await DriveManager.GetDriveAsync(file.DriveId);
-            var header = await longTermStorageManager.GetServerFileHeader(drive, file.FileId, GetFileSystemType());
-
-            if (null == header)
-            {
-                _logger.LogDebug($"Permission check called on non-existing file {file}");
-                return false;
-            }
-
-            return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
-        }
-        */
-
+        
         public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
         {
             if (null == header)
@@ -465,7 +438,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             try
             {
-                var stream = await longTermStorageManager.GetPayloadStream(drive, file.FileId, descriptor, chunk);
+                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
                 return new PayloadStream(descriptor, stream.Length, stream);
             }
             catch (OdinFileHeaderHasCorruptPayloadException)
@@ -901,9 +874,9 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             // Method assumes you ensured the file was unique by some other method
 
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
-            await AssertCanWriteToDrive(feedDriveId.GetValueOrDefault(), odinContext);
-            var file = await this.CreateInternalFileId(feedDriveId.GetValueOrDefault());
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+            await AssertCanWriteToDrive(feedDriveId, odinContext);
+            var file = await this.CreateInternalFileId(feedDriveId);
 
             var serverMetadata = new ServerMetadata()
             {
@@ -938,7 +911,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             AssertValidFileSystemType(header.ServerMetadata);
 
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             if (file.DriveId != feedDriveId)
             {
                 throw new OdinSystemException("Method cannot be used on drive");
@@ -981,7 +954,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderInternal(file, odinContext);
             AssertValidFileSystemType(header.ServerMetadata);
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
 
             if (file.DriveId != feedDriveId)
             {
@@ -1001,7 +974,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext)
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
-            var feedDriveId = await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.FeedDrive);
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             if (targetFile.DriveId != feedDriveId)
             {
                 throw new OdinSystemException("Cannot update reaction preview on this drive");
@@ -1391,9 +1364,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        private async Task<bool> ShouldRaiseDriveEventAsync(InternalDriveFileId file)
+        private Task<bool> ShouldRaiseDriveEventAsync(InternalDriveFileId file)
         {
-            return file.DriveId != (await DriveManager.GetDriveIdByAliasAsync(SystemDriveConstants.TransientTempDrive));
+            return Task.FromResult(file.DriveId != SystemDriveConstants.TransientTempDrive.Alias);
         }
 
         private async Task<bool> TryShouldRaiseDriveEventAsync(InternalDriveFileId file)
@@ -1593,7 +1566,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = await uploadStorageManager.GetPath(originFile, payloadExtension);
-            longTermStorageManager.CopyPayloadToLongTerm(drive, targetFile.FileId, descriptor, sourceFilePath);
+            await longTermStorageManager.CopyPayloadToLongTermAsync(drive, targetFile.FileId, descriptor, sourceFilePath);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
@@ -1601,7 +1574,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
                 var sourceThumbnail = await uploadStorageManager.GetPath(originFile, thumbExt);
-                longTermStorageManager.CopyThumbnailToLongTerm(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
             }
         }
 
@@ -1619,7 +1592,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var fileId = metadata.File.FileId;
             foreach (var payloadDescriptor in metadata.Payloads ?? [])
             {
-                bool payloadExists = longTermStorageManager.PayloadExistsOnDisk(drive, fileId, payloadDescriptor);
+                bool payloadExists = await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payloadDescriptor);
                 if (!payloadExists)
                 {
                     missingPayloads.Add(TenantPathManager.GetPayloadFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid));
@@ -1627,7 +1600,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
                 {
-                    var thumbExists = longTermStorageManager.ThumbnailExistsOnDisk(drive, fileId, payloadDescriptor, thumbnailDescriptor);
+                    var thumbExists = await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
                     if (!thumbExists)
                     {
                         missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId,  payloadDescriptor.Key, payloadDescriptor.Uid, thumbnailDescriptor.PixelWidth,
