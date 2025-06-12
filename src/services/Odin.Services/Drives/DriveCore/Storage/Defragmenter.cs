@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -287,7 +288,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var sl = await CheckPayloadsIntegrity(drive, serverFileHeader);
 
             if (sl != null)
-                return $"The following files are missing: {string.Join(",", sl)}";
+            {
+                var missingTime = SequentialGuid.ToUnixTimeUtc(record.fileId);
+                return $"{record.fileId.ToString()} dated {missingTime.ToDateTime():yyyy-MM-dd} following files are missing: {string.Join(",", sl)}";
+            }
 
             return null;
         }
