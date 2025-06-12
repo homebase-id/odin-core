@@ -71,8 +71,46 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return cache[fileId];
         }
 
+        public async Task VerifyInboxDiskFolder(Guid driveId, bool cleanup)
+        {
+            var rootpath = _tenantPathManager.GetDriveInboxPath(driveId);
+            var files = GetFilesInDirectory(rootpath, "*.*", 0);
+            if (files == null)
+                return;
 
-        public async Task VerifyPayloadsFolder(Guid driveId, bool cleanup)
+            var (inboxEntries, _) = await identityDatabase.Inbox.PagingByRowIdAsync(int.MaxValue, null);
+
+            foreach (var fileAndDirectory in files)
+            {
+                var fileName = Path.GetFileName(fileAndDirectory);
+                fileName = fileName.Replace(".metadata", "");
+                fileName = fileName.Replace(".transferkeyheader", "");
+
+                Guid fileId;
+                try
+                {
+                    fileId = new Guid(fileName);
+                }
+                catch
+                {
+                    logger.LogDebug($"Unable to parse inbox filename {fileName}");
+                    continue;
+                }
+
+                bool exists = inboxEntries.Any(record => record.fileId == fileId && record.boxId == driveId);
+
+                if (exists)
+                    continue;
+
+                logger.LogDebug($"Inbox filename {fileName} not in the inbox");
+
+                // Not confident here yet :-D haven't covered it in a test
+                //if (cleanup)
+                //    File.Delete(fileAndDirectory);
+            }
+        }
+
+        public async Task VerifyPayloadsDiskFolder(Guid driveId, bool cleanup)
         {
             var headerCache = new Dictionary<Guid, FileMetadata>();
 
@@ -198,17 +236,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
             //s2 = s2 + ".junk";
             //FileTouch(s2);
 
-            await CheckDriveFileIntegrity(targetDrive);
+            await CheckDrivePayloadsIntegrity(targetDrive);
 
-            await VerifyPayloadsFolder(driveId, cleanup);
+            await VerifyPayloadsDiskFolder(driveId, cleanup);
 
-            // VerifyInbox()...
+            await VerifyInboxDiskFolder(driveId, cleanup);
         }
 
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task CheckDriveFileIntegrity(TargetDrive targetDrive)
+        public async Task CheckDrivePayloadsIntegrity(TargetDrive targetDrive)
         {
             var query = new FileQueryParams
             {

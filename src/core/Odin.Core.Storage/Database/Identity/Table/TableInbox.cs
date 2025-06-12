@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
+
+[assembly: InternalsVisibleTo("Odin.Services.Drives.DriveCore.Storage")]
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -390,5 +393,11 @@ public class TableInbox(
         param2.Value = odinIdentity.IdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
+    }
+
+    // Change to internal
+    public new async Task<(List<InboxRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, inCursor);
     }
 }
