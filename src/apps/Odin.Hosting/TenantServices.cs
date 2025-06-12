@@ -66,7 +66,6 @@ using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.DriveCore.Storage.Gugga;
 
 namespace Odin.Hosting;
 
@@ -151,9 +150,6 @@ public static class TenantServices
             // .As<INotificationHandler<AppNotificationAddedNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
-
-
-        cb.RegisterType<Defragmenter>().AsSelf().SingleInstance();
 
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
@@ -315,6 +311,8 @@ public static class TenantServices
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
+
+        cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
         
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);

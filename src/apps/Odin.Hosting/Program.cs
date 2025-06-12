@@ -59,7 +59,7 @@ namespace Odin.Hosting
                         host.Run();
                         Log.Information("Stopped web host\n\n\n");
                     }
-                    host.AfterApplicationStopped();
+                    host.OnApplicationStopping();
                 }
                 catch (Exception ex)
                 {
