@@ -509,7 +509,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             newMetadata.File = targetFile; // this is a new file so we can use the same fileId from the temp file
             serverMetadata.FileSystemType = GetFileSystemType();
 
-
             // First copy and prepare everything we need
             if (!ignorePayload.GetValueOrDefault(false))
             {
@@ -553,6 +552,11 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
+                if (!success && !ignorePayload.GetValueOrDefault())
+                {
+                    // clean up the newly copied payloads since we failed to update the header 
+                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, newMetadata.Payloads);
+                }
             }
 
             return (success, newMetadata.Payloads);
@@ -566,6 +570,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
 
+            List<PayloadDescriptor> payloads = [];
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
             if (null == existingServerHeader)
             {
@@ -597,7 +602,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             //Note: our call to GetServerFileHeader earlier validates the existing
             serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
-            var payloads = newMetadata.Payloads ?? [];
+            payloads = newMetadata.Payloads ?? [];
 
             if (!ignorePayload.GetValueOrDefault(false))
             {
@@ -643,11 +648,21 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                if (success && !ignorePayload.GetValueOrDefault(false))
+                if (success)
                 {
-                    //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
-                    var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
-                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
+                    if (!ignorePayload.GetValueOrDefault(false))
+                    {
+                        //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
+                        var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
+                        await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
+                    }
+                }
+                else
+                {
+                    if (!ignorePayload.GetValueOrDefault(false))
+                    {
+                        await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, payloads);
+                    }
                 }
             }
 
@@ -681,19 +696,27 @@ namespace Odin.Services.Drives.FileSystem.Base
             var zombiePayloads = existingServerHeader.FileMetadata.Payloads
                 .Where(existingPayload => incomingPayloads.Any(incomingPayload => incomingPayload.KeyEquals(existingPayload))).ToList();
 
-            //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
-            await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive);
+            try
+            {
+                //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive);
 
-            // get all the existing payloads that are not in the incoming list, we'll keep these
-            var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
-                existingPayload => incomingPayloads.All(incomingPayload => !incomingPayload.KeyEquals(existingPayload)));
+                // get all the existing payloads that are not in the incoming list, we'll keep these
+                var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
+                    existingPayload => incomingPayloads.All(incomingPayload => !incomingPayload.KeyEquals(existingPayload)));
 
-            var allPayloads = incomingPayloads.Concat(payloadsToKeep).ToList();
+                var allPayloads = incomingPayloads.Concat(payloadsToKeep).ToList();
 
-            existingServerHeader.FileMetadata.Payloads = allPayloads;
-            existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
+                existingServerHeader.FileMetadata.Payloads = allPayloads;
+                existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
 
-            await WriteFileHeaderInternal(existingServerHeader);
+                await WriteFileHeaderInternal(existingServerHeader);
+            }
+            catch (Exception)
+            {
+                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, incomingPayloads);
+                throw;
+            }
 
             try
             {
@@ -1121,6 +1144,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             async Task<List<PayloadDescriptor>> ProcessAppendOrOverwrite(StorageDrive storageDrive, ServerFileHeader serverFileHeader)
             {
                 var zombies = new List<PayloadDescriptor>();
+
                 foreach (var op in manifest.PayloadInstruction
                              .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
@@ -1128,10 +1152,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                     var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
                         $"with key {op.Key} in FileMetadata to " +
                         $"perform operation {op.OperationType}");
-
-                    // Copy the payload from the temp folder to the long term folder
-                    var copiedFiles = await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, storageDrive, descriptor);
-                    _logger.LogDebug("UpdateBatchAsync - After CopyPayloadAndThumbnailsToLongTermStorage");
 
                     // keep a list of payloads that would have been uploaded for the append or overwrite operation
                     copiedPayloads.Add(descriptor);
@@ -1154,6 +1174,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                         serverFileHeader.FileMetadata.Payloads[idx] = descriptor;
                     }
                 }
+
+                // Copy all payload from the temp folder to the long term folder
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive);
 
                 return zombies;
             }
@@ -1562,37 +1585,39 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Copies payloads and thumbs to long term storage
         /// </summary>
         /// <returns>List of all files copied (directory and filename)</returns>
-        private async Task<List<string>> CopyPayloadsAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
+        private async Task CopyPayloadsAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
             List<PayloadDescriptor> descriptors, StorageDrive drive)
         {
-            List<string> copiedFiles = [];
-            foreach (var descriptor in descriptors)
+            try
             {
-                var results = await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor);
-                copiedFiles.AddRange(results);
+                foreach (var descriptor in descriptors)
+                {
+                    await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor);
+                }
             }
-
-            return copiedFiles;
+            catch
+            {
+                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, descriptors);
+                throw;
+            }
         }
 
         /// <summary>
         /// Copies payload and thumbs to long term storage
         /// </summary>
         /// <returns>List of all files copied (directory and filename)</returns>
-        private async Task<List<string>> CopyPayloadAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
+        private async Task CopyPayloadAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
             StorageDrive drive,
             PayloadDescriptor descriptor)
         {
-            var copiedFiles = new List<string>();
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = await uploadStorageManager.GetPath(originFile, payloadExtension);
-            var copiedPayloadDirectoryAndFilename = await longTermStorageManager.CopyPayloadToLongTermAsync(
+            await longTermStorageManager.CopyPayloadToLongTermAsync(
                 drive,
                 targetFile.FileId,
                 descriptor,
                 sourceFilePath);
 
-            copiedFiles.Add(copiedPayloadDirectoryAndFilename);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
@@ -1600,12 +1625,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
                 var sourceThumbnail = await uploadStorageManager.GetPath(originFile, thumbExt);
-                var t = await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
+                await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
                     thumb);
-                copiedFiles.Add(t);
             }
-
-            return copiedFiles;
         }
 
         private async Task<List<string>> GetMissingPayloadsAsync(FileMetadata metadata)

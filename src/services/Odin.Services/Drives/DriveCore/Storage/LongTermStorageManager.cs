@@ -208,7 +208,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
             else
             {
-                // logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
+                logger.LogError("HardDeletePayloadFile -> source payload does not exist [{pathAndFilename}]", pathAndFilename);
             }
 
             foreach (var thumbnail in payloadDescriptor.Thumbnails)
@@ -224,8 +224,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
                 else
                 {
-                    // logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
-                        // thumbnailFilenameAndPath);
+                    logger.LogError("HardDeletePayloadFile -> Renaming Thumbnail: source thumbnail does not exist [{thumbnailFile}]",
+                        thumbnailFilenameAndPath);
                 }
             }
         }
@@ -353,7 +353,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         /// <summary>
         /// Moves the specified <param name="sourceFile"></param> to long term storage.
-        /// Returns the storage UID used in the filename
+        /// Returns the full path of the desitnation file.
         /// </summary>
         public async Task CopyPayloadToLongTermAsync(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
         {
@@ -367,9 +367,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
         }
-
-
-
+        
         public async Task CopyThumbnailToLongTermAsync(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
             ThumbnailDescriptor thumbnailDescriptor)
@@ -388,6 +386,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await payloadReaderWriter.CopyPayloadFileAsync(sourceThumbnailFilePath, destinationFile);
             logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                 sourceThumbnailFilePath, destinationFile);
+
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
