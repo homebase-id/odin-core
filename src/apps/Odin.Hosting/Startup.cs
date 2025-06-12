@@ -718,9 +718,9 @@ public static class HostExtensions
             return false;
         }
 
-        if (args.Contains("--defragment"))
+        if (args.Length == 2 && args[0] == "defragment")
         {
-            DefragmentAsync(host.Services).BlockingWait();
+            DefragmentAsync(host.Services, args[1] == "cleanup").BlockingWait();
             return false;
         }
         
@@ -749,7 +749,7 @@ public static class HostExtensions
 
     //
 
-    private static async Task DefragmentAsync(IServiceProvider services)
+    private static async Task DefragmentAsync(IServiceProvider services, bool cleanup)
     {
         var registry = services.GetRequiredService<IIdentityRegistry>();
         var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
@@ -766,14 +766,9 @@ public static class HostExtensions
 
             foreach (var drive in drives)
             {
-                var targetDrive = new TargetDrive() { Alias = drive.DriveAlias, Type = drive.DriveType };
-                await defragmenter.Defragment(targetDrive, false);
+                var targetDrive = new TargetDrive { Alias = drive.DriveAlias, Type = drive.DriveType };
+                await defragmenter.Defragment(targetDrive, cleanup);
             }
-
-    // MS:TODO
-    // Params to defragmenter.Defragment() are no good. It needs to bypass all the OdinContext crap
-    // and go directly to the database.
-    // defragmenter.Defragment(.......)
-}
+        }
     }
 }
