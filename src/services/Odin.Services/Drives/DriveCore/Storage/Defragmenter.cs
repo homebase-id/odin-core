@@ -78,6 +78,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (files == null)
                 return;
 
+            //CORRUPT INBOX FILES WITH THIS CODE
+            //if (Random.Shared.NextDouble() < 0.5)
+            //{
+            //    var s = files[0];
+            //    s = s+"junk";
+            //    FileTouch(s);
+            //    files = files.Concat(new[] { s }).ToArray();
+            //}
+
             var (inboxEntries, _) = await identityDatabase.Inbox.PagingByRowIdAsync(int.MaxValue, null);
 
             foreach (var fileAndDirectory in files)

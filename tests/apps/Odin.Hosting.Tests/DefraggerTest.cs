@@ -71,8 +71,21 @@ public class DefraggerTest
     {
         var ownerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
 
+        // Upload two files
         var targetDrive = TargetDrive.NewTargetDrive();
         await UploadFile(targetDrive, TestIdentities.Samwise);
+
+
+        // Place some files in Sam's inbox
+        var targetDrive2 = TargetDrive.NewTargetDrive();
+        var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        const DrivePermission drivePermissions = DrivePermission.Write;
+        const int totalFileCount = 32;
+
+        await PrepareScenario(senderOwnerClient, ownerClient, targetDrive2, drivePermissions);
+        var fileSendResults = await SendFiles(senderOwnerClient, ownerClient, targetDrive2, totalFileCount);
+        ClassicAssert.IsTrue(fileSendResults.Count == totalFileCount);
 
 
         var t = await ownerClient.DriveManager.GetDrives();
@@ -156,31 +169,6 @@ public class DefraggerTest
         }
     }
 
-    [Test]
-    public async Task LeaveItemsInInbox()
-    {
-        var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-        var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-        Console.WriteLine($"\n\nData Path: [{_scaffold.TestDataPath}]\n\n");
-        
-        const DrivePermission drivePermissions = DrivePermission.Write;
-        const int totalFileCount = 32;
-
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
-
-        var fileSendResults = await SendFiles(senderOwnerClient, recipientOwnerClient, targetDrive, totalFileCount);
-        ClassicAssert.IsTrue(fileSendResults.Count == totalFileCount);
-
-        // @michael - leaving this out means items should stay in the inbox because they're nefer processed
-        // var processInboxResponse = await recipientOwnerClient.DriveRedux.ProcessInbox(targetDrive, batchSize: 100);
-        // ClassicAssert.IsTrue(processInboxResponse.IsSuccessStatusCode);
-        // ClassicAssert.IsTrue(processInboxResponse.Content.PoppedCount == 0);
-        // ClassicAssert.IsTrue(processInboxResponse.Content.TotalItems == 0);
-
-
-        await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
-    }
 
     private async Task<List<FileSendResponse>> SendFiles(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient,
         TargetDrive targetDrive, int totalFiles)
