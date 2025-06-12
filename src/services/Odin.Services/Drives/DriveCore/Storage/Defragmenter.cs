@@ -244,16 +244,23 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var batch = await identityDatabase.DriveMainIndex.GetAllByDriveIdAsync(driveId);
 
-            logger.LogDebug("Defragmenting drive {driveName}.  File count: {fc}", driveId, batch.Count());
+            logger.LogDebug("Defragmenting drive {driveName}.", driveId);
+
+            int missingCount = 0;
 
             foreach (var header in batch)
             {
                 var missing = await this.VerifyFileAsync(storageDrive, header);
                 if (missing != null)
+                {
                     logger.LogDebug(missing);
+                    missingCount++;
+                }
 
                 // Now check for orphaned files?
             }
+
+            logger.LogDebug("Defragmenting drive {driveName} summary.  File count: {fc}  Missing count: {mc}", driveId, batch.Count(), missingCount);
         }
 
         /// <summary>

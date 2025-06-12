@@ -764,6 +764,7 @@ public static class HostExtensions
             var tblDrives = scope.Resolve<TableDrives>();
             var (drives, _, _) = await tblDrives.GetList(int.MaxValue, null);
 
+            logger.LogInformation("Defragmenting {tenant}", tenant.PrimaryDomainName);
             foreach (var drive in drives)
             {
                 var targetDrive = new TargetDrive { Alias = drive.DriveAlias, Type = drive.DriveType };
