@@ -126,15 +126,18 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO AttestationRequest (attestationId,requestEnvelope,timestamp) " +
-                                             $"VALUES (@attestationId,@requestEnvelope,@timestamp)"+
+                                           $"VALUES (@attestationId,@requestEnvelope,@timestamp)"+
                                             "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.String;
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.String;
                 insertParam2.ParameterName = "@requestEnvelope";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Int64;
                 insertParam3.ParameterName = "@timestamp";
                 insertCommand.Parameters.Add(insertParam3);
                 insertParam1.Value = item.attestationId;
@@ -160,12 +163,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.String;
                 insertParam1.ParameterName = "@attestationId";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.String;
                 insertParam2.ParameterName = "@requestEnvelope";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Int64;
                 insertParam3.ParameterName = "@timestamp";
                 insertCommand.Parameters.Add(insertParam3);
                 insertParam1.Value = item.attestationId;
@@ -192,12 +198,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                             $"SET requestEnvelope = @requestEnvelope,timestamp = @timestamp "+
                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.String;
                 upsertParam1.ParameterName = "@attestationId";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.String;
                 upsertParam2.ParameterName = "@requestEnvelope";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.DbType = DbType.Int64;
                 upsertParam3.ParameterName = "@timestamp";
                 upsertCommand.Parameters.Add(upsertParam3);
                 upsertParam1.Value = item.attestationId;
@@ -223,12 +232,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.String;
                 updateParam1.ParameterName = "@attestationId";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.String;
                 updateParam2.ParameterName = "@requestEnvelope";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.DbType = DbType.Int64;
                 updateParam3.ParameterName = "@timestamp";
                 updateCommand.Parameters.Add(updateParam3);
                 updateParam1.Value = item.attestationId;
@@ -295,6 +307,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 delete0Command.CommandText = "DELETE FROM AttestationRequest " +
                                              "WHERE attestationId = @attestationId";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.String;
                 delete0Param1.ParameterName = "@attestationId";
                 delete0Command.Parameters.Add(delete0Param1);
 
@@ -338,6 +351,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                                              "WHERE attestationId = @attestationId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.String;
                 get0Param1.ParameterName = "@attestationId";
                 get0Command.Parameters.Add(get0Param1);
 
@@ -372,9 +386,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 getPaging1Command.CommandText = "SELECT rowId,attestationId,requestEnvelope,timestamp FROM AttestationRequest " +
                                             "WHERE attestationId > @attestationId  ORDER BY attestationId ASC  LIMIT @count;";
                 var getPaging1Param1 = getPaging1Command.CreateParameter();
+                getPaging1Param1.DbType = DbType.String;
                 getPaging1Param1.ParameterName = "@attestationId";
                 getPaging1Command.Parameters.Add(getPaging1Param1);
                 var getPaging1Param2 = getPaging1Command.CreateParameter();
+                getPaging1Param2.DbType = DbType.Int64;
                 getPaging1Param2.ParameterName = "@count";
                 getPaging1Command.Parameters.Add(getPaging1Param2);
 

@@ -227,27 +227,34 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             using (var insertCommand = conn.db.CreateCommand())
             {
                 insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
-                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
+                                           $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
                                             "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.String;
                 insertParam2.ParameterName = "@identity";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Int64;
                 insertParam3.ParameterName = "@timestamp";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.Binary;
                 insertParam4.ParameterName = "@signedPreviousHash";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.String;
                 insertParam5.ParameterName = "@algorithm";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.DbType = DbType.String;
                 insertParam6.ParameterName = "@publicKeyJwkBase64Url";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.DbType = DbType.Binary;
                 insertParam7.ParameterName = "@recordHash";
                 insertCommand.Parameters.Add(insertParam7);
                 insertParam1.Value = item.previousHash;
@@ -277,24 +284,31 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
+                insertParam1.DbType = DbType.Binary;
                 insertParam1.ParameterName = "@previousHash";
                 insertCommand.Parameters.Add(insertParam1);
                 var insertParam2 = insertCommand.CreateParameter();
+                insertParam2.DbType = DbType.String;
                 insertParam2.ParameterName = "@identity";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
+                insertParam3.DbType = DbType.Int64;
                 insertParam3.ParameterName = "@timestamp";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
+                insertParam4.DbType = DbType.Binary;
                 insertParam4.ParameterName = "@signedPreviousHash";
                 insertCommand.Parameters.Add(insertParam4);
                 var insertParam5 = insertCommand.CreateParameter();
+                insertParam5.DbType = DbType.String;
                 insertParam5.ParameterName = "@algorithm";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
+                insertParam6.DbType = DbType.String;
                 insertParam6.ParameterName = "@publicKeyJwkBase64Url";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
+                insertParam7.DbType = DbType.Binary;
                 insertParam7.ParameterName = "@recordHash";
                 insertCommand.Parameters.Add(insertParam7);
                 insertParam1.Value = item.previousHash;
@@ -325,24 +339,31 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                                             $"SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
                                             "RETURNING -1,-1,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
+                upsertParam1.DbType = DbType.Binary;
                 upsertParam1.ParameterName = "@previousHash";
                 upsertCommand.Parameters.Add(upsertParam1);
                 var upsertParam2 = upsertCommand.CreateParameter();
+                upsertParam2.DbType = DbType.String;
                 upsertParam2.ParameterName = "@identity";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
+                upsertParam3.DbType = DbType.Int64;
                 upsertParam3.ParameterName = "@timestamp";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
+                upsertParam4.DbType = DbType.Binary;
                 upsertParam4.ParameterName = "@signedPreviousHash";
                 upsertCommand.Parameters.Add(upsertParam4);
                 var upsertParam5 = upsertCommand.CreateParameter();
+                upsertParam5.DbType = DbType.String;
                 upsertParam5.ParameterName = "@algorithm";
                 upsertCommand.Parameters.Add(upsertParam5);
                 var upsertParam6 = upsertCommand.CreateParameter();
+                upsertParam6.DbType = DbType.String;
                 upsertParam6.ParameterName = "@publicKeyJwkBase64Url";
                 upsertCommand.Parameters.Add(upsertParam6);
                 var upsertParam7 = upsertCommand.CreateParameter();
+                upsertParam7.DbType = DbType.Binary;
                 upsertParam7.ParameterName = "@recordHash";
                 upsertCommand.Parameters.Add(upsertParam7);
                 upsertParam1.Value = item.previousHash;
@@ -372,24 +393,31 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                                             "WHERE (identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url) "+
                                             "RETURNING -1,-1,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
+                updateParam1.DbType = DbType.Binary;
                 updateParam1.ParameterName = "@previousHash";
                 updateCommand.Parameters.Add(updateParam1);
                 var updateParam2 = updateCommand.CreateParameter();
+                updateParam2.DbType = DbType.String;
                 updateParam2.ParameterName = "@identity";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
+                updateParam3.DbType = DbType.Int64;
                 updateParam3.ParameterName = "@timestamp";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
+                updateParam4.DbType = DbType.Binary;
                 updateParam4.ParameterName = "@signedPreviousHash";
                 updateCommand.Parameters.Add(updateParam4);
                 var updateParam5 = updateCommand.CreateParameter();
+                updateParam5.DbType = DbType.String;
                 updateParam5.ParameterName = "@algorithm";
                 updateCommand.Parameters.Add(updateParam5);
                 var updateParam6 = updateCommand.CreateParameter();
+                updateParam6.DbType = DbType.String;
                 updateParam6.ParameterName = "@publicKeyJwkBase64Url";
                 updateCommand.Parameters.Add(updateParam6);
                 var updateParam7 = updateCommand.CreateParameter();
+                updateParam7.DbType = DbType.Binary;
                 updateParam7.ParameterName = "@recordHash";
                 updateCommand.Parameters.Add(updateParam7);
                 updateParam1.Value = item.previousHash;
@@ -477,9 +505,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 delete0Command.CommandText = "DELETE FROM KeyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url";
                 var delete0Param1 = delete0Command.CreateParameter();
+                delete0Param1.DbType = DbType.String;
                 delete0Param1.ParameterName = "@identity";
                 delete0Command.Parameters.Add(delete0Param1);
                 var delete0Param2 = delete0Command.CreateParameter();
+                delete0Param2.DbType = DbType.String;
                 delete0Param2.ParameterName = "@publicKeyJwkBase64Url";
                 delete0Command.Parameters.Add(delete0Param2);
 
@@ -540,9 +570,11 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.String;
                 get0Param1.ParameterName = "@identity";
                 get0Command.Parameters.Add(get0Param1);
                 var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.String;
                 get0Param2.ParameterName = "@publicKeyJwkBase64Url";
                 get0Command.Parameters.Add(get0Param2);
 

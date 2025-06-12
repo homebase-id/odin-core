@@ -24,9 +24,11 @@ using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Core.Storage.SQLite.Migrations;
 using Odin.Core.Tasks;
 using Odin.Core.Util;
 using Odin.Services.Admin.Tenants;
@@ -702,7 +704,28 @@ public static class HostExtensions
             // This is a one-off command example, don't start the web server.
             return false;
         }
-        
+
+        if (args.Length > 0 && args[0] == "--change-modified-not-null")
+        {
+            var logger = host.Services.GetRequiredService<ILogger<Startup>>();
+            var systemDatabase = host.Services.GetRequiredService<SystemDatabase>();
+
+            logger.LogInformation("ChangeModifiedToNotNull: system database");
+            ChangeModifiedToNotNull.ExecuteAsync(systemDatabase).BlockingWait();
+
+            var multitenantContainer = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+            var registry = host.Services.GetRequiredService<IIdentityRegistry>();
+            var registrations = registry.GetTenants().Result;
+            foreach (var registration in registrations)
+            {
+                var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+                var db = scope.Resolve<IdentityDatabase>();
+                logger.LogInformation("ChangeModifiedToNotNull: {domain}", registration.PrimaryDomainName);
+                ChangeModifiedToNotNull.ExecuteAsync(db).BlockingWait();
+            }
+            return false;
+        }
+
         if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
         {
             var services = host.Services;
@@ -713,7 +736,7 @@ public static class HostExtensions
             logger.LogDebug("Finished drive-grant migration; stopping host");
             return false;
         }
-        
+
         return true;
     }
 

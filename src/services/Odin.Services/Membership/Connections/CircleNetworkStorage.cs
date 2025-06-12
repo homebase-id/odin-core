@@ -236,7 +236,7 @@ public class CircleNetworkStorage
             OdinId = record.identity,
             Status = (ConnectionStatus)record.status,
             Created = record.created.milliseconds,
-            LastUpdated = record.modified.HasValue ? record.modified.Value.milliseconds : 0,
+            LastUpdated = record.modified,
             AccessGrant = data.AccessGrant,
             OriginalContactData = data.OriginalContactData,
             EncryptedClientAccessToken = data.EncryptedClientAccessToken == null

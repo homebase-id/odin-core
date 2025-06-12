@@ -92,7 +92,7 @@ namespace Odin.Attestation.Controllers
                     return NotFound("No such attestationId found.");
                 }
 
-                var result = new VerifyAttestationResult() { created = r.created.seconds, modified = r.modified?.seconds, status = r.status };
+                var result = new VerifyAttestationResult() { created = r.created.seconds, modified = r.modified.seconds, status = r.status };
 
                 return Ok(JsonSerializer.Serialize(result, options));
             }
