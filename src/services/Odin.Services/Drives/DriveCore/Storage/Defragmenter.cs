@@ -3,19 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using AngleSharp.Css.Dom;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Time;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 
-namespace Odin.Services.Drives.DriveCore.Storage.Gugga
+namespace Odin.Services.Drives.DriveCore.Storage
 {
     public class Defragmenter(
         ILogger<Defragmenter> logger,
@@ -24,7 +20,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         TenantContext tenantContext
     )
     {
-        private TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
+        private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
         private bool HasHeaderPayload(FileMetadata header, ParsedPayloadFileRecord fileRecord)
         {
@@ -37,7 +33,6 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             return false;
         }
-
 
         private bool HasHeaderThumbnail(FileMetadata header, ParsedThumbnailFileRecord fileRecord)
         {

@@ -703,7 +703,7 @@ public static class HostExtensions
             return false;
         }
         
-        if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
+        if (args.Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
         {
             var services = host.Services;
             var logger = services.GetRequiredService<ILogger<Startup>>();
@@ -711,6 +711,12 @@ public static class HostExtensions
             logger.LogDebug("Starting drive-grant migration; stopping host");
             MigrateDriveGrants(services).GetAwaiter().GetResult();
             logger.LogDebug("Finished drive-grant migration; stopping host");
+            return false;
+        }
+
+        if (args.Contains("--defragment"))
+        {
+            DefragmentAsync(host.Services).BlockingWait();
             return false;
         }
         
@@ -736,4 +742,27 @@ public static class HostExtensions
             await circleMembershipService.Temp_ReconcileCircleAndAppGrants();
         }
     }
+
+    //
+
+    private static async Task DefragmentAsync(IServiceProvider services)
+    {
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+
+        var allTenants = await registry.GetTenants();
+
+        foreach (var tenant in allTenants)
+        {
+            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
+            var defragmenter = scope.Resolve<Defragmenter>();
+            // MS:TODO
+            // Params to defragmenter.Defragment() are no good. It needs to bypass all the OdinContext crap
+            // and go directly to the database.
+            // defragmenter.Defragment(.......)
+        }
+    }
+
+
+    
 }
