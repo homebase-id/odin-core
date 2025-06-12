@@ -705,28 +705,7 @@ public static class HostExtensions
             return false;
         }
 
-        if (args.Length > 0 && args[0] == "--change-modified-not-null")
-        {
-            var logger = host.Services.GetRequiredService<ILogger<Startup>>();
-            var systemDatabase = host.Services.GetRequiredService<SystemDatabase>();
-
-            logger.LogInformation("ChangeModifiedToNotNull: system database");
-            ChangeModifiedToNotNull.ExecuteAsync(systemDatabase).BlockingWait();
-
-            var multitenantContainer = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
-            var registry = host.Services.GetRequiredService<IIdentityRegistry>();
-            var registrations = registry.GetTenants().Result;
-            foreach (var registration in registrations)
-            {
-                var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-                var db = scope.Resolve<IdentityDatabase>();
-                logger.LogInformation("ChangeModifiedToNotNull: {domain}", registration.PrimaryDomainName);
-                ChangeModifiedToNotNull.ExecuteAsync(db).BlockingWait();
-            }
-            return false;
-        }
-
-        if (Environment.GetCommandLineArgs().Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
+        if (args.Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
         {
             var services = host.Services;
             var logger = services.GetRequiredService<ILogger<Startup>>();
