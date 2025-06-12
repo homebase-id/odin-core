@@ -89,6 +89,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var (inboxEntries, _) = await identityDatabase.Inbox.PagingByRowIdAsync(int.MaxValue, null);
 
+            logger.LogDebug($"Inbox {driveId} contains {files.Count()} files and {inboxEntries.Count()} inbox table entries");
+
             foreach (var fileAndDirectory in files)
             {
                 var fileName = Path.GetFileName(fileAndDirectory);
@@ -114,8 +116,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 logger.LogDebug($"Inbox filename {fileName} not in the inbox");
 
                 // Not confident here yet :-D haven't covered it in a test
-                //if (cleanup)
-                //    File.Delete(fileAndDirectory);
+                if (cleanup)
+                    File.Delete(fileAndDirectory);
             }
         }
 
