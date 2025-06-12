@@ -47,7 +47,7 @@ public class DefraggerTest
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {
-        // _scaffold.RunAfterAnyTests();
+        _scaffold.RunAfterAnyTests();
     }
 
     [SetUp]
