@@ -39,7 +39,6 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
-        // OrphanTestUtil orphanTestUtil,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -284,6 +283,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     {
                         return (Stream.Null, directMatchingThumb);
                     }
+
                     throw;
                 }
             }
@@ -293,7 +293,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 return (Stream.Null, null);
             }
-            
+
             try
             {
                 var stream = await longTermStorageManager.GetThumbnailStreamAsync(
@@ -311,6 +311,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     return (Stream.Null, nextSizeUp);
                 }
+
                 throw;
             }
         }
@@ -357,7 +358,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
         }
-        
+
         public async Task<bool> CallerHasPermissionToFile(ServerFileHeader header, IOdinContext odinContext)
         {
             if (null == header)
@@ -1021,7 +1022,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // First prepare by copying everything needed
             var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext);
-
             try
             {
                 await using (var tx = await db.BeginStackedTransactionAsync())
@@ -1060,11 +1060,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
             finally
             {
-                // if (success)
+                if (success)
                 {
                     // Cleanup zombied payloads only if the file got moved and 
                     var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
                     await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombies);
+                }
+                else
+                {
+                    // clean up the newly copied payloads since we failed to update the header 
+                    var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
+                    await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, copiedPayloads);
                 }
             }
 
@@ -1124,7 +1130,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                         $"perform operation {op.OperationType}");
 
                     // Copy the payload from the temp folder to the long term folder
-                    await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, storageDrive, descriptor);
+                    var copiedFiles = await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, storageDrive, descriptor);
+                    _logger.LogDebug("UpdateBatchAsync - After CopyPayloadAndThumbnailsToLongTermStorage");
 
                     // keep a list of payloads that would have been uploaded for the append or overwrite operation
                     copiedPayloads.Add(descriptor);
@@ -1387,7 +1394,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var file = existingHeader.FileMetadata.File;
             var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
-            
+
             var deletedServerFileHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
@@ -1551,22 +1558,41 @@ namespace Odin.Services.Drives.FileSystem.Base
             await WriteFileHeaderInternal(existingServerHeader, useThisVersionTag); // Sets header.FileMetadata.Created/Updated
         }
 
-        private async Task CopyPayloadsAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
+        /// <summary>
+        /// Copies payloads and thumbs to long term storage
+        /// </summary>
+        /// <returns>List of all files copied (directory and filename)</returns>
+        private async Task<List<string>> CopyPayloadsAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
             List<PayloadDescriptor> descriptors, StorageDrive drive)
         {
+            List<string> copiedFiles = [];
             foreach (var descriptor in descriptors)
             {
-                await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor);
+                var results = await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor);
+                copiedFiles.AddRange(results);
             }
+
+            return copiedFiles;
         }
 
-        private async Task CopyPayloadAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
+        /// <summary>
+        /// Copies payload and thumbs to long term storage
+        /// </summary>
+        /// <returns>List of all files copied (directory and filename)</returns>
+        private async Task<List<string>> CopyPayloadAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
             StorageDrive drive,
             PayloadDescriptor descriptor)
         {
+            var copiedFiles = new List<string>();
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = await uploadStorageManager.GetPath(originFile, payloadExtension);
-            await longTermStorageManager.CopyPayloadToLongTermAsync(drive, targetFile.FileId, descriptor, sourceFilePath);
+            var copiedPayloadDirectoryAndFilename = await longTermStorageManager.CopyPayloadToLongTermAsync(
+                drive,
+                targetFile.FileId,
+                descriptor,
+                sourceFilePath);
+
+            copiedFiles.Add(copiedPayloadDirectoryAndFilename);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
@@ -1574,8 +1600,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
                 var sourceThumbnail = await uploadStorageManager.GetPath(originFile, thumbExt);
-                await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor, thumb);
+                var t = await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
+                    thumb);
+                copiedFiles.Add(t);
             }
+
+            return copiedFiles;
         }
 
         private async Task<List<string>> GetMissingPayloadsAsync(FileMetadata metadata)
@@ -1600,10 +1630,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
                 {
-                    var thumbExists = await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
+                    var thumbExists =
+                        await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
                     if (!thumbExists)
                     {
-                        missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId,  payloadDescriptor.Key, payloadDescriptor.Uid, thumbnailDescriptor.PixelWidth,
+                        missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid,
+                            thumbnailDescriptor.PixelWidth,
                             thumbnailDescriptor.PixelHeight));
                     }
                 }

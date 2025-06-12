@@ -36,9 +36,10 @@ public class HammerTimeDirectDriveLocalUpdateBatchTests
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
-        const string fixedSubPath = "wtfm8";
         var folder = GetType().Name;
-        _scaffold = new WebScaffold(folder, fixedSubPath);
+        _scaffold = new WebScaffold(folder);
+        // const string fixedSubPath = "wtfm8";
+        // _scaffold = new WebScaffold(folder, fixedSubPath);
         _scaffold.RunBeforeAnyTests();
     }
 
