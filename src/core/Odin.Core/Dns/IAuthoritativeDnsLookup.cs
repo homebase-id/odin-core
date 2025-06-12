@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Dns;
@@ -15,23 +16,21 @@ public interface IAuthoritativeDnsLookupResult
 
 public interface IAuthoritativeDnsLookup
 {
-    Task<IAuthoritativeDnsLookupResult> LookupRootAuthority();
+    Task<IAuthoritativeDnsLookupResult> LookupRootAuthorityAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Try to lookup nearest authoritative data for a domain.
     /// Looking up the root (.) will return "".
     /// Note that this bypasses all caches and is slow. Do not use for performance sensitive queries.
     /// </summary>
-    /// <param name="domain"></param>
     /// <returns>IAuthoritativeDnsLookupResult</returns>
-    Task<IAuthoritativeDnsLookupResult> LookupDomainAuthority(string domain);
+    Task<IAuthoritativeDnsLookupResult> LookupDomainAuthorityAsync(string domain, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Try to lookup zone apex for a domain (e.g. "www.example.com" => "example.com").
     /// Looking up the root (.) will return "".
     /// Note that this bypasses all caches and is slow. Do not use for performance sensitive queries.
     /// </summary>
-    /// <param name="domain"></param>
     /// <returns>Zone apex on success, empty string if not found or error</returns>
-    Task<string> LookupZoneApex(string domain);
+    Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default);
 }

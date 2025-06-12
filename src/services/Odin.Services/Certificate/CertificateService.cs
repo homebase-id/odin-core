@@ -69,10 +69,20 @@ namespace Odin.Services.Certificate
         
         //
 
-        public async Task<X509Certificate2> CreateCertificate(string domain, string[] sans = null)
+        public Task<X509Certificate2> CreateCertificateAsync(string domain, CancellationToken cancellationToken = default)
+        {
+            return CreateCertificateAsync(domain, [], cancellationToken);
+        }
+
+        //
+
+        public async Task<X509Certificate2> CreateCertificateAsync(
+            string domain,
+            string[] sans,
+            CancellationToken cancellationToken = default)
         {
             var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
-            await mutex.WaitAsync();
+            await mutex.WaitAsync(cancellationToken);
             try
             {
                 var x509 = ResolveCertificate(domain);
@@ -81,28 +91,29 @@ namespace Odin.Services.Certificate
                     _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
                     return x509;
                 }
-                return await InternalCreateCertificate(domain, sans);
+                return await InternalCreateCertificate(domain, sans, cancellationToken);
             }
             finally
             {
                 mutex.Release();
             }
         }
+
         
         //
         
-        public async Task<bool> RenewIfAboutToExpire(IdentityRegistration idReg)
+        public async Task<bool> RenewIfAboutToExpireAsync(IdentityRegistration idReg, CancellationToken cancellationToken = default)
         {
             var domain = idReg.PrimaryDomainName;
             var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
-            await mutex.WaitAsync();
+            await mutex.WaitAsync(cancellationToken);
             try
             {
                 var x509 = ResolveCertificate(domain);
                 if (x509 == null || AboutToExpire(x509))
                 {
                     _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
-                    x509 = await InternalCreateCertificate(idReg.PrimaryDomainName, idReg.GetSans());
+                    x509 = await InternalCreateCertificate(idReg.PrimaryDomainName, idReg.GetSans(), cancellationToken);
                     if (x509 != null)
                     {
                         _logger.LogDebug("Completed background renew of {domain} certificate", domain);
@@ -124,7 +135,7 @@ namespace Odin.Services.Certificate
         
         //
 
-        private async Task<X509Certificate2> InternalCreateCertificate(string domain, string[] sans = null)
+        private async Task<X509Certificate2> InternalCreateCertificate(string domain, string[] sans, CancellationToken cancellationToken = default)
         {
             // Sanity
             if (domain.EndsWith(".dotyou.cloud"))
@@ -136,9 +147,9 @@ namespace Odin.Services.Certificate
 
             try
             {
-                if (sans != null) // don't verify system domains (e.g. provisioning, admin, etc)
+                if (sans.Length > 0) // don't verify system domains (e.g. provisioning, admin, etc)
                 {
-                    var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatus(domain);
+                    var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
                     if (!areDnsRecordsOk)
                     {
                         _logger.LogWarning(
@@ -150,12 +161,12 @@ namespace Odin.Services.Certificate
                 var account = await LoadAccount();
                 if (account == null)
                 {
-                    account = await _certesAcme.CreateAccount(_accountConfig.AcmeContactEmail);
-                    await SaveAccount(account);
+                    account = await _certesAcme.CreateAccount(_accountConfig.AcmeContactEmail, cancellationToken);
+                    await SaveAccountAsync(account, cancellationToken);
                 }
 
                 var domains = new List<string> { domain };
-                if (sans != null)
+                if (sans.Length > 0)
                 {
                     domains.AddRange(sans);
                 }
@@ -166,14 +177,14 @@ namespace Odin.Services.Certificate
                 {
                     try
                     {
-                        pems = await _certesAcme.CreateCertificate(account, domains.ToArray());
+                        pems = await _certesAcme.CreateCertificate(account, domains.ToArray(), cancellationToken);
                     }
                     catch (OdinSystemException e)
                     {
                         if (--maxTries > 0)
                         {
                             _logger.LogWarning("{domain}: {error} (will retry)", domain, e.Message);
-                            await Task.Delay(TimeSpan.FromSeconds(2));
+                            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
                         }
                         else
                         {
@@ -233,11 +244,11 @@ namespace Odin.Services.Certificate
         
         //
         
-        private async Task SaveAccount(AcmeAccount account)
+        private async Task SaveAccountAsync(AcmeAccount account, CancellationToken cancellationToken = default)
         {
             Directory.CreateDirectory(_accountConfig.AcmeAccountFolder);
             var filePath = GetAcmeAccountFilePath();
-            await File.WriteAllTextAsync(filePath, account.AccounKeyPem);
+            await File.WriteAllTextAsync(filePath, account.AccounKeyPem, cancellationToken);
         }
         
         //

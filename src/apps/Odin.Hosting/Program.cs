@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
@@ -224,7 +225,8 @@ namespace Odin.Hosting
                 var hostName = clientHelloInfo.ServerName.ToLower();
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
-                var (cert, requireClientCertificate) = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
+                var (cert, requireClientCertificate) =
+                    await ServerCertificateSelector(hostName, odinConfig, serviceProvider, cancellationToken);
 
                 if (cert == null)
                 {
@@ -265,10 +267,12 @@ namespace Odin.Hosting
 
         //         
 
+        private static readonly string[] NoSans = [];
         private static async Task<(X509Certificate2 certificate, bool requireClientCertificate)> ServerCertificateSelector(
             string hostName,
             OdinConfiguration config,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            CancellationToken cancellationToken = default)
         {
             if (Log.IsEnabled(LogEventLevel.Verbose))
             {
@@ -339,18 +343,18 @@ namespace Odin.Hosting
                 return (null, false);
             }
 
-            string[] sans = null;
+            var sans = NoSans;
             if (idReg != null)
             {
                 sans = idReg.GetSans();
             }
 
-            certificate = await tc.CreateCertificate(domain, sans);
+            certificate = await tc.CreateCertificateAsync(domain, sans, cancellationToken);
 
             // Sanity #2
             if (null == certificate)
             {
-                Log.Error($"No certificate configured for {hostName}");
+                Log.Error("No certificate configured for {hostName}", hostName);
             }
 
             return (certificate, requireClientCertificate);
