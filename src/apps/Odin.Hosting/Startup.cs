@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Mime;
-using System.Reflection;
-using System.Threading.Tasks;
 using Autofac;
 using DnsClient;
 using HttpClientFactoryLite;
@@ -20,26 +13,18 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
+using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.Services.Admin.Tenants;
-using Odin.Services.Base;
-using Odin.Services.Certificate;
-using Odin.Services.Configuration;
-using Odin.Services.Dns;
-using Odin.Services.Dns.PowerDns;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Email;
-using Odin.Services.Registry;
-using Odin.Services.Registry.Registration;
-using Odin.Services.Tenant.Container;
 using Odin.Hosting._dev;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
@@ -51,12 +36,31 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.Admin.Tenants;
 using Odin.Services.Background;
+using Odin.Services.Base;
+using Odin.Services.Certificate;
 using Odin.Services.Concurrency;
+using Odin.Services.Configuration;
+using Odin.Services.Dns;
+using Odin.Services.Dns.PowerDns;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
 using Odin.Services.Membership.CircleMembership;
+using Odin.Services.Registry;
+using Odin.Services.Registry.Registration;
+using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Mime;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting;
 
@@ -756,13 +760,20 @@ public static class HostExtensions
         {
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var defragmenter = scope.Resolve<Defragmenter>();
-            // MS:TODO
-            // Params to defragmenter.Defragment() are no good. It needs to bypass all the OdinContext crap
-            // and go directly to the database.
-            // defragmenter.Defragment(.......)
-        }
+
+            var tblDrives = scope.Resolve<TableDrives>();
+            var (drives, _, _) = await tblDrives.GetList(int.MaxValue, null);
+
+            foreach (var drive in drives)
+            {
+                var targetDrive = new TargetDrive() { Alias = drive.DriveAlias, Type = drive.DriveType };
+                await defragmenter.Defragment(targetDrive, false);
+            }
+
+    // MS:TODO
+    // Params to defragmenter.Defragment() are no good. It needs to bypass all the OdinContext crap
+    // and go directly to the database.
+    // defragmenter.Defragment(.......)
+}
     }
-
-
-    
 }

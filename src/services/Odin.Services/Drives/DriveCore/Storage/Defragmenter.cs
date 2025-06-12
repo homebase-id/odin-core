@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem;
@@ -17,7 +19,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         ILogger<Defragmenter> logger,
         DriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
-        TenantContext tenantContext
+        TenantContext tenantContext,
+        IdentityDatabase identityDatabase
     )
     {
         private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
@@ -48,23 +51,27 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return false;
         }
 
-        public async Task<FileMetadata> GetHeader(Dictionary<Guid,FileMetadata> cache, Guid driveId, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task<FileMetadata> GetHeader(Dictionary<Guid,FileMetadata> cache, Guid driveId, Guid fileId)
         {
             if (cache.ContainsKey(fileId))
             {
                 return cache[fileId]; // May return null, which means the recond wasn't in the DB
             }
 
-            var header = await fs.Storage.GetServerFileHeader(new InternalDriveFileId(driveId, fileId), odinContext);
-            if (header == null)
+            var record = await identityDatabase.DriveMainIndex.GetAsync(driveId, fileId);
+
+            if (record == null)
                 cache.Add(fileId, null);
             else
-                cache.Add(fileId, header.FileMetadata);
+            {
+                var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
+                cache.Add(fileId, serverFileHeader.FileMetadata);
+            }
             return cache[fileId];
         }
 
 
-        public async Task VerifyPayloadsFolder(Guid driveId, IDriveFileSystem fs, IOdinContext odinContext, bool cleanup)
+        public async Task VerifyPayloadsFolder(Guid driveId, bool cleanup)
         {
             var headerCache = new Dictionary<Guid, FileMetadata>();
 
@@ -116,7 +123,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             continue;
                         }
 
-                        var header = await GetHeader(headerCache, driveId, fileId, fs, odinContext);
+                        var header = await GetHeader(headerCache, driveId, fileId);
 
                         if (header == null)
                         {
@@ -175,7 +182,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task Defragment(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext, bool cleanup = false)
+        public async Task Defragment(TargetDrive targetDrive, bool cleanup = false)
         {
             var driveId = targetDrive.Alias;
 
@@ -190,9 +197,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             //s2 = s2 + ".junk";
             //FileTouch(s2);
 
-            await CheckDriveFileIntegrity(targetDrive, fs, odinContext);
+            await CheckDriveFileIntegrity(targetDrive);
 
-            await VerifyPayloadsFolder(driveId, fs, odinContext, cleanup);
+            await VerifyPayloadsFolder(driveId, cleanup);
 
             // VerifyInbox()...
         }
@@ -200,7 +207,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task CheckDriveFileIntegrity(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task CheckDriveFileIntegrity(TargetDrive targetDrive)
         {
             var query = new FileQueryParams
             {
@@ -235,13 +242,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var driveId = targetDrive.Alias;
             var storageDrive = await driveManager.GetDriveAsync(driveId);
 
-            var batch = await fs.Query.GetBatch(driveId, query, options, odinContext);
+            var batch = await identityDatabase.DriveMainIndex.GetAllByDriveIdAsync(driveId);
 
-            logger.LogDebug("Defragmenting drive {driveName}.  File count: {fc}", driveId, batch.SearchResults.Count());
+            logger.LogDebug("Defragmenting drive {driveName}.  File count: {fc}", driveId, batch.Count());
 
-            foreach (var header in batch.SearchResults)
+            foreach (var header in batch)
             {
-                var missing = await this.VerifyFileAsync(storageDrive, header.FileId, fs, odinContext);
+                var missing = await this.VerifyFileAsync(storageDrive, header);
                 if (missing != null)
                     logger.LogDebug(missing);
 
@@ -253,10 +260,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Checks a file for payload integrity.
         /// </summary>
         /// <returns>null if file is complete, otherwise returns string of missing payloads / thumbnails</returns>
-        public async Task<string> VerifyFileAsync(StorageDrive drive, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task<string> VerifyFileAsync(StorageDrive drive, DriveMainIndexRecord record)
         {
-            var file = new InternalDriveFileId(drive.Id, fileId);
-            var header = await fs.Storage.GetServerFileHeader(file, odinContext);
+            var file = new InternalDriveFileId(drive.Id, record.fileId);
+            var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
 
             // CORRUPT HEADERS WITH THIS CODE
             // 
@@ -270,7 +277,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             //    }
             //}
 
-            var sl = await CheckPayloadsIntegrity(drive, header);
+            var sl = await CheckPayloadsIntegrity(drive, serverFileHeader);
 
             if (sl != null)
                 return $"The following files are missing: {string.Join(",", sl)}";
