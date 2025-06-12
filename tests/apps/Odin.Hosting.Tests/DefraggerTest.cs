@@ -13,13 +13,21 @@ using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
+using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
+using Odin.Hosting.Tests._Universal.DriveTests.Inbox;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.Peer;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests;
@@ -39,7 +47,7 @@ public class DefraggerTest
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {
-        _scaffold.RunAfterAnyTests();
+        // _scaffold.RunAfterAnyTests();
     }
 
     [SetUp]
@@ -146,5 +154,187 @@ public class DefraggerTest
                 CollectionAssert.AreEqual(thumbContent, thumbnail.Content);
             }
         }
+    }
+
+    [Test]
+    public async Task LeaveItemsInInbox()
+    {
+        var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        Console.WriteLine($"\n\nData Path: [{_scaffold.TestDataPath}]\n\n");
+        
+        const DrivePermission drivePermissions = DrivePermission.Write;
+        const int totalFileCount = 32;
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+        var fileSendResults = await SendFiles(senderOwnerClient, recipientOwnerClient, targetDrive, totalFileCount);
+        ClassicAssert.IsTrue(fileSendResults.Count == totalFileCount);
+
+        // @michael - leaving this out means items should stay in the inbox because they're nefer processed
+        // var processInboxResponse = await recipientOwnerClient.DriveRedux.ProcessInbox(targetDrive, batchSize: 100);
+        // ClassicAssert.IsTrue(processInboxResponse.IsSuccessStatusCode);
+        // ClassicAssert.IsTrue(processInboxResponse.Content.PoppedCount == 0);
+        // ClassicAssert.IsTrue(processInboxResponse.Content.TotalItems == 0);
+
+
+        await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+    }
+
+    private async Task<List<FileSendResponse>> SendFiles(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient,
+        TargetDrive targetDrive, int totalFiles)
+    {
+        var results = new List<FileSendResponse>();
+
+        for (var i = 0; i < totalFiles; i++)
+        {
+            var fileContent = $"some string {i}";
+            var (uploadResult, encryptedJsonContent64) =
+                await SendStandardFile(senderOwnerClient, targetDrive, fileContent, recipientOwnerClient.Identity);
+
+            ClassicAssert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipientOwnerClient.Identity.OdinId, out var recipientStatus));
+            ClassicAssert.IsTrue(recipientStatus == TransferStatus.Enqueued,
+                $"Should have been delivered, actual status was {recipientStatus}");
+
+            results.Add(new FileSendResponse()
+            {
+                UploadResult = uploadResult,
+                DecryptedContent = fileContent,
+                EncryptedContent64 = encryptedJsonContent64
+            });
+        }
+
+        await senderOwnerClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
+        return results;
+    }
+
+    /// <summary>
+    /// Sends a standard file to a single recipient and performs basic assertions required by all tests
+    /// </summary>
+    private async Task<(UploadResult, string encryptedJsonContent64)> SendStandardFile(OwnerApiClientRedux sender, TargetDrive targetDrive,
+        string uploadedContent, TestIdentity recipient)
+    {
+        var fileMetadata = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            IsEncrypted = true,
+            AppData = new()
+            {
+                Content = uploadedContent,
+                FileType = default,
+                GroupId = default,
+                Tags = default
+            },
+            AccessControlList = AccessControlList.Connected
+        };
+
+        var storageOptions = new StorageOptions()
+        {
+            Drive = targetDrive
+        };
+
+        var transitOptions = new TransitOptions()
+        {
+            Recipients = [recipient.OdinId],
+            RemoteTargetDrive = default
+        };
+
+        var (uploadResponse, encryptedJsonContent64) = await sender.DriveRedux.UploadNewEncryptedMetadata(
+            fileMetadata,
+            storageOptions,
+            transitOptions
+        );
+
+        var uploadResult = uploadResponse.Content;
+
+        //
+        // Basic tests first which apply to all calls
+        //
+        ClassicAssert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+
+        return (uploadResult, encryptedJsonContent64);
+    }
+
+    private async Task PrepareScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient,
+        TargetDrive targetDrive,
+        DrivePermission drivePermissions)
+    {
+        //
+        // Recipient creates a target drive
+        //
+        var recipientDriveResponse = await recipientOwnerClient.DriveManager.CreateDrive(
+            targetDrive: targetDrive,
+            name: "Target drive on recipient",
+            metadata: "",
+            allowAnonymousReads: false,
+            allowSubscriptions: false,
+            ownerOnly: false);
+
+        ClassicAssert.IsTrue(recipientDriveResponse.IsSuccessStatusCode);
+
+        //
+        // Sender needs this same drive in order to send across files
+        //
+        var senderDriveResponse = await senderOwnerClient.DriveManager.CreateDrive(
+            targetDrive: targetDrive,
+            name: "Target drive on sender",
+            metadata: "",
+            allowAnonymousReads: false,
+            allowSubscriptions: false,
+            ownerOnly: false);
+
+        ClassicAssert.IsTrue(senderDriveResponse.IsSuccessStatusCode);
+
+        //
+        // Recipient creates a circle with target drive, read and write access
+        //
+        var expectedPermissionedDrive = new PermissionedDrive()
+        {
+            Drive = targetDrive,
+            Permission = drivePermissions
+        };
+
+        var circleId = Guid.NewGuid();
+        var createCircleResponse = await recipientOwnerClient.Network.CreateCircle(circleId, "Circle with drive access",
+            new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = expectedPermissionedDrive
+                    }
+                }
+            });
+
+        ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
+
+        //
+        // Sender sends connection request
+        //
+        await senderOwnerClient.Connections.SendConnectionRequest(recipientOwnerClient.Identity.OdinId, new List<GuidId>() { });
+
+        //
+        // Recipient accepts; grants access to circle
+        //
+        await recipientOwnerClient.Connections.AcceptConnectionRequest(senderOwnerClient.Identity.OdinId, new List<GuidId>() { circleId });
+
+        // 
+        // Test: At this point: recipient should have an ICR record on sender's identity that does not have a key
+        // 
+
+        var getConnectionInfoResponse = await recipientOwnerClient.Network.GetConnectionInfo(senderOwnerClient.Identity.OdinId);
+
+        ClassicAssert.IsTrue(getConnectionInfoResponse.IsSuccessStatusCode);
+        var senderConnectionInfo = getConnectionInfoResponse.Content;
+
+        ClassicAssert.IsNotNull(senderConnectionInfo.AccessGrant.CircleGrants.SingleOrDefault(cg =>
+            cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive)));
+    }
+
+    private async Task DeleteScenario(OwnerApiClientRedux senderOwnerClient, OwnerApiClientRedux recipientOwnerClient)
+    {
+        await _scaffold.OldOwnerApi.DisconnectIdentities(senderOwnerClient.Identity.OdinId, recipientOwnerClient.Identity.OdinId);
     }
 }
