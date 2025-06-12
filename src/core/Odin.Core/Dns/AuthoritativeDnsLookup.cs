@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
 using Microsoft.Extensions.Logging;
@@ -12,13 +13,13 @@ namespace Odin.Core.Dns;
 public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILookupClient dnsClient)
     : IAuthoritativeDnsLookup
 {
-    public async Task<IAuthoritativeDnsLookupResult> LookupRootAuthority()
+    public async Task<IAuthoritativeDnsLookupResult> LookupRootAuthority(CancellationToken cancellationToken = default)
     {
         logger.LogTrace("Beginning look up of root servers");
 
         var result = new AuthoritativeDnsLookupResult();
 
-        var response = await dnsClient.QueryAsync(".", QueryType.SOA);
+        var response = await dnsClient.QueryAsync(".", QueryType.SOA, cancellationToken: cancellationToken);
         if (response.HasError)
         {
             throw new AuthoritativeDnsLookupException($"Error getting root servers (soa): {response.ErrorMessage}");
@@ -27,7 +28,7 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
         result.AuthoritativeDomain = soa.DomainName.ToString()?.TrimEnd('.') ?? "";
         result.AuthoritativeNameServer = soa.MName.ToString()?.TrimEnd('.') ?? "";
 
-        response = await dnsClient.QueryAsync(".", QueryType.NS);
+        response = await dnsClient.QueryAsync(".", QueryType.NS, cancellationToken: cancellationToken);
         if (response.HasError)
         {
             throw new AuthoritativeDnsLookupException($"Error getting root servers (ns): {response.ErrorMessage}");
@@ -39,14 +40,14 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
 
     //
 
-    public async Task<IAuthoritativeDnsLookupResult> LookupDomainAuthority(string domain)
+    public async Task<IAuthoritativeDnsLookupResult> LookupDomainAuthority(string domain, CancellationToken cancellationToken = default)
     {
         var authoritatives = new AuthoritativeDnsLookupResult();
 
         domain = domain.Trim().Trim('.');
         logger.LogDebug("Beginning look up of authoritative records for {domain}", domain);
 
-        var roots = await LookupRootAuthority();
+        var roots = await LookupRootAuthority(cancellationToken);
         if (domain == "") // looking up root?
         {
             return roots;
@@ -111,9 +112,10 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
     private async Task<List<string>> LookUpGlue(
         IReadOnlyCollection<string> resolvers,
         string domain,
-        DnsQueryOptions dnsQueryOptions)
+        DnsQueryOptions dnsQueryOptions,
+        CancellationToken cancellationToken = default)
     {
-        var response = await dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions, logger);
+        var response = await dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions, logger, cancellationToken: cancellationToken);
 
         var result = response?.Authorities.NsRecords().Select(x => x.NSDName.Value.TrimEnd('.')).ToList();
         if (result?.Count > 0)
@@ -127,7 +129,7 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
                 string.Join(',', resolvers), domain);
         }
 
-        return result ?? new List<string>();;
+        return result ?? [];
     }
 
     //
@@ -135,12 +137,13 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
     private async Task<(string authoritativeDomain, string authoritativeNameServer)> LookUpAuthoritatives(
         IReadOnlyCollection<string> resolvers,
         string domain,
-        DnsQueryOptions dnsQueryOptions)
+        DnsQueryOptions dnsQueryOptions,
+        CancellationToken cancellationToken = default)
     {
         var authoritativeDomain = "";
         var authoritativeNameServer = "";
 
-        var response = await dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions, logger);
+        var response = await dnsClient.Query(resolvers, domain, QueryType.SOA, dnsQueryOptions, logger, cancellationToken: cancellationToken);
         var soa = response?.Answers.SoaRecords().FirstOrDefault();
         if (soa == null)
         {
@@ -178,11 +181,11 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
 
     //
 
-    public async Task<string> LookupZoneApex(string domain)
+    public async Task<string> LookupZoneApex(string domain, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Beginning look up of zone apex for {domain}", domain);
 
-        var authority = await LookupDomainAuthority(domain);
+        var authority = await LookupDomainAuthority(domain, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeDomain))
         {
             logger.LogDebug("LookupZoneApex did not find an authoritative server for {domain}", domain);
