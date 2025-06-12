@@ -69,7 +69,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         }
 
 
-        public async Task VerifyPayloadsFolder(Guid driveId, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task VerifyPayloadsFolder(Guid driveId, IDriveFileSystem fs, IOdinContext odinContext, bool cleanup)
         {
             var headerCache = new Dictionary<Guid, FileMetadata>();
 
@@ -107,14 +107,17 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                                 fileId = parsedThumb.FileId;
                                 break;
                             case TenantPathManager.FileType.Invalid:
-                                logger.LogDebug($"Invalid file {fileName} in {dirpath}");
-                                // Probably delete
+                                logger.LogDebug($"Extension {fileAndDirectory}");
+                                if (cleanup)
+                                    File.Delete(fileAndDirectory);
                                 continue;
                         }
 
                         if (TenantPathManager.GetPayloadDirectoryFromGuid(fileId) != nibblepath)
                         {
-                            logger.LogDebug($"File placed in incorrect directory {fileAndDirectory} in {dirpath}");
+                            logger.LogDebug($"Directory {fileAndDirectory} in {dirpath}");
+                            if (cleanup)
+                                File.Delete(fileAndDirectory);
                             continue;
                         }
 
@@ -122,8 +125,9 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
                         if (header == null)
                         {
-                            logger.LogDebug($"FileId {fileId} is on disk but not in database, delete.");
-                            // Delete (move) this file
+                            logger.LogDebug($"OrphanHeader {fileId}");
+                            if (cleanup)
+                                File.Delete(fileAndDirectory);
                             continue;
                         }
 
@@ -131,8 +135,9 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                         {
                             if (!HasHeaderPayload(header, parsedFile))
                             {
-                                logger.LogDebug($"File {fileAndDirectory} is not present in the header, marked for deletion");
-                                // Move for deletion
+                                logger.LogDebug($"OrphanPayload {fileAndDirectory}");
+                                if (cleanup)
+                                    File.Delete(fileAndDirectory);
                                 continue;
                             }
                         }
@@ -141,8 +146,9 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
                         {
                             if (!HasHeaderThumbnail(header, parsedThumb))
                             {
-                                logger.LogDebug($"Thumb {fileAndDirectory} is not present in the database header, marked for deletion");
-                                // Move for deletion
+                                logger.LogDebug($"OrphanThumb {fileAndDirectory}");
+                                if (cleanup)
+                                    File.Delete(fileAndDirectory);
                                 continue;
                             }
                         }
@@ -174,7 +180,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task Defragment(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task Defragment(TargetDrive targetDrive, IDriveFileSystem fs, IOdinContext odinContext, bool cleanup = false)
         {
             var driveId = targetDrive.Alias;
 
@@ -191,7 +197,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             await CheckDriveFileIntegrity(targetDrive, fs, odinContext);
 
-            await VerifyPayloadsFolder(driveId, fs, odinContext);
+            await VerifyPayloadsFolder(driveId, fs, odinContext, cleanup);
 
             // VerifyInbox()...
         }
@@ -240,7 +246,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
 
             foreach (var header in batch.SearchResults)
             {
-                var missing = await this.DefragmentFileAsync(storageDrive, header.FileId, fs, odinContext);
+                var missing = await this.VerifyFileAsync(storageDrive, header.FileId, fs, odinContext);
                 if (missing != null)
                     logger.LogDebug(missing);
 
@@ -252,7 +258,7 @@ namespace Odin.Services.Drives.DriveCore.Storage.Gugga
         /// Checks a file for payload integrity.
         /// </summary>
         /// <returns>null if file is complete, otherwise returns string of missing payloads / thumbnails</returns>
-        public async Task<string> DefragmentFileAsync(StorageDrive drive, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
+        public async Task<string> VerifyFileAsync(StorageDrive drive, Guid fileId, IDriveFileSystem fs, IOdinContext odinContext)
         {
             var file = new InternalDriveFileId(drive.Id, fileId);
             var header = await fs.Storage.GetServerFileHeader(file, odinContext);
