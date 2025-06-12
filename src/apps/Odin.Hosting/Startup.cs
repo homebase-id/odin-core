@@ -749,11 +749,13 @@ public static class HostExtensions
 
     private static async Task DefragmentAsync(IServiceProvider services, bool cleanup)
     {
+        var logger = services.GetRequiredService<ILogger<Startup>>();
         var registry = services.GetRequiredService<IIdentityRegistry>();
         var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
 
-        var allTenants = await registry.GetTenants();
+        logger.LogInformation("Starting defragmentation; cleanup mode: {cleanup}", cleanup);
 
+        var allTenants = await registry.GetTenants();
         foreach (var tenant in allTenants)
         {
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);

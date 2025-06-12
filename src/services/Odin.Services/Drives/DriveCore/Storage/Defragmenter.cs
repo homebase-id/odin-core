@@ -291,7 +291,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         private async Task<List<string>> CheckPayloadsIntegrity(StorageDrive drive, ServerFileHeader header)
         {
             var fileId = header.FileMetadata.File.FileId;
-            var payloads = header.FileMetadata.Payloads;
+            var payloads = header.FileMetadata?.Payloads ?? [];
             var sl = new List<string>();
 
             // Future improvement: Compare byte-sizes in header to bytes on disk
