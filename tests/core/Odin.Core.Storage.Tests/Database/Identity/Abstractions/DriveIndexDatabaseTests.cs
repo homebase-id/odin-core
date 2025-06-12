@@ -409,9 +409,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (c1, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
             var (c2, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
             var (c3, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             var (c4, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             var (c5, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
 
             QueryBatchCursor cursor = new QueryBatchCursor(c4);
@@ -495,9 +495,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
 
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             var c4 = UnixTimeUtc.Now();
-            await Task.Delay(10);
+            await Task.Delay(20);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null, 1);
@@ -647,7 +647,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.fileState = 42;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             var c2 = new QueryBatchCursor(UnixTimeUtc.ZeroTime);
             (result, moreRows, var outc2) = await metaIndex.QueryBatchAsync(driveId, 10, c2, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -658,7 +658,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.fileState = 43;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, fileStateAnyOf: new List<Int32>() { 42, 43 }, requiredSecurityGroup: allIntRange);
@@ -723,7 +723,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(result.Count == 5);
             ClassicAssert.IsTrue(moreRows == false);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             var c2 = new QueryBatchCursor();
             var outc2 = new QueryBatchCursor();
@@ -735,7 +735,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.archivalStatus = 7;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             c2 = new QueryBatchCursor();
             (result, moreRows, outc2) = await metaIndex.QueryBatchAsync(driveId, 10, c2, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -751,7 +751,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             r.archivalStatus = 7;
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             cursor = null;
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
@@ -1099,9 +1099,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c5, m5) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
@@ -1118,11 +1118,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(moreRows == false);
 
             // Now we'll touch two items from above
-            await Task.Delay(2);
+            await Task.Delay(20);
             (_, var m2) = await tblDriveMainIndex.TestTouchAsync(driveId, f2);
-            await Task.Delay(2);
+            await Task.Delay(20);
             (_, var m3) = await tblDriveMainIndex.TestTouchAsync(driveId, f3);
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // Now there should be no more items
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, refCursor, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -1136,13 +1136,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
             var f8 = SequentialGuid.CreateGuid();
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c6, m6) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c7, m7) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c8, m8) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // Now we get two of the three new items, we get the newest first f8 & f7
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -1167,7 +1167,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // so f10, f6. Note that you'll get a gap between {f8,f7,f6} and {f10,f9}, i.e. f9 still
             // waiting for the next query
             //
-            await Task.Delay(2); // Wait for the ms for QueryBatch()
+            await Task.Delay(20); // Wait for the ms for QueryBatch()
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 2);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f10) == 0);
@@ -1230,9 +1230,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c5, m5) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
@@ -1245,7 +1245,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             (_, var m4) = await tblDriveMainIndex.TestTouchAsync(driveId, f4);
             (_, m5) = await tblDriveMainIndex.TestTouchAsync(driveId, f5);
 
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // Get everything (modified) from the chat database
             cursor = null;
@@ -1262,11 +1262,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(moreRows == false);
 
             // Now we'll touch two items from above
-            await Task.Delay(2);
+            await Task.Delay(20);
             (_, m2) = await tblDriveMainIndex.TestTouchAsync(driveId, f2);
-            await Task.Delay(2);
+            await Task.Delay(20);
             (_, m3) = await tblDriveMainIndex.TestTouchAsync(driveId, f3);
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // Now there should be no more items
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
@@ -1280,23 +1280,23 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
             var f8 = SequentialGuid.CreateGuid();
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c6, m6) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c7, m7) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
             var (c8, m8) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // None new, not modified
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 0);
 
-            await Task.Delay(2);
+            await Task.Delay(20);
             (_, m6) = await tblDriveMainIndex.TestTouchAsync(driveId, f6);
             (_, m7) = await tblDriveMainIndex.TestTouchAsync(driveId, f7);
             (_, m8) = await tblDriveMainIndex.TestTouchAsync(driveId, f8);
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             // Now we get two of the three new items, we get the newest first f8 & f7
             (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, refCursor, sortField: QueryBatchSortField.OnlyModifiedDate, requiredSecurityGroup: allIntRange);
@@ -1317,7 +1317,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             (_, m9) = await tblDriveMainIndex.TestTouchAsync(driveId, f9);
             (_, m10) = await tblDriveMainIndex.TestTouchAsync(driveId, f10);
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
             // because there is only 1 left in the previous range. A second request will get the
@@ -1612,13 +1612,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
-            await Task.Delay(10);
+            await Task.Delay(20);
             await tblDriveMainIndex.TestTouchAsync(driveId, f1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             await tblDriveMainIndex.TestTouchAsync(driveId, f3);
-            await Task.Delay(10);
+            await Task.Delay(20);
             await tblDriveMainIndex.TestTouchAsync(driveId, f2);
-            await Task.Delay(10);
+            await Task.Delay(20);
 
             QueryBatchCursor cursor = null;
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -1658,19 +1658,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var f3 = SequentialGuid.CreateGuid(); // Newest
 
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
 
-            await Task.Delay(10);
+            await Task.Delay(20);
             await tblDriveMainIndex.TestTouchAsync(driveId, f1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             var (n, t) = await tblDriveMainIndex.TestTouchAsync(driveId, f2);
-            await Task.Delay(10);
+            await Task.Delay(20);
             await tblDriveMainIndex.TestTouchAsync(driveId, f3);
-            await Task.Delay(10);
+            await Task.Delay(20);
 
             QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(t));
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -1833,10 +1833,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             var (c1, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
             var (c2, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             var c3 = UnixTimeUtc.Now();
             ClassicAssert.IsTrue(c1.milliseconds < c3.milliseconds);
-            await Task.Delay(10);
+            await Task.Delay(20);
             var (c4, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             var (c5, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             var (c6, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
@@ -2014,9 +2014,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             var (c1, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null, 1);
             var (c2, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null, 1);
-            await Task.Delay(10);
+            await Task.Delay(20);
             var c3 = UnixTimeUtc.Now();
-            await Task.Delay(10);
+            await Task.Delay(20);
             var (c4, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             var (c5, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             var (c6, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
@@ -2156,7 +2156,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
-            await Task.Delay(2); // Wait a few ms for QB()
+            await Task.Delay(20); // Wait a few ms for QB()
 
             var cursor = new QueryBatchCursor();
             var (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 100, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -2203,7 +2203,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
-            await Task.Delay(2);
+            await Task.Delay(20);
 
             QueryBatchCursor cursor = null;
             var (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -2213,7 +2213,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Modify one item make sure we get it first.
             await tblDriveMainIndex.TestTouchAsync(driveId, f2);
-            await Task.Delay(2);
+            await Task.Delay(20);
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, outCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 1);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
@@ -2324,7 +2324,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null, 1);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             QueryBatchCursor inCursor = null;
             var (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 400, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -2337,7 +2337,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblDriveMainIndex.TestTouchAsync(driveId, f4);
             await tblDriveMainIndex.TestTouchAsync(driveId, f5);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             outCursor = null;
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 400, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -2643,7 +2643,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblDriveMainIndex.TestTouchAsync(driveId, f4);
             await tblDriveMainIndex.TestTouchAsync(driveId, f5);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             // ===== TEST RSG, no circles
 
@@ -2938,7 +2938,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor inCursor = null;
             QueryBatchCursor outCursor = null;
             await tblDriveMainIndex.TestTouchAsync(driveId, f1); // Make sure we can find it
-            await Task.Delay(5); // Wait a few ms for QB / modified
+            await Task.Delay(20); // Wait a few ms for QB / modified
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 1, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 1);
             ClassicAssert.IsTrue(moreRows == false);
@@ -3165,7 +3165,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             QueryBatchCursor outCursor = null;
             await tblDriveMainIndex.TestTouchAsync(driveId, f1); // Make sure we can find it
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 1, inCursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.AnyChangeDate, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange); 
             ClassicAssert.IsTrue(result.Count == 1);
@@ -3392,7 +3392,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(result.Count == 0); // There should be no more
             ClassicAssert.IsTrue(moreRows == false);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             QueryBatchCursor inCursor = null;
             QueryBatchCursor outCursor = null;
@@ -3415,7 +3415,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.BaseUpsertEntryZapZapAsync(r, null, null);
             //UpdateEntryZapZapPassAlong(myc, driveId, fileId[420], fileType: 5, dataType: 6, senderId: conversationId[42].ToByteArray(), groupId: theguid, userDate: new UnixTimeUtc(42), requiredSecurityGroup: 333);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             // Now check that we can find the one modified item with our cursor timestamp
             (result, moreRows, outCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 100, null, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.AnyChangeDate, requiredSecurityGroup: allIntRange);
@@ -3430,7 +3430,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             ClassicAssert.True(md.requiredSecurityGroup == 333);
 
-            await Task.Delay(5);
+            await Task.Delay(20);
 
             // UInt64 tmpCursor = UnixTime.UnixTimeMillisecondsUnique();
             // Now check that we can't find the one modified item with a newer cursor 
