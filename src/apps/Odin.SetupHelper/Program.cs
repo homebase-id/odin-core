@@ -99,7 +99,7 @@ app.MapGet("/api/v1/probe-https/{domainName}/{hostPort}",
 app.MapGet("/api/v1/resolve-ip/{domainName}",
     async (string domainName, DnsProbe dnsProbe) =>
     {
-        var (ip, message) = await dnsProbe.ResolveIpAsync(domainName);
+        var (ip, message) = await dnsProbe.ResolveIpAsync(domainName, CancellationToken.None);
         return ip != ""
             ? Results.Ok(ip)
             : Results.BadRequest(message);

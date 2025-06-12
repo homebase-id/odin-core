@@ -30,7 +30,7 @@ public class UpdateCertificatesBackgroundService(
             {
                 var tenantContext = registry.CreateTenantContext(identity);
                 var tc = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-                var task = tc.RenewIfAboutToExpire(identity);
+                var task = tc.RenewIfAboutToExpireAsync(identity, stoppingToken);
                 tasks.Add(task);
             }
 

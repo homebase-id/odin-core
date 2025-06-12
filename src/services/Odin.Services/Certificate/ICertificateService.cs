@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Registry;
 
@@ -21,12 +22,17 @@ namespace Odin.Services.Certificate
         /// <summary>
         /// Create certificate for domain
         /// </summary>
-        Task<X509Certificate2> CreateCertificate(string domain, string[] sans = null);
+        Task<X509Certificate2> CreateCertificateAsync(string domain, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Create certificate for domain with sans (Subject Alternative Names)
+        /// </summary>
+        Task<X509Certificate2> CreateCertificateAsync(string domain, string[] sans, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Renew certificate for domain if about to expire
         /// </summary>
-        Task<bool> RenewIfAboutToExpire(IdentityRegistration idReg);
+        Task<bool> RenewIfAboutToExpireAsync(IdentityRegistration idReg, CancellationToken cancellationToken = default);
     }
 
     public class AcmeAccountConfig

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
 using HttpClientFactoryLite;
@@ -9,7 +10,6 @@ using NUnit.Framework;
 using Odin.Core.Dns;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
-using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
@@ -112,10 +112,10 @@ public class IdentityRegistrationServiceTest
 
         if (resolver == Resolver.Authoritative)
         {
-            return await registration.GetAuthoritativeDomainDnsStatus(domain);
+            return await registration.GetAuthoritativeDomainDnsStatus(domain, CancellationToken.None);
         }
 
-        return await registration.GetExternalDomainDnsStatus(domain);
+        return await registration.GetExternalDomainDnsStatus(domain, CancellationToken.None);
     }
 
 }

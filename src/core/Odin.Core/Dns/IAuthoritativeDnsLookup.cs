@@ -16,7 +16,7 @@ public interface IAuthoritativeDnsLookupResult
 
 public interface IAuthoritativeDnsLookup
 {
-    Task<IAuthoritativeDnsLookupResult> LookupRootAuthority(CancellationToken cancellationToken = default);
+    Task<IAuthoritativeDnsLookupResult> LookupRootAuthorityAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Try to lookup nearest authoritative data for a domain.
@@ -24,7 +24,7 @@ public interface IAuthoritativeDnsLookup
     /// Note that this bypasses all caches and is slow. Do not use for performance sensitive queries.
     /// </summary>
     /// <returns>IAuthoritativeDnsLookupResult</returns>
-    Task<IAuthoritativeDnsLookupResult> LookupDomainAuthority(string domain, CancellationToken cancellationToken = default);
+    Task<IAuthoritativeDnsLookupResult> LookupDomainAuthorityAsync(string domain, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Try to lookup zone apex for a domain (e.g. "www.example.com" => "example.com").
@@ -32,5 +32,5 @@ public interface IAuthoritativeDnsLookup
     /// Note that this bypasses all caches and is slow. Do not use for performance sensitive queries.
     /// </summary>
     /// <returns>Zone apex on success, empty string if not found or error</returns>
-    Task<string> LookupZoneApex(string domain, CancellationToken cancellationToken = default);
+    Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default);
 }

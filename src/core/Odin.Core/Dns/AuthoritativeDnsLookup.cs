@@ -13,7 +13,7 @@ namespace Odin.Core.Dns;
 public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILookupClient dnsClient)
     : IAuthoritativeDnsLookup
 {
-    public async Task<IAuthoritativeDnsLookupResult> LookupRootAuthority(CancellationToken cancellationToken = default)
+    public async Task<IAuthoritativeDnsLookupResult> LookupRootAuthorityAsync(CancellationToken cancellationToken = default)
     {
         logger.LogTrace("Beginning look up of root servers");
 
@@ -40,14 +40,14 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
 
     //
 
-    public async Task<IAuthoritativeDnsLookupResult> LookupDomainAuthority(string domain, CancellationToken cancellationToken = default)
+    public async Task<IAuthoritativeDnsLookupResult> LookupDomainAuthorityAsync(string domain, CancellationToken cancellationToken = default)
     {
         var authoritatives = new AuthoritativeDnsLookupResult();
 
         domain = domain.Trim().Trim('.');
         logger.LogDebug("Beginning look up of authoritative records for {domain}", domain);
 
-        var roots = await LookupRootAuthority(cancellationToken);
+        var roots = await LookupRootAuthorityAsync(cancellationToken);
         if (domain == "") // looking up root?
         {
             return roots;
@@ -71,7 +71,7 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
                 // Advance domain, e.g. "com" => "example.com"
                 subdomain = labels[idx] + (string.IsNullOrEmpty(subdomain) ? "" : ".") + subdomain;
 
-                nameServers = await LookUpGlue(nameServers, subdomain, dnsQueryOptions);
+                nameServers = await LookUpGlue(nameServers, subdomain, dnsQueryOptions, cancellationToken);
                 if (!nameServers.Any())
                 {
                     // Did not find any glue here, get out
@@ -79,7 +79,7 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
                 }
 
                 authoritatives.NameServers = new List<string>(nameServers);
-                var (authoritativeDomain, authoritativeNameServer) = await LookUpAuthoritatives(nameServers, subdomain, dnsQueryOptions);
+                var (authoritativeDomain, authoritativeNameServer) = await LookUpAuthoritatives(nameServers, subdomain, dnsQueryOptions, cancellationToken);
                 if (authoritativeDomain == "" || authoritativeNameServer == "")
                 {
                     // Did not find a SOA record here, get out
@@ -181,11 +181,11 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
 
     //
 
-    public async Task<string> LookupZoneApex(string domain, CancellationToken cancellationToken = default)
+    public async Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Beginning look up of zone apex for {domain}", domain);
 
-        var authority = await LookupDomainAuthority(domain, cancellationToken);
+        var authority = await LookupDomainAuthorityAsync(domain, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeDomain))
         {
             logger.LogDebug("LookupZoneApex did not find an authoritative server for {domain}", domain);

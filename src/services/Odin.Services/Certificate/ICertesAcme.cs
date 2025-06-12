@@ -1,8 +1,12 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Odin.Services.Certificate;
 
 #nullable enable
+
+// SEB:NOTE Certes is no longer maintained and does not support CancellationToken.
+// https://github.com/fszlin/certes
 
 public class AcmeAccount
 {
@@ -20,8 +24,8 @@ public class KeysAndCertificates
 public interface ICertesAcme
 {
     bool IsProduction { get; }
-    Task<AcmeAccount> CreateAccount(string contactEmail);
-    Task<KeysAndCertificates> CreateCertificate(AcmeAccount acmeAccount, string[] domains);
+    Task<AcmeAccount> CreateAccount(string contactEmail, CancellationToken cancellationToken = default);
+    Task<KeysAndCertificates> CreateCertificate(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken = default);
 }
 
 //
