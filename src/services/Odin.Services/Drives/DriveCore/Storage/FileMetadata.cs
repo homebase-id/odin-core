@@ -103,6 +103,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Guid? VersionTag { get; set; }
 
+        /// <summary>
+        /// Specifies the identity that holds the payload content
+        /// </summary>
+        public OdinId? RemotePayloadIdentity { get; set; }
 
         public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
         {
@@ -136,10 +140,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // LocalAppData = fileMetadataDto.LocalAppData;
             Payloads = fileMetadataDto.Payloads;
             // VersionTag = VersionTag,
+            
+            RemotePayloadIdentity = fileMetadataDto.RemotePayloadIdentity;
 
             // SANITY CHECK:
-            // There are SIX fields in the DTO.
-            // There are SIXTEEN properties in the FileMetaData
+            // There are SEVEN fields in the DTO.
+            // There are SEVENTEEN properties in the FileMetaData
             // There must be TEN assignments below
 
             // Now fill in FileMetadata with column specific values from the record

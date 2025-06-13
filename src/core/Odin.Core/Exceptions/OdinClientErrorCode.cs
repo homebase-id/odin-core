@@ -71,6 +71,8 @@ public enum OdinClientErrorCode
     FileLockedDuringWriteOperation = 4165,
     InvalidGlobalTransitId = 4166,
     MaxContentLengthExceeded  = 4167,
+    InvalidPayloadContent = 4168,
+    CannotSetRemotePayloadIdentity = 4169,
 
 
     // Connection errors 50xx

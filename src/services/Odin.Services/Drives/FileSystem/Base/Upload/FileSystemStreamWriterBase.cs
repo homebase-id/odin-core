@@ -428,6 +428,13 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.InvalidKeyHeader);
         }
 
+        if (uploadDescriptor.FileMetadata.RemotePayloadIdentity != null)
+        {
+            throw new OdinClientException($"{nameof(uploadDescriptor.FileMetadata.RemotePayloadIdentity)} can only be set " +
+                                          $"when StorageIntent is {nameof(StorageIntent.MetadataOnly)}",
+                OdinClientErrorCode.CannotSetRemotePayloadIdentity);
+        }
+
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
