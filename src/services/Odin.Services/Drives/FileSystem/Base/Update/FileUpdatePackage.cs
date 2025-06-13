@@ -50,7 +50,22 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
         /// <summary>
         /// Merges uploaded payloads and thumbnails
         /// </summary>
-        public List<PayloadDescriptor> GetFinalPayloadDescriptors()
+        public List<PayloadDescriptor> GetFinalPayloadDescriptors(bool fromManifest = false)
+        {
+            if (fromManifest)
+            {
+                return DescriptorsFromManifest();
+            }
+
+            return DescriptorsFromUploadedPayloads();
+        }
+
+        public List<PackagePayloadDescriptor> GetPayloadsWithValidIVs()
+        {
+            return Payloads.Where(p => p.HasIv()).ToList();
+        }
+
+        private List<PayloadDescriptor> DescriptorsFromUploadedPayloads()
         {
             var descriptors = Payloads.Select(p =>
             {
@@ -76,14 +91,37 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
                     PreviewThumbnail = p.PreviewThumbnail
                 };
             });
-
             return descriptors.ToList();
         }
 
-        public List<PackagePayloadDescriptor> GetPayloadsWithValidIVs()
+        private List<PayloadDescriptor> DescriptorsFromManifest()
         {
-            return Payloads.Where(p => p.HasIv()).ToList();
-        }
+            var descriptors = InstructionSet.Manifest.PayloadDescriptors.Select(p =>
+            {
+                var thumbnails = this.Thumbnails?.Where(t => t.PayloadKey == p.PayloadKey)
+                    .Select(t => new ThumbnailDescriptor()
+                    {
+                        ContentType = t.ContentType,
+                        PixelHeight = t.PixelHeight,
+                        PixelWidth = t.PixelWidth,
+                        BytesWritten = t.BytesWritten
+                    }).ToList();
 
+                return new PayloadDescriptor()
+                {
+                    Iv = p.Iv,
+                    Uid = default,
+                    Key = p.PayloadKey,
+                    ContentType = p.ContentType,
+                    Thumbnails = thumbnails,
+                    LastModified = 0, //UnixTimeUtc.Now(),
+                    BytesWritten = 0,
+                    DescriptorContent = p.DescriptorContent,
+                    PreviewThumbnail = p.PreviewThumbnail
+                };
+            });
+
+            return descriptors.ToList();
+        }
     }
 }

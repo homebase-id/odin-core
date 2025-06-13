@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -15,8 +16,8 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
     /// <summary />
     public StandardFileUpdateWriter(StandardFileSystem fileSystem,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        IDriveManager driveManager)
-        : base(fileSystem, driveManager, peerOutgoingTransferService)
+        IDriveManager driveManager, ILogger<StandardFileUpdateWriter> logger)
+        : base(fileSystem, driveManager, peerOutgoingTransferService, logger)
     {
     }
 
@@ -24,7 +25,8 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
     {
         if (ReservedFileTypes.IsInReservedRange(updateDescriptor.FileMetadata.AppData.FileType))
         {
-            throw new OdinClientException($"Cannot upload file with reserved file type; range is {ReservedFileTypes.Start} - {ReservedFileTypes.End}",
+            throw new OdinClientException(
+                $"Cannot upload file with reserved file type; range is {ReservedFileTypes.Start} - {ReservedFileTypes.End}",
                 OdinClientErrorCode.CannotUseReservedFileType);
         }
 
@@ -37,8 +39,9 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
         return Task.CompletedTask;
     }
 
-   
-    protected override Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package, UpdateFileDescriptor updateDescriptor, IOdinContext odinContext)
+
+    protected override Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package, UpdateFileDescriptor updateDescriptor,
+        IOdinContext odinContext)
     {
         var metadata = new FileMetadata()
         {

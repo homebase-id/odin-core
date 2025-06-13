@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Bitcoin.BitcoinUtilities;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
@@ -30,14 +31,17 @@ public abstract class FileSystemUpdateWriterBase
 {
     private readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
-
+    private readonly ILogger _logger;
+    
     /// <summary />
     protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, IDriveManager driveManager,
-        PeerOutgoingTransferService peerOutgoingTransferService)
+        PeerOutgoingTransferService peerOutgoingTransferService,
+        ILogger logger)
     {
         FileSystem = fileSystem;
         _driveManager = driveManager;
         _peerOutgoingTransferService = peerOutgoingTransferService;
+        _logger = logger;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -127,10 +131,15 @@ public abstract class FileSystemUpdateWriterBase
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile
             .AsTempFileUpload(), extension, data, odinContext);
 
-        if (bytesWritten > 0)
+        if (bytesWritten <= 0)
         {
-            Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
+            _logger.LogError("Zero bytes written while uploading payload with fileId [{file}] with " +
+                             "extension [{extension}]", Package.InternalFile, extension);
+
+            throw new OdinSystemException("Failed while writing temp file during upload");
         }
+
+        Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
     }
 
     public virtual async Task AddThumbnail(string thumbnailUploadKey, string overrideContentType, Stream data, IOdinContext odinContext)
@@ -164,14 +173,22 @@ public abstract class FileSystemUpdateWriterBase
         }
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = TenantPathManager.GetThumbnailFileNameAndExtension(
+        string extension = TenantPathManager.GetThumbnailFileNameAndExtension(
             result.PayloadKey,
             result.PayloadUid,
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extenstion, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
+
+        if (bytesWritten <= 0)
+        {
+            _logger.LogError("Zero bytes written while uploading thumbnail with fileId [{file}] with " +
+                             "extension [{extension}]", Package.InternalFile, extension);
+
+            throw new OdinSystemException("Failed while writing temp file during upload");
+        }
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
