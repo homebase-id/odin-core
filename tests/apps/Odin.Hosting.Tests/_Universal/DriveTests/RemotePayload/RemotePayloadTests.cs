@@ -302,6 +302,7 @@ public class RemotePayloadTests
     public async Task FailToModifyRemotePayloadIdentityOnExistingFile_OverwriteFile(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
+        await Task.CompletedTask;
         Assert.Pass("Overwrite file is going away");
     }
 }
