@@ -493,7 +493,8 @@ public abstract class FileSystemStreamWriterBase
 
         if (metadata.HasRemotePayloads)
         {
-            throw new OdinClientException($"Cannot specify RemotePayloadIdentity when storage intent is {StorageIntent.MetadataOnly}");
+            throw new OdinClientException($"Cannot specify RemotePayloadIdentity when storage intent is {StorageIntent.MetadataOnly}", 
+                OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
         }
 
         var serverMetadata = new ServerMetadata()

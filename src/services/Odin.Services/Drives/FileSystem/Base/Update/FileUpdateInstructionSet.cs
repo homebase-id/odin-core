@@ -18,7 +18,7 @@ public class FileUpdateInstructionSet
     /// The transfer initialization vector used to encrypt the KeyHeader
     /// </summary>
     public byte[] TransferIv { get; init; }
-    
+
     /// <summary>
     /// The File being updated
     /// </summary>
@@ -28,7 +28,7 @@ public class FileUpdateInstructionSet
     /// Indicates where the update should take place
     /// </summary>
     public UpdateLocale Locale { get; init; }
-    
+
     /// <summary>
     /// The target identity holding the file to be updated
     /// </summary>
@@ -38,7 +38,7 @@ public class FileUpdateInstructionSet
     /// Information about what is being uploaded
     /// </summary>
     public UploadManifest Manifest { get; init; }
-    
+
     public bool UseAppNotification { get; init; }
 
     public AppNotificationOptions AppNotificationOptions { get; init; }
@@ -49,7 +49,7 @@ public class FileUpdateInstructionSet
         OdinValidationUtils.AssertNotEmptyByteArray(TransferIv, nameof(TransferIv));
         File.AssertIsValid();
 
-        foreach (var descriptor in this.Manifest.PayloadDescriptors)
+        foreach (var descriptor in this.Manifest.PayloadDescriptors ?? [])
         {
             descriptor.AssertIsValid(encrypted);
         }

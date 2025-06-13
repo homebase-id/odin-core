@@ -506,7 +506,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var drive = await DriveManager.GetDriveAsync(originFile.File.DriveId);
 
             ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.HasRemotePayloads;
-            
+
             var targetFile = originFile.File;
             newMetadata.File = targetFile; // this is a new file so we can use the same fileId from the temp file
             serverMetadata.FileSystemType = GetFileSystemType();
@@ -1045,6 +1045,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             bool success = false;
 
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+            if (existingHeader.FileMetadata.RemotePayloadIdentity != manifest.FileMetadata.RemotePayloadIdentity)
+            {
+                throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates", OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+            }
+
             // First prepare by copying everything needed
             var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext);
             try
@@ -1129,8 +1135,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 var zombies = new List<PayloadDescriptor>();
 
+                var instructions = manifest.PayloadInstruction ?? [];
+
                 // Delete operations are for existing payloads, so we need to update the existing header
-                foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
+                foreach (var op in instructions.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
                 {
                     var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
                     if (descriptor != null)
@@ -1147,8 +1155,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 var zombies = new List<PayloadDescriptor>();
 
-                foreach (var op in manifest.PayloadInstruction
-                             .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                var instructions = manifest.PayloadInstruction ?? [];
+                foreach (var op in instructions.Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
                     // Here look at the incoming payloads because we're adding a new one or overwriting
                     var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
