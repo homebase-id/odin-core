@@ -749,6 +749,12 @@ public static class HostExtensions
 
     private static async Task DefragmentAsync(IServiceProvider services, bool cleanup)
     {
+        var config = services.GetRequiredService<OdinConfiguration>();
+        if (config.S3PayloadStorage.Enabled)
+        {
+            throw new OdinSystemException("S3 defragmentation is not supported");
+        }
+
         var logger = services.GetRequiredService<ILogger<Startup>>();
         var registry = services.GetRequiredService<IIdentityRegistry>();
         var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
