@@ -483,6 +483,7 @@ namespace Odin.Services.DataSubscription.Follower
                 SenderOdinId = odinId,
                 OriginalAuthor = fm.OriginalAuthor,
                 VersionTag = fm.VersionTag,
+                RemotePayloadIdentity = fm.RemotePayloadIdentity,
                 ReactionPreview = fm.ReactionPreview,
                 Created = fm.Created,
                 Updated = fm.Updated,

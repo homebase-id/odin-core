@@ -186,6 +186,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return descriptor;
         }
 
+        public bool HasRemotePayloads => RemotePayloadIdentity.HasValue;
+        
         public bool TryValidate()
         {
             try

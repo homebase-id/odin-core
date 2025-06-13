@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -102,20 +103,27 @@ public class RemotePayloadTests
             var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(uploadedPayloadDefinition.Key);
             Assert.That(payloadDescriptor, Is.Not.Null);
             Assert.That(payloadDescriptor.Key, Is.EqualTo(uploadedPayloadDefinition.Key));
-            Assert.That(payloadDescriptor.Iv, Is.Null);
+            Assert.That(payloadDescriptor.Iv, Is.EquivalentTo(Guid.Empty.ToByteArray()));
             Assert.That(payloadDescriptor.ContentType, Is.EqualTo(uploadedPayloadDefinition.ContentType));
             Assert.That(payloadDescriptor.DescriptorContent, Is.EqualTo(uploadedPayloadDefinition.DescriptorContent));
-            Assert.That(payloadDescriptor.Uid, Is.EqualTo(0));
+            Assert.That(payloadDescriptor.Uid.uniqueTime, Is.EqualTo(0));
             Assert.That(payloadDescriptor.BytesWritten, Is.EqualTo(0));
-            Assert.That(payloadDescriptor.PreviewThumbnail, Is.Null);
+            Assert.That(payloadDescriptor.PreviewThumbnail.BytesWritten, Is.EqualTo(0));
+            Assert.That(payloadDescriptor.PreviewThumbnail.PixelHeight, Is.EqualTo(uploadedPayloadDefinition.PreviewThumbnail.PixelHeight));
+            Assert.That(payloadDescriptor.PreviewThumbnail.PixelWidth, Is.EqualTo(uploadedPayloadDefinition.PreviewThumbnail.PixelWidth));
+            Assert.That(payloadDescriptor.PreviewThumbnail.ContentType, Is.EqualTo(uploadedPayloadDefinition.PreviewThumbnail.ContentType));
+            Assert.That(payloadDescriptor.PreviewThumbnail.Content, Is.EquivalentTo(uploadedPayloadDefinition.PreviewThumbnail.Content));
+            
             foreach (var t in payloadDescriptor.Thumbnails)
             {
-                var targetThumbnail = uploadedPayloadDefinition.Thumbnails
+                var serverThumbnail = uploadedPayloadDefinition.Thumbnails
                     .SingleOrDefault(x => x.PixelHeight == t.PixelHeight && x.PixelWidth == t.PixelWidth);
 
-                Assert.That(targetThumbnail, Is.Not.Null);
-                Assert.That(t.ContentType, Is.EqualTo(targetThumbnail.Content));
+                Assert.That(serverThumbnail, Is.Not.Null);
                 Assert.That(t.BytesWritten, Is.EqualTo(0));
+                Assert.That(t.PixelHeight, Is.EqualTo(serverThumbnail.PixelHeight));
+                Assert.That(t.PixelWidth, Is.EqualTo(serverThumbnail.PixelWidth));
+                Assert.That(t.ContentType, Is.EqualTo(serverThumbnail.ContentType));
             }
         }
     }
@@ -149,6 +157,38 @@ public class RemotePayloadTests
         Assert.That(response.StatusCode == HttpStatusCode.BadRequest, Is.True);
 
         var correctErrorCode = _scaffold.GetErrorCode(response.Error) == OdinClientErrorCode.InvalidPayloadContent;
+        Assert.That(correctErrorCode, Is.True);
+    }
+    
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task FailToUploadNewFileWhenRemotePayloadIdentityIsSetAndNoDescriptorsAreSpecified(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+
+        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
+
+        uploadedFileMetadata.RemotePayloadIdentity = TestIdentities.Frodo.OdinId;
+
+        var uploadManifest = new UploadManifest()
+        {
+            PayloadDescriptors = []
+        };
+
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, []);
+        Assert.That(response.StatusCode == HttpStatusCode.BadRequest, Is.True);
+
+        var correctErrorCode = _scaffold.GetErrorCode(response.Error) == OdinClientErrorCode.MissingPayloadKeys;
         Assert.That(correctErrorCode, Is.True);
     }
 

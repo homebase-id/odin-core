@@ -76,8 +76,9 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
             SenderOdinId = odinContext.Caller.OdinId,
             // OriginalAuthor = //Nothing to do here since callers never update the original author
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
+            Payloads = package.GetFinalPayloadDescriptors(),
 
-            Payloads = package.GetFinalPayloadDescriptors()
+            RemotePayloadIdentity = updateDescriptor.FileMetadata.RemotePayloadIdentity
         };
 
         return Task.FromResult(metadata);

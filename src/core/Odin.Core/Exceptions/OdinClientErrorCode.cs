@@ -73,6 +73,7 @@ public enum OdinClientErrorCode
     MaxContentLengthExceeded  = 4167,
     InvalidPayloadContent = 4168,
     CannotSetRemotePayloadIdentity = 4169,
+    MissingPayloadKeys = 4170,
 
 
     // Connection errors 50xx
