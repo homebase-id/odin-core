@@ -148,6 +148,8 @@ public abstract class OutboxWorkerBase(
             VersionTag = sourceMetadata.VersionTag,
             Payloads = sourceMetadata.Payloads,
             FileState = sourceMetadata.FileState,
+
+            RemotePayloadIdentity = sourceMetadata.RemotePayloadIdentity
         };
 
         var json = OdinSystemSerializer.Serialize(redactedMetadata);

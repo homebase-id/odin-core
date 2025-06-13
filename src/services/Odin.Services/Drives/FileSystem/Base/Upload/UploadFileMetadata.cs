@@ -1,16 +1,11 @@
 ﻿using System;
+using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;
 
 namespace Odin.Services.Drives.FileSystem.Base.Upload
 {
     public class UploadFileMetadata
     {
-        public UploadFileMetadata()
-        {
-            this.AppData = new();
-            this.AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
-        }
-
         public Guid? VersionTag { get; set; }
 
         /// <summary>
@@ -19,21 +14,23 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         public bool IsEncrypted { get; set; }
 
-        public AccessControlList AccessControlList { get; set; }
+        public AccessControlList AccessControlList { get; set; } = new() { RequiredSecurityGroup = SecurityGroupType.Owner };
 
-        public UploadAppFileMetaData AppData { get; set; }
+        public UploadAppFileMetaData AppData { get; set; } = new();
 
         /// <summary>
         /// When true, this file can be distributed to those with a Data Subscription
         /// </summary>
-        public virtual bool AllowDistribution { get; set; }
+        public bool AllowDistribution { get; set; }
 
         /// <summary>
         /// The global transit id to which this file refers
         /// </summary>
-        // public virtual ExternalFileIdentifier ReferencedFile { get; set; }
-        public virtual GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
+        public GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
 
-        
+        /// <summary>
+        /// Specifies the identity that holds the payload content
+        /// </summary>
+        public OdinId? RemotePayloadIdentity { get; set; }
     }
 }

@@ -123,6 +123,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
+            RemotePayloadIdentity = uploadDescriptor.FileMetadata.RemotePayloadIdentity,
 
             Payloads = package.GetFinalPayloadDescriptors()
         };

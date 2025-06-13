@@ -40,6 +40,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public List<PayloadDescriptor> Payloads { get; init; }
 
         // public Guid? VersionTag { get; init; }
+        
+        public OdinId? RemotePayloadIdentity { get; set; }
 
         public FileMetadataDto() { }
 
@@ -60,7 +62,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // AppData = fileMetadata.AppData
             // LocalAppData = fileMetadata.LocalAppData; <--- TODO TODD & MICHAEL SANITY HERE?! XXX
             Payloads = fileMetadata.Payloads;
+            
+            RemotePayloadIdentity = fileMetadata.RemotePayloadIdentity;
             // VersionTag = fileMetadata.VersionTag
         }
+
     }
 }
