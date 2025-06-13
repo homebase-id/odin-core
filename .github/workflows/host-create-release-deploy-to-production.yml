@@ -23,6 +23,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Log all workflow inputs
+        run: |
+          echo "Workflow inputs as JSON: $INPUTS"
+        env:
+          INPUTS: ${{ toJson(github.event.inputs) }}
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
