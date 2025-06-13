@@ -1,5 +1,3 @@
-#if false
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,7 +13,6 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 public class OrphanTestUtil(
     ILogger<OrphanTestUtil> logger,
-    IPayloadReaderWriter payloadReaderWriter,
     DriveManager driveManager,
     TenantContext tenantContext
     )
@@ -48,7 +45,7 @@ public class OrphanTestUtil(
         return false;
     }
 
-    private List<ParsedPayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
+    public static List<ParsedPayloadFileRecord> GetOrphanedPayloads(string[] files, List<PayloadDescriptor> expectedPayloads)
     {
         // examine all payload files for a given fileId, regardless of key.
         // we'll compare the file below before deleting
@@ -79,10 +76,12 @@ public class OrphanTestUtil(
 
         var expectedThumbnails = payloadDescriptor.Thumbnails?.ToList() ?? [];
         var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
-        if (payloadReaderWriter.DirectoryExists(dir))
-        {
-            return [];
-        }
+
+        // ???
+        //if (payloadReaderWriter.DirectoryExists(dir))
+        //{
+        //    return [];
+        //}
 
         // ├── 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760-*x*.thumb
         var thumbnailSearchPatternForPayload = GetThumbnailSearchMask(fileId, payloadDescriptor.Key, payloadDescriptor.Uid);
@@ -119,7 +118,7 @@ public class OrphanTestUtil(
         return $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
     }
 
-    private string GetPayloadSearchMask(Guid fileId)
+    public static string GetPayloadSearchMask(Guid fileId)
     {
         var extension = DriveFileUtility.GetPayloadFileExtensionStarStar();
         var mask = $"{TenantPathManager.GuidToPathSafeString(fileId)}{TenantPathManager.FileNameSectionDelimiter}{extension}";
@@ -131,5 +130,3 @@ public class OrphanTestUtil(
         return Directory.GetFiles(dir!, searchPattern);
     }
 }
-
-#endif

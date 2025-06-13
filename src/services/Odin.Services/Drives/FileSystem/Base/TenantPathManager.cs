@@ -16,14 +16,14 @@ namespace Odin.Services.Drives.FileSystem.Base;
 
 public record ParsedPayloadFileRecord
 {
-    public string Filename { get; set; } = "";
+    public Guid FileId { get; set; } = Guid.Empty;
     public string Key { get; init; }  = "";
     public UnixTimeUtcUnique Uid { get; init; }
 }
 
 public record ParsedThumbnailFileRecord
 {
-    public string Filename { get; set; } = "";
+    public Guid FileId { get; set; } = Guid.Empty;
     public string Key { get; init; } = "";
     public UnixTimeUtcUnique Uid { get; init; }
     public int Width { get; init; }
@@ -158,7 +158,7 @@ public class TenantPathManager
         return isMatch;
     }
 
-    internal static string GetPayloadDirectoryFromGuid(Guid fileId)
+    public static string GetPayloadDirectoryFromGuid(Guid fileId)
     {
         var (highNibble, lowNibble) = GuidHelper.GetLastTwoNibbles(fileId);
         return Path.Combine(highNibble.ToString(), lowNibble.ToString());
@@ -284,13 +284,23 @@ public class TenantPathManager
         // fileId is 1fedce18c0022900efbb396f9796d3d0
         // payload key is prfl_pic
         // payload UID is 113599297775861760
-        var parts = filename.Split(TenantPathManager.PayloadDelimiter);
+        string cleanedFilename = filename.Replace(PayloadExtension, "");
+        var parts = cleanedFilename.Split(TenantPathManager.PayloadDelimiter);
         return new ParsedPayloadFileRecord()
         {
-            Filename = parts[0],
+            FileId = new Guid(parts[0]),
             Key = parts[1],
             Uid = new UnixTimeUtcUnique(long.Parse(parts[2]))
         };
+    }
+
+    public static string ResolvePayloadFilename(ParsedPayloadFileRecord  fileRecord)
+    {
+        // file name on disk: 1fedce18c0022900efbb396f9796d3d0-prfl_pic-113599297775861760.payload
+        // fileId is 1fedce18c0022900efbb396f9796d3d0
+        // payload key is prfl_pic
+        // payload UID is 113599297775861760
+        return GetPayloadFileName(fileRecord.FileId, fileRecord.Key, fileRecord.Uid);
     }
 
     public static ParsedThumbnailFileRecord ParseThumbnailFilename(string filename)
@@ -302,7 +312,9 @@ public class TenantPathManager
         // width = 400
         // height 400
 
-        var parts = filename.Split(TenantPathManager.PayloadDelimiter);
+        string cleanedFilename = filename.Replace(ThumbnailExtension, "");
+        var parts = cleanedFilename.Split(TenantPathManager.PayloadDelimiter);
+
         var fileNameOnDisk = parts[0]; // not used
         var payloadKeyOnDisk = parts[1];
         var payloadUidOnDisk = long.Parse(parts[2]);
@@ -313,11 +325,21 @@ public class TenantPathManager
 
         return new ParsedThumbnailFileRecord
         {
-            Filename = fileNameOnDisk,
+            FileId = new Guid(fileNameOnDisk),
             Key = payloadKeyOnDisk,
             Uid = new UnixTimeUtcUnique(payloadUidOnDisk),
             Width = widthOnDisk,
             Height = heightOnDisk
         };
+    }
+
+    public enum FileType { Invalid, Payload, Thumbnail }
+
+    public static FileType ParseFileType(string filename)
+    {
+        if (string.IsNullOrEmpty(filename)) return FileType.Invalid;
+        if (filename.EndsWith(PayloadExtension)) return FileType.Payload;
+        if (filename.EndsWith(ThumbnailExtension)) return FileType.Thumbnail;
+        return FileType.Invalid;
     }
 }

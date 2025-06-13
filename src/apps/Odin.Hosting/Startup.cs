@@ -24,11 +24,10 @@ using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
-using Odin.Core.Storage.SQLite.Migrations;
 using Odin.Core.Tasks;
 using Odin.Core.Util;
 using Odin.Services.Admin.Tenants;
@@ -55,6 +54,7 @@ using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.Concurrency;
+using Odin.Services.Drives;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
 using Odin.Services.Membership.CircleMembership;
@@ -716,6 +716,12 @@ public static class HostExtensions
             return false;
         }
 
+        if (args.Length == 2 && args[0] == "defragment")
+        {
+            DefragmentAsync(host.Services, args[1] == "cleanup").BlockingWait();
+            return false;
+        }
+
         return true;
     }
 
@@ -736,6 +742,40 @@ public static class HostExtensions
             migrationLogger.LogInformation("Starting migration for {tenant}; id: {id}", tenant.PrimaryDomainName, tenant.Id);
             var circleMembershipService = scope.Resolve<CircleMembershipService>();
             await circleMembershipService.Temp_ReconcileCircleAndAppGrants();
+        }
+    }
+
+    //
+
+    private static async Task DefragmentAsync(IServiceProvider services, bool cleanup)
+    {
+        var config = services.GetRequiredService<OdinConfiguration>();
+        if (config.S3PayloadStorage.Enabled)
+        {
+            throw new OdinSystemException("S3 defragmentation is not supported");
+        }
+
+        var logger = services.GetRequiredService<ILogger<Startup>>();
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+
+        logger.LogInformation("Starting defragmentation; cleanup mode: {cleanup}", cleanup);
+
+        var allTenants = await registry.GetTenants();
+        foreach (var tenant in allTenants)
+        {
+            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
+            var defragmenter = scope.Resolve<Defragmenter>();
+
+            var tblDrives = scope.Resolve<TableDrives>();
+            var (drives, _, _) = await tblDrives.GetList(int.MaxValue, null);
+
+            logger.LogInformation("Defragmenting {tenant}", tenant.PrimaryDomainName);
+            foreach (var drive in drives)
+            {
+                var targetDrive = new TargetDrive { Alias = drive.DriveAlias, Type = drive.DriveType };
+                await defragmenter.Defragment(targetDrive, cleanup);
+            }
         }
     }
 }

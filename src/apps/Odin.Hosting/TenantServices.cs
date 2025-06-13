@@ -151,7 +151,6 @@ public static class TenantServices
             .AsSelf()
             .InstancePerLifetimeScope();
 
-
         cb.RegisterType<TenantConfigService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<TenantContext>().AsSelf().SingleInstance();
 
@@ -312,6 +311,8 @@ public static class TenantServices
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
+
+        cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
         
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
