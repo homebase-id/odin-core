@@ -203,16 +203,11 @@ public abstract class FileSystemStreamWriterBase
     /// </summary>
     public async Task<UploadResult> FinalizeUploadAsync(IOdinContext odinContext)
     {
-        _logger.LogDebug("Entering FinalizeUploadAsync");
-
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
-        _logger.LogDebug("FinalizeUploadAsync check-point A");
 
         await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata);
-        _logger.LogDebug("FinalizeUploadAsync check-point B");
 
         await this.ValidateUnpackedData(Package, keyHeader, metadata, serverMetadata, odinContext);
-        _logger.LogDebug("FinalizeUploadAsync check-point C");
 
         if (Package.IsUpdateOperation)
         {
@@ -237,14 +232,12 @@ public abstract class FileSystemStreamWriterBase
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
-                _logger.LogDebug("FinalizeUploadAsync check-point E");
 
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
                     var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId,
                         odinContext);
-                    _logger.LogDebug("FinalizeUploadAsync check-point F");
 
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
@@ -258,7 +251,6 @@ public abstract class FileSystemStreamWriterBase
             }
 
             await ProcessExistingFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
-            _logger.LogDebug("FinalizeUploadAsync check-point G");
         }
         else
         {
@@ -268,7 +260,6 @@ public abstract class FileSystemStreamWriterBase
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId,
                     odinContext);
-                _logger.LogDebug("FinalizeUploadAsync check-point H");
 
                 if (null != existingFile && existingFile.FileState != FileState.Deleted)
                 {
@@ -281,14 +272,11 @@ public abstract class FileSystemStreamWriterBase
             }
 
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
-            _logger.LogDebug("FinalizeUploadAsync check-point I");
         }
 
         Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext);
-        _logger.LogDebug("FinalizeUploadAsync check-point J");
 
         var drive = await _driveManager.GetDriveAsync(Package.InternalFile.DriveId);
-        _logger.LogDebug("FinalizeUploadAsync check-point K");
 
         var uploadResult = new UploadResult
         {
@@ -351,10 +339,6 @@ public abstract class FileSystemStreamWriterBase
         IOdinContext odinContext)
     {
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-
-        // var metadataBytes = await FileSystem.Storage.GetAllFileBytesFromTempFile(
-        //     package.TempMetadataFile.AsTempFileUpload(), MultipartUploadParts.Metadata.ToString(), odinContext);
-        //
 
         var decryptedJsonBytes = AesCbc.Decrypt(package.Metadata, clientSharedSecret, package.InstructionSet.TransferIv);
         var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(decryptedJsonBytes.ToStringFromUtf8Bytes());

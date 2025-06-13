@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -16,8 +17,9 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
     public CommentFileUpdateWriter(
         CommentFileSystem fileSystem,
         PeerOutgoingTransferService peerOutgoingTransferService,
-        IDriveManager driveManager)
-        : base(fileSystem, driveManager, peerOutgoingTransferService)
+        IDriveManager driveManager,
+        ILogger<CommentFileUpdateWriter> logger)
+        : base(fileSystem, driveManager, peerOutgoingTransferService, logger)
     {
     }
 
