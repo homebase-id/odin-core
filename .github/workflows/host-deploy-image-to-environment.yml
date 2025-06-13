@@ -25,16 +25,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4 
-    - name: Deploy Docker Image    
-      uses: ./.github/actions/host/deploy-image-to-environment
-      with:
-        image_name: ${{ github.event.inputs.image_name }}
-        env_name: ${{ github.event.inputs.env_choice }}
-        force_update: 'true'
-        start_container: ${{ github.event.inputs.start_choice }}
-        ansible_host: ${{ secrets.ANSIBLE_HOST }}
-        ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
-        ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
+      - name: Log all workflow inputs
+        run: |
+          echo "Workflow inputs as JSON: $INPUTS"
+        env:
+          INPUTS: ${{ toJson(github.event.inputs) }}
+    
+      - name: Checkout Repository
+        uses: actions/checkout@v4 
+      
+      - name: Deploy Docker Image    
+        uses: ./.github/actions/host/deploy-image-to-environment
+        with:
+          image_name: ${{ github.event.inputs.image_name }}
+          env_name: ${{ github.event.inputs.env_choice }}
+          force_update: 'true'
+          start_container: ${{ github.event.inputs.start_choice }}
+          ansible_host: ${{ secrets.ANSIBLE_HOST }}
+          ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
+          ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
         
