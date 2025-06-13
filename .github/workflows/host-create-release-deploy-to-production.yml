@@ -5,6 +5,7 @@ on:
     inputs:
       start_choice:
         type: choice
+        required: true
         description: "Start container"
         options:
         - 'true'
