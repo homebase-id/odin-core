@@ -8,6 +8,7 @@ on:
         required: true
       env_choice:
         type: choice
+        required: true
         description: "Environment"
         options:
         - bleeding_edge
@@ -15,6 +16,7 @@ on:
         - production
       start_choice:
         type: choice
+        required: true
         description: "Start container"
         options:
         - 'true'
