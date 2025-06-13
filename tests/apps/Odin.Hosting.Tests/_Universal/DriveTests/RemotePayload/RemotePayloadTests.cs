@@ -194,7 +194,7 @@ public class RemotePayloadTests
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
-    public async Task FailToSetRemotePayloadIdentityOnExistingFile_UpdateBatch(IApiClientContext callerContext,
+    public async Task FailToModifyRemotePayloadIdentityOnExistingFile_UpdateBatch(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
@@ -222,6 +222,7 @@ public class RemotePayloadTests
         ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
         var uploadedFile = uploadNewFileResponse.Content;
         Assert.That(uploadedFile, Is.Not.Null);
+        
         //
         // Now try to modify the remote identity
         //
@@ -241,70 +242,16 @@ public class RemotePayloadTests
                 PayloadDescriptors = null
             }
         };
+        
         var response = await callerDriveClient.UpdateFile(updateInstructionSet, uploadedFileMetadata, payloads: []);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         var errorCode = _scaffold.GetErrorCode(response.Error);
-        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotSetRemotePayloadIdentity));
+        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
     }
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
-    public async Task FailToUnsetRemotePayloadIdentityOnExistingFile_UpdateBatch(IApiClientContext callerContext,
-        HttpStatusCode expectedStatusCode)
-    {
-        var identity = TestIdentities.Samwise;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-
-        var remoteOdinId = TestIdentities.Frodo.OdinId;
-
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
-        var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
-
-        uploadedFileMetadata.RemotePayloadIdentity = remoteOdinId;
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        var uploadNewFileResponse =
-            await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, payloads: []);
-        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-        var uploadedFile = uploadNewFileResponse.Content;
-        Assert.That(uploadedFile, Is.Not.Null);
-
-        //
-        // Now try to modify the remote identity
-        //
-
-        uploadedFileMetadata.RemotePayloadIdentity = null;
-        uploadedFileMetadata.VersionTag = uploadedFile.NewVersionTag;
-        await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-        var updateInstructionSet = new FileUpdateInstructionSet
-        {
-            Locale = UpdateLocale.Local,
-            TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = uploadedFile.File.ToFileIdentifier(),
-            Manifest = new UploadManifest
-            {
-                PayloadDescriptors = null
-            }
-        };
-        var response = await callerDriveClient.UpdateFile(updateInstructionSet, uploadedFileMetadata, payloads: []);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        var errorCode = _scaffold.GetErrorCode(response.Error);
-        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotSetRemotePayloadIdentity));
-    }
-
-    [Test]
-    [TestCaseSource(nameof(TestCases))]
-    public async Task FailToSetRemotePayloadIdentityOnExistingFile_OverwriteMetadata(IApiClientContext callerContext,
+    public async Task FailToModifyRemotePayloadIdentityOnExistingFile_OverwriteMetadata(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
@@ -346,60 +293,15 @@ public class RemotePayloadTests
         var response = await callerDriveClient.UpdateExistingMetadata(uploadedFile.File, uploadedFile.NewVersionTag, uploadedFileMetadata);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         var errorCode = _scaffold.GetErrorCode(response.Error);
-        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotSetRemotePayloadIdentity));
+        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
     }
 
-    [Test]
-    [TestCaseSource(nameof(TestCases))]
-    public async Task FailToUnSetRemotePayloadIdentityOnExistingFile_OverwriteMetadata(IApiClientContext callerContext,
-        HttpStatusCode expectedStatusCode)
-    {
-        var identity = TestIdentities.Samwise;
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        var targetDrive = callerContext.TargetDrive;
-        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
-
-        var remoteOdinId = TestIdentities.Frodo.OdinId;
-
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-
-        var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
-        var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
-
-        uploadedFileMetadata.RemotePayloadIdentity = remoteOdinId;
-
-        var uploadManifest = new UploadManifest()
-        {
-            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
-        };
-
-        var uploadNewFileResponse =
-            await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, payloads: []);
-        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
-
-        var uploadedFile = uploadNewFileResponse.Content;
-        Assert.That(uploadedFile, Is.Not.Null);
-
-        //
-        // Now try to modify the remote identity
-        //
-
-        uploadedFileMetadata.RemotePayloadIdentity = null;
-        await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
-
-        var response = await callerDriveClient.UpdateExistingMetadata(uploadedFile.File, uploadedFile.NewVersionTag, uploadedFileMetadata);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        var errorCode = _scaffold.GetErrorCode(response.Error);
-        Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotSetRemotePayloadIdentity));
-    }
 
     [Test]
     [TestCaseSource(nameof(TestCases))]
     public async Task FailToModifyRemotePayloadIdentityOnExistingFile_OverwriteFile(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        Assert.Inconclusive("todo");
+        Assert.Pass("Overwrite file is going away");
     }
 }

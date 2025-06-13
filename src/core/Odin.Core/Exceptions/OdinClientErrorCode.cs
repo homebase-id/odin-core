@@ -72,7 +72,7 @@ public enum OdinClientErrorCode
     InvalidGlobalTransitId = 4166,
     MaxContentLengthExceeded  = 4167,
     InvalidPayloadContent = 4168,
-    CannotSetRemotePayloadIdentity = 4169,
+    CannotModifyRemotePayloadIdentity = 4169,
     MissingPayloadKeys = 4170,
 
 

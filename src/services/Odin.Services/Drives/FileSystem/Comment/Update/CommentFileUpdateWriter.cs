@@ -49,6 +49,8 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package,
         UpdateFileDescriptor updateDescriptor, IOdinContext odinContext)
     {
+        var remotePayloadIdentity = updateDescriptor.FileMetadata.RemotePayloadIdentity;
+        
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
@@ -76,9 +78,9 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
             SenderOdinId = odinContext.Caller.OdinId,
             // OriginalAuthor = //Nothing to do here since callers never update the original author
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
-            Payloads = package.GetFinalPayloadDescriptors(),
 
-            RemotePayloadIdentity = updateDescriptor.FileMetadata.RemotePayloadIdentity
+            Payloads = package.GetFinalPayloadDescriptors(fromManifest: remotePayloadIdentity.HasValue),
+            RemotePayloadIdentity = remotePayloadIdentity
         };
 
         return Task.FromResult(metadata);
