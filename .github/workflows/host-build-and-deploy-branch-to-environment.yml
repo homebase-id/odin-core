@@ -29,11 +29,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Log all workflow inputs
+      - name: Log all workflow inputs and current branch
         run: |
+          echo "GITHUB_REF: $GITHUB_REF"
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          echo "Current branch: $BRANCH_NAME"
           echo "Workflow inputs as JSON: $INPUTS"
         env:
           INPUTS: ${{ toJson(github.event.inputs) }}
+          GITHUB_REF: ${{ github.ref }}    
 
       - name: Checkout Repository
         uses: actions/checkout@v4 
