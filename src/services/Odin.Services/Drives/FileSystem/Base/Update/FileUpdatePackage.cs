@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Odin.Core;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -104,7 +103,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
                         ContentType = t.ContentType,
                         PixelHeight = t.PixelHeight,
                         PixelWidth = t.PixelWidth,
-                        BytesWritten = t.BytesWritten
+                        BytesWritten = 0
                     }).ToList();
 
                 return new PayloadDescriptor()

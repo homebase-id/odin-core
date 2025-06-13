@@ -428,13 +428,6 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.InvalidKeyHeader);
         }
 
-        if (uploadDescriptor.FileMetadata.RemotePayloadIdentity != null)
-        {
-            throw new OdinClientException($"{nameof(uploadDescriptor.FileMetadata.RemotePayloadIdentity)} can only be set " +
-                                          $"when StorageIntent is {nameof(StorageIntent.MetadataOnly)}",
-                OdinClientErrorCode.CannotSetRemotePayloadIdentity);
-        }
-
         var clientSharedSecret = odinContext.PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.IsEncrypted
             ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
@@ -496,6 +489,11 @@ public abstract class FileSystemStreamWriterBase
         {
             throw new OdinClientException($"Cannot specify additional payloads when storage intent is {StorageIntent.MetadataOnly}",
                 OdinClientErrorCode.MalformedMetadata);
+        }
+
+        if (metadata.HasRemotePayloads)
+        {
+            throw new OdinClientException($"Cannot specify RemotePayloadIdentity when storage intent is {StorageIntent.MetadataOnly}");
         }
 
         var serverMetadata = new ServerMetadata()
@@ -571,6 +569,18 @@ public abstract class FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
+            if (metadata.HasRemotePayloads && package.GetFinalPayloadDescriptors(fromManifest: false).Any())
+            {
+                throw new OdinClientException("Payload content cannot be uploaded when RemotePayloadIdentity is set",
+                    OdinClientErrorCode.InvalidPayloadContent);
+            }
+            
+            if (metadata.HasRemotePayloads && !package.GetFinalPayloadDescriptors(fromManifest: true).Any())
+            {
+                throw new OdinClientException("At least one payload descriptor is required when RemotePayloadIdentity is set",
+                    OdinClientErrorCode.MissingPayloadKeys);
+            }
+            
             if (metadata.IsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
@@ -582,14 +592,5 @@ public abstract class FileSystemStreamWriterBase
         }
 
         metadata.AppData?.Validate();
-    }
-
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
-    {
-        return new InternalDriveFileId()
-        {
-            FileId = file.FileId,
-            DriveId = file.TargetDrive.Alias
-        };
     }
 }

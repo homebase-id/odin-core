@@ -68,7 +68,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false, odinContext);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false,
+            odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
@@ -107,7 +108,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package,
+        IOdinContext odinContext)
     {
         return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext);
     }
@@ -115,6 +117,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
+        var remotePayloadIdentity = uploadDescriptor.FileMetadata.RemotePayloadIdentity;
+
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
@@ -143,8 +147,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-
-            Payloads = package.GetFinalPayloadDescriptors()
+            RemotePayloadIdentity = remotePayloadIdentity,
+            Payloads = package.GetFinalPayloadDescriptors(fromManifest: remotePayloadIdentity.HasValue)
         };
 
         return Task.FromResult(metadata);
