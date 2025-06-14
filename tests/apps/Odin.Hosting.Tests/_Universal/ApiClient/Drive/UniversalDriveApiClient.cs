@@ -425,13 +425,15 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-            List<StreamPart> parts = new()
-            {
+            List<StreamPart> parts =
+            [
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartUploadParts.Instructions)),
+
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Metadata)),
-            };
+                    Enum.GetName(MultipartUploadParts.Metadata))
+
+            ];
 
             foreach (var payloadDefinition in payloads)
             {

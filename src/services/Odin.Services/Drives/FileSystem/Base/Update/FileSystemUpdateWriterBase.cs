@@ -298,7 +298,7 @@ public abstract class FileSystemUpdateWriterBase
         var manifest = new BatchUpdateManifest()
         {
             NewVersionTag = Package.NewVersionTag,
-            PayloadInstruction = package.InstructionSet.Manifest.PayloadDescriptors.Select(p => new PayloadInstruction()
+            PayloadInstruction = package.InstructionSet.Manifest.PayloadDescriptors?.Select(p => new PayloadInstruction()
             {
                 Key = p.PayloadKey,
                 OperationType = p.PayloadUpdateOperationType
