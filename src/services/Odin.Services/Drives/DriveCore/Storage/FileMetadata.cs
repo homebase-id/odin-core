@@ -106,7 +106,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Specifies the identity that holds the payload content
         /// </summary>
-        public OdinId? RemotePayloadIdentity { get; set; }
+        public RemotePayloadSource RemotePayloadSource { get; set; }
 
         public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
         {
@@ -140,8 +140,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // LocalAppData = fileMetadataDto.LocalAppData;
             Payloads = fileMetadataDto.Payloads;
             // VersionTag = VersionTag,
-            
-            RemotePayloadIdentity = fileMetadataDto.RemotePayloadIdentity;
+
+            RemotePayloadSource = fileMetadataDto.RemotePayloadSource;
 
             // SANITY CHECK:
             // There are SEVEN fields in the DTO.
@@ -186,8 +186,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return descriptor;
         }
 
-        public bool HasRemotePayloads => RemotePayloadIdentity.HasValue;
-        
+        public bool HasRemotePayloads => RemotePayloadSource?.IsValid() ?? false;
+
         public bool TryValidate()
         {
             try
