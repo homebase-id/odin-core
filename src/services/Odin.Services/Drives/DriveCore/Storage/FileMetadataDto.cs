@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -41,7 +38,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         // public Guid? VersionTag { get; init; }
         
-        public OdinId? RemotePayloadIdentity { get; set; }
+        public RemotePayloadSource RemotePayloadSource { get; set; }
 
         public FileMetadataDto() { }
 
@@ -63,7 +60,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // LocalAppData = fileMetadata.LocalAppData; <--- TODO TODD & MICHAEL SANITY HERE?! XXX
             Payloads = fileMetadata.Payloads;
             
-            RemotePayloadIdentity = fileMetadata.RemotePayloadIdentity;
+            RemotePayloadSource = fileMetadata.RemotePayloadSource;
             // VersionTag = fileMetadata.VersionTag
         }
 
