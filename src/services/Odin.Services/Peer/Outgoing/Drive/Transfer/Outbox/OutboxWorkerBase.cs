@@ -149,7 +149,7 @@ public abstract class OutboxWorkerBase(
             Payloads = sourceMetadata.Payloads,
             FileState = sourceMetadata.FileState,
 
-            RemotePayloadSource = sourceMetadata.RemotePayloadSource
+            DataSubscriptionSource = sourceMetadata.DataSubscriptionSource
         };
 
         var json = OdinSystemSerializer.Serialize(redactedMetadata);
