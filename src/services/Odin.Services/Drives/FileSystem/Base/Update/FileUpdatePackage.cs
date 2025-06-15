@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Odin.Core;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -67,7 +66,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
 
         private List<PayloadDescriptor> DescriptorsFromUploadedPayloads()
         {
-            var descriptors = Payloads.Select(p =>
+            var descriptors = Payloads?.Select(p =>
             {
                 var thumbnails = this.Thumbnails?.Where(t => t.PayloadKey == p.PayloadKey)
                     .Select(t => new ThumbnailDescriptor()
@@ -91,12 +90,12 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
                     PreviewThumbnail = p.PreviewThumbnail
                 };
             });
-            return descriptors.ToList();
+            return descriptors.ToList() ?? [];
         }
 
         private List<PayloadDescriptor> DescriptorsFromManifest()
         {
-            var descriptors = InstructionSet.Manifest.PayloadDescriptors.Select(p =>
+            var descriptors = InstructionSet.Manifest.PayloadDescriptors?.Select(p =>
             {
                 var thumbnails = this.Thumbnails?.Where(t => t.PayloadKey == p.PayloadKey)
                     .Select(t => new ThumbnailDescriptor()
@@ -104,7 +103,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
                         ContentType = t.ContentType,
                         PixelHeight = t.PixelHeight,
                         PixelWidth = t.PixelWidth,
-                        BytesWritten = t.BytesWritten
+                        BytesWritten = 0
                     }).ToList();
 
                 return new PayloadDescriptor()
@@ -121,7 +120,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update
                 };
             });
 
-            return descriptors.ToList();
+            return descriptors?.ToList() ?? [];
         }
     }
 }
