@@ -505,7 +505,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(originFile.File.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(originFile.File.DriveId);
 
-            ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.HasRemotePayloads;
+            ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
 
             var targetFile = originFile.File;
             newMetadata.File = targetFile; // this is a new file so we can use the same fileId from the temp file
@@ -1046,7 +1046,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool success = false;
 
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-            if (existingHeader.FileMetadata.RemotePayloadSource != manifest.FileMetadata.RemotePayloadSource)
+            if (existingHeader.FileMetadata.DataSubscriptionSource != manifest.FileMetadata.DataSubscriptionSource)
             {
                 throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates", OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
             }
@@ -1678,7 +1678,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task AssertPayloadsExistOnFileSystemAsync(FileMetadata metadata)
         {
-            if (metadata.HasRemotePayloads)
+            if (metadata.PayloadsAreRemote)
             {
                 return;
             }

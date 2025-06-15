@@ -491,7 +491,7 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.MalformedMetadata);
         }
 
-        if (metadata.HasRemotePayloads)
+        if (metadata.PayloadsAreRemote)
         {
             throw new OdinClientException($"Cannot specify RemotePayloadIdentity when storage intent is {StorageIntent.MetadataOnly}", 
                 OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
@@ -570,13 +570,13 @@ public abstract class FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            if (metadata.HasRemotePayloads && package.GetFinalPayloadDescriptors(fromManifest: false).Any())
+            if (metadata.PayloadsAreRemote && package.GetFinalPayloadDescriptors(fromManifest: false).Any())
             {
                 throw new OdinClientException("Payload content cannot be uploaded when RemotePayloadIdentity is set",
                     OdinClientErrorCode.InvalidPayloadContent);
             }
             
-            if (metadata.HasRemotePayloads && !package.GetFinalPayloadDescriptors(fromManifest: true).Any())
+            if (metadata.PayloadsAreRemote && !package.GetFinalPayloadDescriptors(fromManifest: true).Any())
             {
                 throw new OdinClientException("At least one payload descriptor is required when RemotePayloadIdentity is set",
                     OdinClientErrorCode.MissingPayloadKeys);

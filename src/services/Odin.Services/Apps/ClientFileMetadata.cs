@@ -53,7 +53,7 @@ public class ClientFileMetadata
     /// <summary>
     /// Specifies the location of all payloads.  If this is set, there will be no payloads on identity which owns the header
     /// </summary>
-    public RemotePayloadSource RemotePayloadSource { get; set; }
+    public Drives.DriveCore.Storage.DataSubscriptionSource DataSubscriptionSource { get; set; }
 
     public PayloadDescriptor GetPayloadDescriptor(string key)
     {

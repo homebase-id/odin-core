@@ -168,7 +168,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 LocalAppData = new LocalAppMetadata() { Content = "hello", VersionTag = localTag },
                 ReactionPreview = new ReactionSummary() { TotalCommentCount = 69 },
                 VersionTag = Guid.NewGuid(),
-                RemotePayloadSource = new RemotePayloadSource()
+                DataSubscriptionSource = new Services.Drives.DriveCore.Storage.DataSubscriptionSource()
                 {
                     Identity = (OdinId)"user.domain.com",
                     DriveId = targetDrive.Alias
@@ -240,7 +240,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.FileMetadata.IsEncrypted == hdr.FileMetadata.IsEncrypted);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitCreated == hdr.FileMetadata.TransitCreated);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitUpdated == hdr.FileMetadata.TransitUpdated);
-            ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadSource == hdr.FileMetadata.RemotePayloadSource);
+            ClassicAssert.IsTrue(sfh.FileMetadata.DataSubscriptionSource == hdr.FileMetadata.DataSubscriptionSource);
 
             ClassicAssert.AreEqual(sfh.FileMetadata.Payloads, hdr.FileMetadata.Payloads);
             ClassicAssert.AreEqual(sfh.FileMetadata.ReferencedFile, hdr.FileMetadata.ReferencedFile);

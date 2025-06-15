@@ -43,7 +43,7 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package, UpdateFileDescriptor updateDescriptor,
         IOdinContext odinContext)
     {
-        var remotePayloadIdentity = updateDescriptor.FileMetadata.RemotePayloadSource;
+        var remotePayloadIdentity = updateDescriptor.FileMetadata.DataSubscriptionSource;
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
@@ -72,7 +72,7 @@ public class StandardFileUpdateWriter : FileSystemUpdateWriterBase
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
 
             Payloads = package.GetFinalPayloadDescriptors(fromManifest: remotePayloadIdentity?.IsValid() ?? false),
-            RemotePayloadSource = remotePayloadIdentity
+            DataSubscriptionSource = remotePayloadIdentity
         };
 
         return Task.FromResult(metadata);
