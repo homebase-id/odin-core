@@ -9,12 +9,10 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.SystemNotifications;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.DataSubscription.SendingHost;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
@@ -67,8 +65,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
             {
-                var driveId = SystemDriveConstants.FeedDrive.Alias;
-
                 if (request.FileId.GlobalTransitId == Guid.Empty)
                 {
                     Log.Warning("GlobalTransitId not set on incoming feed FileMetadata");
@@ -82,27 +78,14 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Creating a new file",
                         odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive, driveId2);
 
-                    //new file
-                    var internalFile = await fileSystem.Storage.CreateInternalFileId(driveId);
-
                     var keyHeader = KeyHeader.Empty();
-                    var serverMetadata = new ServerMetadata()
-                    {
-                        AccessControlList = AccessControlList.OwnerOnly,
-                        AllowDistribution = false,
-                    };
+                    var fileMetadata = request.FileMetadata;
+                    
+                    fileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
+                    fileMetadata.SenderOdinId = sender;
 
-                    request.FileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
-
-                    // Clearing the UID for any files that go into the feed drive because the feed drive
-                    // comes from multiple channel drives from many different identities so there could be a clash
-                    request.FileMetadata.AppData.UniqueId = null;
-                    request.FileMetadata.SenderOdinId = sender;
-                    var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(
-                        internalFile, keyHeader, request.FileMetadata, serverMetadata, newContext);
-                    await fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, odinContext, raiseEvent: true);
-
-
+                    await fileSystem.Storage.WriteNewFileToFeedDriveAsync(keyHeader, fileMetadata, odinContext);
+                    
                     await mediator.Publish(new NewFeedItemReceived()
                     {
                         Sender = sender,

@@ -910,7 +910,15 @@ namespace Odin.Services.Drives.FileSystem.Base
                 AllowDistribution = false
             };
 
-            //we don't accept uniqueIds into the feed
+            // request.FileMetadata.DataSubscriptionSource = new DataSubscriptionSource
+            // {
+            //     Identity = odinContext.GetCallerOdinIdOrFail(),
+            //     DriveId = ??, //remote channel
+            //     PayloadsAreRemote = true
+            // };
+            
+            // Clearing the UID for any files that go into the feed drive because the feed drive
+            // comes from multiple channel drives from many different identities so there could be a clash
             fileMetadata.AppData.UniqueId = null;
 
             var serverFileHeader = await this.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata, odinContext);
@@ -994,40 +1002,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             await WriteDeletedFileHeader(header, odinContext, null);
-        }
-
-        public async Task UpdateReactionPreviewOnFeedDrive(InternalDriveFileId targetFile, ReactionSummary summary,
-            IOdinContext odinContext)
-        {
-            await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
-            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
-            if (targetFile.DriveId != feedDriveId)
-            {
-                throw new OdinSystemException("Cannot update reaction preview on this drive");
-            }
-
-            var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            var existingHeader = await longTermStorageManager.GetServerFileHeader(drive, targetFile.FileId, GetFileSystemType());
-
-            //S0510
-            if (existingHeader.FileMetadata.SenderOdinId != odinContext.Caller.OdinId)
-            {
-                throw new OdinSecurityException("Invalid caller");
-            }
-
-            existingHeader.FileMetadata.ReactionPreview = summary;
-            await WriteFileHeaderInternal(existingHeader);
-
-            if (await TryShouldRaiseDriveEventAsync(targetFile))
-            {
-                await TryPublishAsync(new ReactionPreviewUpdatedNotification
-                {
-                    File = targetFile,
-                    ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(existingHeader, odinContext),
-                    OdinContext = odinContext,
-                });
-            }
         }
 
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,

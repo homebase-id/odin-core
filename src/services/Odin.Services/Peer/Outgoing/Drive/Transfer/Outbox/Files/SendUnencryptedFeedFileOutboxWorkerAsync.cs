@@ -163,7 +163,9 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, FeedDistributionItem distroItem, OdinId recipient,
+    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, 
+        FeedDistributionItem distroItem, 
+        OdinId recipient,
         CancellationToken cancellationToken)
     {
         var request = new UpdateFeedFileMetadataRequest()
