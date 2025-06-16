@@ -13,9 +13,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
-using Odin.Core.Trie;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -26,9 +24,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Util;
-using Serilog.Core;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -571,6 +567,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
+            ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
 
             List<PayloadDescriptor> payloads = [];
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
@@ -605,16 +602,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             payloads = newMetadata.Payloads ?? [];
-
+            
             if (!ignorePayload.GetValueOrDefault(false))
             {
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive);
             }
 
             bool success = false;
-            ServerFileHeader serverHeader;
 
-            serverHeader = new ServerFileHeader()
+            var serverHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = await EncryptKeyHeader(originFile.File.DriveId, keyHeader, odinContext),
                 FileMetadata = newMetadata,
@@ -925,7 +921,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await this.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
         }
 
-        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId targetFile, 
+        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId targetFile,
             FileMetadata fileMetadata,
             IOdinContext odinContext,
             bool bypassCallerCheck = false,
@@ -953,7 +949,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 header.EncryptedKeyHeader = await EncryptKeyHeader(targetFile.DriveId, keyHeader, odinContext);
             }
-            
+
             var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             if (targetFile.DriveId != feedDriveId)
             {
