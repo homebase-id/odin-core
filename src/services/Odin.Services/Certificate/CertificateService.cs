@@ -141,7 +141,7 @@ namespace Odin.Services.Certificate
             if (domain.EndsWith(".dotyou.cloud"))
             {
                 _logger.LogError(
-                    "Can't create certificate for {domain} because it resolves to 127.0.0.1. Did it expire?", domain);
+                    "Can't create certificate for {domain} because dotyou.cloud domains (should) resolve to 127.0.0.1. Did it expire?", domain);
                 return null;
             }
 

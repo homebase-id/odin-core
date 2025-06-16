@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -61,5 +63,31 @@ public static class X509Extensions
     }
 
     //
+
+    public static List<string> GetSubjectAlternativeNames(this X509Certificate2 cert)
+    {
+        var result = new List<string>();
+
+        foreach (var ext in cert.Extensions)
+        {
+            if (ext.Oid?.Value == "2.5.29.17") // Subject Alternative Name
+            {
+                // Decode asn encoded SAN extension
+                var asnReader = new AsnReader(ext.RawData, AsnEncodingRules.DER);
+                var seq = asnReader.ReadSequence();
+                while (seq.HasData)
+                {
+                    var rawTag = seq.PeekTag();
+                    // DNS Name tag is [2] (context-specific, primitive)
+                    if (rawTag.TagClass == TagClass.ContextSpecific && rawTag.TagValue == 2)
+                        result.Add(seq.ReadCharacterString(UniversalTagNumber.IA5String, rawTag));
+                    else
+                        seq.ReadEncodedValue();
+                }
+            }
+        }
+
+        return result;
+    }
 
 }

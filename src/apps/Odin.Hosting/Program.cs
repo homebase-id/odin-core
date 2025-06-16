@@ -321,12 +321,12 @@ namespace Odin.Hosting
             }
 
             var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
-            var tc = certificateServiceFactory.Create(sslRoot);
+            var certificateService = certificateServiceFactory.Create(sslRoot);
 
             // 
             // Tenant or system found, lookup certificate
             //
-            var certificate = tc.ResolveCertificate(domain);
+            var certificate = certificateService.ResolveCertificate(domain);
             if (null != certificate)
             {
                 return (certificate, requireClientCertificate);
@@ -349,7 +349,7 @@ namespace Odin.Hosting
                 sans = idReg.GetSans();
             }
 
-            certificate = await tc.CreateCertificateAsync(domain, sans, cancellationToken);
+            certificate = await certificateService.CreateCertificateAsync(domain, sans, cancellationToken);
 
             // Sanity #2
             if (null == certificate)
