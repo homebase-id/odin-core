@@ -65,10 +65,11 @@ public class RemotePayloadTests
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var remoteOdinId = new DataSubscriptionSource()
+        var subscriptionSource = new DataSubscriptionSource()
         {
             Identity = TestIdentities.Frodo.OdinId,
-            DriveId = targetDrive.Alias
+            DriveId = targetDrive.Alias,
+            PayloadsAreRemote = true
         };
         
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
@@ -76,7 +77,7 @@ public class RemotePayloadTests
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
-        uploadedFileMetadata.DataSubscriptionSource = remoteOdinId;
+        uploadedFileMetadata.DataSubscriptionSource = subscriptionSource;
 
         var uploadManifest = new UploadManifest()
         {
@@ -103,7 +104,9 @@ public class RemotePayloadTests
             var header = getHeaderResponse.Content;
             Assert.That(header, Is.Not.Null);
             Assert.That(header.FileMetadata.Payloads.Count() == 1, Is.True);
-            Assert.That(header.FileMetadata.DataSubscriptionSource, Is.EqualTo(remoteOdinId));
+            Assert.That(header.FileMetadata.DataSubscriptionSource.Identity, Is.EqualTo(subscriptionSource.Identity));
+            Assert.That(header.FileMetadata.DataSubscriptionSource.DriveId, Is.EqualTo(subscriptionSource.DriveId));
+            Assert.That(header.FileMetadata.DataSubscriptionSource.PayloadsAreRemote, Is.EqualTo(subscriptionSource.PayloadsAreRemote));
 
             var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(uploadedPayloadDefinition.Key);
             Assert.That(payloadDescriptor, Is.Not.Null);
@@ -152,7 +155,8 @@ public class RemotePayloadTests
         uploadedFileMetadata.DataSubscriptionSource = new DataSubscriptionSource()
         {
             Identity = TestIdentities.Frodo.OdinId,
-            DriveId = targetDrive.Alias
+            DriveId = targetDrive.Alias,
+            PayloadsAreRemote = true
         };
 
         var uploadManifest = new UploadManifest()
@@ -188,7 +192,8 @@ public class RemotePayloadTests
         uploadedFileMetadata.DataSubscriptionSource = new DataSubscriptionSource()
         {
             Identity = TestIdentities.Frodo.OdinId,
-            DriveId = targetDrive.Alias
+            DriveId = targetDrive.Alias,
+            PayloadsAreRemote = true
         };
 
         var uploadManifest = new UploadManifest()
@@ -219,8 +224,10 @@ public class RemotePayloadTests
         var remoteOdinId = new DataSubscriptionSource()
         {
             Identity = TestIdentities.Frodo.OdinId,
-            DriveId = targetDrive.Alias
+            DriveId = targetDrive.Alias,
+            PayloadsAreRemote = true
         };
+        
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
 
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
@@ -279,7 +286,8 @@ public class RemotePayloadTests
         var remoteOdinId = new DataSubscriptionSource()
         {
             Identity = TestIdentities.Frodo.OdinId,
-            DriveId = targetDrive.Alias
+            DriveId = targetDrive.Alias,
+            PayloadsAreRemote = true
         };
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
