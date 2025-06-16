@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using Odin.Core.Exceptions;
 
 namespace Odin.Services.Certificate;
@@ -25,7 +26,7 @@ public interface ICertificateCache
 public class CertificateCache : ICertificateCache
 {
     private readonly ConcurrentDictionary<string, X509Certificate2?> _cache = new ();
-    private readonly object _fileMutex = new ();
+    private readonly Lock _fileMutex = new ();
 
     //
     

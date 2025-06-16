@@ -26,6 +26,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableDriveLocalTagIndex),
         typeof(TableDriveMainIndex),
         typeof(TableDriveReactions),
+        typeof(TableDrives),
         typeof(TableDriveTagIndex),
         typeof(TableDriveTransferHistory),
         typeof(TableFollowsMe),
@@ -36,7 +37,6 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableKeyUniqueThreeValue),
         typeof(TableKeyValue),
         typeof(TableOutbox),
-        typeof(TableDrives)
     ];
 
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
