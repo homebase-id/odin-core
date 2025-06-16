@@ -379,7 +379,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview,
                 odinContext); // XXX Ideally this should be part of the DB transaction... but alas! 
 
-            await fs.Storage.ReplaceFileMetadataOnFeedDrive(targetFile, newMetadata, odinContext, keyHeader: keyHeader);
+            await fs.Storage.ReplaceFileMetadataOnFeedDrive(targetFile, 
+                newMetadata, 
+                odinContext,
+                bypassCallerCheck: driveOriginWasCollaborative, // the caller will not be original sender in the case of a collab drive 
+                keyHeader: keyHeader);
 
             //note: we also update the key header because it might have been changed by the sender
             if (markComplete != null)
