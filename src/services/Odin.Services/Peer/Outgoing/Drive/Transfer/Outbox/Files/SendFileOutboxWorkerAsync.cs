@@ -74,7 +74,6 @@ public class SendFileOutboxWorkerAsync(
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;
-        var dss = outboxFileItem.State.OriginalTransitOptions.DataSubscriptionSource;
         var options = outboxFileItem.State.OriginalTransitOptions;
 
         var instructionSet = FileItem.State.TransferInstructionSet;
@@ -82,7 +81,7 @@ public class SendFileOutboxWorkerAsync(
         var header = await fileSystem.Storage.GetServerFileHeader(outboxFileItem.File, odinContext);
         var versionTag = header.FileMetadata.VersionTag.GetValueOrDefault();
         var globalTransitId = header.FileMetadata.GlobalTransitId;
-        
+
         if (header.ServerMetadata.AllowDistribution == false)
         {
             throw new OdinOutboxProcessingException("File does not allow distribution")
@@ -117,22 +116,21 @@ public class SendFileOutboxWorkerAsync(
             {
                 logger.LogDebug("SendHostToHost BEGIN recipient:{recipient}", recipient.ToString());
 
-                transferKeyHeaderMemory =
-                    new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+                transferKeyHeaderMemory = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
                 var transferKeyHeaderStreamPart = new StreamPart(
                     transferKeyHeaderMemory,
                     "transferInstructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
-
-                var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
-
-                header.FileMetadata.DataSubscriptionSource = dss;
-                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) =
-                    await PackageFileStreamsAsync(header, shouldSendPayload, odinContext, options.OverrideRemoteGlobalTransitId);
+                
+                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = await PackageFileStreamsAsync(
+                    header,
+                    odinContext,
+                    options.OverrideRemoteGlobalTransitId,
+                    outboxFileItem.State.DataSubscriptionSourceOverride);
 
                 var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
-                        recipient, clientAuthToken);
+                    recipient, clientAuthToken);
 
                 var response = await client.SendHostToHost(
                     transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray());
@@ -225,7 +223,7 @@ public class SendFileOutboxWorkerAsync(
         logger.LogDebug(e, "Recoverable: Updating TransferHistory file {file} to status {status}.  Next Run Time {nrt} sec", e.File,
             e.TransferStatus,
             nextRunTime.AddMilliseconds(UnixTimeUtc.Now().milliseconds * -1).seconds);
-        
+
         var fs = FileSystemResolver.ResolveFileSystem(FileItem.State.TransferInstructionSet.FileSystemType);
         await fs.Storage.UpdateTransferHistory(FileItem.File, FileItem.Recipient, update, odinContext, null);
 

@@ -381,7 +381,8 @@ public abstract class FileSystemStreamWriterBase
             recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
-                fileSystemType, odinContext);
+                fileSystemType, 
+                odinContext);
 
             return recipientStatus;
         }

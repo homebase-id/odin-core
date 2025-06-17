@@ -31,6 +31,12 @@ public class DataSubscriptionSource
     /// </summary>
     public bool AllowAlternateSenders { get; set; }
     
+    /// <summary>
+    /// Indicates if the receiving drive should wipe the uniqueId to support a
+    /// scenario where it receives files from many sources
+    /// </summary>
+    public bool RedactUniqueId { get; set; }
+    
     public bool IsValid()
     {
         return Identity.HasValue() && DriveId != Guid.Empty;

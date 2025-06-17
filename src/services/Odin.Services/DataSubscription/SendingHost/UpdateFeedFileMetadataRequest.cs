@@ -14,4 +14,5 @@ public class UpdateFeedFileMetadataRequest
     public EccEncryptedPayload EncryptedPayload { get; set; }
     public FeedDistroType FeedDistroType { get; set; }
     public Guid? UniqueId { get; set; }
+    public DataSubscriptionSource DataSubscriptionSource { get; set; }
 }

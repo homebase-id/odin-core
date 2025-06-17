@@ -277,8 +277,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             EncryptedRecipientTransferInstructionSet encryptedRecipientTransferInstructionSet, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
-            var contentsProvided = encryptedRecipientTransferInstructionSet.ContentsProvided;
-            var ignorePayloads = contentsProvided.HasFlag(SendContents.Payload) == false;
+            var ignorePayloads = newMetadata.PayloadsAreRemote;
             var targetDriveId = tempFile.File.DriveId;
 
             if (newMetadata.GlobalTransitId.HasValue == false)
