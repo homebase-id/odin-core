@@ -75,7 +75,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var validExtensions = new[] { ".metadata", ".transferkeyheader", ".payload", ".thumb" };
             var rootpath = _tenantPathManager.GetDriveInboxPath(driveId);
-            var files = GetFilesInDirectory(rootpath, "*.*", 0);
+            var files = GetFilesInDirectory(rootpath, "*", 0);
             if (files == null)
                 return;
 
@@ -98,7 +98,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var extension = Path.GetExtension(fileName);
                 if (validExtensions.Contains(extension) == false)
                 {
-                    logger.LogDebug($"Unable to recognize inbox filename extension {fileName}");
+                    logger.LogError($"Unable to recognize inbox filename extension {fileName}");
                     continue;
                 }
 
@@ -111,7 +111,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
                 catch
                 {
-                    logger.LogDebug($"Unable to parse inbox filename GUID portion {fileName}");
+                    logger.LogError($"Unable to parse inbox filename GUID portion {fileName}");
                     continue;
                 }
 
@@ -120,7 +120,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 if (exists)
                     continue;
 
-                logger.LogDebug($"Inbox filename {fileName} not in the inbox");
+                logger.LogDebug($"Inbox filename {fileName} not in the inbox - deleting if in cleanup");
 
                 // Not confident here yet :-D haven't covered it in a test
                 if (cleanup)
@@ -142,7 +142,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                     var nibblepath = Path.Combine(first.ToString("x"), second.ToString("x"));
                     var dirpath = Path.Combine(rootpath, nibblepath);
-                    var files = GetFilesInDirectory(dirpath, "*.*", 0); // XXX <--- 24 !
+                    var files = GetFilesInDirectory(dirpath, "*", 24);
 
                     if (files == null)
                         continue;
