@@ -74,6 +74,7 @@ public class SendFileOutboxWorkerAsync(
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;
+        var dss = outboxFileItem.State.OriginalTransitOptions.DataSubscriptionSource;
         var options = outboxFileItem.State.OriginalTransitOptions;
 
         var instructionSet = FileItem.State.TransferInstructionSet;
@@ -126,6 +127,7 @@ public class SendFileOutboxWorkerAsync(
 
                 var shouldSendPayload = options.SendContents.HasFlag(SendContents.Payload);
 
+                header.FileMetadata.DataSubscriptionSource = dss;
                 (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) =
                     await PackageFileStreamsAsync(header, shouldSendPayload, odinContext, options.OverrideRemoteGlobalTransitId);
 

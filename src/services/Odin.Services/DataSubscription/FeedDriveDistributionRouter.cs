@@ -90,11 +90,20 @@ namespace Odin.Services.DataSubscription
                                        deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
                                       notification.ServerFileHeader.FileMetadata.IsEncrypted;
 
+                // set the data subscription source to this identity
+
+                var dss = new DataSubscriptionSource
+                {
+                    Identity = odinContext.GetCallerOdinIdOrFail(),
+                    DriveId = driveId,
+                    PayloadsAreRemote = true
+                };
+                
                 if (odinContext.Caller.IsOwner)
                 {
                     if (isEncryptedFile)
                     {
-                        await this.DistributeToConnectedFollowersUsingTransit(notification, notification.OdinContext);
+                        await this.DistributeToConnectedFollowersUsingTransit(notification, notification.OdinContext, dss);
                     }
                     else
                     {
@@ -241,7 +250,8 @@ namespace Odin.Services.DataSubscription
         /// Distributes to connected identities that are followers using
         /// transit; returns the list of unconnected identities
         /// </summary>
-        private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext)
+        private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification, IOdinContext odinContext,
+            DataSubscriptionSource dss)
         {
             _logger.LogDebug("DistributeToConnectedFollowersUsingTransit");
 
@@ -258,7 +268,7 @@ namespace Odin.Services.DataSubscription
                 }
                 else
                 {
-                    await SendFileOverTransit(notification.ServerFileHeader, connectedFollowers, odinContext);
+                    await SendFileOverTransit(notification.ServerFileHeader, connectedFollowers, odinContext, dss);
                 }
             }
 
@@ -287,7 +297,8 @@ namespace Odin.Services.DataSubscription
             return recipients;
         }
 
-        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext)
+        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext,
+            DataSubscriptionSource dss)
         {
             var file = header.FileMetadata.File;
 
@@ -295,7 +306,8 @@ namespace Odin.Services.DataSubscription
             {
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
                 SendContents = SendContents.Header,
-                RemoteTargetDrive = SystemDriveConstants.FeedDrive
+                RemoteTargetDrive = SystemDriveConstants.FeedDrive,
+                DataSubscriptionSource = dss
             };
 
             var transferStatusMap = await _peerOutgoingTransferService.SendFile(
