@@ -23,6 +23,14 @@ public class DataSubscriptionSource
     /// </summary>
     public bool PayloadsAreRemote { get; init; }
     
+    // need to plug in some sort of security settings about
+    // how this subscription source works
+    
+    /// <summary>
+    /// When true, z` 
+    /// </summary>
+    public bool AllowAlternateSenders { get; set; }
+    
     public bool IsValid()
     {
         return Identity.HasValue() && DriveId != Guid.Empty;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Peer.Outgoing.Drive
 {
@@ -50,6 +51,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public Guid? OutboxDependencyFileId { get; set; }
 
         public OutboxPriority Priority { get; set; } = OutboxPriority.Low;
+        public DataSubscriptionSource DataSubscriptionSource { get; set; }
     }
     
     [Flags]
