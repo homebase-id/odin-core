@@ -73,6 +73,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public async Task VerifyInboxDiskFolder(Guid driveId, bool cleanup)
         {
+            var validExtensions = new[] { ".metadata", ".transferkeyheader", ".payload", ".thumb" };
             var rootpath = _tenantPathManager.GetDriveInboxPath(driveId);
             var files = GetFilesInDirectory(rootpath, "*.*", 0);
             if (files == null)
@@ -94,17 +95,23 @@ namespace Odin.Services.Drives.DriveCore.Storage
             foreach (var fileAndDirectory in files)
             {
                 var fileName = Path.GetFileName(fileAndDirectory);
-                fileName = fileName.Replace(".metadata", "");
-                fileName = fileName.Replace(".transferkeyheader", "");
+                var extension = Path.GetExtension(fileName);
+                if (validExtensions.Contains(extension) == false)
+                {
+                    logger.LogDebug($"Unable to recognize inbox filename extension {fileName}");
+                    continue;
+                }
 
+                var fileParts = fileName.Split('.');
                 Guid fileId;
+
                 try
                 {
-                    fileId = new Guid(fileName);
+                    fileId = new Guid(fileParts[0]);
                 }
                 catch
                 {
-                    logger.LogDebug($"Unable to parse inbox filename {fileName}");
+                    logger.LogDebug($"Unable to parse inbox filename GUID portion {fileName}");
                     continue;
                 }
 
