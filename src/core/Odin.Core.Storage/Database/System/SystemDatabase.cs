@@ -17,6 +17,7 @@ public class SystemDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<ISy
     public static readonly ImmutableList<Type> TableTypes = [
         typeof(TableCertificates),
         typeof(TableJobs),
+        typeof(TableSettings),
     ];
 
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
@@ -32,6 +33,10 @@ public class SystemDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<ISy
     // Jobs
     private Lazy<TableJobs> _jobs;
     public TableJobs Jobs => LazyResolve(ref _jobs);
+
+    // Settings
+    private Lazy<TableSettings> _settings;
+    public TableSettings Settings => LazyResolve(ref _settings);
 
     //
     // Connection
