@@ -39,6 +39,11 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             logger.LogDebug("AcceptUpdatedFileMetadata called");
             await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
 
+            if (request.DataSubscriptionSource == null)
+            {
+                throw new OdinClientException("DataSubscriptionSource is required");
+            }
+            
             var sender = odinContext.GetCallerOdinIdOrFail();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
@@ -81,7 +86,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     var keyHeader = KeyHeader.Empty();
                     var fileMetadata = request.FileMetadata;
                     
-                    fileMetadata.SenderOdinId = odinContext.GetCallerOdinIdOrFail();
                     fileMetadata.SenderOdinId = sender;
 
                     await fileSystem.Storage.WriteNewFileToFeedDriveAsync(keyHeader, fileMetadata, odinContext);
@@ -289,8 +293,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     TransferInstructionSet = new EncryptedRecipientTransferInstructionSet()
                     {
                         FileSystemType = FileSystemType.Standard,
-                        TransferFileType = TransferFileType.EncryptedFileForFeed,
-                        ContentsProvided = SendContents.Header
+                        TransferFileType = TransferFileType.EncryptedFileForFeed
                     },
 
                     //Feed stuff

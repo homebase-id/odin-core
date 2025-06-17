@@ -72,7 +72,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
     }
 
     private async Task<(Guid versionTag, Guid globalTransitId)> HandleFeedItemAsync(OutboxFileItem outboxFileItem, IOdinContext odinContext,
-         CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         OdinId recipient = outboxFileItem.Recipient;
         var file = outboxFileItem.File;
@@ -139,8 +139,8 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         catch (TryRetryException ex)
         {
             var e = ex.InnerException;
-            
-            logger.LogDebug(e, "Failed processing outbox item (type={t}) from outbox. Message {e}", FileItem.Type, e.Message);
+
+            logger.LogDebug(e, "Failed processing outbox item (type={t}) from outbox. Message {e}", FileItem.Type, e!.Message);
 
             if (e is HttpRequestException httpRequestException)
             {
@@ -163,11 +163,13 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         }
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header, 
-        FeedDistributionItem distroItem, 
+    private async Task<ApiResponse<PeerTransferResponse>> SendFile(ServerFileHeader header,
+        FeedDistributionItem distroItem,
         OdinId recipient,
         CancellationToken cancellationToken)
     {
+        var subscriptionSource = FileItem.State.DataSubscriptionSourceOverride;
+        var redactUid = subscriptionSource?.RedactUniqueId ?? false;
         var request = new UpdateFeedFileMetadataRequest()
         {
             FileId = new GlobalTransitIdFileIdentifier()
@@ -175,10 +177,11 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                 TargetDrive = SystemDriveConstants.FeedDrive
             },
-            UniqueId = header.FileMetadata.AppData.UniqueId,
+            UniqueId = redactUid ? null : header.FileMetadata.AppData.UniqueId,
             FileMetadata = header.FileMetadata,
             FeedDistroType = distroItem.FeedDistroType,
-            EncryptedPayload = distroItem.EncryptedPayload
+            EncryptedPayload = distroItem.EncryptedPayload,
+            DataSubscriptionSource = subscriptionSource
         };
 
         var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);
@@ -193,7 +196,8 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         return httpResponse;
     }
 
-    private async Task<ApiResponse<PeerTransferResponse>> DeleteFile(ServerFileHeader header, OdinId recipient, FileSystemType fileSystemType,
+    private async Task<ApiResponse<PeerTransferResponse>> DeleteFile(ServerFileHeader header, OdinId recipient,
+        FileSystemType fileSystemType,
         CancellationToken cancellationToken)
     {
         var request = new DeleteFeedFileMetadataRequest()

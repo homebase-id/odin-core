@@ -99,7 +99,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-            var shouldExpectPayload = _transferState.TransferInstructionSet.ContentsProvided.HasFlag(SendContents.Payload);
+
+            var shouldExpectPayload = !fileMetadata.PayloadsAreRemote;
 
             // if there are payloads in the descriptor, and they should have been sent
             if ((fileMetadata.Payloads?.Any() ?? false) && shouldExpectPayload)

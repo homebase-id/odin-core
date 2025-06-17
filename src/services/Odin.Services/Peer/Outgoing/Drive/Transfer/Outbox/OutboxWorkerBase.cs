@@ -117,12 +117,15 @@ public abstract class OutboxWorkerBase(
         }
     }
 
-    protected async Task<(Stream metadataStream, StreamPart metadataStreamPart, List<Stream> payloadStreams, List<StreamPart> payloadStreamParts)> PackageFileStreamsAsync(
-        ServerFileHeader header,
-        bool includePayloads,
-        IOdinContext odinContext,
-        Guid? overrideGlobalTransitId = null
-    )
+    protected async Task<(Stream metadataStream,
+            StreamPart metadataStreamPart,
+            List<Stream> payloadStreams,
+            List<StreamPart> payloadStreamParts)>
+        PackageFileStreamsAsync(
+            ServerFileHeader header,
+            IOdinContext odinContext,
+            Guid? overrideGlobalTransitId = null,
+            DataSubscriptionSource overrideDataSubscriptionSource = null)
     {
         var sourceMetadata = header.FileMetadata;
 
@@ -148,10 +151,14 @@ public abstract class OutboxWorkerBase(
             VersionTag = sourceMetadata.VersionTag,
             Payloads = sourceMetadata.Payloads,
             FileState = sourceMetadata.FileState,
-
-            DataSubscriptionSource = sourceMetadata.DataSubscriptionSource
+            DataSubscriptionSource = overrideDataSubscriptionSource ?? sourceMetadata.DataSubscriptionSource
         };
 
+        if (redactedMetadata.DataSubscriptionSource?.RedactUniqueId ?? false)
+        {
+            redactedMetadata.AppData.UniqueId = null;
+        }
+        
         var json = OdinSystemSerializer.Serialize(redactedMetadata);
         var metaDataStream = new MemoryStream(json.ToUtf8ByteArray());
         var metaDataStreamPart = new StreamPart(metaDataStream, "metadata.encrypted", "application/json",
@@ -160,7 +167,8 @@ public abstract class OutboxWorkerBase(
         var payloadStreams = new List<Stream>();
         var payloadStreamParts = new List<StreamPart>();
 
-        if (includePayloads)
+        var shouldSendPayloads = !redactedMetadata.DataSubscriptionSource?.PayloadsAreRemote ?? false;
+        if (shouldSendPayloads)
         {
             foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
             {
@@ -180,19 +188,18 @@ public abstract class OutboxWorkerBase(
 
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
-                    var (thumbStream, thumbHeader) =
-                        await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key,
-                            descriptor.Uid,
-                            odinContext);
+                    var (thumbStream, thumbHeader) = await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth,
+                        thumb.PixelHeight, descriptor.Key,
+                        descriptor.Uid,
+                        odinContext);
 
                     payloadStreams.Add(thumbStream);
 
-                    var thumbnailKey =
-                        $"{payloadKey}" +
-                        $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelWidth}" +
-                        $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelHeight}";
+                    var thumbnailKey = $"{payloadKey}" +
+                                       $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
+                                       $"{thumb.PixelWidth}" +
+                                       $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
+                                       $"{thumb.PixelHeight}";
 
                     payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));

@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// <summary>
         /// Specifies which parts of the file to send
         /// </summary>
-        public SendContents SendContents { get; set; } = SendContents.All;
+        public SendContents SendContents { get; set; }
 
         /// <summary>
         /// If set, the target drive will be this one instead of that from the file
@@ -51,7 +51,6 @@ namespace Odin.Services.Peer.Outgoing.Drive
         public Guid? OutboxDependencyFileId { get; set; }
 
         public OutboxPriority Priority { get; set; } = OutboxPriority.Low;
-        public DataSubscriptionSource DataSubscriptionSource { get; set; }
     }
     
     [Flags]
