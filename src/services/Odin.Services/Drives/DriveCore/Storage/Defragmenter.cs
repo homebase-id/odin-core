@@ -128,6 +128,45 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
+        public async Task VerifyTempDriveDirectories(bool cleanup)
+        {
+            var rootpath = _tenantPathManager.TempDrivesPath;
+            var folders = Directory.GetDirectories(rootpath, "*", SearchOption.TopDirectoryOnly);
+            if (folders.Length == 0)
+                return;
+
+            var (drives, _, _) = await identityDatabase.Drives.GetList(int.MaxValue, null);
+
+            logger.LogDebug($"TempDrive contains {folders.Length} directories on disk and {drives.Count} drives in the Drive table");
+
+            foreach (var folder in folders)
+            {
+                var folderName = new DirectoryInfo(folder).Name;
+
+                Guid folderId;
+                try
+                {
+                    folderId = new Guid(folderName);
+                }
+                catch
+                {
+                    logger.LogError($"Unable to parse folder name into a GUID {folderName}");
+                    continue;
+                }
+
+                bool exists = drives.Any(record => record.DriveId == folderId);
+
+                if (exists)
+                    continue;
+
+                logger.LogDebug($"Folder {folderName} not in the Drives table - deleting if in cleanup");
+
+                // Not confident here yet :-D haven't covered it in a test
+                if (cleanup)
+                    Directory.Move(folder, folder+".delete");
+            }
+        }
+
         public async Task VerifyPayloadsDiskFolder(Guid driveId, bool cleanup)
         {
             var headerCache = new Dictionary<Guid, FileMetadata>();
@@ -258,6 +297,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             await VerifyPayloadsDiskFolder(driveId, cleanup);
 
+            await VerifyTempDriveDirectories(cleanup);
             await VerifyInboxDiskFolder(driveId, cleanup);
         }
 
