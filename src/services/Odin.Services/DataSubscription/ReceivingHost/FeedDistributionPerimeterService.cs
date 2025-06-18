@@ -39,7 +39,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
             logger.LogDebug("AcceptUpdatedFileMetadata called");
             await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
 
-            if (request.DataSubscriptionSource == null)
+            if (request.RemotePayloadInfo == null)
             {
                 throw new OdinClientException("DataSubscriptionSource is required");
             }

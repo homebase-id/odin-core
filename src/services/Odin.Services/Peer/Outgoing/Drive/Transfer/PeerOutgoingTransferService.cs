@@ -51,7 +51,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,
-            DataSubscriptionSource overrideSubscriptionSource = null)
+            RemotePayloadInfo overrideSubscriptionSource = null)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
@@ -455,7 +455,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
             int priority, 
-            DataSubscriptionSource overrideSubscriptionSource)
+            RemotePayloadInfo overrideSubscriptionSource)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             TargetDrive targetDrive = options.RemoteTargetDrive ??
@@ -509,7 +509,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 fileTransferOptions.FileSystemType,
                                 options),
                             Data = [],
-                            DataSubscriptionSourceOverride = overrideSubscriptionSource
+                            RemotePayloadInfoOverride = overrideSubscriptionSource
                         }
                     });
 

@@ -106,8 +106,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Specifies the identity that holds the payload content
         /// </summary>
-        public DataSubscriptionSource DataSubscriptionSource { get; set; }
-        
+        public RemotePayloadInfo RemotePayloadInfo { get; set; }
+
         public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
         {
             _created = databaseCreated;
@@ -141,7 +141,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             Payloads = fileMetadataDto.Payloads;
             // VersionTag = VersionTag,
 
-            DataSubscriptionSource = fileMetadataDto.DataSubscriptionSource;
+            RemotePayloadInfo = fileMetadataDto.RemotePayloadInfo;
 
             // SANITY CHECK:
             // There are SEVEN fields in the DTO.
@@ -186,7 +186,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return descriptor;
         }
 
-        public bool PayloadsAreRemote => DataSubscriptionSource?.PayloadsAreRemote ?? false;
+        public bool PayloadsAreRemote => RemotePayloadInfo?.IsValid() ?? false;
 
         public bool TryValidate()
         {

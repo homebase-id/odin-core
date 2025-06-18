@@ -149,7 +149,7 @@ public static class DriveFileUtility
             ReactionPreview = fileMetadata.ReactionPreview,
             Payloads = fileMetadata.Payloads,
             VersionTag = fileMetadata.VersionTag.GetValueOrDefault(),
-            DataSubscriptionSource = fileMetadata.DataSubscriptionSource
+            RemotePayloadInfo = fileMetadata.RemotePayloadInfo
         };
         
         return clientFile;

@@ -32,6 +32,6 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// <summary>
         /// Specifies the identity that holds the payload content
         /// </summary>
-        public DataSubscriptionSource DataSubscriptionSource { get; set; }
+        public RemotePayloadInfo RemotePayloadInfo { get; set; }
     }
 }
