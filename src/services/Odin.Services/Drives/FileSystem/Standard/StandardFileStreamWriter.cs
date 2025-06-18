@@ -103,7 +103,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor,
         IOdinContext odinContext)
     {
-        var remotePayloadSource = uploadDescriptor.FileMetadata.DataSubscriptionSource;
+        var remotePayloadSource = uploadDescriptor.FileMetadata.RemotePayloadInfo;
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
@@ -130,7 +130,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-            DataSubscriptionSource = remotePayloadSource,
+            RemotePayloadInfo = remotePayloadSource,
 
             Payloads = package.GetFinalPayloadDescriptors(fromManifest: remotePayloadSource?.IsValid() ?? false)
         };

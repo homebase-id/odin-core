@@ -12,6 +12,7 @@ using Odin.Core.Util;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
@@ -19,7 +20,6 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
-using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
 {
@@ -344,8 +344,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var header = await GetFileByGlobalTransitId(fs, tempFile.File.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(),
                 odinContext);
 
+            
             if (header == null)
             {
+                
                 await fs.Storage.WriteNewFileToFeedDriveAsync(keyHeader, newMetadata, odinContext);
 
                 if (markComplete != null)

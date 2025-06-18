@@ -168,7 +168,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 LocalAppData = new LocalAppMetadata() { Content = "hello", VersionTag = localTag },
                 ReactionPreview = new ReactionSummary() { TotalCommentCount = 69 },
                 VersionTag = Guid.NewGuid(),
-                DataSubscriptionSource = new DataSubscriptionSource()
+                RemotePayloadInfo = new RemotePayloadInfo()
                 {
                     Identity = (OdinId)"user.domain.com",
                     DriveId = targetDrive.Alias,
@@ -241,9 +241,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.FileMetadata.IsEncrypted == hdr.FileMetadata.IsEncrypted);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitCreated == hdr.FileMetadata.TransitCreated);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitUpdated == hdr.FileMetadata.TransitUpdated);
-            ClassicAssert.IsTrue(sfh.FileMetadata.DataSubscriptionSource.Identity == hdr.FileMetadata.DataSubscriptionSource.Identity);
-            ClassicAssert.IsTrue(sfh.FileMetadata.DataSubscriptionSource.DriveId == hdr.FileMetadata.DataSubscriptionSource.DriveId);
-            ClassicAssert.IsTrue(sfh.FileMetadata.DataSubscriptionSource.PayloadsAreRemote == hdr.FileMetadata.DataSubscriptionSource.PayloadsAreRemote);
+            ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.Identity == hdr.FileMetadata.RemotePayloadInfo.Identity);
+            ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.DriveId == hdr.FileMetadata.RemotePayloadInfo.DriveId);
+            ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.PayloadsAreRemote == hdr.FileMetadata.RemotePayloadInfo.PayloadsAreRemote);
 
             ClassicAssert.AreEqual(sfh.FileMetadata.Payloads, hdr.FileMetadata.Payloads);
             ClassicAssert.AreEqual(sfh.FileMetadata.ReferencedFile, hdr.FileMetadata.ReferencedFile);

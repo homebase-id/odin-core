@@ -168,8 +168,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         OdinId recipient,
         CancellationToken cancellationToken)
     {
-        var subscriptionSource = FileItem.State.DataSubscriptionSourceOverride;
-        var redactUid = subscriptionSource?.RedactUniqueId ?? false;
+        var rpi = FileItem.State.RemotePayloadInfoOverride;
         var request = new UpdateFeedFileMetadataRequest()
         {
             FileId = new GlobalTransitIdFileIdentifier()
@@ -177,11 +176,11 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
                 GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                 TargetDrive = SystemDriveConstants.FeedDrive
             },
-            UniqueId = redactUid ? null : header.FileMetadata.AppData.UniqueId,
+            UniqueId = header.FileMetadata.AppData.UniqueId,
             FileMetadata = header.FileMetadata,
             FeedDistroType = distroItem.FeedDistroType,
             EncryptedPayload = distroItem.EncryptedPayload,
-            DataSubscriptionSource = subscriptionSource
+            RemotePayloadInfo = rpi
         };
 
         var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);

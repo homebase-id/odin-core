@@ -125,7 +125,7 @@ public abstract class OutboxWorkerBase(
             ServerFileHeader header,
             IOdinContext odinContext,
             Guid? overrideGlobalTransitId = null,
-            DataSubscriptionSource overrideDataSubscriptionSource = null)
+            RemotePayloadInfo overrideRemotePayloadInfo = null)
     {
         var sourceMetadata = header.FileMetadata;
 
@@ -151,14 +151,9 @@ public abstract class OutboxWorkerBase(
             VersionTag = sourceMetadata.VersionTag,
             Payloads = sourceMetadata.Payloads,
             FileState = sourceMetadata.FileState,
-            DataSubscriptionSource = overrideDataSubscriptionSource ?? sourceMetadata.DataSubscriptionSource
+            RemotePayloadInfo = overrideRemotePayloadInfo ?? sourceMetadata.RemotePayloadInfo
         };
 
-        if (redactedMetadata.DataSubscriptionSource?.RedactUniqueId ?? false)
-        {
-            redactedMetadata.AppData.UniqueId = null;
-        }
-        
         var json = OdinSystemSerializer.Serialize(redactedMetadata);
         var metaDataStream = new MemoryStream(json.ToUtf8ByteArray());
         var metaDataStreamPart = new StreamPart(metaDataStream, "metadata.encrypted", "application/json",
@@ -167,7 +162,7 @@ public abstract class OutboxWorkerBase(
         var payloadStreams = new List<Stream>();
         var payloadStreamParts = new List<StreamPart>();
 
-        var shouldSendPayloads = !redactedMetadata.DataSubscriptionSource?.PayloadsAreRemote ?? false;
+        var shouldSendPayloads = !redactedMetadata.PayloadsAreRemote;
         if (shouldSendPayloads)
         {
             foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())

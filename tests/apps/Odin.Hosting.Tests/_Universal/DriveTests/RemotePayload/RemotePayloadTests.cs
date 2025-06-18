@@ -65,7 +65,7 @@ public class RemotePayloadTests
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var subscriptionSource = new DataSubscriptionSource()
+        var subscriptionSource = new RemotePayloadInfo()
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
@@ -77,7 +77,7 @@ public class RemotePayloadTests
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
-        uploadedFileMetadata.DataSubscriptionSource = subscriptionSource;
+        uploadedFileMetadata.RemotePayloadInfo = subscriptionSource;
 
         var uploadManifest = new UploadManifest()
         {
@@ -104,9 +104,9 @@ public class RemotePayloadTests
             var header = getHeaderResponse.Content;
             Assert.That(header, Is.Not.Null);
             Assert.That(header.FileMetadata.Payloads.Count() == 1, Is.True);
-            Assert.That(header.FileMetadata.DataSubscriptionSource.Identity, Is.EqualTo(subscriptionSource.Identity));
-            Assert.That(header.FileMetadata.DataSubscriptionSource.DriveId, Is.EqualTo(subscriptionSource.DriveId));
-            Assert.That(header.FileMetadata.DataSubscriptionSource.PayloadsAreRemote, Is.EqualTo(subscriptionSource.PayloadsAreRemote));
+            Assert.That(header.FileMetadata.RemotePayloadInfo.Identity, Is.EqualTo(subscriptionSource.Identity));
+            Assert.That(header.FileMetadata.RemotePayloadInfo.DriveId, Is.EqualTo(subscriptionSource.DriveId));
+            Assert.That(header.FileMetadata.RemotePayloadInfo.PayloadsAreRemote, Is.EqualTo(subscriptionSource.PayloadsAreRemote));
 
             var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(uploadedPayloadDefinition.Key);
             Assert.That(payloadDescriptor, Is.Not.Null);
@@ -152,7 +152,7 @@ public class RemotePayloadTests
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
-        uploadedFileMetadata.DataSubscriptionSource = new DataSubscriptionSource()
+        uploadedFileMetadata.RemotePayloadInfo = new RemotePayloadInfo()
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
@@ -189,7 +189,7 @@ public class RemotePayloadTests
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
-        uploadedFileMetadata.DataSubscriptionSource = new DataSubscriptionSource()
+        uploadedFileMetadata.RemotePayloadInfo = new RemotePayloadInfo()
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
@@ -221,7 +221,7 @@ public class RemotePayloadTests
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var remoteOdinId = new DataSubscriptionSource()
+        var remoteOdinId = new RemotePayloadInfo()
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
@@ -233,7 +233,7 @@ public class RemotePayloadTests
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
-        uploadedFileMetadata.DataSubscriptionSource = null;
+        uploadedFileMetadata.RemotePayloadInfo = null;
 
         var uploadManifest = new UploadManifest()
         {
@@ -250,7 +250,7 @@ public class RemotePayloadTests
         // Now try to modify the remote identity
         //
 
-        uploadedFileMetadata.DataSubscriptionSource = remoteOdinId;
+        uploadedFileMetadata.RemotePayloadInfo = remoteOdinId;
         uploadedFileMetadata.VersionTag = uploadedFile.NewVersionTag;
 
         await callerContext.Initialize(ownerApiClient);
@@ -283,7 +283,7 @@ public class RemotePayloadTests
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var remoteOdinId = new DataSubscriptionSource()
+        var remoteOdinId = new RemotePayloadInfo()
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
@@ -295,7 +295,7 @@ public class RemotePayloadTests
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
-        uploadedFileMetadata.DataSubscriptionSource = null;
+        uploadedFileMetadata.RemotePayloadInfo = null;
 
         var uploadManifest = new UploadManifest()
         {
@@ -313,7 +313,7 @@ public class RemotePayloadTests
         // Now try to modify the remote identity
         //
 
-        uploadedFileMetadata.DataSubscriptionSource = remoteOdinId;
+        uploadedFileMetadata.RemotePayloadInfo = remoteOdinId;
 
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());

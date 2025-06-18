@@ -117,7 +117,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
-        var remotePayloadSource = uploadDescriptor.FileMetadata.DataSubscriptionSource;
+        var remotePayloadSource = uploadDescriptor.FileMetadata.RemotePayloadInfo;
 
         var metadata = new FileMetadata()
         {
@@ -147,7 +147,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-            DataSubscriptionSource = remotePayloadSource,
+            RemotePayloadInfo = remotePayloadSource,
             Payloads = package.GetFinalPayloadDescriptors(fromManifest: remotePayloadSource?.IsValid() ?? false)
         };
 
