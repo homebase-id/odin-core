@@ -29,6 +29,17 @@ public class FeedWriter(
         // Method assumes you ensured the file was unique by some other method
         var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
         await _fileSystem.Storage.AssertCanWriteToDrive(feedDriveId, odinContext);
+     
+        if (fileMetadata.RemotePayloadInfo == null)
+        {
+            throw new OdinClientException("RemotePayloadInfo is required");
+        }
+        
+        if (fileMetadata.GlobalTransitId == null)
+        {
+            throw new OdinSystemException("File is missing a global transit id");
+        }
+        
         var file = await _fileSystem.Storage.CreateInternalFileId(feedDriveId);
 
         // Clearing the UID for any files that go into the feed drive because the feed drive

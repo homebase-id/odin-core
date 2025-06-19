@@ -66,7 +66,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         PublicPrivateKeyService keyService,
         IDriveManager driveManager,
         ReactionContentService reactionContentService,
-        ICorrelationContext correlationContext)
+        ICorrelationContext correlationContext,
+        FeedWriter feedWriter)
     {
         private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "INBX");
 
@@ -111,7 +112,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     StorageType = TempStorageType.Inbox
                 };
 
-                PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
+                PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager, feedWriter);
                 var markComplete = new MarkInboxComplete(transitInboxBoxStorage, tempFile.File, inboxItem.Marker);
                 var payloads = new List<PayloadDescriptor>();
                 var success = InboxReturnTypes.DeleteFromInbox;

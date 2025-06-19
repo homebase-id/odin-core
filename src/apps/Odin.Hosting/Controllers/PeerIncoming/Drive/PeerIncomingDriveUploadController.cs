@@ -29,6 +29,7 @@ using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Configuration;
+using Odin.Services.DataSubscription;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
@@ -51,6 +52,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly OdinConfiguration _odinConfiguration;
         private readonly ILogger<PeerIncomingDriveUploadController> _logger;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
+        private readonly FeedWriter _feedWriter;
         private readonly IDriveManager _driveManager;
 
         private readonly FileSystemResolver _fileSystemResolver;
@@ -70,7 +72,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             CircleNetworkService circleNetworkService,
             OdinConfiguration odinConfiguration,
             ILogger<PeerIncomingDriveUploadController> logger,
-            TransitInboxBoxStorage transitInboxBoxStorage)
+            TransitInboxBoxStorage transitInboxBoxStorage,
+            FeedWriter feedWriter)
         {
             _driveManager = driveManager;
 
@@ -84,6 +87,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _odinConfiguration = odinConfiguration;
             _logger = logger;
             _transitInboxBoxStorage = transitInboxBoxStorage;
+            _feedWriter = feedWriter;
         }
 
         /// <summary />
@@ -435,7 +439,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _circleNetworkService,
                 _fileSystemResolver,
                 _odinConfiguration,
-                _transitInboxBoxStorage);
+                _transitInboxBoxStorage,
+                _feedWriter);
         }
     }
 }

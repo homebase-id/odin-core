@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -31,24 +30,15 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         IMediator mediator,
         TransitInboxBoxStorage inboxBoxStorage,
         IDriveManager driveManager,
-        ILogger<FeedDistributionPerimeterService> logger)
+        ILogger<FeedDistributionPerimeterService> logger,
+        FeedWriter feedWriter)
     {
         public async Task<PeerTransferResponse> AcceptUpdatedFileMetadataAsync(UpdateFeedFileMetadataRequest request,
             IOdinContext odinContext)
         {
             logger.LogDebug("AcceptUpdatedFileMetadata called");
             await followerService.AssertTenantFollowsTheCallerAsync(odinContext);
-
-            if (request.RemotePayloadInfo == null)
-            {
-                throw new OdinClientException("DataSubscriptionSource is required");
-            }
-            
             var sender = odinContext.GetCallerOdinIdOrFail();
-            if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
-            {
-                throw new OdinClientException("Target drive must be the feed drive");
-            }
 
             if (request.FeedDistroType == FeedDistroType.CollaborativeChannel)
             {
@@ -58,14 +48,12 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 }
             }
 
-            logger.LogDebug("Looking up drive {d}", request.FileId.TargetDrive);
             var driveId2 = request.FileId.TargetDrive.Alias;
-            logger.LogDebug("Found Drive by alias up driveid: {d}", driveId2);
             var drive = await driveManager.GetDriveAsync(driveId2);
-            logger.LogDebug("Found storage drive: {d} (used drive id: {did})", drive.Name, driveId2);
 
             Log.Debug(
-                "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Looking up Internal file",
+                "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} " +
+                "on drive {driveName} ({driveId}) - Action: Looking up Internal file",
                 odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive.Name, driveId2);
 
             var newContext = OdinContextUpgrades.UpgradeToReadFollowersForDistribution(odinContext);
@@ -79,17 +67,21 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
                 if (null == fileId)
                 {
+                    //
+                    // Create a new file on the feed
+                    //
                     Log.Debug(
-                        "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} on drive {driveName} ({driveId}) - Action: Creating a new file",
+                        "AcceptUpdatedFileMetadata - Caller:{caller} GTID:{gtid} and UID:{uid} " +
+                        "on drive {driveName} ({driveId}) - Action: Creating a new file",
                         odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive, driveId2);
 
                     var keyHeader = KeyHeader.Empty();
                     var fileMetadata = request.FileMetadata;
-                    
+
                     fileMetadata.SenderOdinId = sender;
 
-                    await fileSystem.Storage.WriteNewFileToFeedDriveAsync(keyHeader, fileMetadata, odinContext);
-                    
+                    await feedWriter.WriteNewFileToFeedDriveAsync(keyHeader, fileMetadata, odinContext);
+
                     await mediator.Publish(new NewFeedItemReceived()
                     {
                         Sender = sender,
@@ -106,17 +98,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                         odinContext.Caller.OdinId, request.FileId.GlobalTransitId, request.UniqueId, drive, driveId2);
 
                     // perform update
-                    try
-                    {
-                        request.FileMetadata.SenderOdinId = sender;
-                        await fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext,
-                            bypassCallerCheck: true);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Information(e, "AcceptUpdatedFileMetadata - Action: failed while ReplaceFileMetadataOnFeedDrive");
-                        throw;
-                    }
+                    request.FileMetadata.SenderOdinId = sender;
+                    await feedWriter.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext,
+                        bypassCallerCheck: true);
                 }
             }
 
@@ -141,7 +125,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     };
                 }
 
-                await fileSystem.Storage.RemoveFeedDriveFile(fileId.Value, newContext);
+                await feedWriter.RemoveFeedDriveFile(fileId.Value, newContext);
 
                 return new PeerTransferResponse()
                 {
