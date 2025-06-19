@@ -65,7 +65,7 @@ public class RemotePayloadTests
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
-        var subscriptionSource = new RemotePayloadInfo()
+        var remotePayloadInfo = new RemotePayloadInfo()
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
@@ -76,7 +76,7 @@ public class RemotePayloadTests
         var uploadedPayloadDefinition = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var testPayloads = new List<TestPayloadDefinition>() { uploadedPayloadDefinition };
 
-        uploadedFileMetadata.RemotePayloadInfo = subscriptionSource;
+        uploadedFileMetadata.RemotePayloadInfo = remotePayloadInfo;
 
         var uploadManifest = new UploadManifest()
         {
@@ -103,8 +103,8 @@ public class RemotePayloadTests
             var header = getHeaderResponse.Content;
             Assert.That(header, Is.Not.Null);
             Assert.That(header.FileMetadata.Payloads.Count() == 1, Is.True);
-            Assert.That(header.FileMetadata.RemotePayloadInfo.Identity, Is.EqualTo(subscriptionSource.Identity));
-            Assert.That(header.FileMetadata.RemotePayloadInfo.DriveId, Is.EqualTo(subscriptionSource.DriveId));
+            Assert.That(header.FileMetadata.RemotePayloadInfo.Identity, Is.EqualTo(remotePayloadInfo.Identity));
+            Assert.That(header.FileMetadata.RemotePayloadInfo.DriveId, Is.EqualTo(remotePayloadInfo.DriveId));
 
             var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(uploadedPayloadDefinition.Key);
             Assert.That(payloadDescriptor, Is.Not.Null);
