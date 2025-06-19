@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
@@ -10,6 +12,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Dns;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.X509;
 using Odin.Services.Certificate;
@@ -26,6 +30,7 @@ public class CertificateServiceTests
     private PostgreSqlContainer? _postgresContainer;
     private WebApplication _webServer = null!;
     private CertificateService _certificateService = null!;
+    private ILifetimeScope _autofacContainer = null!;
 
     [SetUp]
     public void Setup()
@@ -87,24 +92,43 @@ public class CertificateServiceTests
         // Register services
         //
 
-        builder.Services.AddSingleton<OdinConfiguration>(config);
-        builder.Services.AddSingleton<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
-        builder.Services.AddSingleton<ILookupClient>(new LookupClient());
-        builder.Services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
-        builder.Services.AddSingleton<IDnsLookupService, DnsLookupService>();
-        builder.Services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
-        builder.Services.AddSingleton(new AcmeAccountConfig
+        builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+        builder.Host.ConfigureContainer<ContainerBuilder>(cb =>
         {
-            AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
-            AcmeAccountFolder = sslRootPath
+            cb.RegisterInstance<OdinConfiguration>(config);
+            cb.RegisterInstance<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
+            cb.RegisterInstance<ILookupClient>(new LookupClient());
+            cb.RegisterType<AuthoritativeDnsLookup>().As<IAuthoritativeDnsLookup>().SingleInstance();
+            cb.RegisterType<DnsLookupService>().As<IDnsLookupService>().SingleInstance();
+            cb.RegisterType<AcmeHttp01TokenCache>().As<IAcmeHttp01TokenCache>().SingleInstance();
+            cb.RegisterInstance<AcmeAccountConfig>(new AcmeAccountConfig
+            {
+                AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
+            });
+            cb.Register(c =>
+                new CertesAcme(
+                    c.Resolve<ILogger<CertesAcme>>(), c.Resolve<IAcmeHttp01TokenCache>(),
+                    c.Resolve<IHttpClientFactory>(),
+                    isProduction: false))
+                .As<ICertesAcme>().SingleInstance();
+            cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
+            cb.RegisterType<CertificateServiceFactory>().As<ICertificateServiceFactory>().SingleInstance();
+
+            cb.AddDatabaseCacheServices();
+            cb.AddDatabaseCounterServices();
+
+            switch (databaseType)
+            {
+                case DatabaseType.Sqlite:
+                    cb.AddSqliteSystemDatabaseServices(Path.Combine(_tempDir, "system-test.db"));
+                    break;
+                case DatabaseType.Postgres:
+                    cb.AddPgsqlSystemDatabaseServices(_postgresContainer!.GetConnectionString());
+                    break;
+                default:
+                    throw new Exception("Unsupported database type");
+            }
         });
-        builder.Services.AddSingleton<ICertesAcme>(sp => new CertesAcme(
-            sp.GetRequiredService<ILogger<CertesAcme>>(),
-            sp.GetRequiredService<IAcmeHttp01TokenCache>(),
-            sp.GetRequiredService<IHttpClientFactory>(),
-            isProduction: false));
-        builder.Services.AddSingleton<ICertificateCache, CertificateCache>();
-        builder.Services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
 
         //
         // Start web server
@@ -116,14 +140,19 @@ public class CertificateServiceTests
         builder.WebHost.UseUrls("http://0.0.0.0:80");
         _webServer = builder.Build();
         _webServer.UseMiddleware<CertesAcmeMiddleware>();
-        var lifetime = _webServer.Services.GetRequiredService<IHostApplicationLifetime>();
+
+        _autofacContainer = _webServer.Services.GetAutofacRoot();
+        var systemDatabase = _autofacContainer.Resolve<SystemDatabase>();
+        await systemDatabase.CreateDatabaseAsync(true);
+
+        var lifetime = _autofacContainer.Resolve<IHostApplicationLifetime>();
         var serverStartedTcs = new TaskCompletionSource();
         lifetime.ApplicationStarted.Register(() => serverStartedTcs.SetResult());
         await _webServer.StartAsync();
         await serverStartedTcs.Task;
 
-        var certificateServiceFactory = _webServer.Services.GetRequiredService<ICertificateServiceFactory>();
-        _certificateService = certificateServiceFactory.Create(sslRootPath);
+        var certificateServiceFactory = _autofacContainer.Resolve<ICertificateServiceFactory>();
+        _certificateService = certificateServiceFactory.Create();
     }
 
     //
@@ -131,7 +160,6 @@ public class CertificateServiceTests
     // NOTE: for these tests to work:
     // - The DNS records must be set up correctly in the DNS server
     // - Port 80 must be open and accessible for HTTP-01 challenges
-
     [Test, Explicit]
     [TestCase("regression-test-apex-a.dominion.id")]
     [TestCase("regression-test-apex-alias.dominion.id")]
@@ -143,7 +171,7 @@ public class CertificateServiceTests
             .WaitAsync(TimeSpan.FromSeconds(30));
 
         Assert.That(certificate, Is.Not.Null);
-        Assert.That(certificate.Subject, Is.EqualTo($"CN={domain}"));
+        Assert.That(certificate!.Subject, Is.EqualTo($"CN={domain}"));
 
         var sanList = certificate.GetSubjectAlternativeNames();
         Assert.That(sanList, Contains.Item(domain));
@@ -155,8 +183,7 @@ public class CertificateServiceTests
     // NOTE: for these tests to work:
     // - The DNS records must be set up correctly in the DNS server
     // - Port 80 must be open and accessible for HTTP-01 challenges
-
-    // [Test, Explicit]
+    [Test, Explicit]
     [TestCase("regression-test-apex-a.dominion.id")]
     [TestCase("regression-test-apex-alias.dominion.id")]
     public async Task CreateCertificateAsync_ShouldCreateCertificate_WithSans(string domain)
@@ -168,7 +195,7 @@ public class CertificateServiceTests
             .WaitAsync(TimeSpan.FromSeconds(30));
 
         Assert.That(certificate, Is.Not.Null);
-        Assert.That(certificate.Subject, Is.EqualTo($"CN={domain}"));
+        Assert.That(certificate!.Subject, Is.EqualTo($"CN={domain}"));
 
         var sanList = certificate.GetSubjectAlternativeNames();
         Assert.That(sanList, Contains.Item(domain));

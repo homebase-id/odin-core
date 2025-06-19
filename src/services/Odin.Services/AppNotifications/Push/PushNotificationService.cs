@@ -44,7 +44,7 @@ public class PushNotificationService(
     PublicPrivateKeyService keyService,
     NotificationListService notificationListService,
     IHttpClientFactory httpClientFactory,
-    ICertificateCache certificateCache,
+    ICertificateStore certificateStore,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
     IMediator mediator,
@@ -245,7 +245,7 @@ public class PushNotificationService(
             : payload.Options.UnEncryptedMessage;
 
         var thisDomain = odinContext.Tenant.DomainName;
-        var certificate = certificateCache.LookupCertificate(thisDomain);
+        var certificate = await certificateStore.GetCertificateAsync(thisDomain);
 
         // Sanity check
         if (certificate == null)

@@ -75,12 +75,6 @@ public class TenantPathManagerTests
             tenantId.ToString(),
             "headers")));
 
-        Assert.That(tenantPathManager.SslPath, Is.EqualTo(Path.Combine(
-            _config.Host.TenantDataRootPath,
-            "registrations",
-            tenantId.ToString(),
-            "ssl")));
-
         Assert.That(tenantPathManager.TempPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "registrations",

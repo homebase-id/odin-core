@@ -28,8 +28,7 @@ public class UpdateCertificatesBackgroundService(
             var identities = await registry.GetList();
             foreach (var identity in identities.Results)
             {
-                var tenantContext = registry.CreateTenantContext(identity);
-                var tc = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
+                var tc = certificateServiceFactory.Create();
                 var task = tc.RenewIfAboutToExpireAsync(identity, stoppingToken);
                 tasks.Add(task);
             }
