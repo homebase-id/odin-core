@@ -17,7 +17,7 @@ namespace Odin.Services.DataSubscription;
 /// Writes files to the feed drive
 /// </summary>
 public class FeedWriter(
-    ILogger logger,
+    ILogger<FeedWriter> logger,
     FileSystemResolver fileSystemResolver,
     IDriveManager driveManager,
     LongTermStorageManager longTermStorageManager)
