@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Storage.Database.Identity;
@@ -71,8 +72,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return cache[fileId];
         }
 
-        public async Task VerifyInboxDiskFolder(Guid driveId, bool cleanup)
+        public async Task VerifyInboxEntiresIntegrity(Guid driveId, bool cleanup)
         {
+            const string logPrefix = "INBOX-INTEGRITY";
             var validExtensions = new[] { ".metadata", ".transferkeyheader", ".payload", ".thumb" };
             var rootpath = _tenantPathManager.GetDriveInboxPath(driveId);
             var files = GetFilesInDirectory(rootpath, "*", 0);
@@ -90,7 +92,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var (inboxEntries, _) = await identityDatabase.Inbox.PagingByRowIdAsync(int.MaxValue, null);
 
-            logger.LogDebug($"Inbox {driveId} contains {files.Count()} files and {inboxEntries.Count()} inbox table entries");
+            logger.LogDebug($"{logPrefix} STATUS - {driveId} contains {files.Count()} files and {inboxEntries.Count()} inbox table entries");
 
             foreach (var fileAndDirectory in files)
             {
@@ -98,7 +100,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 var extension = Path.GetExtension(fileName);
                 if (validExtensions.Contains(extension) == false)
                 {
-                    logger.LogError($"Unable to recognize inbox filename extension {fileName}");
+                    logger.LogError($"{logPrefix} INVALID - unable to recognize inbox filename extension {fileName}");
                     continue;
                 }
 
@@ -111,7 +113,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
                 catch
                 {
-                    logger.LogError($"Unable to parse inbox filename GUID portion {fileName}");
+                    logger.LogError($"{logPrefix} INVALID - Unable to parse inbox filename GUID portion {fileName}");
                     continue;
                 }
 
@@ -120,7 +122,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 if (exists)
                     continue;
 
-                logger.LogDebug($"Inbox filename {fileName} not in the inbox - deleting if in cleanup");
+                logger.LogDebug($"{logPrefix} DELETE - filename not in the inbox - deleting if in cleanup - {fileName}");
 
                 // Not confident here yet :-D haven't covered it in a test
                 if (cleanup)
@@ -128,16 +130,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        public async Task VerifyTempDriveDirectories(bool cleanup)
+        private async Task VerifyDriveDirectories(string rootpath, string logPrefix, bool cleanup)
         {
-            var rootpath = _tenantPathManager.TempDrivesPath;
             var folders = Directory.GetDirectories(rootpath, "*", SearchOption.TopDirectoryOnly);
             if (folders.Length == 0)
                 return;
 
             var (drives, _, _) = await identityDatabase.Drives.GetList(int.MaxValue, null);
 
-            logger.LogDebug($"TempDrive contains {folders.Length} directories on disk and {drives.Count} drives in the Drive table");
+            logger.LogDebug($"{logPrefix} STATUS - {folders.Length} directories; {drives.Count} rows");
 
             foreach (var folder in folders)
             {
@@ -150,7 +151,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
                 catch
                 {
-                    logger.LogError($"Unable to parse folder name into a GUID {folderName}");
+                    logger.LogError($"{logPrefix} INVALID - Unable to parse folder name into a GUID {folderName}");
                     continue;
                 }
 
@@ -159,16 +160,45 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 if (exists)
                     continue;
 
-                logger.LogDebug($"Folder {folderName} not in the Drives table - deleting if in cleanup");
+                logger.LogDebug($"{logPrefix} DELETE - folder not in the Drives table - deleting if in cleanup {folderName}");
 
-                // Not confident here yet :-D haven't covered it in a test
                 if (cleanup)
-                    Directory.Move(folder, folder+".delete");
+                    Directory.Delete(folder, recursive: true);
             }
+
+            /*
+
+            ENABLE WHEN WE CREATE A DIRECTORY AND NIBBLES ON DRIVE CREATION
+
+            foreach (var drive in drives)
+            {
+                var folder = TenantPathManager.GuidToPathSafeString(drive.DriveId);
+                var exists = Directory.Exists(Path.Combine(rootpath, folder));
+
+                if (exists == false)
+                    logger.LogError($"{logPrefix} INVALID - Drive folder missing on disk {folder}");
+            }
+            */
         }
 
-        public async Task VerifyPayloadsDiskFolder(Guid driveId, bool cleanup)
+        public async Task VerifyDriveDirectoriesTemp(bool cleanup)
         {
+            var rootpath = _tenantPathManager.TempDrivesPath;
+
+            await VerifyDriveDirectories(rootpath, "TEMP-DRIVES", cleanup);
+        }
+
+        public async Task VerifyDriveDirectoriesPayloads(bool cleanup)
+        {
+            var rootpath = _tenantPathManager.PayloadsDrivesPath;
+
+            await VerifyDriveDirectories(rootpath, "PAYLOADS-DRIVES", cleanup);
+        }
+
+
+        public async Task VerifyPayloadsFilesInDiskFolder(Guid driveId, bool cleanup)
+        {
+            const string logPrefix = "PAYLOAD-FILE";
             var headerCache = new Dictionary<Guid, FileMetadata>();
 
             var rootpath = _tenantPathManager.GetDrivePayloadPath(driveId);
@@ -205,7 +235,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                                 fileId = parsedThumb.FileId;
                                 break;
                             case TenantPathManager.FileType.Invalid:
-                                logger.LogDebug($"Extension {fileAndDirectory}");
+                                logger.LogDebug($"{logPrefix} INVALID - Extension {fileAndDirectory}");
                                 if (cleanup)
                                     File.Delete(fileAndDirectory);
                                 continue;
@@ -213,7 +243,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                         if (TenantPathManager.GetPayloadDirectoryFromGuid(fileId) != nibblepath)
                         {
-                            logger.LogDebug($"Directory {fileAndDirectory} in {dirpath}");
+                            logger.LogDebug($"{logPrefix} DELETE - placed in incorrect nibble directory: {fileAndDirectory} in {dirpath}");
                             if (cleanup)
                                 File.Delete(fileAndDirectory);
                             continue;
@@ -223,7 +253,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                         if (header == null)
                         {
-                            logger.LogDebug($"OrphanHeader {fileId}");
+                            logger.LogDebug($"{logPrefix} DELETE - no corresponding header in database {fileId}");
                             if (cleanup)
                                 File.Delete(fileAndDirectory);
                             continue;
@@ -233,7 +263,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                         {
                             if (!HasHeaderPayload(header, parsedFile))
                             {
-                                logger.LogDebug($"OrphanPayload {fileAndDirectory}");
+                                logger.LogDebug($"{logPrefix} DELETE - header doesn't contain payload {fileAndDirectory}");
                                 if (cleanup)
                                     File.Delete(fileAndDirectory);
                                 continue;
@@ -244,7 +274,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                         {
                             if (!HasHeaderThumbnail(header, parsedThumb))
                             {
-                                logger.LogDebug($"OrphanThumb {fileAndDirectory}");
+                                logger.LogDebug($"{logPrefix} DELETE - header doesn't contain thumbnail {fileAndDirectory}");
                                 if (cleanup)
                                     File.Delete(fileAndDirectory);
                                 continue;
@@ -293,12 +323,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             //s2 = s2 + ".junk";
             //FileTouch(s2);
 
+
+            await VerifyDriveDirectoriesTemp(cleanup);
+            await VerifyDriveDirectoriesPayloads(cleanup);
+
             await CheckDrivePayloadsIntegrity(targetDrive);
+            await VerifyInboxEntiresIntegrity(driveId, cleanup);
 
-            await VerifyPayloadsDiskFolder(driveId, cleanup);
-
-            await VerifyTempDriveDirectories(cleanup);
-            await VerifyInboxDiskFolder(driveId, cleanup);
+            await VerifyPayloadsFilesInDiskFolder(driveId, cleanup);
         }
 
         /// <summary>
