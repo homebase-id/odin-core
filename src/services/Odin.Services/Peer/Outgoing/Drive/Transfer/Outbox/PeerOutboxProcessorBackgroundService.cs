@@ -32,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         //
         ILifetimeScope lifetimeScope,
         ICorrelationContext correlationContext,
-        ICertificateCache certificateCache,
+        ICertificateStore certificateStore,
         IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         ILogger<PeerOutboxProcessorBackgroundService> logger,
@@ -52,7 +52,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 // Sanity: Make sure we have a certificate for the domain before processing the outbox.
                 // Missing certificate can happen in rare, temporary, situations if the certificate has expired
                 // or has not yet been created.
-                if (certificateCache.LookupCertificate(domain) == null)
+                if (await certificateStore.GetCertificateAsync(domain) == null)
                 {
                     logger.LogInformation("No certificate found for domain {domain}. Skipping outbox processing", domain);
                     await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);

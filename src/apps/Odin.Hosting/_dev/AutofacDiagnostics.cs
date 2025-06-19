@@ -34,7 +34,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Dns.IDnsRestClient), "c363ae45"},
         {typeof(Odin.Services.Certificate.AcmeAccountConfig), "e6f1c919"},
         {typeof(Odin.Services.Configuration.OdinConfiguration), "6fba0459"},
-        {typeof(Odin.Services.Certificate.CertificateCache), "e6f1c919"},
+        {typeof(Odin.Services.Certificate.CertificateStore), "e6f1c919"},
         {typeof(Odin.Core.Logging.Hostname.StickyHostname), "3b8b6d5d"},
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationContext), "5a40f4fa"},
         {typeof(Odin.Services.Certificate.CertificateServiceFactory), "8a3e1c27"},

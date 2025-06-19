@@ -284,7 +284,7 @@ namespace Odin.Hosting
                 return (null, false);
             }
 
-            string sslRoot, domain;
+            string domain;
 
             //
             // Look up tenant from host name
@@ -294,8 +294,6 @@ namespace Odin.Hosting
             var idReg = registry.ResolveIdentityRegistration(hostName, out _);
             if (idReg != null)
             {
-                var tenantContext = registry.CreateTenantContext(idReg);
-                sslRoot = tenantContext.TenantPathManager.SslPath;
                 domain = idReg.PrimaryDomainName;
 
                 // Require client certificate if domain prefix is "capi"
@@ -305,7 +303,7 @@ namespace Odin.Hosting
             //
             // Not a tenant, is hostName a known system (e.g. provisioning)? 
             //
-            else if (TryGetSystemSslRoot(hostName, config, out sslRoot))
+            else if (IsKnownSystemDomain(hostName, config))
             {
                 domain = hostName;
             }
@@ -321,13 +319,13 @@ namespace Odin.Hosting
             }
 
             var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
-            var certificateService = certificateServiceFactory.Create(sslRoot);
+            var certificateService = certificateServiceFactory.Create();
 
             // 
             // Tenant or system found, lookup certificate
             //
-            var certificate = certificateService.ResolveCertificate(domain);
-            if (null != certificate)
+            var certificate = await certificateService.GetCertificateAsync(domain);
+            if (certificate != null)
             {
                 return (certificate, requireClientCertificate);
             }
@@ -352,7 +350,7 @@ namespace Odin.Hosting
             certificate = await certificateService.CreateCertificateAsync(domain, sans, cancellationToken);
 
             // Sanity #2
-            if (null == certificate)
+            if (certificate == null)
             {
                 Log.Error("No certificate configured for {hostName}", hostName);
             }
@@ -362,21 +360,18 @@ namespace Odin.Hosting
 
         //
 
-        private static bool TryGetSystemSslRoot(string hostName, OdinConfiguration config, out string sslRoot)
+        private static bool IsKnownSystemDomain(string hostName, OdinConfiguration config)
         {
             if (config.Registry.ProvisioningEnabled && hostName == config.Registry.ProvisioningDomain)
             {
-                sslRoot = config.Host.SystemSslRootPath;
                 return true;
             }
 
             if (config.Admin.ApiEnabled && hostName == config.Admin.Domain)
             {
-                sslRoot = config.Host.SystemSslRootPath;
                 return true;
             }
 
-            sslRoot = "";
             return false;
         }
 

@@ -187,7 +187,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         services.AddSingleton(new AcmeAccountConfig
         {
             AcmeContactEmail = _config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
-            AcmeAccountFolder = _config.Host.SystemSslRootPath
         });
         services.AddSingleton<ILookupClient>(new LookupClient());
         services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
@@ -209,7 +208,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             sp.GetRequiredService<IHttpClientFactory>(),
             _config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
-        services.AddSingleton<ICertificateCache, CertificateCache>();
+        services.AddSingleton<ICertificateStore, CertificateStore>();
         services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
 
         services.AddSingleton<IEmailSender>(sp => new MailgunSender(
@@ -578,7 +577,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     {
         Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
         Directory.CreateDirectory(cfg.Host.SystemDataRootPath);
-        Directory.CreateDirectory(cfg.Host.SystemSslRootPath);
     }
 
     private void AssertValidRenewalConfiguration(OdinConfiguration.CertificateRenewalSection section)
@@ -614,7 +612,8 @@ public static class HostExtensions
         // Load identity registry
         var registry = services.GetRequiredService<IIdentityRegistry>();
         registry.LoadRegistrations().BlockingWait();
-        DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
+        var certificateStore = services.GetRequiredService<ICertificateStore>();
+        DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry, certificateStore);
 
         // Check for singleton dependencies
         if (Env.IsDevelopment())

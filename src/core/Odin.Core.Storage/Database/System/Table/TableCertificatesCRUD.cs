@@ -117,13 +117,27 @@ namespace Odin.Core.Storage.Database.System.Table
                   _attemptCount = value;
                }
         }
-        private Guid _correlationId;
-        public Guid correlationId
+        private string _correlationId;
+        public string correlationId
         {
            get {
                    return _correlationId;
                }
            set {
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
+                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 65535)");
+                  _correlationId = value;
+               }
+        }
+        internal string correlationIdNoLengthCheck
+        {
+           get {
+                   return _correlationId;
+               }
+           set {
+                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
                   _correlationId = value;
                }
         }
@@ -134,7 +148,6 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _lastError;
                }
            set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null lastError");
                     if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
                     if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {value.Length} (max 65535)");
                   _lastError = value;
@@ -146,7 +159,6 @@ namespace Odin.Core.Storage.Database.System.Table
                    return _lastError;
                }
            set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null lastError");
                     if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
                   _lastError = value;
                }
@@ -207,8 +219,8 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"expiration BIGINT NOT NULL, "
                    +"lastAttempt BIGINT NOT NULL, "
                    +"attemptCount BIGINT NOT NULL, "
-                   +"correlationId BYTEA NOT NULL, "
-                   +"lastError TEXT NOT NULL, "
+                   +"correlationId TEXT NOT NULL, "
+                   +"lastError TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
@@ -218,7 +230,6 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> InsertAsync(CertificatesRecord item)
         {
-            item.correlationId.AssertGuidNotEmpty("Guid parameter correlationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -251,7 +262,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam6.ParameterName = "@attemptCount";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.Binary;
+                insertParam7.DbType = DbType.String;
                 insertParam7.ParameterName = "@correlationId";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
@@ -264,8 +275,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam4.Value = item.expiration.milliseconds;
                 insertParam5.Value = item.lastAttempt.milliseconds;
                 insertParam6.Value = item.attemptCount;
-                insertParam7.Value = item.correlationId.ToByteArray();
-                insertParam8.Value = item.lastError;
+                insertParam7.Value = item.correlationId;
+                insertParam8.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -287,7 +298,6 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<bool> TryInsertAsync(CertificatesRecord item)
         {
-            item.correlationId.AssertGuidNotEmpty("Guid parameter correlationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -321,7 +331,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam6.ParameterName = "@attemptCount";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.Binary;
+                insertParam7.DbType = DbType.String;
                 insertParam7.ParameterName = "@correlationId";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
@@ -334,8 +344,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam4.Value = item.expiration.milliseconds;
                 insertParam5.Value = item.lastAttempt.milliseconds;
                 insertParam6.Value = item.attemptCount;
-                insertParam7.Value = item.correlationId.ToByteArray();
-                insertParam8.Value = item.lastError;
+                insertParam7.Value = item.correlationId;
+                insertParam8.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -357,7 +367,6 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpsertAsync(CertificatesRecord item)
         {
-            item.correlationId.AssertGuidNotEmpty("Guid parameter correlationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -392,7 +401,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertParam6.ParameterName = "@attemptCount";
                 upsertCommand.Parameters.Add(upsertParam6);
                 var upsertParam7 = upsertCommand.CreateParameter();
-                upsertParam7.DbType = DbType.Binary;
+                upsertParam7.DbType = DbType.String;
                 upsertParam7.ParameterName = "@correlationId";
                 upsertCommand.Parameters.Add(upsertParam7);
                 var upsertParam8 = upsertCommand.CreateParameter();
@@ -405,8 +414,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertParam4.Value = item.expiration.milliseconds;
                 upsertParam5.Value = item.lastAttempt.milliseconds;
                 upsertParam6.Value = item.attemptCount;
-                upsertParam7.Value = item.correlationId.ToByteArray();
-                upsertParam8.Value = item.lastError;
+                upsertParam7.Value = item.correlationId;
+                upsertParam8.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -428,7 +437,6 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpdateAsync(CertificatesRecord item)
         {
-            item.correlationId.AssertGuidNotEmpty("Guid parameter correlationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -462,7 +470,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateParam6.ParameterName = "@attemptCount";
                 updateCommand.Parameters.Add(updateParam6);
                 var updateParam7 = updateCommand.CreateParameter();
-                updateParam7.DbType = DbType.Binary;
+                updateParam7.DbType = DbType.String;
                 updateParam7.ParameterName = "@correlationId";
                 updateCommand.Parameters.Add(updateParam7);
                 var updateParam8 = updateCommand.CreateParameter();
@@ -475,8 +483,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateParam4.Value = item.expiration.milliseconds;
                 updateParam5.Value = item.lastAttempt.milliseconds;
                 updateParam6.Value = item.attemptCount;
-                updateParam7.Value = item.correlationId.ToByteArray();
-                updateParam8.Value = item.lastError;
+                updateParam7.Value = item.correlationId;
+                updateParam8.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -544,8 +552,8 @@ namespace Odin.Core.Storage.Database.System.Table
             item.expiration = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.lastAttempt = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
             item.attemptCount = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.correlationId = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[7]);
-            item.lastErrorNoLengthCheck = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
+            item.correlationIdNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.lastErrorNoLengthCheck = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
@@ -584,8 +592,8 @@ namespace Odin.Core.Storage.Database.System.Table
             item.expiration = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.lastAttempt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.attemptCount = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.correlationId = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[6]);
-            item.lastErrorNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.correlationIdNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.lastErrorNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
             item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             item.modified = (rdr[9] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[9]); // HACK
             return item;

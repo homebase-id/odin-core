@@ -131,7 +131,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (updateFileSystem)
         {
             tenantPathManager.CreateDirectories();
-            tenantPathManager.CreateSslRootDirectory();
         }
 
         var tc = new TenantContext(
@@ -172,9 +171,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             FirstRunToken = Guid.NewGuid()
         };
 
-
-
-
         // Create directories
         var tenantPathManager = new TenantPathManager(_config, registration.Id);
         tenantPathManager.CreateDirectories();
@@ -198,10 +194,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            var tenantContext = CreateTenantContext(request.OdinId, true);
-
-            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-            tc.SaveSslCertificate(
+            var tc = _certificateServiceFactory.Create();
+            await tc.PutCertificateAsync(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
                 {
@@ -210,7 +204,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 });
         }
 
-        CacheCertificate(registration);
+        await CacheCertificateAsync(registration);
         await InitializeOdinContextCache(registration);
         if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
         {
@@ -346,7 +340,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await File.WriteAllTextAsync(regFilePath, json);
 
         _logger.LogInformation("Wrote registration file for [{registrationId}]", registration.Id);
-        await CacheIdentity(registration);
+        await CacheIdentityAsync(registration);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -479,9 +473,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
 
                 _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
-                await CacheIdentity(registration);
+                await CacheIdentityAsync(registration);
 
-                CacheCertificate(registration);
+                await CacheCertificateAsync(registration);
                 await InitializeOdinContextCache(registration);
                 if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
                 {
@@ -510,14 +504,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration;
     }
 
-    private async Task CacheIdentity(IdentityRegistration registration)
+    private async Task CacheIdentityAsync(IdentityRegistration registration)
     {
         // BE VERY CAREFUL NOT TO START ANY DATABASE TRANSACTIONS HERE!!
         //
         // This method is called indirectly from other requests using their own scope, which
         // can conflict with the scope here, causing transaction deadlocks.
 
-        RegisterDotYouHttpClient(registration);
+        await RegisterDotYouHttpClientAsync(registration);
 
         _trie.TryRemoveDomain(registration.PrimaryDomainName);
         _trie.AddDomain(registration.PrimaryDomainName, registration);
@@ -601,11 +595,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }));
     }
 
-    private void RegisterDotYouHttpClient(IdentityRegistration idReg)
+    private async Task RegisterDotYouHttpClientAsync(IdentityRegistration idReg)
     {
-        var tenantContext = this.CreateTenantContext(idReg);
         var domain = idReg.PrimaryDomainName;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
+
+        var tc = _certificateServiceFactory.Create();
+        var x509 = await tc.GetCertificateAsync(domain);
 
         // SEB:NOTE
         // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the
@@ -620,10 +616,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };
 
-            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-            var x509 = tc.GetSslCertificate(domain);
             if (x509 != null)
             {
+                // SEB:TODO this is a problem. We don't handle expired certificates here. We need to lookup
+                // and set the cert each time we send a request.
                 handler.ClientCertificates.Add(x509);
             }
             else
@@ -678,13 +674,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     //
 
-    private void CacheCertificate(IdentityRegistration registration)
+    private async Task CacheCertificateAsync(IdentityRegistration registration)
     {
         var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-        var tenantContext = scope.Resolve<TenantContext>();
         var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
-        var certificateService = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-        var certificate = certificateService.ResolveCertificate(registration.PrimaryDomainName);
+        var certificateService = certificateServiceFactory.Create();
+        var certificate = await certificateService.GetCertificateAsync(registration.PrimaryDomainName);
         if (certificate != null)
         {
             _logger.LogInformation("Certificate loaded for {domain}", registration.PrimaryDomainName);
