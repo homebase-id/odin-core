@@ -51,7 +51,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,
-            RemotePayloadInfo overrideSubscriptionSource = null)
+            RemotePayloadInfo overrideRemotePayloadInfo = null)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
@@ -72,7 +72,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
 
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sfo, odinContext, priority,
-                overrideSubscriptionSource);
+                overrideRemotePayloadInfo);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -455,7 +455,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
             int priority, 
-            RemotePayloadInfo overrideSubscriptionSource)
+            RemotePayloadInfo overrideRemotePayloadInfo)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             TargetDrive targetDrive = options.RemoteTargetDrive ??
@@ -509,7 +509,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 fileTransferOptions.FileSystemType,
                                 options),
                             Data = [],
-                            RemotePayloadInfoOverride = overrideSubscriptionSource
+                            RemotePayloadInfoOverride = overrideRemotePayloadInfo
                         }
                     });
 

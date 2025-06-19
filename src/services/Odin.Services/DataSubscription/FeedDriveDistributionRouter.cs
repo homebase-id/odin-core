@@ -93,7 +93,8 @@ namespace Odin.Services.DataSubscription
 
                 var rpi = new RemotePayloadInfo
                 {
-                    Identity = odinContext.GetCallerOdinIdOrFail(),
+                    // Identity = odinContext.GetCallerOdinIdOrFail(),
+                    Identity = odinContext.Tenant,
                     DriveId = notification.File.DriveId,
                 };
 
@@ -204,7 +205,7 @@ namespace Odin.Services.DataSubscription
         }
 
         private async Task DistributeToCollaborativeChannelMembers(IDriveNotification notification,
-            RemotePayloadInfo subscriptionSource)
+            RemotePayloadInfo remotePayloadOverride)
         {
             var header = notification.ServerFileHeader;
             var odinContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
@@ -241,7 +242,7 @@ namespace Odin.Services.DataSubscription
                         EncryptedPayload = encryptedPayload,
                     };
 
-                    await AddToFeedOutbox(recipient, distroItem, subscriptionSource);
+                    await AddToFeedOutbox(recipient, distroItem, remotePayloadOverride);
                 }
             }
         }
@@ -315,7 +316,7 @@ namespace Odin.Services.DataSubscription
                 TransferFileType.EncryptedFileForFeedViaTransit,
                 header.ServerMetadata.FileSystemType,
                 odinContext,
-                overrideSubscriptionSource: subscriptionSource);
+                overrideRemotePayloadInfo: subscriptionSource);
 
             //Log warnings if, for some reason, transit does not create transfer keys
             foreach (var recipient in recipients)
