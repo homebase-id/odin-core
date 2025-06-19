@@ -28,7 +28,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
-    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, IDriveManager driveManager)
+    public class PeerFileWriter(ILogger logger, FileSystemResolver fileSystemResolver, IDriveManager driveManager, FeedWriter feedWriter)
     {
         public async Task<(bool success, List<PayloadDescriptor> payloads)> HandleFile(TempFile tempFile,
             IDriveFileSystem fs,
@@ -348,7 +348,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (header == null)
             {
                 
-                await fs.Storage.WriteNewFileToFeedDriveAsync(keyHeader, newMetadata, odinContext);
+                await feedWriter.WriteNewFileToFeedDriveAsync(keyHeader, newMetadata, odinContext);
 
                 if (markComplete != null)
                 {
@@ -380,7 +380,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview,
                 odinContext); // XXX Ideally this should be part of the DB transaction... but alas! 
 
-            await fs.Storage.ReplaceFileMetadataOnFeedDrive(targetFile, 
+            await feedWriter.ReplaceFileMetadataOnFeedDrive(targetFile, 
                 newMetadata, 
                 odinContext,
                 bypassCallerCheck: driveOriginWasCollaborative, // the caller will not be original sender in the case of a collab drive 

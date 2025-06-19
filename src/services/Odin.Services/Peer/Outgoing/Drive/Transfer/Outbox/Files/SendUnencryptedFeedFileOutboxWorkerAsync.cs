@@ -168,7 +168,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         OdinId recipient,
         CancellationToken cancellationToken)
     {
-        var rpi = FileItem.State.RemotePayloadInfoOverride;
+        header.FileMetadata.RemotePayloadInfo = FileItem.State.RemotePayloadInfoOverride;
         var request = new UpdateFeedFileMetadataRequest()
         {
             FileId = new GlobalTransitIdFileIdentifier()
@@ -179,8 +179,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             UniqueId = header.FileMetadata.AppData.UniqueId,
             FileMetadata = header.FileMetadata,
             FeedDistroType = distroItem.FeedDistroType,
-            EncryptedPayload = distroItem.EncryptedPayload,
-            RemotePayloadInfo = rpi
+            EncryptedPayload = distroItem.EncryptedPayload
         };
 
         var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);

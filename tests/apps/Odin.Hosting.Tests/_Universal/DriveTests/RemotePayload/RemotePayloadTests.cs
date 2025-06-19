@@ -69,7 +69,6 @@ public class RemotePayloadTests
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
-            PayloadsAreRemote = true
         };
         
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
@@ -106,7 +105,6 @@ public class RemotePayloadTests
             Assert.That(header.FileMetadata.Payloads.Count() == 1, Is.True);
             Assert.That(header.FileMetadata.RemotePayloadInfo.Identity, Is.EqualTo(subscriptionSource.Identity));
             Assert.That(header.FileMetadata.RemotePayloadInfo.DriveId, Is.EqualTo(subscriptionSource.DriveId));
-            Assert.That(header.FileMetadata.RemotePayloadInfo.PayloadsAreRemote, Is.EqualTo(subscriptionSource.PayloadsAreRemote));
 
             var payloadDescriptor = header.FileMetadata.GetPayloadDescriptor(uploadedPayloadDefinition.Key);
             Assert.That(payloadDescriptor, Is.Not.Null);
@@ -156,7 +154,6 @@ public class RemotePayloadTests
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
-            PayloadsAreRemote = true
         };
 
         var uploadManifest = new UploadManifest()
@@ -193,7 +190,6 @@ public class RemotePayloadTests
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
-            PayloadsAreRemote = true
         };
 
         var uploadManifest = new UploadManifest()
@@ -224,8 +220,7 @@ public class RemotePayloadTests
         var remoteOdinId = new RemotePayloadInfo()
         {
             Identity = TestIdentities.Frodo.OdinId,
-            DriveId = targetDrive.Alias,
-            PayloadsAreRemote = true
+            DriveId = targetDrive.Alias
         };
         
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
@@ -287,7 +282,6 @@ public class RemotePayloadTests
         {
             Identity = TestIdentities.Frodo.OdinId,
             DriveId = targetDrive.Alias,
-            PayloadsAreRemote = true
         };
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);

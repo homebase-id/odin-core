@@ -171,8 +171,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 RemotePayloadInfo = new RemotePayloadInfo()
                 {
                     Identity = (OdinId)"user.domain.com",
-                    DriveId = targetDrive.Alias,
-                    PayloadsAreRemote = true
+                    DriveId = targetDrive.Alias
                 },
                 Created = new UnixTimeUtc(9),
                 Updated = new UnixTimeUtc(22),
@@ -243,7 +242,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitUpdated == hdr.FileMetadata.TransitUpdated);
             ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.Identity == hdr.FileMetadata.RemotePayloadInfo.Identity);
             ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.DriveId == hdr.FileMetadata.RemotePayloadInfo.DriveId);
-            ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.PayloadsAreRemote == hdr.FileMetadata.RemotePayloadInfo.PayloadsAreRemote);
 
             ClassicAssert.AreEqual(sfh.FileMetadata.Payloads, hdr.FileMetadata.Payloads);
             ClassicAssert.AreEqual(sfh.FileMetadata.ReferencedFile, hdr.FileMetadata.ReferencedFile);

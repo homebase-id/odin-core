@@ -16,6 +16,7 @@ using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
@@ -42,7 +43,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
-        TransitInboxBoxStorage transitInboxBoxStorage
+        TransitInboxBoxStorage transitInboxBoxStorage,
+        FeedWriter feedWriter
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
@@ -324,7 +326,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             //TODO: check if any apps are online and we can snag the storage key
 
-            PeerFileWriter writer = new PeerFileWriter(logger, FileSystemResolver, driveManager);
+            PeerFileWriter writer = new PeerFileWriter(logger, FileSystemResolver, driveManager, feedWriter);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
                 odinContext);
