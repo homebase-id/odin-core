@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -13,6 +6,7 @@ using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
+using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -25,10 +19,19 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Tenant;
 using Odin.Services.Tenant.Container;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests;
 
@@ -64,6 +67,55 @@ public class DefraggerTest
         _scaffold.AssertLogEvents();
     }
 
+/*
+    [Test]
+    [Explicit]
+    public async Task RemoveInvalidFolderTest()
+
+    {
+        var ownerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        // Upload two files
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await UploadFile(targetDrive, TestIdentities.Samwise);
+
+        // Place some files in Sam's inbox
+        var targetDrive2 = TargetDrive.NewTargetDrive();
+        var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        const DrivePermission drivePermissions = DrivePermission.Write;
+        const int totalFileCount = 32;
+
+        await PrepareScenario(senderOwnerClient, ownerClient, targetDrive2, drivePermissions);
+        var fileSendResults = await SendFiles(senderOwnerClient, ownerClient, targetDrive2, totalFileCount);
+        ClassicAssert.IsTrue(fileSendResults.Count == totalFileCount);
+
+
+        var t = await ownerClient.DriveManager.GetDrives();
+        var drives = t.Content.Results;
+
+        var _tenantContext = new TenantContext(
+            ownerClient.Identity.OdinId,
+            new OdinId("samwise.me"),
+            new TenantPathManager(_config, tenantId),
+            firstRunToken: null,
+            isPreconfigured: true,
+            markedForDeletionDate: null
+        );
+                _tenantPathManager = _tenantContext.TenantPathManager;
+
+        var driveCount = drives.Count;
+
+        Directory.CreateDirectory(ownerClient.Configuration..TempDrivesPath);
+
+        foreach (var drive in drives)
+        {
+            // this calls to the server and on the server side you will perform the defrag
+            // doing it this way ensures all context and all services are setup correclty
+            await ownerClient.DriveManager.Defrag(drive.TargetDriveInfo);
+        }
+    }
+*/
 
     [Test]
     [Explicit]
