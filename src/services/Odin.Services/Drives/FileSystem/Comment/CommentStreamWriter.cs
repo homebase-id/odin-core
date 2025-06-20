@@ -51,6 +51,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 OdinClientErrorCode.InvalidReferenceFile);
         }
 
+        uploadDescriptor.FileMetadata.DataSource?.Validate();
+        
         return Task.CompletedTask;
     }
 
@@ -117,7 +119,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
-        var remotePayloadSource = uploadDescriptor.FileMetadata.RemotePayloadInfo;
+        var dataSource = uploadDescriptor.FileMetadata.DataSource;
 
         var metadata = new FileMetadata()
         {
@@ -147,8 +149,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-            RemotePayloadInfo = remotePayloadSource,
-            Payloads = package.GetFinalPayloadDescriptors(fromManifest: remotePayloadSource?.IsValid() ?? false)
+            DataSource = dataSource,
+            Payloads = package.GetFinalPayloadDescriptors(fromManifest: dataSource?.PayloadsAreRemote ?? false)
         };
 
         return Task.FromResult(metadata);

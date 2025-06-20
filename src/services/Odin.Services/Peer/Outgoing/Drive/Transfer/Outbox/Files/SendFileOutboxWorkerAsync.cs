@@ -127,7 +127,7 @@ public class SendFileOutboxWorkerAsync(
                     header,
                     odinContext,
                     options.OverrideRemoteGlobalTransitId,
-                    outboxFileItem.State.RemotePayloadInfoOverride);
+                    outboxFileItem.State.DataSourceOverride);
 
                 var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
                     recipient, clientAuthToken);

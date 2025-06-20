@@ -906,7 +906,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool success = false;
 
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
-            if (existingHeader.FileMetadata.RemotePayloadInfo != manifest.FileMetadata.RemotePayloadInfo)
+            if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
             {
                 throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates",
                     OdinClientErrorCode.CannotModifyRemotePayloadIdentity);

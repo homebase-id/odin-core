@@ -51,7 +51,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             IOdinContext odinContext,
-            RemotePayloadInfo overrideRemotePayloadInfo = null)
+            DataSource overrideDataSource = null)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
@@ -72,7 +72,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             };
 
             var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sfo, odinContext, priority,
-                overrideRemotePayloadInfo);
+                overrideDataSource);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -100,7 +100,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileSystemType fileSystemType,
             AppNotificationOptions notificationOptions,
             UpdateLocale updateLocale,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            DataSource overrideDataSource = null)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
             OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
@@ -125,7 +126,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 priority,
                 fileSystemType,
                 updateLocale,
-                odinContext);
+                odinContext,
+                overrideDataSource);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -455,7 +457,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
             int priority, 
-            RemotePayloadInfo overrideRemotePayloadInfo)
+            DataSource overrideDataSource)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             TargetDrive targetDrive = options.RemoteTargetDrive ??
@@ -509,7 +511,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 fileTransferOptions.FileSystemType,
                                 options),
                             Data = [],
-                            RemotePayloadInfoOverride = overrideRemotePayloadInfo
+                            DataSourceOverride = overrideDataSource
                         }
                     });
 
@@ -526,15 +528,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)>
-            CreateUpdateOutboxItemsAsync(
-                InternalDriveFileId sourceFile,
+            CreateUpdateOutboxItemsAsync(InternalDriveFileId sourceFile,
                 KeyHeader keyHeader,
                 UpdateRemoteFileRequest request,
                 List<OdinId> recipients,
                 int priority,
                 FileSystemType fileSystemType,
                 UpdateLocale updateLocale,
-                IOdinContext odinContext)
+                IOdinContext odinContext, DataSource overrideDataSource)
         {
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
@@ -573,7 +574,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 FileSystemType = fileSystemType
                             },
                             OriginalTransitOptions = null,
-
+                            DataSourceOverride = overrideDataSource,
                             Data = OdinSystemSerializer.Serialize(updateInstructionSet).ToUtf8ByteArray()
                         }
                     });

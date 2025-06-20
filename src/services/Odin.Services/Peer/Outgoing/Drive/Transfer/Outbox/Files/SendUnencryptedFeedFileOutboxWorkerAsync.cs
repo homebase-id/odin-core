@@ -168,7 +168,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
         OdinId recipient,
         CancellationToken cancellationToken)
     {
-        header.FileMetadata.RemotePayloadInfo = FileItem.State.RemotePayloadInfoOverride;
+        header.FileMetadata.DataSource = FileItem.State.DataSourceOverride;
         var request = new UpdateFeedFileMetadataRequest()
         {
             FileId = new GlobalTransitIdFileIdentifier()

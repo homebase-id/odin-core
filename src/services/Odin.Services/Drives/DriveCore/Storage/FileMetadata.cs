@@ -104,9 +104,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public Guid? VersionTag { get; set; }
 
         /// <summary>
-        /// Specifies the identity that holds the payload content
+        /// Specifies the identity, drive, and other information about the source of truth for this header.
         /// </summary>
-        public RemotePayloadInfo RemotePayloadInfo { get; set; }
+        /// <remarks>
+        /// While this header may exist on a drive, if this value is set (non-null), then the source of truth of the header
+        /// and payloads exists as described in the datasource
+        /// </remarks>
+        public DataSource DataSource { get; set; }
 
         public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
         {
@@ -141,7 +145,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             Payloads = fileMetadataDto.Payloads;
             // VersionTag = VersionTag,
 
-            RemotePayloadInfo = fileMetadataDto.RemotePayloadInfo;
+            DataSource = fileMetadataDto.DataSource;
 
             // SANITY CHECK:
             // There are SEVEN fields in the DTO.
@@ -186,7 +190,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return descriptor;
         }
 
-        public bool PayloadsAreRemote => RemotePayloadInfo?.IsValid() ?? false;
+        public bool PayloadsAreRemote => DataSource?.PayloadsAreRemote ?? false;
 
         public bool TryValidate()
         {

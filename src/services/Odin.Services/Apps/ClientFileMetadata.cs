@@ -50,10 +50,7 @@ public class ClientFileMetadata
 
     public List<PayloadDescriptor> Payloads { get; set; }
 
-    /// <summary>
-    /// Specifies the location of all payloads.  If this is set, there will be no payloads on identity which owns the header
-    /// </summary>
-    public Drives.DriveCore.Storage.RemotePayloadInfo RemotePayloadInfo { get; set; }
+    public DataSource DataSource { get; set; }
 
     public PayloadDescriptor GetPayloadDescriptor(string key)
     {

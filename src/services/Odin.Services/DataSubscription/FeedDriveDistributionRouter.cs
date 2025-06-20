@@ -91,7 +91,7 @@ namespace Odin.Services.DataSubscription
                                        deleteNotification.PreviousServerFileHeader.FileMetadata.IsEncrypted) ||
                                       notification.ServerFileHeader.FileMetadata.IsEncrypted;
 
-                var rpi = new RemotePayloadInfo
+                var rpi = new DataSource
                 {
                     // Identity = odinContext.GetCallerOdinIdOrFail(),
                     Identity = odinContext.Tenant,
@@ -143,7 +143,7 @@ namespace Odin.Services.DataSubscription
         }
 
         private async Task EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(IDriveNotification notification,
-            RemotePayloadInfo subscriptionSource)
+            DataSource subscriptionSource)
         {
             var item = new FeedDistributionItem()
             {
@@ -205,7 +205,7 @@ namespace Odin.Services.DataSubscription
         }
 
         private async Task DistributeToCollaborativeChannelMembers(IDriveNotification notification,
-            RemotePayloadInfo remotePayloadOverride)
+            DataSource remotePayloadOverride)
         {
             var header = notification.ServerFileHeader;
             var odinContext = OdinContextUpgrades.UpgradeToNonOwnerFeedDistributor(notification.OdinContext);
@@ -252,7 +252,7 @@ namespace Odin.Services.DataSubscription
         /// transit; returns the list of unconnected identities
         /// </summary>
         private async Task DistributeToConnectedFollowersUsingTransit(IDriveNotification notification,
-            RemotePayloadInfo rpi)
+            DataSource rpi)
         {
             _logger.LogDebug("DistributeToConnectedFollowersUsingTransit");
             var odinContext = notification.OdinContext;
@@ -300,7 +300,7 @@ namespace Odin.Services.DataSubscription
         }
 
         private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients, IOdinContext odinContext,
-            RemotePayloadInfo subscriptionSource)
+            DataSource subscriptionSource)
         {
             var file = header.FileMetadata.File;
 
@@ -316,7 +316,7 @@ namespace Odin.Services.DataSubscription
                 TransferFileType.EncryptedFileForFeedViaTransit,
                 header.ServerMetadata.FileSystemType,
                 odinContext,
-                overrideRemotePayloadInfo: subscriptionSource);
+                overrideDataSource: subscriptionSource);
 
             //Log warnings if, for some reason, transit does not create transfer keys
             foreach (var recipient in recipients)
@@ -375,7 +375,7 @@ namespace Odin.Services.DataSubscription
             return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
         }
 
-        private async Task AddToFeedOutbox(OdinId recipient, FeedDistributionItem distroItem, RemotePayloadInfo subscriptionSource)
+        private async Task AddToFeedOutbox(OdinId recipient, FeedDistributionItem distroItem, DataSource dataSourceOverride)
         {
             var item = new OutboxFileItem()
             {
@@ -385,7 +385,7 @@ namespace Odin.Services.DataSubscription
                 Type = OutboxItemType.UnencryptedFeedItem,
                 State = new OutboxItemState()
                 {
-                    RemotePayloadInfoOverride = subscriptionSource,
+                    DataSourceOverride = dataSourceOverride,
                     Data = OdinSystemSerializer.Serialize(distroItem).ToUtf8ByteArray()
                 }
             };

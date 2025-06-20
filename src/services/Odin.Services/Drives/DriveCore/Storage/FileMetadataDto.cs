@@ -38,7 +38,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         // public Guid? VersionTag { get; init; }
         
-        public RemotePayloadInfo RemotePayloadInfo { get; set; }
+        public DataSource DataSource { get; init; }
 
         public FileMetadataDto() { }
 
@@ -60,7 +60,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // LocalAppData = fileMetadata.LocalAppData; <--- TODO TODD & MICHAEL SANITY HERE?! XXX
             Payloads = fileMetadata.Payloads;
             
-            RemotePayloadInfo = fileMetadata.RemotePayloadInfo;
+            DataSource = fileMetadata.DataSource;
             // VersionTag = fileMetadata.VersionTag
         }
 
