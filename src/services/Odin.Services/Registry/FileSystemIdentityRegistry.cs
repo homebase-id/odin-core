@@ -593,7 +593,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }));
     }
 
-    private async Task RegisterDotYouHttpClientAsync(IdentityRegistration idReg)
+    private Task RegisterDotYouHttpClientAsync(IdentityRegistration idReg)
     {
         var domain = idReg.PrimaryDomainName;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
@@ -631,6 +631,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
             return handler;
         }).SetHandlerLifetime(TimeSpan.FromMinutes(2)));
+
+        return Task.CompletedTask;
     }
 
     //
