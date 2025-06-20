@@ -42,7 +42,6 @@ namespace Odin.Services.DataSubscription.Follower
         IdentityDatabase db,
         FeedWriter feedWriter)
     {
-
         private const int MaxRecordsPerChannel = 100; //TODO:config
 
         /// <summary>
@@ -311,7 +310,7 @@ namespace Odin.Services.DataSubscription.Follower
             var feedDrive = SystemDriveConstants.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
-            
+
             var driveGrants = new List<DriveGrant>()
             {
                 new()
@@ -344,23 +343,23 @@ namespace Odin.Services.DataSubscription.Follower
             }
         }
 
-        public async Task SynchronizeChannelFilesAsync(OdinId odinId, IOdinContext odinContext)
+        public async Task SynchronizeChannelFilesAsync(OdinId identityIFollow, IOdinContext odinContext)
         {
             SensitiveByteArray sharedSecret = null;
-            var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
+            var icr = await circleNetworkService.GetIcrAsync(identityIFollow, odinContext);
             if (icr.IsConnected())
             {
                 sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             }
 
-            await this.SynchronizeChannelFilesAsync(odinId, odinContext, sharedSecret: sharedSecret);
+            await this.SynchronizeChannelFilesAsync(identityIFollow, odinContext, sharedSecret: sharedSecret);
         }
 
-        public async Task SynchronizeChannelFilesAsync(OdinId odinId, IOdinContext odinContext, SensitiveByteArray sharedSecret)
+        public async Task SynchronizeChannelFilesAsync(OdinId identityIFollow, IOdinContext odinContext, SensitiveByteArray sharedSecret)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
-            var definition = await this.GetIdentityIFollowInternalAsync(odinId);
+            var definition = await this.GetIdentityIFollowInternalAsync(identityIFollow);
             if (definition == null) //not following
             {
                 logger.LogDebug("SynchronizeChannelFiles - not following the requested identity; no synchronization will occur");
@@ -368,7 +367,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
-            var channelDrives = await GetChannelsIFollow(odinId, odinContext, definition);
+            var channelDrives = await GetChannelsIFollow(identityIFollow, odinContext, definition);
 
             var request = new QueryBatchCollectionRequest()
             {
@@ -386,7 +385,7 @@ namespace Odin.Services.DataSubscription.Follower
                 var targetDrive = channel.TargetDrive;
                 request.Queries.Add(new()
                     {
-                        Name = targetDrive.ToKey().ToBase64(),
+                        Name = targetDrive.Alias.ToString(),
                         QueryParams = new FileQueryParams()
                         {
                             TargetDrive = targetDrive,
@@ -397,7 +396,8 @@ namespace Odin.Services.DataSubscription.Follower
                 );
             }
 
-            var collection = await peerDriveQueryService.GetBatchCollectionAsync(odinId, request, FileSystemType.Standard, odinContext);
+            var collection = await peerDriveQueryService.GetBatchCollectionAsync(identityIFollow, request, FileSystemType.Standard,
+                odinContext);
 
             var patchedContext = sharedSecret == null
                 ? odinContext
@@ -417,7 +417,8 @@ namespace Odin.Services.DataSubscription.Follower
                 {
                     try
                     {
-                        await TryWriteFeedFileAsync(odinId, patchedContext, dsr, feedDriveId);
+                        var channelId = Guid.Parse(results.Name); //name above is the channelId
+                        await TryWriteFeedFileAsync(identityIFollow, dsr, channelId, patchedContext);
                     }
                     catch (Exception e)
                     {
@@ -430,8 +431,8 @@ namespace Odin.Services.DataSubscription.Follower
         }
 
         ///
-        private async Task TryWriteFeedFileAsync(OdinId odinId, IOdinContext odinContext, SharedSecretEncryptedFileHeader dsr,
-            Guid feedDriveId)
+        private async Task TryWriteFeedFileAsync(OdinId identityIFollow, SharedSecretEncryptedFileHeader dsr, Guid channelId,
+            IOdinContext odinContext)
         {
             var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
             var keyHeader = KeyHeader.Empty();
@@ -446,6 +447,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             var fm = dsr.FileMetadata;
+
             var newFileMetadata = new FileMetadata()
             {
                 File = default,
@@ -454,19 +456,24 @@ namespace Odin.Services.DataSubscription.Follower
                 AppData = fm.AppData,
 
                 IsEncrypted = fm.IsEncrypted,
-                SenderOdinId = odinId,
+                SenderOdinId = identityIFollow,
                 OriginalAuthor = fm.OriginalAuthor,
                 VersionTag = fm.VersionTag,
-                DataSource = fm.DataSource,
                 ReactionPreview = fm.ReactionPreview,
                 Created = fm.Created,
                 Updated = fm.Updated,
                 FileState = dsr.FileState,
-                Payloads = fm.Payloads
+                Payloads = fm.Payloads,
+                DataSource = new DataSource()
+                {
+                    Identity = identityIFollow,
+                    DriveId = channelId,
+                    PayloadsAreRemote = true
+                }
             };
 
-
-            var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(feedDriveId,
+            var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(
+                SystemDriveConstants.FeedDrive.Alias,
                 dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
 
             if (null == existingFile)
@@ -474,7 +481,7 @@ namespace Odin.Services.DataSubscription.Follower
                 logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
                     newFileMetadata.GlobalTransitId.GetValueOrDefault(),
                     newFileMetadata.AppData.UniqueId.GetValueOrDefault());
-                
+
                 await feedWriter.WriteNewFileToFeedDriveAsync(keyHeader, newFileMetadata, odinContext);
             }
             else
@@ -483,13 +490,7 @@ namespace Odin.Services.DataSubscription.Follower
                     newFileMetadata.GlobalTransitId.GetValueOrDefault(),
                     newFileMetadata.AppData.UniqueId.GetValueOrDefault());
 
-                var file = new InternalDriveFileId()
-                {
-                    FileId = existingFile.FileId,
-                    DriveId = feedDriveId
-                };
-
-                await feedWriter.ReplaceFileMetadataOnFeedDrive(file, newFileMetadata, odinContext,
+                await feedWriter.ReplaceFileMetadataOnFeedDrive(existingFile.FileId, newFileMetadata, odinContext,
                     bypassCallerCheck: true);
             }
         }

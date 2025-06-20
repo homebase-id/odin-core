@@ -344,10 +344,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var header = await GetFileByGlobalTransitId(fs, tempFile.File.DriveId, newMetadata.GlobalTransitId.GetValueOrDefault(),
                 odinContext);
 
-            
+
             if (header == null)
             {
-                
                 await feedWriter.WriteNewFileToFeedDriveAsync(keyHeader, newMetadata, odinContext);
 
                 if (markComplete != null)
@@ -380,8 +379,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await fs.Storage.UpdateReactionSummary(targetFile, newMetadata.ReactionPreview,
                 odinContext); // XXX Ideally this should be part of the DB transaction... but alas! 
 
-            await feedWriter.ReplaceFileMetadataOnFeedDrive(targetFile, 
-                newMetadata, 
+            await feedWriter.ReplaceFileMetadataOnFeedDrive(header.FileId,
+                newMetadata,
                 odinContext,
                 bypassCallerCheck: driveOriginWasCollaborative, // the caller will not be original sender in the case of a collab drive 
                 keyHeader: keyHeader);

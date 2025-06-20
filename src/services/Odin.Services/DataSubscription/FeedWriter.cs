@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Services.Authorization.Acl;
@@ -29,17 +30,17 @@ public class FeedWriter(
         // Method assumes you ensured the file was unique by some other method
         var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
         await _fileSystem.Storage.AssertCanWriteToDrive(feedDriveId, odinContext);
-     
+
         if (fileMetadata.DataSource == null)
         {
             throw new OdinClientException("RemotePayloadInfo is required");
         }
-        
+
         if (fileMetadata.GlobalTransitId == null)
         {
             throw new OdinSystemException("File is missing a global transit id");
         }
-        
+
         var file = await _fileSystem.Storage.CreateInternalFileId(feedDriveId);
 
         // Clearing the UID for any files that go into the feed drive because the feed drive
@@ -56,14 +57,20 @@ public class FeedWriter(
         await _fileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
     }
 
-    public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId targetFile,
+    public async Task ReplaceFileMetadataOnFeedDrive(Guid fileId,
         FileMetadata fileMetadata,
         IOdinContext odinContext,
         bool bypassCallerCheck = false,
         KeyHeader keyHeader = null)
     {
+        var targetFile = new InternalDriveFileId()
+        {
+            FileId = fileId,
+            DriveId = SystemDriveConstants.FeedDrive.Alias
+        };
+        
         await _fileSystem.Storage.AssertCanWriteToDrive(targetFile.DriveId, odinContext);
-        var header = await _fileSystem.Storage.GetServerFileHeader(targetFile, odinContext);
+        var header = await _fileSystem.Storage.GetServerFileHeaderForWriting(targetFile, odinContext);
 
         if (header == null)
         {
