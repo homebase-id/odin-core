@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 
@@ -19,6 +20,7 @@ public interface ICertificateStore
 {
     Task<X509Certificate2?> GetCertificateAsync(string domain);
     Task<X509Certificate2> PutCertificateAsync(string domain, string keyPem, string certificatePem);
+    Task StoreFailedCertificateUpdateAsync(string domain, string errorText);
 }
 
 //
@@ -86,16 +88,17 @@ public class CertificateStore(IServiceProvider serviceProvider) : ICertificateSt
 
         _cache[domain] = x509;
 
+        var correlationContext = serviceProvider.GetRequiredService<ICorrelationContext>();
+
         var odinId = new OdinId(domain);
         var record = new CertificatesRecord
         {
             domain = odinId,
             privateKey = keyPem,
             certificate = certificatePem,
-            expiration = UnixTimeUtc.Now(), // SEB:TODO
+            expiration = UnixTimeUtc.FromDateTime(x509.NotAfter),
             lastAttempt = UnixTimeUtc.Now(),
-            attemptCount = 1, // SEB:TODO
-            correlationId = "correlation-id-placeholder", // SEB:TODO
+            correlationId = correlationContext.Id,
             lastError = null
         };
 
@@ -104,6 +107,18 @@ public class CertificateStore(IServiceProvider serviceProvider) : ICertificateSt
         await tableCertificates.UpsertAsync(record);
 
         return x509;
+    }
+
+    //
+
+    public async Task StoreFailedCertificateUpdateAsync(string domain, string errorText)
+    {
+        var odinId = new OdinId(domain);
+        var correlationContext = serviceProvider.GetRequiredService<ICorrelationContext>();
+
+        using var scope = serviceProvider.CreateScope();
+        var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
+        await tableCertificates.FailCertificateUpdate(odinId, UnixTimeUtc.Now(), correlationContext.Id, errorText);
     }
 
     //

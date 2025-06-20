@@ -93,7 +93,6 @@ public class CertificateService : ICertificateService
         }
     }
 
-
     //
 
     public async Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default)
@@ -133,8 +132,9 @@ public class CertificateService : ICertificateService
         // Sanity
         if (domain.EndsWith(".dotyou.cloud"))
         {
-            _logger.LogError(
-                "Can't create certificate for {domain} because dotyou.cloud domains (should) resolve to 127.0.0.1. Did it expire?", domain);
+            var error = $"Can't create certificate for {domain} because dotyou.cloud domains (should) resolve to 127.0.0.1. Did it expire?";
+            _logger.LogError("{error}", error);
+            await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
             return null;
         }
 
@@ -145,8 +145,9 @@ public class CertificateService : ICertificateService
                 var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
                 if (!areDnsRecordsOk)
                 {
-                    _logger.LogWarning(
-                        "Cannot create certificate for {domain}. One or more DNS records are no longer correct.", domain);
+                    var error = $"Cannot create certificate for {domain}. One or more DNS records are no longer correct.";
+                    _logger.LogWarning("{error}", error);
+                    await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
                     return null;
                 }
             }
@@ -191,7 +192,9 @@ public class CertificateService : ICertificateService
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Error creating certificate for {domain}: {ErrorText}", domain, e.Message);
+            var error = $"Error creating certificate for {domain}: {e.Message}";
+            _logger.LogError("{error}", error);
+            await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
             return null;
         }
     }

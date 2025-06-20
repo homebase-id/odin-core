@@ -47,7 +47,7 @@ namespace Odin.Core.Storage.Database.System.Table
                }
            set {
                     if (value == null) throw new OdinDatabaseValidationException("Cannot be null privateKey");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short privateKey, was {value.Length} (min 16)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short privateKey, was {value.Length} (min 0)");
                     if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long privateKey, was {value.Length} (max 65535)");
                   _privateKey = value;
                }
@@ -59,7 +59,7 @@ namespace Odin.Core.Storage.Database.System.Table
                }
            set {
                     if (value == null) throw new OdinDatabaseValidationException("Cannot be null privateKey");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short privateKey, was {value.Length} (min 16)");
+                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short privateKey, was {value.Length} (min 0)");
                   _privateKey = value;
                }
         }
@@ -105,16 +105,6 @@ namespace Odin.Core.Storage.Database.System.Table
                }
            set {
                   _lastAttempt = value;
-               }
-        }
-        private Int32 _attemptCount;
-        public Int32 attemptCount
-        {
-           get {
-                   return _attemptCount;
-               }
-           set {
-                  _attemptCount = value;
                }
         }
         private string _correlationId;
@@ -218,7 +208,6 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"certificate TEXT NOT NULL, "
                    +"expiration BIGINT NOT NULL, "
                    +"lastAttempt BIGINT NOT NULL, "
-                   +"attemptCount BIGINT NOT NULL, "
                    +"correlationId TEXT NOT NULL, "
                    +"lastError TEXT , "
                    +"created BIGINT NOT NULL, "
@@ -234,8 +223,8 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,attemptCount,correlationId,lastError,created,modified) " +
-                                           $"VALUES (@domain,@privateKey,@certificate,@expiration,@lastAttempt,@attemptCount,@correlationId,@lastError,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified) " +
+                                           $"VALUES (@domain,@privateKey,@certificate,@expiration,@lastAttempt,@correlationId,@lastError,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.DbType = DbType.String;
@@ -258,25 +247,20 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam5.ParameterName = "@lastAttempt";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Int32;
-                insertParam6.ParameterName = "@attemptCount";
+                insertParam6.DbType = DbType.String;
+                insertParam6.ParameterName = "@correlationId";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
                 insertParam7.DbType = DbType.String;
-                insertParam7.ParameterName = "@correlationId";
+                insertParam7.ParameterName = "@lastError";
                 insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.String;
-                insertParam8.ParameterName = "@lastError";
-                insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.domain.DomainName;
                 insertParam2.Value = item.privateKey;
                 insertParam3.Value = item.certificate;
                 insertParam4.Value = item.expiration.milliseconds;
                 insertParam5.Value = item.lastAttempt.milliseconds;
-                insertParam6.Value = item.attemptCount;
-                insertParam7.Value = item.correlationId;
-                insertParam8.Value = item.lastError ?? (object)DBNull.Value;
+                insertParam6.Value = item.correlationId;
+                insertParam7.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -302,8 +286,8 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,attemptCount,correlationId,lastError,created,modified) " +
-                                            $"VALUES (@domain,@privateKey,@certificate,@expiration,@lastAttempt,@attemptCount,@correlationId,@lastError,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified) " +
+                                            $"VALUES (@domain,@privateKey,@certificate,@expiration,@lastAttempt,@correlationId,@lastError,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -327,25 +311,20 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam5.ParameterName = "@lastAttempt";
                 insertCommand.Parameters.Add(insertParam5);
                 var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Int32;
-                insertParam6.ParameterName = "@attemptCount";
+                insertParam6.DbType = DbType.String;
+                insertParam6.ParameterName = "@correlationId";
                 insertCommand.Parameters.Add(insertParam6);
                 var insertParam7 = insertCommand.CreateParameter();
                 insertParam7.DbType = DbType.String;
-                insertParam7.ParameterName = "@correlationId";
+                insertParam7.ParameterName = "@lastError";
                 insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.String;
-                insertParam8.ParameterName = "@lastError";
-                insertCommand.Parameters.Add(insertParam8);
                 insertParam1.Value = item.domain.DomainName;
                 insertParam2.Value = item.privateKey;
                 insertParam3.Value = item.certificate;
                 insertParam4.Value = item.expiration.milliseconds;
                 insertParam5.Value = item.lastAttempt.milliseconds;
-                insertParam6.Value = item.attemptCount;
-                insertParam7.Value = item.correlationId;
-                insertParam8.Value = item.lastError ?? (object)DBNull.Value;
+                insertParam6.Value = item.correlationId;
+                insertParam7.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -371,10 +350,10 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,attemptCount,correlationId,lastError,created,modified) " +
-                                            $"VALUES (@domain,@privateKey,@certificate,@expiration,@lastAttempt,@attemptCount,@correlationId,@lastError,{sqlNowStr},{sqlNowStr})"+
+                upsertCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified) " +
+                                            $"VALUES (@domain,@privateKey,@certificate,@expiration,@lastAttempt,@correlationId,@lastError,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (domain) DO UPDATE "+
-                                            $"SET privateKey = @privateKey,certificate = @certificate,expiration = @expiration,lastAttempt = @lastAttempt,attemptCount = @attemptCount,correlationId = @correlationId,lastError = @lastError,modified = {upsertCommand.SqlMax()}(Certificates.modified+1,{sqlNowStr}) "+
+                                            $"SET privateKey = @privateKey,certificate = @certificate,expiration = @expiration,lastAttempt = @lastAttempt,correlationId = @correlationId,lastError = @lastError,modified = {upsertCommand.SqlMax()}(Certificates.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.String;
@@ -397,25 +376,20 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertParam5.ParameterName = "@lastAttempt";
                 upsertCommand.Parameters.Add(upsertParam5);
                 var upsertParam6 = upsertCommand.CreateParameter();
-                upsertParam6.DbType = DbType.Int32;
-                upsertParam6.ParameterName = "@attemptCount";
+                upsertParam6.DbType = DbType.String;
+                upsertParam6.ParameterName = "@correlationId";
                 upsertCommand.Parameters.Add(upsertParam6);
                 var upsertParam7 = upsertCommand.CreateParameter();
                 upsertParam7.DbType = DbType.String;
-                upsertParam7.ParameterName = "@correlationId";
+                upsertParam7.ParameterName = "@lastError";
                 upsertCommand.Parameters.Add(upsertParam7);
-                var upsertParam8 = upsertCommand.CreateParameter();
-                upsertParam8.DbType = DbType.String;
-                upsertParam8.ParameterName = "@lastError";
-                upsertCommand.Parameters.Add(upsertParam8);
                 upsertParam1.Value = item.domain.DomainName;
                 upsertParam2.Value = item.privateKey;
                 upsertParam3.Value = item.certificate;
                 upsertParam4.Value = item.expiration.milliseconds;
                 upsertParam5.Value = item.lastAttempt.milliseconds;
-                upsertParam6.Value = item.attemptCount;
-                upsertParam7.Value = item.correlationId;
-                upsertParam8.Value = item.lastError ?? (object)DBNull.Value;
+                upsertParam6.Value = item.correlationId;
+                upsertParam7.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -442,7 +416,7 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE Certificates " +
-                                            $"SET privateKey = @privateKey,certificate = @certificate,expiration = @expiration,lastAttempt = @lastAttempt,attemptCount = @attemptCount,correlationId = @correlationId,lastError = @lastError,modified = {updateCommand.SqlMax()}(Certificates.modified+1,{sqlNowStr}) "+
+                                            $"SET privateKey = @privateKey,certificate = @certificate,expiration = @expiration,lastAttempt = @lastAttempt,correlationId = @correlationId,lastError = @lastError,modified = {updateCommand.SqlMax()}(Certificates.modified+1,{sqlNowStr}) "+
                                             "WHERE (domain = @domain) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -466,25 +440,20 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateParam5.ParameterName = "@lastAttempt";
                 updateCommand.Parameters.Add(updateParam5);
                 var updateParam6 = updateCommand.CreateParameter();
-                updateParam6.DbType = DbType.Int32;
-                updateParam6.ParameterName = "@attemptCount";
+                updateParam6.DbType = DbType.String;
+                updateParam6.ParameterName = "@correlationId";
                 updateCommand.Parameters.Add(updateParam6);
                 var updateParam7 = updateCommand.CreateParameter();
                 updateParam7.DbType = DbType.String;
-                updateParam7.ParameterName = "@correlationId";
+                updateParam7.ParameterName = "@lastError";
                 updateCommand.Parameters.Add(updateParam7);
-                var updateParam8 = updateCommand.CreateParameter();
-                updateParam8.DbType = DbType.String;
-                updateParam8.ParameterName = "@lastError";
-                updateCommand.Parameters.Add(updateParam8);
                 updateParam1.Value = item.domain.DomainName;
                 updateParam2.Value = item.privateKey;
                 updateParam3.Value = item.certificate;
                 updateParam4.Value = item.expiration.milliseconds;
                 updateParam5.Value = item.lastAttempt.milliseconds;
-                updateParam6.Value = item.attemptCount;
-                updateParam7.Value = item.correlationId;
-                updateParam8.Value = item.lastError ?? (object)DBNull.Value;
+                updateParam6.Value = item.correlationId;
+                updateParam7.Value = item.lastError ?? (object)DBNull.Value;
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -528,7 +497,6 @@ namespace Odin.Core.Storage.Database.System.Table
             sl.Add("certificate");
             sl.Add("expiration");
             sl.Add("lastAttempt");
-            sl.Add("attemptCount");
             sl.Add("correlationId");
             sl.Add("lastError");
             sl.Add("created");
@@ -536,7 +504,7 @@ namespace Odin.Core.Storage.Database.System.Table
             return sl;
         }
 
-        // SELECT rowId,domain,privateKey,certificate,expiration,lastAttempt,attemptCount,correlationId,lastError,created,modified
+        // SELECT rowId,domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified
         public CertificatesRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<CertificatesRecord>();
@@ -551,11 +519,10 @@ namespace Odin.Core.Storage.Database.System.Table
             item.certificateNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
             item.expiration = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.lastAttempt = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.attemptCount = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
-            item.correlationIdNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.lastErrorNoLengthCheck = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
-            item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
-            item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
+            item.correlationIdNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.lastErrorNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[9]); // HACK
             return item;
        }
 
@@ -591,11 +558,10 @@ namespace Odin.Core.Storage.Database.System.Table
             item.certificateNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.expiration = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.lastAttempt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.attemptCount = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.correlationIdNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.lastErrorNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
-            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
-            item.modified = (rdr[9] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[9]); // HACK
+            item.correlationIdNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.lastErrorNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.modified = (rdr[8] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[8]); // HACK
             return item;
        }
 
@@ -604,7 +570,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,privateKey,certificate,expiration,lastAttempt,attemptCount,correlationId,lastError,created,modified FROM Certificates " +
+                get0Command.CommandText = "SELECT rowId,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified FROM Certificates " +
                                              "WHERE domain = @domain LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
@@ -639,7 +605,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,domain,privateKey,certificate,expiration,lastAttempt,attemptCount,correlationId,lastError,created,modified FROM Certificates " +
+                getPaging0Command.CommandText = "SELECT rowId,domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified FROM Certificates " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
                 var getPaging0Param1 = getPaging0Command.CreateParameter();
                 getPaging0Param1.DbType = DbType.Int64;

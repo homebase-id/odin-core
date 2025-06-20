@@ -11,6 +11,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Dns;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.Hostname;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
@@ -91,6 +93,10 @@ public class CertificateServiceTests
         builder.Host.ConfigureContainer<ContainerBuilder>(cb =>
         {
             cb.RegisterInstance<OdinConfiguration>(config);
+            cb.RegisterType<CorrelationUniqueIdGenerator>().As<ICorrelationIdGenerator>().SingleInstance();
+            cb.RegisterType<CorrelationContext>().As<ICorrelationContext>().SingleInstance();
+            cb.RegisterType<StickyHostnameGenerator>().As<IStickyHostnameGenerator>().SingleInstance();
+            cb.RegisterType<StickyHostname>().As<IStickyHostname>().SingleInstance();
             cb.RegisterInstance<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
             cb.RegisterInstance<ILookupClient>(new LookupClient());
             cb.RegisterType<AuthoritativeDnsLookup>().As<IAuthoritativeDnsLookup>().SingleInstance();
