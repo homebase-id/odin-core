@@ -767,15 +767,8 @@ public static class HostExtensions
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var defragmenter = scope.Resolve<Defragmenter>();
 
-            var tblDrives = scope.Resolve<TableDrives>();
-            var (drives, _, _) = await tblDrives.GetList(int.MaxValue, null);
-
             logger.LogInformation("Defragmenting {tenant}", tenant.PrimaryDomainName);
-            foreach (var drive in drives)
-            {
-                var targetDrive = new TargetDrive { Alias = drive.DriveAlias, Type = drive.DriveType };
-                await defragmenter.Defragment(targetDrive, cleanup);
-            }
+            await defragmenter.Defragment(cleanup);
         }
     }
 }
