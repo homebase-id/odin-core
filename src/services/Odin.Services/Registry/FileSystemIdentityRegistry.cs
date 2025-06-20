@@ -598,8 +598,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var domain = idReg.PrimaryDomainName;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
 
-        var x509 = await _certificateService.GetCertificateAsync(domain);
-
         // SEB:NOTE
         // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the
         // baked-in one. We have to be able to create HttpClientHandlers on the fly, this is not possible with
@@ -613,10 +611,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };
 
+            // SEB:TODO this is a problem. We don't handle expired certificates here. We need to lookup
+            // and set the cert each time we send a request.
+            var x509 = _certificateService.GetCertificateAsync(domain).Result;
             if (x509 != null)
             {
-                // SEB:TODO this is a problem. We don't handle expired certificates here. We need to lookup
-                // and set the cert each time we send a request.
                 handler.ClientCertificates.Add(x509);
             }
             else
