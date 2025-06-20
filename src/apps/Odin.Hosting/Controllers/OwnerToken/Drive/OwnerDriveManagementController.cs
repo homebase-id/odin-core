@@ -107,10 +107,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         }
 
         [HttpPost("defrag")]
-        public async Task<IActionResult> DefragDrive([FromBody] TargetDrive targetDrive)
+        public async Task<IActionResult> DefragDrive()
         {
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            await defragmenter.Defragment(targetDrive);
+            await defragmenter.Defragment();
             return Ok();
         }
     }

@@ -58,10 +58,10 @@ public class DriveManagementApiClient
         return await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = pageNumber, PageSize = pageSize });
     }
 
-    public async Task<ApiResponse<HttpContent>> Defrag(TargetDrive targetDrive)
+    public async Task<ApiResponse<HttpContent>> Defrag()
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
         var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
-        return await driveSvc.DefragDrive(targetDrive);
+        return await driveSvc.DefragDrive();
     }
 }

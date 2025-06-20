@@ -67,55 +67,73 @@ public class DefraggerTest
         _scaffold.AssertLogEvents();
     }
 
-/*
-    [Test]
-    [Explicit]
-    public async Task RemoveInvalidFolderTest()
+    /*
+        [Test]
+        [Explicit]
+        public async Task RemoveInvalidFolderTest()
 
-    {
-        var ownerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
-
-        // Upload two files
-        var targetDrive = TargetDrive.NewTargetDrive();
-        await UploadFile(targetDrive, TestIdentities.Samwise);
-
-        // Place some files in Sam's inbox
-        var targetDrive2 = TargetDrive.NewTargetDrive();
-        var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-
-        const DrivePermission drivePermissions = DrivePermission.Write;
-        const int totalFileCount = 32;
-
-        await PrepareScenario(senderOwnerClient, ownerClient, targetDrive2, drivePermissions);
-        var fileSendResults = await SendFiles(senderOwnerClient, ownerClient, targetDrive2, totalFileCount);
-        ClassicAssert.IsTrue(fileSendResults.Count == totalFileCount);
-
-
-        var t = await ownerClient.DriveManager.GetDrives();
-        var drives = t.Content.Results;
-
-        var _tenantContext = new TenantContext(
-            ownerClient.Identity.OdinId,
-            new OdinId("samwise.me"),
-            new TenantPathManager(_config, tenantId),
-            firstRunToken: null,
-            isPreconfigured: true,
-            markedForDeletionDate: null
-        );
-                _tenantPathManager = _tenantContext.TenantPathManager;
-
-        var driveCount = drives.Count;
-
-        Directory.CreateDirectory(ownerClient.Configuration..TempDrivesPath);
-
-        foreach (var drive in drives)
         {
-            // this calls to the server and on the server side you will perform the defrag
-            // doing it this way ensures all context and all services are setup correclty
-            await ownerClient.DriveManager.Defrag(drive.TargetDriveInfo);
+            var ownerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            // Upload two files
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await UploadFile(targetDrive, TestIdentities.Samwise);
+
+            // Place some files in Sam's inbox
+            var targetDrive2 = TargetDrive.NewTargetDrive();
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+            const int totalFileCount = 32;
+
+            await PrepareScenario(senderOwnerClient, ownerClient, targetDrive2, drivePermissions);
+            var fileSendResults = await SendFiles(senderOwnerClient, ownerClient, targetDrive2, totalFileCount);
+            ClassicAssert.IsTrue(fileSendResults.Count == totalFileCount);
+
+
+            var t = await ownerClient.DriveManager.GetDrives();
+            var drives = t.Content.Results;
+
+            var _tenantContext = new TenantContext(
+                ownerClient.Identity.OdinId,
+                new OdinId("samwise.me"),
+                new TenantPathManager(_config, tenantId),
+                firstRunToken: null,
+                isPreconfigured: true,
+                markedForDeletionDate: null
+            );
+                    _tenantPathManager = _tenantContext.TenantPathManager;
+
+            var driveCount = drives.Count;
+
+            Directory.CreateDirectory(ownerClient.Configuration..TempDrivesPath);
+
+            foreach (var drive in drives)
+            {
+                // this calls to the server and on the server side you will perform the defrag
+                // doing it this way ensures all context and all services are setup correclty
+                await ownerClient.DriveManager.Defrag(drive.TargetDriveInfo);
+            }
+        }
+    */
+    private void FileTouch(string pathAndName)
+    {
+        string directory = Path.GetDirectoryName(pathAndName);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        if (File.Exists(pathAndName))
+        {
+            File.SetLastWriteTime(pathAndName, DateTime.Now);
+        }
+        else
+        {
+            File.Create(pathAndName).Dispose();
         }
     }
-*/
+
 
     [Test]
     [Explicit]
@@ -143,12 +161,9 @@ public class DefraggerTest
         var t = await ownerClient.DriveManager.GetDrives();
         var drives = t.Content.Results;
 
-        foreach (var drive in drives)
-        {
-            // this calls to the server and on the server side you will perform the defrag
-            // doing it this way ensures all context and all services are setup correclty
-            await ownerClient.DriveManager.Defrag(drive.TargetDriveInfo);
-        }
+        // this calls to the server and on the server side you will perform the defrag
+        // doing it this way ensures all context and all services are setup correclty
+        await ownerClient.DriveManager.Defrag(); // This should be moved to the identity
     }
 
     private async Task UploadFile(TargetDrive targetDrive, TestIdentity identity)

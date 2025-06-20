@@ -287,31 +287,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        void FileTouch(string pathAndName)
-        {
-            string directory = Path.GetDirectoryName(pathAndName);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            if (File.Exists(pathAndName))
-            {
-                File.SetLastWriteTime(pathAndName, DateTime.Now);
-            }
-            else
-            {
-                File.Create(pathAndName).Dispose();
-            }
-        }
-
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task Defragment(TargetDrive targetDrive, bool cleanup = false)
+        public async Task Defragment(bool cleanup = false)
         {
-            var driveId = targetDrive.Alias;
-
             //
             // Insert Three Junk Files
             //
@@ -327,10 +307,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await VerifyDriveDirectoriesTemp(cleanup);
             await VerifyDriveDirectoriesPayloads(cleanup);
 
-            await CheckDrivePayloadsIntegrity(targetDrive);
-            await VerifyInboxEntiresIntegrity(driveId, cleanup);
+            var (drives, _, _) = await identityDatabase.Drives.GetList(int.MaxValue, null);
+            foreach (var drive in drives)
+            {
+                var td = new TargetDrive() { Alias = drive.DriveId, Type = drive.DriveType };
+                await CheckDrivePayloadsIntegrity(td);
+                await VerifyInboxEntiresIntegrity(drive.DriveId, cleanup);
 
-            await VerifyPayloadsFilesInDiskFolder(driveId, cleanup);
+                await VerifyPayloadsFilesInDiskFolder(drive.DriveId, cleanup);
+            }
         }
 
         /// <summary>
