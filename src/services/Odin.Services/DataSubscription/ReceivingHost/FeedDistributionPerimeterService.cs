@@ -63,9 +63,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     Log.Warning("GlobalTransitId not set on incoming feed FileMetadata");
                 }
 
-                var fileId = await this.ResolveInternalFileAsync(request.FileId, request.UniqueId, newContext);
+                var file = await this.ResolveInternalFileAsync(request.FileId, request.UniqueId, newContext);
 
-                if (null == fileId)
+                if (null == file)
                 {
                     //
                     // Create a new file on the feed
@@ -99,7 +99,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
 
                     // perform update
                     request.FileMetadata.SenderOdinId = sender;
-                    await feedWriter.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata, newContext,
+                    await feedWriter.ReplaceFileMetadataOnFeedDrive(file.Value.FileId, request.FileMetadata, newContext,
                         bypassCallerCheck: true);
                 }
             }

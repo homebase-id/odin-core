@@ -83,7 +83,7 @@ public class CollaborationChannelTests
         yield return new object[]
         {
             new ConnectedIdentityLoggedInOnGuestApi(TestIdentities.Pippin.OdinId, new TestPermissionKeyList(PermissionKeys.ReadWhoIFollow)),
-            HttpStatusCode.MethodNotAllowed
+            HttpStatusCode.Forbidden
         };
     }
 

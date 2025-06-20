@@ -96,6 +96,7 @@ namespace Odin.Services.DataSubscription
                     // Identity = odinContext.GetCallerOdinIdOrFail(),
                     Identity = odinContext.Tenant,
                     DriveId = notification.File.DriveId,
+                    PayloadsAreRemote = true
                 };
 
                 if (odinContext.Caller.IsOwner)

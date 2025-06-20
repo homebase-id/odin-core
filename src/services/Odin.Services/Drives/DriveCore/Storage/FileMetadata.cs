@@ -104,12 +104,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public Guid? VersionTag { get; set; }
 
         /// <summary>
-        /// Specifies the identity, drive, and other information about the source of truth for this header.
+        /// When this header is set, this header is a copy of the original found at the source. 
         /// </summary>
-        /// <remarks>
-        /// While this header may exist on a drive, if this value is set (non-null), then the source of truth of the header
-        /// and payloads exists as described in the datasource
-        /// </remarks>
         public DataSource DataSource { get; set; }
 
         public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
