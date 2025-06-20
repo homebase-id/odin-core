@@ -19,7 +19,7 @@ namespace Odin.Services.Base
     {
         private readonly IHttpClientFactory _httpClientFactory;
 
-        private readonly ICertificateServiceFactory _certificateServiceFactory;
+        private readonly ICertificateService _certificateService;
         private readonly TenantContext _tenantContext;
         private readonly ICorrelationContext _correlationContext;
         private readonly OdinConfiguration _config;
@@ -28,13 +28,13 @@ namespace Odin.Services.Base
 
         public OdinHttpClientFactory(
             IHttpClientFactory httpClientFactory,
-            ICertificateServiceFactory certificateServiceFactory,
+            ICertificateService certificateService,
             TenantContext tenantContext,
             ICorrelationContext correlationContext,
             OdinConfiguration config)
         {
             _httpClientFactory = httpClientFactory;
-            _certificateServiceFactory = certificateServiceFactory;
+            _certificateService = certificateService;
             _tenantContext = tenantContext;
             _correlationContext = correlationContext;
             _config = config;

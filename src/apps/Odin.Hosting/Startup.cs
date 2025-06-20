@@ -177,7 +177,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
             sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
-            sp.GetRequiredService<ICertificateServiceFactory>(),
+            sp.GetRequiredService<ICertificateService>(),
             sp.GetRequiredService<IHttpClientFactory>(),
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainerAccessor>(),
@@ -209,7 +209,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             _config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
         services.AddSingleton<ICertificateStore, CertificateStore>();
-        services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
+        services.AddSingleton<ICertificateService, CertificateService>();
 
         services.AddSingleton<IEmailSender>(sp => new MailgunSender(
             sp.GetRequiredService<ILogger<MailgunSender>>(),

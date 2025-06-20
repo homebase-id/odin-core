@@ -7,7 +7,6 @@ using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -19,7 +18,6 @@ using Odin.Core.X509;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
-using Odin.Test.Helpers.Logging;
 using Testcontainers.PostgreSql;
 
 namespace Odin.Services.Tests.Certificates;
@@ -29,7 +27,7 @@ public class CertificateServiceTests
     private string _tempDir = null!;
     private PostgreSqlContainer? _postgresContainer;
     private WebApplication _webServer = null!;
-    private CertificateService _certificateService = null!;
+    private ICertificateService _certificateService = null!;
     private ILifetimeScope _autofacContainer = null!;
 
     [SetUp]
@@ -45,6 +43,7 @@ public class CertificateServiceTests
     public async Task TearDown()
     {
         await _webServer.StopAsync();
+        await _webServer.DisposeAsync();
 
         if (_postgresContainer != null)
         {
@@ -59,10 +58,6 @@ public class CertificateServiceTests
 
     private async Task StartWebServerAsync(DatabaseType databaseType)
     {
-        // SEB:TODO delete this when we switch to db
-        var sslRootPath = Path.Combine(_tempDir, "ssl");
-        Directory.CreateDirectory(sslRootPath);
-
         var config = new OdinConfiguration
         {
             CertificateRenewal = new OdinConfiguration.CertificateRenewalSection
@@ -112,7 +107,7 @@ public class CertificateServiceTests
                     isProduction: false))
                 .As<ICertesAcme>().SingleInstance();
             cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
-            cb.RegisterType<CertificateServiceFactory>().As<ICertificateServiceFactory>().SingleInstance();
+            cb.RegisterType<CertificateService>().As<ICertificateService>().SingleInstance();
 
             cb.AddDatabaseCacheServices();
             cb.AddDatabaseCounterServices();
@@ -151,8 +146,7 @@ public class CertificateServiceTests
         await _webServer.StartAsync();
         await serverStartedTcs.Task;
 
-        var certificateServiceFactory = _autofacContainer.Resolve<ICertificateServiceFactory>();
-        _certificateService = certificateServiceFactory.Create();
+        _certificateService = _autofacContainer.Resolve<ICertificateService>();
     }
 
     //
@@ -161,11 +155,15 @@ public class CertificateServiceTests
     // - The DNS records must be set up correctly in the DNS server
     // - Port 80 must be open and accessible for HTTP-01 challenges
     [Test, Explicit]
-    [TestCase("regression-test-apex-a.dominion.id")]
-    [TestCase("regression-test-apex-alias.dominion.id")]
-    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithoutSans(string domain)
+    [TestCase(DatabaseType.Sqlite, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseType.Sqlite, "regression-test-apex-alias.dominion.id")]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseType.Postgres, "regression-test-apex-alias.dominion.id")]
+#endif
+    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithoutSans(DatabaseType databaseType, string domain)
     {
-        await StartWebServerAsync(DatabaseType.Sqlite);
+        await StartWebServerAsync(databaseType);
 
         var certificate = await _certificateService.CreateCertificateAsync(domain)
             .WaitAsync(TimeSpan.FromSeconds(30));
@@ -184,11 +182,15 @@ public class CertificateServiceTests
     // - The DNS records must be set up correctly in the DNS server
     // - Port 80 must be open and accessible for HTTP-01 challenges
     [Test, Explicit]
-    [TestCase("regression-test-apex-a.dominion.id")]
-    [TestCase("regression-test-apex-alias.dominion.id")]
-    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithSans(string domain)
+    [TestCase(DatabaseType.Sqlite, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseType.Sqlite, "regression-test-apex-alias.dominion.id")]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseType.Postgres, "regression-test-apex-alias.dominion.id")]
+#endif
+    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithSans(DatabaseType databaseType, string domain)
     {
-        await StartWebServerAsync(DatabaseType.Sqlite);
+        await StartWebServerAsync(databaseType);
 
         var sans = new[] { $"capi.{domain}", $"file.{domain}" };
         var certificate = await _certificateService.CreateCertificateAsync(domain, sans)
@@ -203,4 +205,56 @@ public class CertificateServiceTests
         Assert.That(sanList, Contains.Item($"file.{domain}"));
         Assert.That(sanList.Count, Is.EqualTo(3));
     }
+
+    // NOTE: for these tests to work:
+    // - The DNS records must be set up correctly in the DNS server
+    // - Port 80 must be open and accessible for HTTP-01 challenges
+    [Test, Explicit]
+    [TestCase(DatabaseType.Sqlite, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseType.Sqlite, "regression-test-apex-alias.dominion.id")]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseType.Postgres, "regression-test-apex-alias.dominion.id")]
+#endif
+    public async Task Renew_ShouldRenewCertAboutToExpire(DatabaseType databaseType, string domain)
+    {
+        await StartWebServerAsync(databaseType);
+
+        var oldX509 = X509Extensions.CreateSelfSignedEcDsaCertificate(
+            domain,
+            DateTimeOffset.Now - TimeSpan.FromDays(1),
+            DateTimeOffset.Now + TimeSpan.FromDays(1));
+        var (pemKey, pemCertificate) = oldX509.ExtractEcDsaPemData();
+
+        await _certificateService.PutCertificateAsync(
+            domain,
+            new KeysAndCertificates
+            {
+                PrivateKeyPem = pemKey, CertificatesPem = pemCertificate
+            });
+
+        var oldCertificate = await _certificateService.GetCertificateAsync(domain);
+        Assert.That(oldCertificate, Is.Not.Null);
+        Assert.That(oldCertificate!.Subject, Is.EqualTo($"CN={domain}"));
+
+        var sans = new[] { $"capi.{domain}", $"file.{domain}" };
+        var result = await _certificateService.RenewIfAboutToExpireAsync(domain, sans);
+            // .WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.That(result, Is.True);
+
+        var newCertificate = await _certificateService.GetCertificateAsync(domain);
+        Assert.That(newCertificate, Is.Not.Null);
+        Assert.That(newCertificate!.Subject, Is.EqualTo($"CN={domain}"));
+        Assert.That(newCertificate.NotAfter, Is.GreaterThanOrEqualTo(DateTime.Now + TimeSpan.FromDays(30)));
+    }
+
+    //
 }
+
+
+
+
+
+
+
+

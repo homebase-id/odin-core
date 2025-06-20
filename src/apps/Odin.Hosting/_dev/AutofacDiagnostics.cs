@@ -34,19 +34,19 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Dns.IDnsRestClient), "c363ae45"},
         {typeof(Odin.Services.Certificate.AcmeAccountConfig), "e6f1c919"},
         {typeof(Odin.Services.Configuration.OdinConfiguration), "6fba0459"},
-        {typeof(Odin.Services.Certificate.CertificateStore), "e6f1c919"},
         {typeof(Odin.Core.Logging.Hostname.StickyHostname), "3b8b6d5d"},
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationContext), "5a40f4fa"},
-        {typeof(Odin.Services.Certificate.CertificateServiceFactory), "8a3e1c27"},
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.FileReaderWriter), "d78f7501"},
-        {typeof(Odin.Services.Registry.IIdentityRegistry), "f13e00fd"},
+        {typeof(Odin.Services.Registry.IIdentityRegistry), "819dd1a0"},
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationUniqueIdGenerator), "e6f1c919"},
         {typeof(Odin.Core.Storage.ObjectStorage.IS3PayloadStorage), "0dddfbe1"},
+        {typeof(Odin.Services.Certificate.CertificateService), "69a1f6ca"},
+        {typeof(Odin.Services.Certificate.CertificateStore), "931df0d6"},
     };
 
     //

@@ -12,7 +12,7 @@ namespace Odin.Services.Background.BackgroundServices.System;
 public class UpdateCertificatesBackgroundService(
     ILogger<UpdateCertificatesBackgroundService> logger,
     OdinConfiguration odinConfig,
-    ICertificateServiceFactory certificateServiceFactory,
+    ICertificateService certificateService,
     IIdentityRegistry registry)
     : AbstractBackgroundService(logger)
 {
@@ -28,10 +28,14 @@ public class UpdateCertificatesBackgroundService(
             var identities = await registry.GetList();
             foreach (var identity in identities.Results)
             {
-                var tc = certificateServiceFactory.Create();
-                var task = tc.RenewIfAboutToExpireAsync(identity, stoppingToken);
+                var task = certificateService.RenewIfAboutToExpireAsync(
+                    identity.PrimaryDomainName,
+                    identity.GetSans(),
+                    stoppingToken);
                 tasks.Add(task);
             }
+
+            // SEB:TODO we should update system certificates as well, if they are about to expire
 
             await Task.WhenAll(tasks);
             tasks.Clear();

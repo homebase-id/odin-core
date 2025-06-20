@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
-using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Certificate;
@@ -24,7 +22,7 @@ public class CertificateService : ICertificateService
     private readonly ICertesAcme _certesAcme;
     private readonly IDnsLookupService _dnsLookupService;
     private readonly AcmeAccountConfig _accountConfig;
-    private readonly SystemDatabase _systemDatabase;
+    private readonly IServiceProvider _serviceProvider;
     private readonly string _accountKey;
 
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> DomainSemaphores = new();
@@ -35,14 +33,14 @@ public class CertificateService : ICertificateService
         ICertesAcme certesAcme,
         IDnsLookupService dnsLookupService,
         AcmeAccountConfig accountConfig,
-        SystemDatabase systemDatabase)
+        IServiceProvider serviceProvider)
     {
         _logger = logger;
         _certificateStore = certificateStore;
         _certesAcme = certesAcme;
         _dnsLookupService = dnsLookupService;
         _accountConfig = accountConfig;
-        _systemDatabase = systemDatabase;
+        _serviceProvider = serviceProvider;
 
         _accountKey = _certesAcme.IsProduction ?
             "acme-account-prod-pem" :
@@ -87,7 +85,7 @@ public class CertificateService : ICertificateService
                 _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
                 return x509;
             }
-            return await InternalCreateCertificate(domain, sans, cancellationToken);
+            return await InternalCreateCertificateAsync(domain, sans, cancellationToken);
         }
         finally
         {
@@ -98,9 +96,8 @@ public class CertificateService : ICertificateService
 
     //
 
-    public async Task<bool> RenewIfAboutToExpireAsync(IdentityRegistration idReg, CancellationToken cancellationToken = default)
+    public async Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default)
     {
-        var domain = idReg.PrimaryDomainName;
         var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
         await mutex.WaitAsync(cancellationToken);
         try
@@ -109,7 +106,7 @@ public class CertificateService : ICertificateService
             if (x509 == null || AboutToExpire(x509))
             {
                 _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
-                x509 = await InternalCreateCertificate(idReg.PrimaryDomainName, idReg.GetSans(), cancellationToken);
+                x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
                 if (x509 != null)
                 {
                     _logger.LogDebug("Completed background renew of {domain} certificate", domain);
@@ -131,7 +128,7 @@ public class CertificateService : ICertificateService
 
     //
 
-    private async Task<X509Certificate2?> InternalCreateCertificate(string domain, string[] sans, CancellationToken cancellationToken = default)
+    private async Task<X509Certificate2?> InternalCreateCertificateAsync(string domain, string[] sans, CancellationToken cancellationToken = default)
     {
         // Sanity
         if (domain.EndsWith(".dotyou.cloud"))
@@ -203,7 +200,10 @@ public class CertificateService : ICertificateService
 
     private async Task<AcmeAccount?> LoadAccountAsync()
     {
-        var settings = await _systemDatabase.Settings.GetAsync(_accountKey);
+        using var scope = _serviceProvider.CreateScope();
+        var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
+
+        var settings = await tableSettings.GetAsync(_accountKey);
         return settings == null || string.IsNullOrEmpty(settings.value)
             ? null
             : new AcmeAccount { AccounKeyPem = settings.value };
@@ -213,7 +213,10 @@ public class CertificateService : ICertificateService
 
     private async Task SaveAccountAsync(AcmeAccount account)
     {
-        await _systemDatabase.Settings.UpsertAsync(new SettingsRecord
+        using var scope = _serviceProvider.CreateScope();
+        var tableSettings = scope.ServiceProvider.GetRequiredService<TableSettings>();
+
+        await tableSettings.UpsertAsync(new SettingsRecord
         {
             key = _accountKey,
             value = account.AccounKeyPem,

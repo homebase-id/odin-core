@@ -42,7 +42,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie<IdentityRegistration> _trie;
-    private readonly ICertificateServiceFactory _certificateServiceFactory;
+    private readonly ICertificateService _certificateService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainerAccessor _tenantContainer;
@@ -53,7 +53,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
-        ICertificateServiceFactory certificateServiceFactory,
+        ICertificateService certificateService,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainerAccessor tenantContainer,
@@ -69,7 +69,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _logger = logger;
-        _certificateServiceFactory = certificateServiceFactory;
+        _certificateService = certificateService;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
         _tenantContainer = tenantContainer;
@@ -193,9 +193,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         else
         {
             //optionally, let an ssl certificate be provided 
-            //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            var tc = _certificateServiceFactory.Create();
-            await tc.PutCertificateAsync(
+            await _certificateService.PutCertificateAsync(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
                 {
@@ -600,8 +598,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var domain = idReg.PrimaryDomainName;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
 
-        var tc = _certificateServiceFactory.Create();
-        var x509 = await tc.GetCertificateAsync(domain);
+        var x509 = await _certificateService.GetCertificateAsync(domain);
 
         // SEB:NOTE
         // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the
@@ -676,10 +673,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task CacheCertificateAsync(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-        var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
-        var certificateService = certificateServiceFactory.Create();
-        var certificate = await certificateService.GetCertificateAsync(registration.PrimaryDomainName);
+        var certificate = await _certificateService.GetCertificateAsync(registration.PrimaryDomainName);
         if (certificate != null)
         {
             _logger.LogInformation("Certificate loaded for {domain}", registration.PrimaryDomainName);
