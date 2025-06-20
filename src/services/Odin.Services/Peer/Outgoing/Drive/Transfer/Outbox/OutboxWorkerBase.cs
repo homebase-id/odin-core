@@ -117,12 +117,15 @@ public abstract class OutboxWorkerBase(
         }
     }
 
-    protected async Task<(Stream metadataStream, StreamPart metadataStreamPart, List<Stream> payloadStreams, List<StreamPart> payloadStreamParts)> PackageFileStreamsAsync(
-        ServerFileHeader header,
-        bool includePayloads,
-        IOdinContext odinContext,
-        Guid? overrideGlobalTransitId = null
-    )
+    protected async Task<(Stream metadataStream,
+            StreamPart metadataStreamPart,
+            List<Stream> payloadStreams,
+            List<StreamPart> payloadStreamParts)>
+        PackageFileStreamsAsync(
+            ServerFileHeader header,
+            IOdinContext odinContext,
+            Guid? overrideGlobalTransitId = null,
+            DataSource datasourceOverride = null)
     {
         var sourceMetadata = header.FileMetadata;
 
@@ -148,6 +151,7 @@ public abstract class OutboxWorkerBase(
             VersionTag = sourceMetadata.VersionTag,
             Payloads = sourceMetadata.Payloads,
             FileState = sourceMetadata.FileState,
+            DataSource = datasourceOverride ?? sourceMetadata.DataSource
         };
 
         var json = OdinSystemSerializer.Serialize(redactedMetadata);
@@ -158,7 +162,8 @@ public abstract class OutboxWorkerBase(
         var payloadStreams = new List<Stream>();
         var payloadStreamParts = new List<StreamPart>();
 
-        if (includePayloads)
+        var shouldSendPayloads = !redactedMetadata.PayloadsAreRemote;
+        if (shouldSendPayloads)
         {
             foreach (var descriptor in redactedMetadata.Payloads ?? new List<PayloadDescriptor>())
             {
@@ -178,19 +183,18 @@ public abstract class OutboxWorkerBase(
 
                 foreach (var thumb in descriptor.Thumbnails ?? new List<ThumbnailDescriptor>())
                 {
-                    var (thumbStream, thumbHeader) =
-                        await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth, thumb.PixelHeight, descriptor.Key,
-                            descriptor.Uid,
-                            odinContext);
+                    var (thumbStream, thumbHeader) = await fileSystem.Storage.GetThumbnailPayloadStreamAsync(file, thumb.PixelWidth,
+                        thumb.PixelHeight, descriptor.Key,
+                        descriptor.Uid,
+                        odinContext);
 
                     payloadStreams.Add(thumbStream);
 
-                    var thumbnailKey =
-                        $"{payloadKey}" +
-                        $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelWidth}" +
-                        $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
-                        $"{thumb.PixelHeight}";
+                    var thumbnailKey = $"{payloadKey}" +
+                                       $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
+                                       $"{thumb.PixelWidth}" +
+                                       $"{TenantPathManager.TransitThumbnailKeyDelimiter}" +
+                                       $"{thumb.PixelHeight}";
 
                     payloadStreamParts.Add(new StreamPart(thumbStream, thumbnailKey, thumbHeader.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Services.Peer.Outgoing.Drive
 {
@@ -31,7 +32,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
         /// <summary>
         /// Specifies which parts of the file to send
         /// </summary>
-        public SendContents SendContents { get; set; } = SendContents.All;
+        public SendContents SendContents { get; set; }
 
         /// <summary>
         /// If set, the target drive will be this one instead of that from the file

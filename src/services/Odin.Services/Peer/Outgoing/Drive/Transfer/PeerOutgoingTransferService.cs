@@ -16,7 +16,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
@@ -49,7 +49,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// </summary>
         /// <returns></returns>
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, IOdinContext odinContext)
+            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
+            IOdinContext odinContext,
+            DataSource overrideDataSource = null)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
 
@@ -69,7 +71,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 _ => 3000
             };
 
-            var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sfo, odinContext, priority);
+            var (outboxStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sfo, odinContext, priority,
+                overrideDataSource);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -97,7 +100,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             FileSystemType fileSystemType,
             AppNotificationOptions notificationOptions,
             UpdateLocale updateLocale,
-            IOdinContext odinContext)
+            IOdinContext odinContext,
+            DataSource overrideDataSource = null)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitWrite);
             OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true, tenant: tenantContext.HostOdinId);
@@ -122,7 +126,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 priority,
                 fileSystemType,
                 updateLocale,
-                odinContext);
+                odinContext,
+                overrideDataSource);
 
             //TODO: change this to a batch update of the transfer history
             foreach (var item in outboxItems)
@@ -369,7 +374,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     Data = OdinSystemSerializer.Serialize(request).ToUtf8ByteArray()
                 }
             };
-            
+
             await peerOutbox.AddItemAsync(outboxItem, useUpsert: true);
 
             logger.LogDebug("Enqueued Read-receipt for GTID: {g}", header.FileMetadata.GlobalTransitId);
@@ -442,7 +447,6 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 TargetDrive = targetDrive,
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType,
-                ContentsProvided = transitOptions.SendContents,
                 SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             };
         }
@@ -452,7 +456,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             TransitOptions options,
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
-            int priority)
+            int priority, 
+            DataSource overrideDataSource)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             TargetDrive targetDrive = options.RemoteTargetDrive ??
@@ -505,7 +510,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 fileTransferOptions.TransferFileType,
                                 fileTransferOptions.FileSystemType,
                                 options),
-                            Data = []
+                            Data = [],
+                            DataSourceOverride = overrideDataSource
                         }
                     });
 
@@ -522,15 +528,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxFileItem> outboxItems)>
-            CreateUpdateOutboxItemsAsync(
-                InternalDriveFileId sourceFile,
+            CreateUpdateOutboxItemsAsync(InternalDriveFileId sourceFile,
                 KeyHeader keyHeader,
                 UpdateRemoteFileRequest request,
                 List<OdinId> recipients,
                 int priority,
                 FileSystemType fileSystemType,
                 UpdateLocale updateLocale,
-                IOdinContext odinContext)
+                IOdinContext odinContext, DataSource overrideDataSource)
         {
             var status = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxFileItem>();
@@ -569,7 +574,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                                 FileSystemType = fileSystemType
                             },
                             OriginalTransitOptions = null,
-
+                            DataSourceOverride = overrideDataSource,
                             Data = OdinSystemSerializer.Serialize(updateInstructionSet).ToUtf8ByteArray()
                         }
                     });

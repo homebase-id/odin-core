@@ -10,11 +10,6 @@ namespace Odin.Services.Apps;
 
 public class ClientFileMetadata
 {
-    public ClientFileMetadata()
-    {
-        this.AppData = new AppFileMetaData();
-    }
-
     public Guid? GlobalTransitId { get; set; }
 
     public UnixTimeUtc Created { get; set; }
@@ -43,7 +38,7 @@ public class ClientFileMetadata
     /// </summary>
     public OdinId? OriginalAuthor { get; set; }
 
-    public AppFileMetaData AppData { get; set; }
+    public AppFileMetaData AppData { get; set; } = new();
 
     public LocalAppMetadata LocalAppData { get; set; } = new();
 
@@ -55,6 +50,7 @@ public class ClientFileMetadata
 
     public List<PayloadDescriptor> Payloads { get; set; }
 
+    public DataSource DataSource { get; set; }
 
     public PayloadDescriptor GetPayloadDescriptor(string key)
     {

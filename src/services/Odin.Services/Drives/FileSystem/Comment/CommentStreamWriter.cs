@@ -51,6 +51,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 OdinClientErrorCode.InvalidReferenceFile);
         }
 
+        uploadDescriptor.FileMetadata.DataSource?.Validate();
+        
         return Task.CompletedTask;
     }
 
@@ -68,7 +70,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false, odinContext);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false,
+            odinContext);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
@@ -107,7 +110,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         throw new OdinSystemException("Unhandled Storage Intent");
     }
 
-    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package, IOdinContext odinContext)
+    protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(FileUploadPackage package,
+        IOdinContext odinContext)
     {
         return await ProcessTransitBasic(package, FileSystemType.Comment, odinContext);
     }
@@ -115,6 +119,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package,
         UploadFileDescriptor uploadDescriptor, IOdinContext odinContext)
     {
+        var dataSource = uploadDescriptor.FileMetadata.DataSource;
+
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
@@ -143,8 +149,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
 
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-
-            Payloads = package.GetFinalPayloadDescriptors()
+            DataSource = dataSource,
+            Payloads = package.GetFinalPayloadDescriptors(fromManifest: dataSource?.PayloadsAreRemote ?? false)
         };
 
         return Task.FromResult(metadata);

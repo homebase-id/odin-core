@@ -264,12 +264,9 @@ namespace Odin.Hosting.Tests
                 // {
                 //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
                 // }
-                
-                Parallel.ForEach(TestIdentities.All.Keys, odinId =>
-                {
-                    _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
-                });
 
+                Parallel.ForEach(TestIdentities.All.Keys,
+                    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);
@@ -377,7 +374,7 @@ namespace Odin.Hosting.Tests
         {
             var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
             ClassicAssert.IsNotNull(problemDetails);
-            return (OdinClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
+            return Enum.Parse<OdinClientErrorCode>(problemDetails.Extensions["errorCode"].ToString()!, true);
         }
 
         private void CreateData()
@@ -499,7 +496,7 @@ namespace Odin.Hosting.Tests
                 logEvents.AddRange(events);
             }
 
-            logEvents.Sort((a,b) => a.Timestamp < b.Timestamp ? -1 : 1);
+            logEvents.Sort((a, b) => a.Timestamp < b.Timestamp ? -1 : 1);
             foreach (var logEvent in logEvents)
             {
                 Console.WriteLine($"{logEvent.Timestamp.ToUnixTimeMilliseconds()} {logEvent.RenderMessage()}");
