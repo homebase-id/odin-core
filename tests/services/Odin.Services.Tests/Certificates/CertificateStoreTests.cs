@@ -6,6 +6,7 @@ using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
@@ -75,6 +76,8 @@ public class CertificateStoreTests
         cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
         cb.AddDatabaseCacheServices();
         cb.AddDatabaseCounterServices();
+        cb.RegisterModule(new LoggingAutofacModule());
+
 
         switch (databaseType)
         {
