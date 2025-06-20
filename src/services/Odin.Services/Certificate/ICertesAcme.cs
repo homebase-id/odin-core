@@ -24,8 +24,8 @@ public class KeysAndCertificates
 public interface ICertesAcme
 {
     bool IsProduction { get; }
-    Task<AcmeAccount> CreateAccount(string contactEmail, CancellationToken cancellationToken = default);
-    Task<KeysAndCertificates> CreateCertificate(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken = default);
+    Task<AcmeAccount> CreateAccountAsync(string contactEmail, CancellationToken cancellationToken = default);
+    Task<KeysAndCertificates> CreateCertificateAsync(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken = default);
 }
 
 //

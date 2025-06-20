@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -46,18 +48,70 @@ public static class X509Extensions
 
     public static X509Certificate2 CreateSelfSignedEcDsaCertificate(string domain)
     {
+        var notBefore = DateTimeOffset.UtcNow.AddYears(-10);
+        var notAfter = DateTimeOffset.UtcNow.AddYears(10);
+        return CreateSelfSignedEcDsaCertificate(domain, notBefore, notAfter);
+    }
+
+    //
+
+    public static X509Certificate2 CreateSelfSignedEcDsaCertificate(string domain, DateTimeOffset notBefore, DateTimeOffset notAfter)
+    {
         var subject = new X500DistinguishedName($"CN={domain}");
 
         // Create ECDsa key for the certificate
-        using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256); // Or use another curve like nistP384 or nistP521
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var request = new CertificateRequest(subject, ecdsa, HashAlgorithmName.SHA256);
-
-        // Set certificate validity period
-        var notBefore = DateTimeOffset.UtcNow.AddYears(-10);
-        var notAfter = DateTimeOffset.UtcNow.AddYears(10);
 
         // Create self-signed certificate
         return request.CreateSelfSigned(notBefore, notAfter);
+    }
+
+    //
+
+    public static List<string> GetSubjectAlternativeNames(this X509Certificate2 cert)
+    {
+        var result = new List<string>();
+
+        foreach (var ext in cert.Extensions)
+        {
+            if (ext.Oid?.Value == "2.5.29.17") // Subject Alternative Name
+            {
+                // Decode asn encoded SAN extension
+                var asnReader = new AsnReader(ext.RawData, AsnEncodingRules.DER);
+                var seq = asnReader.ReadSequence();
+                while (seq.HasData)
+                {
+                    var rawTag = seq.PeekTag();
+                    // DNS Name tag is [2] (context-specific, primitive)
+                    if (rawTag.TagClass == TagClass.ContextSpecific && rawTag.TagValue == 2)
+                        result.Add(seq.ReadCharacterString(UniversalTagNumber.IA5String, rawTag));
+                    else
+                        seq.ReadEncodedValue();
+                }
+            }
+        }
+
+        return result;
+    }
+
+    //
+
+    public static (string privateKey, string certificate) ExtractEcDsaPemData(this X509Certificate2 cert)
+    {
+        var privateKeyPem = "";
+        var certPem = cert.ExportCertificatePem();
+
+        if (cert.HasPrivateKey)
+        {
+            using var ecdsa = cert.GetECDsaPrivateKey();
+            if (ecdsa != null)
+            {
+                privateKeyPem = ecdsa.ExportECPrivateKeyPem();
+            }
+        }
+
+        return (privateKeyPem, certPem);
     }
 
     //
