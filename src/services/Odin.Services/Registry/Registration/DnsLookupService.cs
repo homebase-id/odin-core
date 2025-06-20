@@ -360,8 +360,8 @@ public class DnsLookupService : IDnsLookupService
         {
             return DnsLookupRecordStatus.MultipleRecordsNotSupported;
         }
-        var record = records.First();
-        if (record != expectedValue && record != expectedAltValue)
+        var record = records.First().ToLower();
+        if (record != expectedValue.ToLower() && record != expectedAltValue.ToLower())
         {
             return DnsLookupRecordStatus.IncorrectValue;
         }
