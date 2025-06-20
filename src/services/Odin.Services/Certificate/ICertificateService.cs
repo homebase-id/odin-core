@@ -35,7 +35,7 @@ public interface ICertificateService
     /// <summary>
     /// Renew certificate for domain if about to expire
     /// </summary>
-    Task<bool> RenewIfAboutToExpireAsync(IdentityRegistration idReg, CancellationToken cancellationToken = default);
+    Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default);
 }
 
 public class AcmeAccountConfig

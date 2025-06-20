@@ -48,15 +48,20 @@ public static class X509Extensions
 
     public static X509Certificate2 CreateSelfSignedEcDsaCertificate(string domain)
     {
+        var notBefore = DateTimeOffset.UtcNow.AddYears(-10);
+        var notAfter = DateTimeOffset.UtcNow.AddYears(10);
+        return CreateSelfSignedEcDsaCertificate(domain, notBefore, notAfter);
+    }
+
+    //
+
+    public static X509Certificate2 CreateSelfSignedEcDsaCertificate(string domain, DateTimeOffset notBefore, DateTimeOffset notAfter)
+    {
         var subject = new X500DistinguishedName($"CN={domain}");
 
         // Create ECDsa key for the certificate
-        using ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256); // Or use another curve like nistP384 or nistP521
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var request = new CertificateRequest(subject, ecdsa, HashAlgorithmName.SHA256);
-
-        // Set certificate validity period
-        var notBefore = DateTimeOffset.UtcNow.AddYears(-10);
-        var notAfter = DateTimeOffset.UtcNow.AddYears(10);
 
         // Create self-signed certificate
         return request.CreateSelfSigned(notBefore, notAfter);
@@ -89,5 +94,26 @@ public static class X509Extensions
 
         return result;
     }
+
+    //
+
+    public static (string privateKey, string certificate) ExtractEcDsaPemData(this X509Certificate2 cert)
+    {
+        var privateKeyPem = "";
+        var certPem = cert.ExportCertificatePem();
+
+        if (cert.HasPrivateKey)
+        {
+            using var ecdsa = cert.GetECDsaPrivateKey();
+            if (ecdsa != null)
+            {
+                privateKeyPem = ecdsa.ExportECPrivateKeyPem();
+            }
+        }
+
+        return (privateKeyPem, certPem);
+    }
+
+    //
 
 }

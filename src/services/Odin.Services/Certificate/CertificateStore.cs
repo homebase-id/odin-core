@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Nito.AsyncEx;
+using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.System.Table;
@@ -13,7 +13,6 @@ using Odin.Core.Time;
 namespace Odin.Services.Certificate;
 #nullable enable
 
-// SEB:NOTE no async here to minimize overhead in happy path
 // SEB:NOTE we accept interleaving threads in here. The end result is always the same.
 
 public interface ICertificateStore
@@ -24,51 +23,69 @@ public interface ICertificateStore
 
 //
 
-public class CertificateStore(TableCertificates tableCertificates) : ICertificateStore
+public class CertificateStore(IServiceProvider serviceProvider) : ICertificateStore
 {
-    private readonly AsyncReaderWriterLock _lock = new();
-    private readonly Dictionary<string, X509Certificate2?> _cache = new ();
+    private readonly ConcurrentDictionary<string, X509Certificate2> _cache = new ();
 
     //
 
     public async Task<X509Certificate2?> GetCertificateAsync(string domain)
     {
-        using (_lock.ReaderLock())
+        var x509 = LookupValidCertificate(domain);
+        if (x509 != null)
         {
-            var x509 = LookupValidCertificate(domain);
-            if (x509 != null)
-            {
-                return x509;
-            }
-        }
-
-        using (await _lock.WriterLockAsync())
-        {
-            // Double check after acquiring the write lock
-            var x509 = LookupValidCertificate(domain);
-            if (x509 != null)
-            {
-                return x509;
-            }
-
-            x509 = await LoadValidCertificateAsync(domain);
-            if (x509 != null)
-            {
-                _cache[domain]  = x509;
-            }
-            else
-            {
-                _cache.Remove(domain);
-            }
-
             return x509;
         }
+
+        x509 = await LoadValidCertificateAsync(domain);
+        return x509;
+    }
+
+    //
+
+    private X509Certificate2? LookupValidCertificate(string domain)
+    {
+        _cache.TryGetValue(domain, out var x509);
+        return IsValid(x509) ? x509 : null;
+    }
+    
+    //
+
+    private async Task<X509Certificate2?> LoadValidCertificateAsync(string domain)
+    {
+        var odinId = new OdinId(domain);
+
+        using var scope = serviceProvider.CreateScope();
+        var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
+
+        var record = await tableCertificates.GetAsync(odinId);
+        if (record?.privateKey == null || record?.certificate == null)
+        {
+            return null;
+        }
+
+        var x509 = X509FromPem(domain, record.privateKey, record.certificate);
+        if (IsValid(x509))
+        {
+            _cache[domain] = x509;
+            return x509;
+        }
+
+        return null;
     }
 
     //
 
     public async Task<X509Certificate2> PutCertificateAsync(string domain, string keyPem, string certificatePem)
     {
+        var x509 = X509FromPem(domain, keyPem, certificatePem);
+        if (!IsValid(x509))
+        {
+            throw new OdinSystemException($"Certificate for {domain} is not valid. Did it expire?");
+        }
+
+        _cache[domain] = x509;
+
         var odinId = new OdinId(domain);
         var record = new CertificatesRecord
         {
@@ -82,39 +99,18 @@ public class CertificateStore(TableCertificates tableCertificates) : ICertificat
             lastError = null
         };
 
+        using var scope = serviceProvider.CreateScope();
+        var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
         await tableCertificates.UpsertAsync(record);
-        var x509 = await GetCertificateAsync(domain); // Another round trip to ensure the cache is correctly updated
 
-        if (x509 != null)
-        {
-            return x509;
-        }
-
-        // Sanity - this should never happen
-        throw new OdinSystemException(
-            $"Certificate for {domain} saved to database, but failed to load it or id expired. This makes no sense!");
+        return x509;
     }
 
     //
-    
-    private X509Certificate2? LookupValidCertificate(string domain)
-    {
-        _cache.TryGetValue(domain, out var x509);
-        return IsValid(x509) ? x509 : null;
-    }
-    
-    //
 
-    private async Task<X509Certificate2?> LoadValidCertificateAsync(string domain)
+    private static X509Certificate2 X509FromPem(string domain, string keyPem, string certificatePem)
     {
-        var odinId = new OdinId(domain);
-        var record = await tableCertificates.GetAsync(odinId);
-        if (record?.privateKey == null || record?.certificate == null)
-        {
-            return null;
-        }
-
-        var x509 = X509Certificate2.CreateFromPem(record.privateKey, record.certificate);
+        var x509 = X509Certificate2.CreateFromPem(certificatePem, keyPem);
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             // SEB:NOTE 29-Dec-2024 this is still required on Windows. WTH Microsoft??
@@ -127,7 +123,7 @@ public class CertificateStore(TableCertificates tableCertificates) : ICertificat
         // Sanity check certificate
         ThrowIfBadCertificate(domain, x509);
 
-        return IsValid(x509) ? x509 : null;
+        return x509;
     }
 
     //

@@ -318,8 +318,7 @@ namespace Odin.Hosting
                 return (null, false);
             }
 
-            var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
-            var certificateService = certificateServiceFactory.Create();
+            var certificateService = serviceProvider.GetRequiredService<ICertificateService>();
 
             // 
             // Tenant or system found, lookup certificate
