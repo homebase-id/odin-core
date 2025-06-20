@@ -30,7 +30,7 @@ public class FeedWriter(
         var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
         await _fileSystem.Storage.AssertCanWriteToDrive(feedDriveId, odinContext);
      
-        if (fileMetadata.RemotePayloadInfo == null)
+        if (fileMetadata.DataSource == null)
         {
             throw new OdinClientException("RemotePayloadInfo is required");
         }

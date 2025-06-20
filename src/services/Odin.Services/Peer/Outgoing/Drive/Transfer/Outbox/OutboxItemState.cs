@@ -34,7 +34,7 @@ public class OutboxItemState
 
     public byte[] Data { get; set; }
     
-    public RemotePayloadInfo RemotePayloadInfoOverride { get; set; }
+    public DataSource DataSourceOverride { get; set; }
 
     public T DeserializeData<T>()
     {

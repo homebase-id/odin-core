@@ -42,6 +42,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             throw new OdinClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} cannot be used with standard file types",
                 OdinClientErrorCode.CannotUseReferencedFileOnStandardFiles);
         }
+        
+        uploadDescriptor.FileMetadata.DataSource?.Validate();
 
         return Task.CompletedTask;
     }
@@ -103,7 +105,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     protected override Task<FileMetadata> MapUploadToMetadata(FileUploadPackage package, UploadFileDescriptor uploadDescriptor,
         IOdinContext odinContext)
     {
-        var remotePayloadSource = uploadDescriptor.FileMetadata.RemotePayloadInfo;
+        var dataSource = uploadDescriptor.FileMetadata.DataSource;
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
@@ -130,9 +132,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
             OriginalAuthor = odinContext.GetCallerOdinIdOrFail(),
             VersionTag = uploadDescriptor.FileMetadata.VersionTag,
-            RemotePayloadInfo = remotePayloadSource,
+            DataSource = dataSource,
 
-            Payloads = package.GetFinalPayloadDescriptors(fromManifest: remotePayloadSource?.IsValid() ?? false)
+            Payloads = package.GetFinalPayloadDescriptors(fromManifest: dataSource?.PayloadsAreRemote ?? false)
         };
 
         return Task.FromResult(metadata);

@@ -51,8 +51,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 }),
                 hdrFileMetaData = OdinSystemSerializer.Serialize(new FileMetadataDto()
                 {
-                    IsEncrypted = true, OriginalAuthor = new OdinId("frodo.baggins.me"), Payloads = null, ReferencedFile = null,
-                    TransitCreated = new UnixTimeUtc(7), TransitUpdated = new UnixTimeUtc(0)
+                    IsEncrypted = true, 
+                    OriginalAuthor = new OdinId("frodo.baggins.me"), 
+                    Payloads = null,
+                    ReferencedFile = null,
+                    TransitCreated = new UnixTimeUtc(7),
+                    TransitUpdated = new UnixTimeUtc(0),
+                    DataSource = new DataSource
+                    {
+                        Identity = (OdinId)"frodo.baggins.me",
+                        DriveId = Guid.Parse("5244533c-89f1-41d2-ac11-bae19e3aacc5"),
+                        PayloadsAreRemote = true
+                    }
                 }),
                 hdrLocalAppData = OdinSystemSerializer.Serialize(new LocalAppMetadata() { Content = "hello", VersionTag = localTag }),
                 hdrLocalVersionTag = localTag,
@@ -168,10 +178,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 LocalAppData = new LocalAppMetadata() { Content = "hello", VersionTag = localTag },
                 ReactionPreview = new ReactionSummary() { TotalCommentCount = 69 },
                 VersionTag = Guid.NewGuid(),
-                RemotePayloadInfo = new RemotePayloadInfo()
+                DataSource = new DataSource()
                 {
                     Identity = (OdinId)"user.domain.com",
-                    DriveId = targetDrive.Alias
+                    DriveId = targetDrive.Alias,
+                    PayloadsAreRemote = true 
                 },
                 Created = new UnixTimeUtc(9),
                 Updated = new UnixTimeUtc(22),
@@ -240,8 +251,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.FileMetadata.IsEncrypted == hdr.FileMetadata.IsEncrypted);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitCreated == hdr.FileMetadata.TransitCreated);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitUpdated == hdr.FileMetadata.TransitUpdated);
-            ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.Identity == hdr.FileMetadata.RemotePayloadInfo.Identity);
-            ClassicAssert.IsTrue(sfh.FileMetadata.RemotePayloadInfo.DriveId == hdr.FileMetadata.RemotePayloadInfo.DriveId);
+            ClassicAssert.IsTrue(sfh.FileMetadata.DataSource.Identity == hdr.FileMetadata.DataSource.Identity);
+            ClassicAssert.IsTrue(sfh.FileMetadata.DataSource.DriveId == hdr.FileMetadata.DataSource.DriveId);
+            ClassicAssert.IsTrue(sfh.FileMetadata.DataSource.PayloadsAreRemote == hdr.FileMetadata.DataSource.PayloadsAreRemote);
 
             ClassicAssert.AreEqual(sfh.FileMetadata.Payloads, hdr.FileMetadata.Payloads);
             ClassicAssert.AreEqual(sfh.FileMetadata.ReferencedFile, hdr.FileMetadata.ReferencedFile);

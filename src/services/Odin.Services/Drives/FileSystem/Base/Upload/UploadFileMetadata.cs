@@ -1,4 +1,5 @@
 ﻿using System;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -32,6 +33,6 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// <summary>
         /// Specifies the identity that holds the payload content
         /// </summary>
-        public RemotePayloadInfo RemotePayloadInfo { get; set; }
+        public DataSource DataSource { get; set; }
     }
 }

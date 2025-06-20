@@ -125,7 +125,8 @@ public class UpdateRemoteFileOutboxWorker(
 
                 (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = await PackageFileStreamsAsync(
                     header,
-                    odinContext);
+                    odinContext,
+                    datasourceOverride: FileItem.State.DataSourceOverride);
 
                 var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
                     recipient, clientAuthToken);

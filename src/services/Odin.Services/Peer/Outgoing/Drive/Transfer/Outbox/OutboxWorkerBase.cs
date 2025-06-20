@@ -125,7 +125,7 @@ public abstract class OutboxWorkerBase(
             ServerFileHeader header,
             IOdinContext odinContext,
             Guid? overrideGlobalTransitId = null,
-            RemotePayloadInfo overrideRemotePayloadInfo = null)
+            DataSource datasourceOverride = null)
     {
         var sourceMetadata = header.FileMetadata;
 
@@ -151,7 +151,7 @@ public abstract class OutboxWorkerBase(
             VersionTag = sourceMetadata.VersionTag,
             Payloads = sourceMetadata.Payloads,
             FileState = sourceMetadata.FileState,
-            RemotePayloadInfo = overrideRemotePayloadInfo ?? sourceMetadata.RemotePayloadInfo
+            DataSource = datasourceOverride ?? sourceMetadata.DataSource
         };
 
         var json = OdinSystemSerializer.Serialize(redactedMetadata);

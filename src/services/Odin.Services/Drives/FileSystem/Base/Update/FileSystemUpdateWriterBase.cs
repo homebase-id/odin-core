@@ -32,7 +32,7 @@ public abstract class FileSystemUpdateWriterBase
     private readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
     private readonly ILogger _logger;
-    
+
     /// <summary />
     protected FileSystemUpdateWriterBase(IDriveFileSystem fileSystem, IDriveManager driveManager,
         PeerOutgoingTransferService peerOutgoingTransferService,
@@ -310,7 +310,8 @@ public abstract class FileSystemUpdateWriterBase
         };
 
         // TODO what if success is false?
-        var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(package.InternalFile.AsTempFileUpload(), package.InternalFile, manifest, odinContext, null);
+        var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(package.InternalFile.AsTempFileUpload(), package.InternalFile,
+            manifest, odinContext, null);
 
         if (success == false)
             throw new OdinClientException("No, I couldn't do it, success is false");
@@ -372,7 +373,8 @@ public abstract class FileSystemUpdateWriterBase
                 package.FileSystemType,
                 package.InstructionSet.UseAppNotification ? package.InstructionSet.AppNotificationOptions : null,
                 package.InstructionSet.Locale,
-                odinContext);
+                odinContext,
+                overrideDataSource: null);
         }
 
         return recipientStatus;
@@ -448,7 +450,9 @@ public abstract class FileSystemUpdateWriterBase
             if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false ||
                 ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
             {
-                throw new OdinClientException($"The encryption key is too simple: IV [{Utilities.BytesToHexString(keyHeader.Iv)}], the AesKey is {keyHeader.AesKey.GetKey().Length} long.", code: OdinClientErrorCode.InvalidKeyHeader);
+                throw new OdinClientException(
+                    $"The encryption key is too simple: IV [{Utilities.BytesToHexString(keyHeader.Iv)}], the AesKey is {keyHeader.AesKey.GetKey().Length} long.",
+                    code: OdinClientErrorCode.InvalidKeyHeader);
             }
         }
 
@@ -460,8 +464,8 @@ public abstract class FileSystemUpdateWriterBase
         if (Package?.Payloads?.Any() ?? false)
         {
             await FileSystem.Storage.CleanupUploadTemporaryFiles(
-                Package.InternalFile.AsTempFileUpload(), 
-                Package.GetFinalPayloadDescriptors(), 
+                Package.InternalFile.AsTempFileUpload(),
+                Package.GetFinalPayloadDescriptors(),
                 odinContext);
         }
     }
