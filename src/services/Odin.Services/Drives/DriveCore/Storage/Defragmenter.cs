@@ -130,6 +130,27 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
+        private void SafeDeleteDirectory(string directory, Guid driveId)
+        {
+            // Normalize path and count directories
+            string normalizedPath = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
+            int depth = normalizedPath.Split(Path.DirectorySeparatorChar).Length;
+
+            // Check if path is at least 3 subdirectories deep
+            if (depth < 3)
+                throw new InvalidOperationException("Directory path is too shallow (less than 3 subdirectories).");
+
+            string driveName = TenantPathManager.GetPayloadDirectoryFromGuid(driveId);
+
+            // Let's make sure that /drives/{driveName} is part of the string
+            string expectedPathSegment = $"{Path.DirectorySeparatorChar}drives{Path.DirectorySeparatorChar}{driveName}{Path.DirectorySeparatorChar}";
+            if (!normalizedPath.Contains(expectedPathSegment, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Directory path does not contain expected segment '/drives/{driveName}'");
+
+            Directory.Delete(directory, recursive: true);
+        }
+
+
         private async Task VerifyDriveDirectories(string rootpath, string logPrefix, bool cleanup)
         {
             var folders = Directory.GetDirectories(rootpath, "*", SearchOption.TopDirectoryOnly);
@@ -163,7 +184,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 logger.LogDebug($"{logPrefix} DELETE - folder not in the Drives table - deleting if in cleanup {folderName}");
 
                 if (cleanup)
-                    Directory.Delete(folder, recursive: true);
+                    SafeDeleteDirectory(folder, folderId);
             }
 
             /*
