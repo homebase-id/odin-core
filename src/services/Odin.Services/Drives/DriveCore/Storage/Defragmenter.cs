@@ -143,9 +143,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string driveName = TenantPathManager.GuidToPathSafeString(driveId);
 
             // Let's make sure that /drives/{driveName} is part of the string
-            string expectedPathSegment = $"{Path.DirectorySeparatorChar}drives{Path.DirectorySeparatorChar}{driveName}{Path.DirectorySeparatorChar}";
+            string expectedPathSegment = $"{Path.DirectorySeparatorChar}drives{Path.DirectorySeparatorChar}{driveName}";
             if (!normalizedPath.Contains(expectedPathSegment, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"Directory path '{normalizedPath}' does not contain expected segment '/drives/{driveName}'");
+                throw new InvalidOperationException($"Directory path '{normalizedPath}' does not contain expected segment '{expectedPathSegment}'");
 
             if (cleanup)
                 Directory.Delete(directory, recursive: true);
