@@ -61,7 +61,7 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
@@ -85,7 +85,6 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
         // Setup - upload a new file with payloads 
         // 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
-        uploadedFileMetadata.AccessControlList = AccessControlList.Authenticated;
         uploadedFileMetadata.AppData.Content = "some new content here...";
 
         var keyHeader = KeyHeader.NewRandom16();
@@ -179,7 +178,6 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
         // 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "some new content here...";
-        uploadedFileMetadata.AccessControlList = AccessControlList.Authenticated;
         var payloadThatWillBeDeleted = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         payloadThatWillBeDeleted.Iv = ByteArrayUtil.GetRndByteArray(16);
         var uploadManifest = new UploadManifest()

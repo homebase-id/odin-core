@@ -69,9 +69,9 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         };
     }
 
-    public static IEnumerable GuestAllowed()
+    public static IEnumerable GuestHasWriteAccess()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
@@ -274,7 +274,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(GuestHasWriteAccess))]
     [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task
         CanUpdateBatchAndDistributeToRecipientsWhenTargetFileDoesNotExistOnRemoteServer_SomeRecipientsHaveFile_SomeDoNotHaveFile_Encrypted(
@@ -299,7 +299,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
         var keyHeader = KeyHeader.NewRandom16();
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Authenticated);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
         uploadedFileMetadata.AllowDistribution = true;
         const string originalUploadedContent = "some content here..";
         uploadedFileMetadata.AppData.Content = originalUploadedContent;
@@ -474,7 +474,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(GuestHasWriteAccess))]
     [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1ThumbnailsWhenTargetFileDoesNotExistOnRemoteServer_Encrypted(
         IApiClientContext callerContext,

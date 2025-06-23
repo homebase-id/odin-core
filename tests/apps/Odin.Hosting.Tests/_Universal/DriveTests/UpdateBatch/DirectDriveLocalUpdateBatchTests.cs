@@ -60,12 +60,12 @@ public class DirectDriveLocalUpdateBatchTests
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
     {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     [Test]

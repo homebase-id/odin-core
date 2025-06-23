@@ -72,7 +72,7 @@ public class UpdateBatchWithRecipientsTests
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
