@@ -206,16 +206,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             var rootpath = _tenantPathManager.TempDrivesPath;
 
-            await VerifyDriveDirectories(rootpath, "TEMP-DRIVES", cleanup);
+            if (Directory.Exists(rootpath))
+            {
+                await VerifyDriveDirectories(rootpath, "TEMP-DRIVES", cleanup);
+            }
         }
 
         public async Task VerifyDriveDirectoriesPayloads(bool cleanup)
         {
             var rootpath = _tenantPathManager.PayloadsDrivesPath;
 
-            await VerifyDriveDirectories(rootpath, "PAYLOADS-DRIVES", cleanup);
+            if (Directory.Exists(rootpath))
+            {
+                await VerifyDriveDirectories(rootpath, "PAYLOADS-DRIVES", cleanup);
+            }
         }
-
 
         public async Task VerifyPayloadsFilesInDiskFolder(Guid driveId, bool cleanup)
         {
