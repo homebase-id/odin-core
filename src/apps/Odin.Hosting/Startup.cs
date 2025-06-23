@@ -103,6 +103,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
+        services.AddSingleton<ISystemDomains, SystemDomains>();
 
         services.AddControllers()
             .AddJsonOptions(options =>

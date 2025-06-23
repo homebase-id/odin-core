@@ -35,6 +35,11 @@ public interface ICertificateService
     /// <summary>
     /// Renew certificate for domain if about to expire
     /// </summary>
+    Task<bool> RenewIfAboutToExpireAsync(string domain, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Renew certificate for domain with sans (Subject Alternative Names) if about to expire
+    /// </summary>
     Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default);
 }
 

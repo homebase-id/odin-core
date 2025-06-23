@@ -299,7 +299,7 @@ namespace Odin.Hosting
             //
             // Not a tenant, is hostName a known system (e.g. provisioning)? 
             //
-            else if (IsKnownSystemDomain(hostName, config))
+            else if (serviceProvider.GetRequiredService<ISystemDomains>().IsKnownSystemDomain(hostName))
             {
                 domain = hostName;
             }
@@ -351,23 +351,6 @@ namespace Odin.Hosting
             }
 
             return (certificate, requireClientCertificate);
-        }
-
-        //
-
-        private static bool IsKnownSystemDomain(string hostName, OdinConfiguration config)
-        {
-            if (config.Registry.ProvisioningEnabled && hostName == config.Registry.ProvisioningDomain)
-            {
-                return true;
-            }
-
-            if (config.Admin.ApiEnabled && hostName == config.Admin.Domain)
-            {
-                return true;
-            }
-
-            return false;
         }
 
         //

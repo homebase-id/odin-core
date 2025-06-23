@@ -95,6 +95,13 @@ public class CertificateService : ICertificateService
 
     //
 
+    public Task<bool> RenewIfAboutToExpireAsync(string domain, CancellationToken cancellationToken = default)
+    {
+        return RenewIfAboutToExpireAsync(domain, [], cancellationToken);
+    }
+
+    //
+
     public async Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default)
     {
         var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
