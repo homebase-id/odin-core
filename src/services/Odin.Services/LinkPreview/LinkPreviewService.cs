@@ -27,7 +27,6 @@ using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
-using Org.BouncyCastle.Ocsp;
 
 namespace Odin.Services.LinkPreview;
 
@@ -51,7 +50,7 @@ public class LinkPreviewService(
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
-    private const int MaxDescriptionLength = 155;
+    private const int MaxDescriptionLength = 160;
 
     private const int ChannelDefinitionFileType = 103;
 
