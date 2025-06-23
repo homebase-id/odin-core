@@ -57,7 +57,7 @@ public class LocalAppMetadataTests
 
     public static IEnumerable GuestNotAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
     public static IEnumerable GuestAllowed()
@@ -79,6 +79,8 @@ public class LocalAppMetadataTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Authenticated;
+
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;

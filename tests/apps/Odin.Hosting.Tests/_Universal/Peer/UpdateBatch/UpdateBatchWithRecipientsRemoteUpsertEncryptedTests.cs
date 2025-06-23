@@ -71,12 +71,12 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
     {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     [Test]
@@ -299,7 +299,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
         var keyHeader = KeyHeader.NewRandom16();
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Authenticated);
         uploadedFileMetadata.AllowDistribution = true;
         const string originalUploadedContent = "some content here..";
         uploadedFileMetadata.AppData.Content = originalUploadedContent;

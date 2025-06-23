@@ -492,12 +492,12 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.MalformedMetadata);
         }
 
-        if (metadata.PayloadsAreRemote)
+        
+        if (metadata.DataSource != null)
         {
-            throw new OdinClientException($"Cannot specify RemotePayloadIdentity when storage intent is {StorageIntent.MetadataOnly}", 
+            throw new OdinClientException($"Cannot specify DataSource when storage intent is {StorageIntent.MetadataOnly}", 
                 OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
         }
-
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,

@@ -129,7 +129,7 @@ public class FeedWriter(
     public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext)
     {
         await _fileSystem.Storage.AssertCanWriteToDrive(file.DriveId, odinContext);
-        var header = await _fileSystem.Storage.GetServerFileHeader(file, odinContext);
+        var header = await _fileSystem.Storage.GetServerFileHeaderForWriting(file, odinContext);
         var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
 
         if (file.DriveId != feedDriveId)
