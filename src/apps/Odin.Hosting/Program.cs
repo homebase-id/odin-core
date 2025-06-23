@@ -78,10 +78,6 @@ namespace Odin.Hosting
 
         //
 
-
-
-        //
-
         private static LoggerConfiguration CreateLogger(
             IConfiguration configuration,
             OdinConfiguration odinConfig,

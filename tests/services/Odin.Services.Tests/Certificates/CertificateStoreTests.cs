@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.X509;
 using Odin.Services.Certificate;
+using Odin.Services.Configuration;
 using Serilog.Events;
 using Testcontainers.PostgreSql;
 
@@ -53,6 +54,14 @@ public class CertificateStoreTests
         DatabaseType databaseType,
         LogEventLevel logEventLevel = LogEventLevel.Debug)
     {
+        var config = new OdinConfiguration
+        {
+            CertificateRenewal = new OdinConfiguration.CertificateRenewalSection
+            {
+                StorageKey = Convert.FromHexString("DECAFBADDECAFBADDECAFBADDECAFBADDECAFBADDECAFBADDECAFBADDECAFBAD")
+            },
+        };
+
         if (databaseType == DatabaseType.Postgres)
         {
             _postgresContainer = new PostgreSqlBuilder()
@@ -74,6 +83,7 @@ public class CertificateStoreTests
         cb.Register(ctx => (IServiceProvider)ctx.Resolve<ILifetimeScope>()).As<IServiceProvider>();
 
         cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
+        cb.RegisterInstance(new CertificateStorageKey(config.CertificateRenewal.StorageKey)).SingleInstance();
         cb.AddDatabaseCacheServices();
         cb.AddDatabaseCounterServices();
         cb.RegisterModule(new LoggingAutofacModule());
@@ -157,6 +167,13 @@ public class CertificateStoreTests
         Assert.That(certificate, Is.Not.Null);
         Assert.That(certificate!.Subject, Is.EqualTo("CN=frodo.dotyou.cloud"));
         Assert.That(certificate, Is.SameAs(savedCertificate));
+
+        _certificateStore.ClearCache();
+
+        certificate = await _certificateStore.GetCertificateAsync("frodo.dotyou.cloud");
+        Assert.That(certificate, Is.Not.Null);
+        Assert.That(certificate!.Subject, Is.EqualTo("CN=frodo.dotyou.cloud"));
+        Assert.That(certificate, Is.Not.SameAs(savedCertificate));
     }
 
     //
@@ -197,6 +214,15 @@ public class CertificateStoreTests
             Assert.That(certificate!.Subject, Is.EqualTo("CN=frodo.dotyou.cloud"));
             Assert.That(certificate, Is.SameAs(savedCertificate));
         }
+
+        _certificateStore.ClearCache();
+
+        {
+            var certificate = await _certificateStore.GetCertificateAsync("frodo.dotyou.cloud");
+            Assert.That(certificate, Is.Not.Null);
+            Assert.That(certificate!.Subject, Is.EqualTo("CN=frodo.dotyou.cloud"));
+        }
+
     }
 
     //

@@ -66,6 +66,7 @@ public class CertificateServiceTests
             CertificateRenewal = new OdinConfiguration.CertificateRenewalSection
             {
                 CertificateAuthorityAssociatedEmail = "certtest@homebase.id",
+                StorageKey = Convert.FromHexString("DECAFBADDECAFBADDECAFBADDECAFBADDECAFBADDECAFBADDECAFBADDECAFBAD")
             },
             Registry = new OdinConfiguration.RegistrySection
             {
@@ -109,6 +110,7 @@ public class CertificateServiceTests
                     c.Resolve<IHttpClientFactory>(),
                     isProduction: false))
                 .As<ICertesAcme>().SingleInstance();
+            cb.RegisterInstance(new CertificateStorageKey(config.CertificateRenewal.StorageKey)).SingleInstance();
             cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
             cb.RegisterType<CertificateService>().As<ICertificateService>().SingleInstance();
 

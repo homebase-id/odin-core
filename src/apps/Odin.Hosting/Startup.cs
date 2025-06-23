@@ -184,6 +184,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             TenantServices.ConfigureTenantServices,
             _config));
 
+        services.AddSingleton(new CertificateStorageKey(_config.CertificateRenewal.StorageKey));
         services.AddSingleton(new AcmeAccountConfig
         {
             AcmeContactEmail = _config.CertificateRenewal.CertificateAuthorityAssociatedEmail,

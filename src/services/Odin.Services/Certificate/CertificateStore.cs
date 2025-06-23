@@ -3,8 +3,11 @@ using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
@@ -21,31 +24,42 @@ public interface ICertificateStore
     Task<X509Certificate2?> GetCertificateAsync(string domain);
     Task<X509Certificate2> PutCertificateAsync(string domain, string keyPem, string certificatePem);
     Task StoreFailedCertificateUpdateAsync(string domain, string errorText);
+    void ClearCache();
 }
 
 //
 
-public class CertificateStore(IServiceProvider serviceProvider) : ICertificateStore
+public class CertificateStore(
+    IServiceProvider serviceProvider,
+    CertificateStorageKey certificateStorageKey) : ICertificateStore
 {
+    private readonly byte[] _storageKey = certificateStorageKey.StorageKey;
     private readonly ConcurrentDictionary<string, X509Certificate2> _cache = new ();
+
+    //
+
+    public void ClearCache()
+    {
+        _cache.Clear();
+    }
 
     //
 
     public async Task<X509Certificate2?> GetCertificateAsync(string domain)
     {
-        var x509 = LookupValidCertificate(domain);
+        var x509 = LookupAndValidateCertificate(domain);
         if (x509 != null)
         {
             return x509;
         }
 
-        x509 = await LoadValidCertificateAsync(domain);
+        x509 = await LoadAndValidateCertificateAsync(domain);
         return x509;
     }
 
     //
 
-    private X509Certificate2? LookupValidCertificate(string domain)
+    private X509Certificate2? LookupAndValidateCertificate(string domain)
     {
         _cache.TryGetValue(domain, out var x509);
         return IsValid(x509) ? x509 : null;
@@ -53,7 +67,7 @@ public class CertificateStore(IServiceProvider serviceProvider) : ICertificateSt
     
     //
 
-    private async Task<X509Certificate2?> LoadValidCertificateAsync(string domain)
+    private async Task<X509Certificate2?> LoadAndValidateCertificateAsync(string domain)
     {
         var odinId = new OdinId(domain);
 
@@ -66,7 +80,11 @@ public class CertificateStore(IServiceProvider serviceProvider) : ICertificateSt
             return null;
         }
 
-        var x509 = X509FromPem(domain, record.privateKey, record.certificate);
+        var iv = IvFromString(record.certificate);
+        var decryptedKeyPem =
+            AesCbc.Decrypt(Convert.FromHexString(record.privateKey), _storageKey, iv).ToStringFromUtf8Bytes();
+
+        var x509 = X509FromPem(domain, decryptedKeyPem, record.certificate);
         if (IsValid(x509))
         {
             _cache[domain] = x509;
@@ -88,13 +106,16 @@ public class CertificateStore(IServiceProvider serviceProvider) : ICertificateSt
 
         _cache[domain] = x509;
 
+        var iv = IvFromString(certificatePem);
+        var encryptedKeyPem = Convert.ToHexString(AesCbc.Encrypt(Encoding.UTF8.GetBytes(keyPem), _storageKey, iv));
+
         var correlationContext = serviceProvider.GetRequiredService<ICorrelationContext>();
 
         var odinId = new OdinId(domain);
         var record = new CertificatesRecord
         {
             domain = odinId,
-            privateKey = keyPem,
+            privateKey = encryptedKeyPem,
             certificate = certificatePem,
             expiration = UnixTimeUtc.FromDateTime(x509.NotAfter),
             lastAttempt = UnixTimeUtc.Now(),
@@ -190,4 +211,24 @@ public class CertificateStore(IServiceProvider serviceProvider) : ICertificateSt
 
     //
 
+    private static byte[] IvFromString(string input)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(input, nameof(input));
+
+        var inputBytes = Encoding.UTF8.GetBytes(input);
+        var hashBytes = SHA256.HashData(inputBytes);
+
+        var iv = new byte[16];
+        Array.Copy(hashBytes, 0, iv, 0, 16);
+
+        return iv;
+    }
+
+    //
+
+}
+
+public class CertificateStorageKey(byte[] storageKey)
+{
+    public byte[] StorageKey { get; } = storageKey;
 }
