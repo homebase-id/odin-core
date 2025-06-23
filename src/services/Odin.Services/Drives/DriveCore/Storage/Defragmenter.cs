@@ -130,6 +130,27 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
+        private void SafeDeleteDirectory(string directory, Guid driveId)
+        {
+            // Normalize path and count directories
+            string normalizedPath = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
+            int depth = normalizedPath.Split(Path.DirectorySeparatorChar).Length;
+
+            // Check if path is at least 3 subdirectories deep
+            if (depth < 3)
+                throw new InvalidOperationException("Directory path is too shallow (less than 3 subdirectories).");
+
+            string driveName = TenantPathManager.GetPayloadDirectoryFromGuid(driveId);
+
+            // Let's make sure that /drives/{driveName} is part of the string
+            string expectedPathSegment = $"{Path.DirectorySeparatorChar}drives{Path.DirectorySeparatorChar}{driveName}{Path.DirectorySeparatorChar}";
+            if (!normalizedPath.Contains(expectedPathSegment, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Directory path does not contain expected segment '/drives/{driveName}'");
+
+            Directory.Delete(directory, recursive: true);
+        }
+
+
         private async Task VerifyDriveDirectories(string rootpath, string logPrefix, bool cleanup)
         {
             var folders = Directory.GetDirectories(rootpath, "*", SearchOption.TopDirectoryOnly);
@@ -163,7 +184,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 logger.LogDebug($"{logPrefix} DELETE - folder not in the Drives table - deleting if in cleanup {folderName}");
 
                 if (cleanup)
-                    Directory.Delete(folder, recursive: true);
+                    SafeDeleteDirectory(folder, folderId);
             }
 
             /*
@@ -287,31 +308,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        void FileTouch(string pathAndName)
-        {
-            string directory = Path.GetDirectoryName(pathAndName);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            if (File.Exists(pathAndName))
-            {
-                File.SetLastWriteTime(pathAndName, DateTime.Now);
-            }
-            else
-            {
-                File.Create(pathAndName).Dispose();
-            }
-        }
-
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task Defragment(TargetDrive targetDrive, bool cleanup = false)
+        public async Task Defragment(bool cleanup = false)
         {
-            var driveId = targetDrive.Alias;
-
             //
             // Insert Three Junk Files
             //
@@ -327,10 +328,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await VerifyDriveDirectoriesTemp(cleanup);
             await VerifyDriveDirectoriesPayloads(cleanup);
 
-            await CheckDrivePayloadsIntegrity(targetDrive);
-            await VerifyInboxEntiresIntegrity(driveId, cleanup);
+            var (drives, _, _) = await identityDatabase.Drives.GetList(int.MaxValue, null);
+            foreach (var drive in drives)
+            {
+                var td = new TargetDrive() { Alias = drive.DriveId, Type = drive.DriveType };
+                await CheckDrivePayloadsIntegrity(td);
+                await VerifyInboxEntiresIntegrity(drive.DriveId, cleanup);
 
-            await VerifyPayloadsFilesInDiskFolder(driveId, cleanup);
+                await VerifyPayloadsFilesInDiskFolder(drive.DriveId, cleanup);
+            }
         }
 
         /// <summary>
