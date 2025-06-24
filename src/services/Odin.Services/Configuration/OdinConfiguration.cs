@@ -333,6 +333,10 @@ namespace Odin.Services.Configuration
 
         public class CertificateRenewalSection
         {
+            public bool UseCertificateAuthorityProductionServers { get; init; }
+            public string CertificateAuthorityAssociatedEmail { get; init; }
+            public byte[] StorageKey { get; init; }
+
             public CertificateRenewalSection()
             {
                 // Mockable support
@@ -342,25 +346,11 @@ namespace Odin.Services.Configuration
             {
                 UseCertificateAuthorityProductionServers = config.Required<bool>("CertificateRenewal:UseCertificateAuthorityProductionServers");
                 CertificateAuthorityAssociatedEmail = config.Required<string>("CertificateRenewal:CertificateAuthorityAssociatedEmail");
-            }
-
-            /// <summary>
-            /// Specifies if the production servers of the certificate authority should be used.
-            /// </summary>
-            public bool UseCertificateAuthorityProductionServers { get; init; }
-
-            /// <summary>
-            /// The email addressed given to Certificate Authorities when users ask us to manage their certificates
-            /// </summary>
-            public string CertificateAuthorityAssociatedEmail { get; init; }
-
-            public CertificateRenewalConfig ToCertificateRenewalConfig()
-            {
-                return new CertificateRenewalConfig()
+                StorageKey = Convert.FromHexString(config.Required<string>("CertificateRenewal:StorageKey"));
+                if (StorageKey.Length != 32)
                 {
-                    UseCertificateAuthorityProductionServers = UseCertificateAuthorityProductionServers,
-                    CertificateAuthorityAssociatedEmail = CertificateAuthorityAssociatedEmail,
-                };
+                    throw new OdinConfigException("CertificateRenewal:StorageKey must be a 32-byte hex string");
+                }
             }
         }
 
