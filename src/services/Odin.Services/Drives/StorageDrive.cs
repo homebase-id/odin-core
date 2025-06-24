@@ -1,13 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 
 namespace Odin.Services.Drives
 {
@@ -117,8 +117,21 @@ namespace Odin.Services.Drives
             return _tenantPathManager.GetDriveInboxPath(Id);
         }
 
-        public void EnsureDirectories()
+        public void CreateDirectories()
         {
+            string payloadDirectory = GetDrivePayloadPath();
+            Directory.CreateDirectory(payloadDirectory);
+
+            for (int first = 0; first < 16; first++)
+            {
+                Directory.CreateDirectory(Path.Combine(payloadDirectory, first.ToString("x")));
+
+                for (int second = 0; second < 16; second++)
+                {
+                    Directory.CreateDirectory(Path.Combine(payloadDirectory, first.ToString("x"), second.ToString("x")));
+                }
+            }
+
             Directory.CreateDirectory(GetDriveUploadPath());
             Directory.CreateDirectory(GetDriveInboxPath());
         }

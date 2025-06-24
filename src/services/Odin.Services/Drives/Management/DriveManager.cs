@@ -127,7 +127,7 @@ public class DriveManager : IDriveManager
         }
 
         var storageDrive = ToStorageDrive(record);
-        storageDrive.EnsureDirectories();
+        storageDrive.CreateDirectories();
 
         _logger.LogDebug($"Created a new Drive - {storageDrive.TargetDriveInfo}");
         CacheDrive(storageDrive);
