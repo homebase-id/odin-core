@@ -64,8 +64,8 @@ public class TableCertificatesTests : IocTestBase
         var copy = await certificates.GetAsync(odinId);
         Assert.That(copy, Is.Not.Null);
         Assert.That(copy.domain, Is.EqualTo(odinId));
-        Assert.That(copy.privateKey, Is.EqualTo("error"));
-        Assert.That(copy.certificate, Is.EqualTo("error"));
+        Assert.That(copy.privateKey, Is.EqualTo(""));
+        Assert.That(copy.certificate, Is.EqualTo(""));
         Assert.That(copy.lastAttempt, Is.EqualTo(lastAttempt));
         Assert.That(copy.correlationId, Is.EqualTo("correlation-context"));
         Assert.That(copy.lastError, Is.EqualTo("some error"));
