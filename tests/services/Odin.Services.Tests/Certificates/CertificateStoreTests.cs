@@ -259,8 +259,8 @@ public class CertificateStoreTests
 
         Assert.That(record, Is.Not.Null);
         Assert.That(record!.domain.DomainName, Is.EqualTo("frodo.dotyou.cloud"));
-        Assert.That(record.privateKey, Is.EqualTo("error"));
-        Assert.That(record.certificate, Is.EqualTo("error"));
+        Assert.That(record.privateKey, Is.EqualTo(""));
+        Assert.That(record.certificate, Is.EqualTo(""));
         Assert.That(record.expiration.milliseconds, Is.EqualTo(0));
         Assert.That(record.lastAttempt.milliseconds, Is.GreaterThan(0));
         Assert.That(record.correlationId, Is.Not.Null.And.Not.Empty);
@@ -290,8 +290,7 @@ public class CertificateStoreTests
 
             Assert.That(record, Is.Not.Null);
             Assert.That(record!.domain.DomainName, Is.EqualTo("frodo.dotyou.cloud"));
-            Assert.That(record.privateKey, Is.Not.Empty);
-            Assert.That(record.privateKey, Is.Not.EqualTo("error")); // privateKey is encrypted
+            Assert.That(record.privateKey, Is.Not.Empty); // privateKey is encrypted
             Assert.That(record.certificate, Is.EqualTo(pemCertificate));
             Assert.That(record.expiration.milliseconds, Is.EqualTo(UnixTimeUtc.FromDateTime(x509.NotAfter).milliseconds));
             Assert.That(record.lastAttempt.milliseconds, Is.GreaterThan(0));
@@ -309,8 +308,7 @@ public class CertificateStoreTests
 
             Assert.That(record, Is.Not.Null);
             Assert.That(record!.domain.DomainName, Is.EqualTo("frodo.dotyou.cloud"));
-            Assert.That(record.privateKey, Is.Not.Empty);
-            Assert.That(record.privateKey, Is.Not.EqualTo("error")); // privateKey is encrypted
+            Assert.That(record.privateKey, Is.Not.Empty); // privateKey is encrypted
             Assert.That(record.certificate, Is.EqualTo(pemCertificate));
             Assert.That(record.expiration.milliseconds, Is.EqualTo(UnixTimeUtc.FromDateTime(x509.NotAfter).milliseconds));
             Assert.That(record.lastAttempt.milliseconds, Is.GreaterThan(0));

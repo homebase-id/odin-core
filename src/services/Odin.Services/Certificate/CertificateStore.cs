@@ -75,7 +75,7 @@ public class CertificateStore(
         var tableCertificates = scope.ServiceProvider.GetRequiredService<TableCertificates>();
 
         var record = await tableCertificates.GetAsync(odinId);
-        if (record?.privateKey == null || record?.certificate == null)
+        if (string.IsNullOrEmpty(record?.privateKey) || string.IsNullOrEmpty(record?.privateKey))
         {
             return null;
         }

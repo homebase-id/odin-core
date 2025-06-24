@@ -24,7 +24,6 @@ using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
@@ -723,6 +722,12 @@ public static class HostExtensions
             return false;
         }
 
+        if (args.Length == 1 && args[0] == "migrate-certs")
+        {
+            MigrateCertificatesAsync(host.Services).BlockingWait();
+            return false;
+        }
+
         return true;
     }
 
@@ -771,5 +776,31 @@ public static class HostExtensions
             logger.LogInformation("Defragmenting {tenant}", tenant.PrimaryDomainName);
             await defragmenter.Defragment(cleanup);
         }
+    }
+
+    //
+
+    private static async Task MigrateCertificatesAsync(IServiceProvider services)
+    {
+        var logger = services.GetRequiredService<ILogger<Startup>>();
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+        var certificateStore = services.GetRequiredService<ICertificateStore>();
+
+        logger.LogInformation("Starting certificate migration");
+
+        var allTenants = await registry.GetTenants();
+        foreach (var tenant in allTenants)
+        {
+            logger.LogInformation("Migrating certificates for {tenant}", tenant.PrimaryDomainName);
+            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
+            var tenantContext = scope.Resolve<TenantContext>();
+            var pm = tenantContext.TenantPathManager;
+            logger.LogInformation(pm.RegistrationPath);
+
+            // await certificateStore.PutCertificateAsync()
+        }
+
+        logger.LogInformation("Finished certificate migration");
     }
 }

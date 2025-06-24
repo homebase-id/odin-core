@@ -23,7 +23,7 @@ public class TableCertificates(CacheHelper cache, ScopedSystemConnectionFactory 
         {
             string sqlNowStr = upsertCommand.SqlNow();
             upsertCommand.CommandText = "INSERT INTO Certificates (domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified) " +
-                                        $"VALUES (@domain,'error','error',0,@lastAttempt,@correlationId,@lastError,{sqlNowStr},{sqlNowStr})"+
+                                        $"VALUES (@domain,'','',0,@lastAttempt,@correlationId,@lastError,{sqlNowStr},{sqlNowStr})"+
                                         "ON CONFLICT (domain) DO UPDATE "+
                                         $"SET lastAttempt = @lastAttempt,correlationId = @correlationId,lastError = @lastError,modified = {upsertCommand.SqlMax()}(Certificates.modified+1,{sqlNowStr}) "+
                                         "RETURNING created,modified,rowId;";
