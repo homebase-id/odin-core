@@ -14,13 +14,8 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 [DebuggerDisplay("Key=[{Key}] Uid=[{Uid.uniqueTime}]")]
 public class PayloadDescriptor
 {
-    public static readonly int MaxDescriptorContentLength = 1024;
-    public static readonly int MaxThumbnailsCount = 5;
-    
-    public PayloadDescriptor()
-    {
-        this.Thumbnails = new List<ThumbnailDescriptor>();
-    }
+    private static readonly int MaxDescriptorContentLength = 1024;
+    private static readonly int MaxThumbnailsCount = 5;
 
     /// <summary>
     /// Initialization vector for the encrypted payload
@@ -48,7 +43,7 @@ public class PayloadDescriptor
     /// <summary>
     /// Set of thumbnails for this payload in addition to the Appdata.PreviewThumbnail
     /// </summary>
-    public List<ThumbnailDescriptor> Thumbnails { get; set; }
+    public List<ThumbnailDescriptor> Thumbnails { get; set; } = new();
 
     /// <summary>
     /// A sequential guid used for each instance of this payload.This is used as part of storage

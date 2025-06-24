@@ -13,9 +13,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
-using Odin.Core.Trie;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -26,9 +24,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Util;
-using Serilog.Core;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -349,7 +345,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await CreateServerHeaderInternal(file, keyHeader, metadata, serverMetadata, odinContext);
         }
 
-        private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader, IOdinContext odinContext)
+        public async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader, IOdinContext odinContext)
         {
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
 
@@ -505,6 +501,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanWriteToDrive(originFile.File.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(originFile.File.DriveId);
 
+            ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
+
             var targetFile = originFile.File;
             newMetadata.File = targetFile; // this is a new file so we can use the same fileId from the temp file
             serverMetadata.FileSystemType = GetFileSystemType();
@@ -519,8 +517,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // db and this stops conflicts if someone passes in useThisVersionTag 
             newMetadata.VersionTag = null;
 
-            ServerFileHeader serverHeader;
-            serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
+            var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, newMetadata, serverMetadata, odinContext);
             bool success = false;
 
             try
@@ -569,6 +566,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
+            ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
 
             List<PayloadDescriptor> payloads = [];
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
@@ -603,16 +601,15 @@ namespace Odin.Services.Drives.FileSystem.Base
             serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             payloads = newMetadata.Payloads ?? [];
-
+            
             if (!ignorePayload.GetValueOrDefault(false))
             {
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive);
             }
 
             bool success = false;
-            ServerFileHeader serverHeader;
 
-            serverHeader = new ServerFileHeader()
+            var serverHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = await EncryptKeyHeader(originFile.File.DriveId, keyHeader, odinContext),
                 FileMetadata = newMetadata,
@@ -892,142 +889,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return success;
         }
 
-        // Feed drive hacks
-
-        public async Task WriteNewFileToFeedDriveAsync(KeyHeader keyHeader, FileMetadata fileMetadata, IOdinContext odinContext)
-        {
-            // Method assumes you ensured the file was unique by some other method
-
-            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
-            await AssertCanWriteToDrive(feedDriveId, odinContext);
-            var file = await this.CreateInternalFileId(feedDriveId);
-
-            var serverMetadata = new ServerMetadata()
-            {
-                AccessControlList = AccessControlList.OwnerOnly,
-                AllowDistribution = false
-            };
-
-            //we don't accept uniqueIds into the feed
-            fileMetadata.AppData.UniqueId = null;
-
-            var serverFileHeader = await this.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata, odinContext);
-            await this.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
-        }
-
-        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata, IOdinContext odinContext,
-            bool bypassCallerCheck = false)
-        {
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file, odinContext);
-            AssertValidFileSystemType(header.ServerMetadata);
-
-            if (header == null)
-            {
-                throw new OdinClientException("Trying to update feed metadata for non-existent file", OdinClientErrorCode.InvalidFile);
-            }
-
-            if (header.FileMetadata.FileState == FileState.Deleted)
-            {
-                // _logger.LogDebug("ReplaceFileMetadataOnFeedDrive - attempted to update a deleted file; this will be ignored.");
-                return;
-            }
-
-            AssertValidFileSystemType(header.ServerMetadata);
-
-            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
-            if (file.DriveId != feedDriveId)
-            {
-                throw new OdinSystemException("Method cannot be used on drive");
-            }
-
-            if (!bypassCallerCheck) //eww: this allows the follower service to synchronize files when you start following someone.
-            {
-                //S0510
-                if (header.FileMetadata.SenderOdinId != odinContext.GetCallerOdinIdOrFail())
-                {
-                    _logger.LogDebug("ReplaceFileMetadataOnFeedDrive - header file sender ({sender}) did not match context sender {ctx}",
-                        header.FileMetadata.SenderOdinId,
-                        odinContext.GetCallerOdinIdOrFail());
-                    throw new OdinSecurityException("Invalid caller");
-                }
-            }
-
-            var localVersionTag = header.FileMetadata.VersionTag;
-            header.FileMetadata = fileMetadata; //overwrite with incoming info
-            fileMetadata.VersionTag = localVersionTag; // keep this identity's version tag
-
-            // Clearing the UID for any files that go into the feed drive because the feed drive 
-            // comes from multiple channel drives from many different identities so there could be a clash
-            header.FileMetadata.AppData.UniqueId = null;
-
-            await this.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
-            if (header.FileMetadata.ReactionPreview == null)
-            {
-                var drive = await DriveManager.GetDriveAsync(file.DriveId);
-                await longTermStorageManager.DeleteReactionSummary(drive, file.FileId);
-            }
-            else
-            {
-                await UpdateReactionSummary(file, header.FileMetadata.ReactionPreview, odinContext);
-            }
-        }
-
-        public async Task RemoveFeedDriveFile(InternalDriveFileId file, IOdinContext odinContext)
-        {
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var header = await GetServerFileHeaderInternal(file, odinContext);
-            AssertValidFileSystemType(header.ServerMetadata);
-            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
-
-            if (file.DriveId != feedDriveId)
-            {
-                throw new OdinSystemException("Method cannot be used on drive");
-            }
-
-            //S0510
-            if (header.FileMetadata.SenderOdinId != odinContext.GetCallerOdinIdOrFail())
-            {
-                throw new OdinSecurityException("Invalid caller");
-            }
-
-            await WriteDeletedFileHeader(header, odinContext, null);
-        }
-
-        public async Task UpdateReactionPreviewOnFeedDrive(InternalDriveFileId targetFile, ReactionSummary summary,
-            IOdinContext odinContext)
-        {
-            await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
-            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
-            if (targetFile.DriveId != feedDriveId)
-            {
-                throw new OdinSystemException("Cannot update reaction preview on this drive");
-            }
-
-            var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
-            var existingHeader = await longTermStorageManager.GetServerFileHeader(drive, targetFile.FileId, GetFileSystemType());
-
-            //S0510
-            if (existingHeader.FileMetadata.SenderOdinId != odinContext.Caller.OdinId)
-            {
-                throw new OdinSecurityException("Invalid caller");
-            }
-
-            existingHeader.FileMetadata.ReactionPreview = summary;
-            await WriteFileHeaderInternal(existingHeader);
-
-            if (await TryShouldRaiseDriveEventAsync(targetFile))
-            {
-                await TryPublishAsync(new ReactionPreviewUpdatedNotification
-                {
-                    File = targetFile,
-                    ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(existingHeader, odinContext),
-                    OdinContext = odinContext,
-                });
-            }
-        }
-
+        
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
             bool raiseEvent = false)
         {
@@ -1042,6 +904,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
+
+            var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
+            if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
+            {
+                throw new OdinClientException("Cannot change RemotePayloadIdentity on file updates",
+                    OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+            }
 
             // First prepare by copying everything needed
             var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext);
@@ -1127,8 +996,10 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 var zombies = new List<PayloadDescriptor>();
 
+                var instructions = manifest.PayloadInstruction ?? [];
+
                 // Delete operations are for existing payloads, so we need to update the existing header
-                foreach (var op in manifest.PayloadInstruction.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
+                foreach (var op in instructions.Where(op => op.OperationType == PayloadUpdateOperationType.DeletePayload))
                 {
                     var descriptor = existingHeader1.FileMetadata.GetPayloadDescriptor(op.Key);
                     if (descriptor != null)
@@ -1145,8 +1016,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 var zombies = new List<PayloadDescriptor>();
 
-                foreach (var op in manifest.PayloadInstruction
-                             .Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
+                var instructions = manifest.PayloadInstruction ?? [];
+                foreach (var op in instructions.Where(op => op.OperationType == PayloadUpdateOperationType.AppendOrOverwrite))
                 {
                     // Here look at the incoming payloads because we're adding a new one or overwriting
                     var descriptor = manifest.FileMetadata.GetPayloadDescriptor(op.Key, true, $"Could not find payload " +
@@ -1652,8 +1523,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 foreach (var thumbnailDescriptor in payloadDescriptor.Thumbnails ?? [])
                 {
-                    var thumbExists =
-                        await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor, thumbnailDescriptor);
+                    var thumbExists = await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payloadDescriptor,
+                        thumbnailDescriptor);
                     if (!thumbExists)
                     {
                         missingPayloads.Add(TenantPathManager.GetThumbnailFileName(fileId, payloadDescriptor.Key, payloadDescriptor.Uid,
@@ -1668,6 +1539,11 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task AssertPayloadsExistOnFileSystemAsync(FileMetadata metadata)
         {
+            if (metadata.PayloadsAreRemote)
+            {
+                return;
+            }
+
             var sl = await GetMissingPayloadsAsync(metadata);
 
             if (sl.Count > 0)

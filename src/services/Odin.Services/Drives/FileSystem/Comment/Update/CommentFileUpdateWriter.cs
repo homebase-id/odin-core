@@ -43,12 +43,16 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
                 OdinClientErrorCode.InvalidReferenceFile);
         }
 
+        updateDescriptor.FileMetadata.DataSource?.Validate();
+        
         return Task.CompletedTask;
     }
 
     protected override Task<FileMetadata> MapUploadToMetadata(FileUpdatePackage package,
         UpdateFileDescriptor updateDescriptor, IOdinContext odinContext)
     {
+        var dataSource = updateDescriptor.FileMetadata.DataSource;
+
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
@@ -77,7 +81,8 @@ public class CommentFileUpdateWriter : FileSystemUpdateWriterBase
             // OriginalAuthor = //Nothing to do here since callers never update the original author
             VersionTag = updateDescriptor.FileMetadata.VersionTag,
 
-            Payloads = package.GetFinalPayloadDescriptors()
+            Payloads = package.GetFinalPayloadDescriptors(fromManifest: dataSource?.PayloadsAreRemote ?? false),
+            DataSource = dataSource
         };
 
         return Task.FromResult(metadata);

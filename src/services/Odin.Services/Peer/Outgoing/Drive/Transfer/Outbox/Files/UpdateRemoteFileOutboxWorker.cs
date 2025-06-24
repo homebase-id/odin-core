@@ -40,10 +40,7 @@ public class UpdateRemoteFileOutboxWorker(
             Guid globalTransitId = default;
 
             await PerformanceCounter.MeasureExecutionTime("Outbox UpdateRemoteFileOutboxWorker",
-                async () =>
-                {
-                    (versionTag, globalTransitId) = await SendUpdatedFileItemAsync(FileItem, odinContext, cancellationToken);
-                });
+                async () => { (versionTag, globalTransitId) = await SendUpdatedFileItemAsync(FileItem, odinContext, cancellationToken); });
 
             logger.LogDebug("Success Sending updated file: {file} to {recipient} with gtid: {gtid}", FileItem.File, FileItem.Recipient,
                 globalTransitId);
@@ -119,16 +116,17 @@ public class UpdateRemoteFileOutboxWorker(
             {
                 logger.LogDebug("UpdatePeerFile BEGIN");
 
-                transferKeyHeaderMemory =
-                    new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+                transferKeyHeaderMemory = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
                 var transferKeyHeaderStreamPart = new StreamPart(
                     transferKeyHeaderMemory,
                     "transferInstructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) =
-                    await PackageFileStreamsAsync(header, true, odinContext);
+                (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = await PackageFileStreamsAsync(
+                    header,
+                    odinContext,
+                    datasourceOverride: FileItem.State.DataSourceOverride);
 
                 var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
                     recipient, clientAuthToken);
@@ -213,7 +211,7 @@ public class UpdateRemoteFileOutboxWorker(
         var nextRunTime = CalculateNextRunTime(e.TransferStatus);
         return Task.FromResult(nextRunTime);
     }
-    
+
     protected override async Task HandleUnrecoverableTransferStatus(OdinOutboxProcessingException e,
         IOdinContext odinContext)
     {

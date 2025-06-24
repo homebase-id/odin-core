@@ -21,7 +21,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 {
     public class DataMappingTest
     {
-
         [Test]
         public async Task DriveMainIndexRecordFillTest()
         {
@@ -43,13 +42,37 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 fileType = 13,
                 globalTransitId = Guid.NewGuid(),
                 groupId = groupId,
-                hdrAppData = OdinSystemSerializer.Serialize(new AppFileMetaData() { ArchivalStatus = 7, DataType = 10, FileType = 13, GroupId = groupId, UniqueId = uniqueId, UserDate = userDate }),
-                hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(new EncryptedKeyHeader() { Type = EncryptionType.Aes, EncryptionVersion = 1, EncryptedAesKey = Guid.NewGuid().ToByteArray(), Iv = Guid.NewGuid().ToByteArray() }),
-                hdrFileMetaData = OdinSystemSerializer.Serialize(new FileMetadataDto() { IsEncrypted = true, OriginalAuthor = new OdinId("frodo.baggins.me"), Payloads = null, ReferencedFile = null, TransitCreated = new UnixTimeUtc(7), TransitUpdated = new UnixTimeUtc(0) }),
+                hdrAppData = OdinSystemSerializer.Serialize(new AppFileMetaData()
+                    { ArchivalStatus = 7, DataType = 10, FileType = 13, GroupId = groupId, UniqueId = uniqueId, UserDate = userDate }),
+                hdrEncryptedKeyHeader = OdinSystemSerializer.Serialize(new EncryptedKeyHeader()
+                {
+                    Type = EncryptionType.Aes, EncryptionVersion = 1, EncryptedAesKey = Guid.NewGuid().ToByteArray(),
+                    Iv = Guid.NewGuid().ToByteArray()
+                }),
+                hdrFileMetaData = OdinSystemSerializer.Serialize(new FileMetadataDto()
+                {
+                    IsEncrypted = true, 
+                    OriginalAuthor = new OdinId("frodo.baggins.me"), 
+                    Payloads = null,
+                    ReferencedFile = null,
+                    TransitCreated = new UnixTimeUtc(7),
+                    TransitUpdated = new UnixTimeUtc(0),
+                    DataSource = new DataSource
+                    {
+                        Identity = (OdinId)"frodo.baggins.me",
+                        DriveId = Guid.Parse("5244533c-89f1-41d2-ac11-bae19e3aacc5"),
+                        PayloadsAreRemote = true
+                    }
+                }),
                 hdrLocalAppData = OdinSystemSerializer.Serialize(new LocalAppMetadata() { Content = "hello", VersionTag = localTag }),
                 hdrLocalVersionTag = localTag,
-                hdrReactionSummary = OdinSystemSerializer.Serialize(new ReactionSummary() { TotalCommentCount = 69}),
-                hdrServerData = OdinSystemSerializer.Serialize(new ServerMetadataDto() { AccessControlList = new Services.Authorization.Acl.AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous }, AllowDistribution = false, FileByteCount = 42, OriginalRecipientCount = 69 }),
+                hdrReactionSummary = OdinSystemSerializer.Serialize(new ReactionSummary() { TotalCommentCount = 69 }),
+                hdrServerData = OdinSystemSerializer.Serialize(new ServerMetadataDto()
+                {
+                    AccessControlList = new Services.Authorization.Acl.AccessControlList()
+                        { RequiredSecurityGroup = SecurityGroupType.Anonymous },
+                    AllowDistribution = false, FileByteCount = 42, OriginalRecipientCount = 69
+                }),
                 hdrTmpDriveAlias = Guid.NewGuid(),
                 hdrTmpDriveType = Guid.NewGuid(),
                 hdrTransferHistory = OdinSystemSerializer.Serialize(new TransferHistorySummary() { TotalDelivered = 7 }),
@@ -130,28 +153,37 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             var targetDrive = new TargetDrive() { Alias = Guid.NewGuid(), Type = Guid.NewGuid() };
 
             var ehdr = new EncryptedKeyHeader()
-            { Type = EncryptionType.Aes, EncryptionVersion = 1, EncryptedAesKey = Guid.NewGuid().ToByteArray(), Iv = Guid.NewGuid().ToByteArray() };
+            {
+                Type = EncryptionType.Aes, EncryptionVersion = 1, EncryptedAesKey = Guid.NewGuid().ToByteArray(),
+                Iv = Guid.NewGuid().ToByteArray()
+            };
 
             var fhdr = new FileMetadata()
-            { 
+            {
                 IsEncrypted = true,
                 OriginalAuthor = new OdinId("frodo.baggins.me"),
-                Payloads = new List<PayloadDescriptor>(), 
+                Payloads = new List<PayloadDescriptor>(),
                 ReferencedFile = new GlobalTransitIdFileIdentifier() { GlobalTransitId = Guid.NewGuid(), TargetDrive = targetDrive },
-                TransitCreated = new UnixTimeUtc(7), 
-                TransitUpdated = new UnixTimeUtc(0), 
-                AppData = new AppFileMetaData() 
-                { 
-                    ArchivalStatus = 7, 
-                    DataType = 10, 
-                    FileType = 13, 
-                    GroupId = groupId, 
-                    UniqueId = uniqueId, 
-                    UserDate = userDate 
+                TransitCreated = new UnixTimeUtc(7),
+                TransitUpdated = new UnixTimeUtc(0),
+                AppData = new AppFileMetaData()
+                {
+                    ArchivalStatus = 7,
+                    DataType = 10,
+                    FileType = 13,
+                    GroupId = groupId,
+                    UniqueId = uniqueId,
+                    UserDate = userDate
                 },
                 LocalAppData = new LocalAppMetadata() { Content = "hello", VersionTag = localTag },
                 ReactionPreview = new ReactionSummary() { TotalCommentCount = 69 },
                 VersionTag = Guid.NewGuid(),
+                DataSource = new DataSource()
+                {
+                    Identity = (OdinId)"user.domain.com",
+                    DriveId = targetDrive.Alias,
+                    PayloadsAreRemote = true 
+                },
                 Created = new UnixTimeUtc(9),
                 Updated = new UnixTimeUtc(22),
                 GlobalTransitId = Guid.NewGuid(),
@@ -161,10 +193,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             };
 
             var shdr = new ServerMetadata()
-            { 
-                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous }, 
-                AllowDistribution = false, 
-                FileByteCount = 42, 
+            {
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous },
+                AllowDistribution = false,
+                FileByteCount = 42,
                 OriginalRecipientCount = 69,
                 TransferHistory = new RecipientTransferHistory() { Summary = new TransferHistorySummary() { TotalDelivered = 7 } },
                 FileSystemType = FileSystemType.Standard,
@@ -185,7 +217,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.FileMetadata.Updated.milliseconds == hdr.FileMetadata.Updated.milliseconds);
 
             // We don't transfer localAppData, Reactionpreview and transferhistory
-            ClassicAssert.IsTrue(sfh.FileMetadata.LocalAppData == null); 
+            ClassicAssert.IsTrue(sfh.FileMetadata.LocalAppData == null);
             ClassicAssert.IsTrue(hdr.FileMetadata.LocalAppData != null);
             ClassicAssert.IsTrue(hdr.FileMetadata.LocalAppData.VersionTag != Guid.Empty);
             ClassicAssert.IsTrue(sfh.FileMetadata.ReactionPreview == null);
@@ -219,12 +251,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.FileMetadata.IsEncrypted == hdr.FileMetadata.IsEncrypted);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitCreated == hdr.FileMetadata.TransitCreated);
             ClassicAssert.IsTrue(sfh.FileMetadata.TransitUpdated == hdr.FileMetadata.TransitUpdated);
+            ClassicAssert.IsTrue(sfh.FileMetadata.DataSource.Identity == hdr.FileMetadata.DataSource.Identity);
+            ClassicAssert.IsTrue(sfh.FileMetadata.DataSource.DriveId == hdr.FileMetadata.DataSource.DriveId);
+            ClassicAssert.IsTrue(sfh.FileMetadata.DataSource.PayloadsAreRemote == hdr.FileMetadata.DataSource.PayloadsAreRemote);
 
             ClassicAssert.AreEqual(sfh.FileMetadata.Payloads, hdr.FileMetadata.Payloads);
             ClassicAssert.AreEqual(sfh.FileMetadata.ReferencedFile, hdr.FileMetadata.ReferencedFile);
 
             // ServerMetadata fields (hdrServerData)
-            ClassicAssert.IsTrue(sfh.ServerMetadata.AccessControlList.RequiredSecurityGroup == hdr.ServerMetadata.AccessControlList.RequiredSecurityGroup); // requiredSecurityGroup
+            ClassicAssert.IsTrue(sfh.ServerMetadata.AccessControlList.RequiredSecurityGroup ==
+                                 hdr.ServerMetadata.AccessControlList.RequiredSecurityGroup); // requiredSecurityGroup
             ClassicAssert.IsTrue(sfh.ServerMetadata.AllowDistribution == hdr.ServerMetadata.AllowDistribution);
             ClassicAssert.IsTrue(sfh.ServerMetadata.OriginalRecipientCount == hdr.ServerMetadata.OriginalRecipientCount);
 

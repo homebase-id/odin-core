@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
 
@@ -51,15 +52,15 @@ public class LocalAppMetadataContentTests
         yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
-    public static IEnumerable GuestNotAllowed()
+    public static IEnumerable GuestWriteOnlyAccessToDrive()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestNotAllowed))]
+    [TestCaseSource(nameof(GuestWriteOnlyAccessToDrive))]
     public async Task CanUpdateLocalAppMetadataContentWhenNotSetInTargetFile(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -70,6 +71,8 @@ public class LocalAppMetadataContentTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Authenticated;
+        
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;

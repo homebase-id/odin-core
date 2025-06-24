@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage
@@ -40,6 +37,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public List<PayloadDescriptor> Payloads { get; init; }
 
         // public Guid? VersionTag { get; init; }
+        
+        public DataSource DataSource { get; init; }
 
         public FileMetadataDto() { }
 
@@ -60,7 +59,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // AppData = fileMetadata.AppData
             // LocalAppData = fileMetadata.LocalAppData; <--- TODO TODD & MICHAEL SANITY HERE?! XXX
             Payloads = fileMetadata.Payloads;
+            
+            DataSource = fileMetadata.DataSource;
             // VersionTag = fileMetadata.VersionTag
         }
+
     }
 }

@@ -69,14 +69,14 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
         };
     }
 
-    public static IEnumerable GuestAllowed()
+    public static IEnumerable GuestHasWriteAccess()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
     {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     [Test]
@@ -274,7 +274,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(GuestHasWriteAccess))]
     [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task
         CanUpdateBatchAndDistributeToRecipientsWhenTargetFileDoesNotExistOnRemoteServer_SomeRecipientsHaveFile_SomeDoNotHaveFile_Encrypted(
@@ -474,7 +474,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(GuestHasWriteAccess))]
     [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
     public async Task CanUpdateBatchAndDistributeToRecipientsWith1PayloadsAnd1ThumbnailsWhenTargetFileDoesNotExistOnRemoteServer_Encrypted(
         IApiClientContext callerContext,
