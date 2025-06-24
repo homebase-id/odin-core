@@ -149,7 +149,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
 
             // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
-            await WriteFileHeaderInternal(header);
+            await WriteFileHeaderInternal(header, odinContext);
 
             //HACKed in for Feed drive -> Should become a data subscription check
             if (raiseEvent)
@@ -187,7 +187,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.File = targetFile; //TBH it's strange having this but we need the metadata to have the file and drive embedded
             metadata.FileState = FileState.Active;
 
-            await WriteFileHeaderInternal(header, useThisVersionTag); // sets the header.FileMetadata.Created/Updated
+            await WriteFileHeaderInternal(header, odinContext, useThisVersionTag); // sets the header.FileMetadata.Created/Updated
 
             //HACKed in for Feed drive -> should become data subscription
             if (raiseEvent)
@@ -601,7 +601,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             payloads = newMetadata.Payloads ?? [];
-            
+
             if (!ignorePayload.GetValueOrDefault(false))
             {
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive);
@@ -621,7 +621,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
-                    await WriteFileHeaderInternal(serverHeader);
+                    await WriteFileHeaderInternal(serverHeader, odinContext);
                     if (markComplete != null)
                     {
                         int n = await markComplete.ExecuteAsync();
@@ -707,7 +707,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 existingServerHeader.FileMetadata.Payloads = allPayloads;
                 existingServerHeader.FileMetadata.VersionTag = expectedVersionTag;
 
-                await WriteFileHeaderInternal(existingServerHeader);
+                await WriteFileHeaderInternal(existingServerHeader, odinContext);
             }
             catch (Exception)
             {
@@ -889,7 +889,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return success;
         }
 
-        
+
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
             bool raiseEvent = false)
         {
@@ -1226,14 +1226,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        private async Task WriteFileHeaderInternal(ServerFileHeader header, Guid? useThisVersionTag = null)
+        private async Task WriteFileHeaderInternal(ServerFileHeader header, IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
-            await AssertPayloadsExistOnFileSystemAsync(header.FileMetadata);
+            await AssertPayloadsExistOnFileSystemAsync(header);
 
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
-            header.FileMetadata.AppData?.Validate();
+            header.FileMetadata.Validate(odinContext);
 
             var json = OdinSystemSerializer.Serialize(header);
             var jsonBytes = Encoding.UTF8.GetBytes(json);
@@ -1309,7 +1309,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
-                    await WriteFileHeaderInternal(deletedServerFileHeader);
+                    await WriteFileHeaderInternal(deletedServerFileHeader, odinContext);
                     await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                     await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                     if (markComplete != null)
@@ -1449,7 +1449,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             existingServerHeader.FileMetadata = newMetadata;
             existingServerHeader.ServerMetadata = newServerMetadata;
-            await WriteFileHeaderInternal(existingServerHeader, useThisVersionTag); // Sets header.FileMetadata.Created/Updated
+            await WriteFileHeaderInternal(existingServerHeader, odinContext, useThisVersionTag); // Sets header.FileMetadata.Created/Updated
         }
 
         /// <summary>
@@ -1537,8 +1537,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             return missingPayloads;
         }
 
-        private async Task AssertPayloadsExistOnFileSystemAsync(FileMetadata metadata)
+        private async Task AssertPayloadsExistOnFileSystemAsync(ServerFileHeader header)
         {
+            var metadata = header.FileMetadata;
             if (metadata.PayloadsAreRemote)
             {
                 return;

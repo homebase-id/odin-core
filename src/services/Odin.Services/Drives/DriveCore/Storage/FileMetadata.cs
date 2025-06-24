@@ -7,6 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -188,11 +189,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public bool PayloadsAreRemote => DataSource?.PayloadsAreRemote ?? false;
 
-        public bool TryValidate()
+        public bool TryValidate(IOdinContext odinContext)
         {
             try
             {
-                Validate();
+                Validate(odinContext);
                 return true;
             }
             catch
@@ -201,21 +202,44 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        public void Validate()
+        public void Validate(IOdinContext odinContext)
         {
             ReactionPreview?.Validate();
+
             if (SenderOdinId != null)
+            {
                 AsciiDomainNameValidator.AssertValidDomain(SenderOdinId); // Because senderOdinId is a string and not an OdinId...
+            }
+
             AppData?.Validate();
             LocalAppData?.Validate();
 
-            if (Payloads != null)
+            if (DataSource != null)
             {
-                if (Payloads?.Count > MaxPayloadsCount)
-                    throw new OdinClientException($"Too many Payloads count {Payloads.Count} in FileMetadata max {MaxPayloadsCount}");
+                DataSource.Validate();
 
-                foreach (var payload in Payloads)
-                    payload.Validate();
+                if (DataSource.DriveId == this.File.DriveId && DataSource.Identity == odinContext.Tenant)
+                {
+                    throw new OdinClientException("DataSource DriveId must be different than the drive for this file");
+                }
+
+                if (DataSource.PayloadsAreRemote)
+                {
+                    if (!Payloads?.Any() ?? false)
+                    {
+                        throw new OdinClientException("Payload Descriptors are required when DataSource.PayloadsAreRemote is true");
+                    }
+                }
+            }
+
+            if ((Payloads?.Count ?? 0) > MaxPayloadsCount)
+            {
+                throw new OdinClientException($"Too many Payloads count {Payloads?.Count ?? 0} in FileMetadata max {MaxPayloadsCount}");
+            }
+
+            foreach (var payload in Payloads ?? [])
+            {
+                payload.Validate();
             }
         }
     }

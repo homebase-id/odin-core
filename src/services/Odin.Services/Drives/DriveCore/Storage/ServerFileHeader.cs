@@ -4,6 +4,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Peer.Encryption;
 using System;
+using Odin.Services.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -107,11 +108,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
 
-        public bool TryValidate()
+        public bool TryValidate(IOdinContext odinContext)
         {
             try
             {
-                Validate();
+                Validate(odinContext);
                 return true;
             }
             catch
@@ -120,9 +121,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        public void Validate()
+        public void Validate(IOdinContext odinContext)
         {
-            FileMetadata?.Validate();
+            FileMetadata?.Validate(odinContext);
 
             // TODO possibly validate the ServerMetadata and EncryptedKeyHeader here
         }

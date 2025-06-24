@@ -65,7 +65,7 @@ public class PayloadDescriptor
     {
         return string.Equals(Key, other?.Key, StringComparison.InvariantCultureIgnoreCase);
     }
-    
+
     public bool IsValid()
     {
         var hasValidContentType = !(string.IsNullOrEmpty(ContentType) || string.IsNullOrWhiteSpace(ContentType));
@@ -88,20 +88,21 @@ public class PayloadDescriptor
 
     public void Validate()
     {
-        if (DescriptorContent?.Length > MaxDescriptorContentLength)
-            throw new OdinClientException($"Too long DescriptorContent length {DescriptorContent.Length} in PayloadDescriptor max {MaxDescriptorContentLength}", 
+        if ((DescriptorContent?.Length ?? 0) > MaxDescriptorContentLength)
+            throw new OdinClientException(
+                $"Too long DescriptorContent length {DescriptorContent?.Length ?? 0} in PayloadDescriptor max {MaxDescriptorContentLength}",
                 OdinClientErrorCode.MaxContentLengthExceeded);
 
         PreviewThumbnail?.Validate();
 
         if (Thumbnails != null)
         {
-            if (Thumbnails?.Count > MaxThumbnailsCount)
-                throw new OdinClientException($"Too many Thumbnails count {Thumbnails.Count} in PayloadDescriptor max {MaxThumbnailsCount}");
+            if (Thumbnails.Count > MaxThumbnailsCount)
+                throw new OdinClientException(
+                    $"Too many Thumbnails count {Thumbnails.Count} in PayloadDescriptor max {MaxThumbnailsCount}");
 
             foreach (var thumbnail in Thumbnails)
                 thumbnail.Validate();
         }
     }
-
 }
