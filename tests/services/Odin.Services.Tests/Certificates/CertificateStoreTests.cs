@@ -1,15 +1,20 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Logging;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 using Odin.Core.X509;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
@@ -140,6 +145,19 @@ public class CertificateStoreTests
         var savedCertificate = await _certificateStore.PutCertificateAsync("frodo.dotyou.cloud", key, certificate);
         Assert.That(savedCertificate, Is.Not.Null);
         Assert.That(savedCertificate.Subject, Is.EqualTo("CN=frodo.dotyou.cloud"));
+
+        var certificates = _autofacContainer.Resolve<TableCertificates>();
+        var record = await certificates.GetAsync(new OdinId("frodo.dotyou.cloud"));
+
+        Assert.That(record, Is.Not.Null);
+        Assert.That(record!.domain.DomainName, Is.EqualTo("frodo.dotyou.cloud"));
+        Assert.That(record.privateKey, Is.Not.Empty);
+        Assert.That(record.privateKey, Is.Not.EqualTo("error")); // privateKey is encrypted
+        Assert.That(record.certificate, Is.EqualTo(certificate));
+        Assert.That(record.expiration.milliseconds, Is.EqualTo(UnixTimeUtc.FromDateTime(x509.NotAfter).milliseconds));
+        Assert.That(record.lastAttempt.milliseconds, Is.GreaterThan(0));
+        Assert.That(record.correlationId, Is.Not.Null.And.Not.Empty);
+        Assert.That(record.lastError, Is.Null);
     }
 
     //
@@ -222,9 +240,83 @@ public class CertificateStoreTests
             Assert.That(certificate, Is.Not.Null);
             Assert.That(certificate!.Subject, Is.EqualTo("CN=frodo.dotyou.cloud"));
         }
-
     }
 
     //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task StoreFailedCertificate_ShouldInsertNewRecord(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await _certificateStore.StoreFailedCertificateUpdateAsync("frodo.dotyou.cloud", "Test error message");
+
+        var certificates = _autofacContainer.Resolve<TableCertificates>();
+        var record = await certificates.GetAsync(new OdinId("frodo.dotyou.cloud"));
+
+        Assert.That(record, Is.Not.Null);
+        Assert.That(record!.domain.DomainName, Is.EqualTo("frodo.dotyou.cloud"));
+        Assert.That(record.privateKey, Is.EqualTo("error"));
+        Assert.That(record.certificate, Is.EqualTo("error"));
+        Assert.That(record.expiration.milliseconds, Is.EqualTo(0));
+        Assert.That(record.lastAttempt.milliseconds, Is.GreaterThan(0));
+        Assert.That(record.correlationId, Is.Not.Null.And.Not.Empty);
+        Assert.That(record.lastError, Is.EqualTo("Test error message"));
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task StoreFailedCertificate_ShouldUpdateExistingNewRecord(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        {
+            var x509 = X509Extensions.CreateSelfSignedEcDsaCertificate("frodo.dotyou.cloud");
+            var (pemKey, pemCertificate) = x509.ExtractEcDsaPemData();
+            await _certificateStore.PutCertificateAsync("frodo.dotyou.cloud", pemKey, pemCertificate);
+
+            await _certificateStore.StoreFailedCertificateUpdateAsync("frodo.dotyou.cloud", "Test error message");
+
+            var certificates = _autofacContainer.Resolve<TableCertificates>();
+            var record = await certificates.GetAsync(new OdinId("frodo.dotyou.cloud"));
+
+            Assert.That(record, Is.Not.Null);
+            Assert.That(record!.domain.DomainName, Is.EqualTo("frodo.dotyou.cloud"));
+            Assert.That(record.privateKey, Is.Not.Empty);
+            Assert.That(record.privateKey, Is.Not.EqualTo("error")); // privateKey is encrypted
+            Assert.That(record.certificate, Is.EqualTo(pemCertificate));
+            Assert.That(record.expiration.milliseconds, Is.EqualTo(UnixTimeUtc.FromDateTime(x509.NotAfter).milliseconds));
+            Assert.That(record.lastAttempt.milliseconds, Is.GreaterThan(0));
+            Assert.That(record.correlationId, Is.Not.Null.And.Not.Empty);
+            Assert.That(record.lastError, Is.EqualTo("Test error message"));
+        }
+
+        {
+            var x509 = X509Extensions.CreateSelfSignedEcDsaCertificate("frodo.dotyou.cloud");
+            var (pemKey, pemCertificate) = x509.ExtractEcDsaPemData();
+            await _certificateStore.PutCertificateAsync("frodo.dotyou.cloud", pemKey, pemCertificate);
+
+            var certificates = _autofacContainer.Resolve<TableCertificates>();
+            var record = await certificates.GetAsync(new OdinId("frodo.dotyou.cloud"));
+
+            Assert.That(record, Is.Not.Null);
+            Assert.That(record!.domain.DomainName, Is.EqualTo("frodo.dotyou.cloud"));
+            Assert.That(record.privateKey, Is.Not.Empty);
+            Assert.That(record.privateKey, Is.Not.EqualTo("error")); // privateKey is encrypted
+            Assert.That(record.certificate, Is.EqualTo(pemCertificate));
+            Assert.That(record.expiration.milliseconds, Is.EqualTo(UnixTimeUtc.FromDateTime(x509.NotAfter).milliseconds));
+            Assert.That(record.lastAttempt.milliseconds, Is.GreaterThan(0));
+            Assert.That(record.correlationId, Is.Not.Null.And.Not.Empty);
+            Assert.That(record.lastError, Is.Null);
+        }
+    }
 
 }
