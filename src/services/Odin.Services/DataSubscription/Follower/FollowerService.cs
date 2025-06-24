@@ -366,7 +366,6 @@ namespace Odin.Services.DataSubscription.Follower
                 return;
             }
 
-            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             var channelDrives = await GetChannelsIFollow(identityIFollow, odinContext, definition);
 
             var request = new QueryBatchCollectionRequest()
