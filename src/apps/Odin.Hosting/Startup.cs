@@ -796,9 +796,13 @@ public static class HostExtensions
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var tenantContext = scope.Resolve<TenantContext>();
             var pm = tenantContext.TenantPathManager;
-            logger.LogInformation(pm.RegistrationPath);
+            var ssl = Path.Combine(pm.RegistrationPath, "ssl", tenant.PrimaryDomainName);
+            logger.LogInformation(ssl);
 
-            // await certificateStore.PutCertificateAsync()
+            var certificate = await File.ReadAllTextAsync(Path.Combine(ssl, "certificate.crt"));
+            var privateKey = await File.ReadAllTextAsync(Path.Combine(ssl, "private.key"));
+
+            await certificateStore.PutCertificateAsync(tenant.PrimaryDomainName, privateKey, certificate);
         }
 
         logger.LogInformation("Finished certificate migration");

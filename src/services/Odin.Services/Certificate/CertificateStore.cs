@@ -13,6 +13,7 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
+using Odin.Core.Util;
 
 namespace Odin.Services.Certificate;
 #nullable enable
@@ -98,6 +99,10 @@ public class CertificateStore(
 
     public async Task<X509Certificate2> PutCertificateAsync(string domain, string keyPem, string certificatePem)
     {
+        AsciiDomainNameValidator.AssertValidDomain(domain);
+        ArgumentException.ThrowIfNullOrEmpty(keyPem, nameof(keyPem));
+        ArgumentException.ThrowIfNullOrEmpty(certificatePem, nameof(certificatePem));
+
         var x509 = X509FromPem(domain, keyPem, certificatePem);
         if (!IsValid(x509))
         {
