@@ -285,6 +285,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             continue;
                         }
 
+                        // If the payloads are remote, skip the disk check
+                        if (header.DataSource != null)
+                            if (header.DataSource.PayloadsAreRemote)
+                                continue;
+
                         if (fileType == TenantPathManager.FileType.Payload)
                         {
                             if (!HasHeaderPayload(header, parsedFile))
