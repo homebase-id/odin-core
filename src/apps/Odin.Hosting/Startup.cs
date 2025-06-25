@@ -18,14 +18,17 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
@@ -53,6 +56,7 @@ using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Background;
 using Odin.Services.Concurrency;
 using Odin.Services.Drives;
@@ -768,7 +772,8 @@ public static class HostExtensions
             var db = scope.Resolve<IdentityDatabase>();
             var tx = await db.BeginStackedTransactionAsync();
 
-            var results = await db.MainIndexMeta.QueryBatchAsync(feedDriveId, Int32.MaxValue, null, QueryBatchSortOrder.Default);
+            var results = await GetHeadersInFeedDrive(db);
+
             var headers = results.Item1;
             logger.LogDebug("Deleting {items} from feed rive for tenant {t}", headers.Count, tenant.PrimaryDomainName);
 
@@ -785,9 +790,7 @@ public static class HostExtensions
                 await db.MainIndexMeta.DeleteEntryAsync(feedDriveId, header.fileId);
             }
 
-            var shouldBeAllGoneResults = await db.MainIndexMeta.QueryBatchAsync(feedDriveId, Int32.MaxValue, null,
-                QueryBatchSortOrder.Default);
-            
+            var shouldBeAllGoneResults = await GetHeadersInFeedDrive(db);
             if (shouldBeAllGoneResults.Item1.Count > 0)
             {
                 throw new OdinSystemException("items still on feed drive");
@@ -797,5 +800,16 @@ public static class HostExtensions
         }
 
         logger.LogInformation("Feed reset complete");
+
+        async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> GetHeadersInFeedDrive(IdentityDatabase db)
+        {
+            var results = await db.MainIndexMeta.QueryBatchAsync(feedDriveId,
+                Int32.MaxValue,
+                null,
+                QueryBatchSortOrder.Default,
+                requiredSecurityGroup: new IntRange(0, (int)SecurityGroupType.Owner),
+                fileSystemType: (int)FileSystemType.Standard);
+            return results;
+        }
     }
 }
