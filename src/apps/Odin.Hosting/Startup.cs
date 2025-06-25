@@ -770,7 +770,7 @@ public static class HostExtensions
         {
             var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
             var db = scope.Resolve<IdentityDatabase>();
-            var tx = await db.BeginStackedTransactionAsync();
+            await using var tx = await db.BeginStackedTransactionAsync();
 
             var results = await GetHeadersInFeedDrive(db);
 
