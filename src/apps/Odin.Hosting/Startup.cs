@@ -24,7 +24,6 @@ using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
@@ -103,6 +102,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
+        services.AddSingleton<ISystemDomains, SystemDomains>();
 
         services.AddControllers()
             .AddJsonOptions(options =>
@@ -177,17 +177,17 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
             sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
-            sp.GetRequiredService<ICertificateServiceFactory>(),
+            sp.GetRequiredService<ICertificateService>(),
             sp.GetRequiredService<IHttpClientFactory>(),
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainerAccessor>(),
             TenantServices.ConfigureTenantServices,
             _config));
 
+        services.AddSingleton(new CertificateStorageKey(_config.CertificateRenewal.StorageKey));
         services.AddSingleton(new AcmeAccountConfig
         {
             AcmeContactEmail = _config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
-            AcmeAccountFolder = _config.Host.SystemSslRootPath
         });
         services.AddSingleton<ILookupClient>(new LookupClient());
         services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
@@ -209,8 +209,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             sp.GetRequiredService<IHttpClientFactory>(),
             _config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
-        services.AddSingleton<ICertificateCache, CertificateCache>();
-        services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
+        services.AddSingleton<ICertificateStore, CertificateStore>();
+        services.AddSingleton<ICertificateService, CertificateService>();
 
         services.AddSingleton<IEmailSender>(sp => new MailgunSender(
             sp.GetRequiredService<ILogger<MailgunSender>>(),
@@ -578,7 +578,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     {
         Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
         Directory.CreateDirectory(cfg.Host.SystemDataRootPath);
-        Directory.CreateDirectory(cfg.Host.SystemSslRootPath);
     }
 
     private void AssertValidRenewalConfiguration(OdinConfiguration.CertificateRenewalSection section)
@@ -614,7 +613,8 @@ public static class HostExtensions
         // Load identity registry
         var registry = services.GetRequiredService<IIdentityRegistry>();
         registry.LoadRegistrations().BlockingWait();
-        DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
+        var certificateStore = services.GetRequiredService<ICertificateStore>();
+        DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry, certificateStore);
 
         // Check for singleton dependencies
         if (Env.IsDevelopment())
@@ -699,20 +699,9 @@ public static class HostExtensions
     // Returns true if the web server should be started, false if it should not.
     public static bool ProcessCommandLineArgs(this IHost host, string[] args)
     {
-        if (args.Contains("--dont-start-the-web-server"))
+        if (args.Contains("dont-start-the-web-server"))
         {
             // This is a one-off command example, don't start the web server.
-            return false;
-        }
-
-        if (args.Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
-        {
-            var services = host.Services;
-            var logger = services.GetRequiredService<ILogger<Startup>>();
-
-            logger.LogDebug("Starting drive-grant migration; stopping host");
-            MigrateDriveGrants(services).GetAwaiter().GetResult();
-            logger.LogDebug("Finished drive-grant migration; stopping host");
             return false;
         }
 
@@ -723,26 +712,6 @@ public static class HostExtensions
         }
 
         return true;
-    }
-
-    //
-
-    private static async Task MigrateDriveGrants(IServiceProvider services)
-    {
-        var registry = services.GetRequiredService<IIdentityRegistry>();
-        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-        var migrationLogger = loggerFactory.CreateLogger("Migration");
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-
-        var allTenants = await registry.GetTenants();
-
-        foreach (var tenant in allTenants)
-        {
-            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
-            migrationLogger.LogInformation("Starting migration for {tenant}; id: {id}", tenant.PrimaryDomainName, tenant.Id);
-            var circleMembershipService = scope.Resolve<CircleMembershipService>();
-            await circleMembershipService.Temp_ReconcileCircleAndAppGrants();
-        }
     }
 
     //
@@ -771,4 +740,7 @@ public static class HostExtensions
             await defragmenter.Defragment(cleanup);
         }
     }
+
+    //
+
 }

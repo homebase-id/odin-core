@@ -6,17 +6,8 @@ namespace Odin.Services.Certificate;
 
 #nullable enable
 
-public sealed class CertesAcmeMiddleware
+public sealed class CertesAcmeMiddleware(RequestDelegate next, IAcmeHttp01TokenCache cache)
 {
-    private readonly RequestDelegate _next;
-    private readonly IAcmeHttp01TokenCache _cache;
-
-    public CertesAcmeMiddleware(RequestDelegate next, IAcmeHttp01TokenCache cache)
-    {
-        _next = next;
-        _cache = cache;
-    }
-
     //
 
     public Task Invoke(HttpContext context)
@@ -26,7 +17,7 @@ public sealed class CertesAcmeMiddleware
         // Quickly bail if request is not acme-challenge related
         if (!HttpMethods.IsGet(context.Request.Method) || !path.StartsWith("/.well-known/acme-challenge/"))
         {
-            return _next(context);
+            return next(context);
         }
 
         // Handy for testing connectivity
@@ -41,7 +32,7 @@ public sealed class CertesAcmeMiddleware
         if (match.Success)
         {
             var token = match.Groups[1].Value;
-            if (_cache.TryGet(token, out var keyAuth))
+            if (cache.TryGet(token, out var keyAuth))
             {
                 context.Response.StatusCode = StatusCodes.Status200OK;
                 return context.Response.WriteAsync(keyAuth);

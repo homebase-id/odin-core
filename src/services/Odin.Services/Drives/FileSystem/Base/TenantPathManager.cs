@@ -42,7 +42,6 @@ public class TenantPathManager
     public const string ThumbnailExtension = ".thumb";
     public const string ThumbnailSizeDelimiter = "x";
     public const string DrivesFolder = "drives";
-    public const string SslFolder = "ssl";
     public const string RegistrationsFolder = "registrations";
     public const string HeadersFolder = "headers";
     public const string TempFolder = "temp";
@@ -61,7 +60,6 @@ public class TenantPathManager
 
     public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
     public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
-    public readonly string SslPath; // e.g. /data/tenants/registrations/<tenant-id>/ssl
     public readonly string StaticPath;  // e.g. /data/tenants/registrations/<tenant-id>/static
     public readonly string TempPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
     public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
@@ -92,7 +90,6 @@ public class TenantPathManager
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
         TempPath = Path.Combine(RegistrationPath, TempFolder);
         TempDrivesPath = Path.Combine(TempPath, DrivesFolder);
-        SslPath = Path.Combine(RegistrationPath, SslFolder);
         StaticPath = Path.Combine(RegistrationPath, StaticFolder);
 
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
@@ -259,11 +256,6 @@ public class TenantPathManager
         Directory.CreateDirectory(TempPath);
         Directory.CreateDirectory(PayloadsPath);
         Directory.CreateDirectory(StaticPath);
-    }
-
-    public void CreateSslRootDirectory()
-    {
-        Directory.CreateDirectory(SslPath);
     }
 
     // ----------------------
