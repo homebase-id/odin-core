@@ -593,6 +593,6 @@ public abstract class FileSystemStreamWriterBase
             }
         }
 
-        metadata.AppData?.Validate();
+        metadata.Validate();
     }
 }

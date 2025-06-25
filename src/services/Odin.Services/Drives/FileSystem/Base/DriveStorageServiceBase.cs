@@ -1054,7 +1054,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
             var metadata = manifest.FileMetadata;
-            metadata.AppData?.Validate();
+            metadata?.Validate();
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
 
             //
@@ -1233,7 +1233,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
-            header.FileMetadata.AppData?.Validate();
+            header.Validate();
 
             var json = OdinSystemSerializer.Serialize(header);
             var jsonBytes = Encoding.UTF8.GetBytes(json);

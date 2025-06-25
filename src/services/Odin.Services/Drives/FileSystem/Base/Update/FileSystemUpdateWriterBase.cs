@@ -456,7 +456,7 @@ public abstract class FileSystemUpdateWriterBase
             }
         }
 
-        metadata.AppData?.Validate();
+        metadata.Validate();
     }
 
     public async Task CleanupTempFiles(IOdinContext odinContext)
