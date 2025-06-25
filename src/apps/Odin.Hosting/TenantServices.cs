@@ -224,6 +224,7 @@ public static class TenantServices
             .As<INotificationHandler<ReactionContentDeletedNotification>>()
             .As<INotificationHandler<AllReactionsByFileDeleted>>();
 
+        cb.RegisterType<FeedWriter>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<AppRegistrationService>()
             .AsSelf()
             .As<IAppRegistrationService>()

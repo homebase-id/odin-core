@@ -8,6 +8,7 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -60,12 +61,12 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
     {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     [Test]
@@ -234,7 +235,7 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var (updateFileResponse, updatedEncryptedMetadataContent64, encryptedPayloads, encryptedThumbnails) =
             await callerDriveClient.UpdateEncryptedFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd], keyHeader);
-        
+
         ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
@@ -264,12 +265,13 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
             var getPayloadToAddResponse = await ownerApiClient.DriveRedux.GetPayload(targetFile, payloadToAdd.Key);
             ClassicAssert.IsTrue(getPayloadToAddResponse.IsSuccessStatusCode);
             ClassicAssert.IsTrue(getPayloadToAddResponse.ContentHeaders!.LastModified.HasValue);
-            ClassicAssert.IsTrue(getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+            ClassicAssert.IsTrue(
+                getPayloadToAddResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
 
             var content = (await getPayloadToAddResponse.Content.ReadAsStreamAsync()).ToByteArray();
             ClassicAssert.IsTrue(content.ToBase64() == encryptedPayloads.Single(p => p.Key == payloadToAdd.Key).EncryptedContent64);
 
-            
+
             // Check all the thumbnails
             foreach (var thumbnail in payloadToAdd.Thumbnails)
             {
@@ -278,11 +280,12 @@ public class DirectDriveLocalUpdateBatchEncryptedTests
 
                 ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
                 ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
-                ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+                ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() <
+                                     DateTimeOffset.Now.AddSeconds(10));
 
                 var thumbContent = (await getThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
-                ClassicAssert.IsTrue(thumbContent.ToBase64() == encryptedThumbnails.Single(p => p.Key == payloadToAdd.Key).EncryptedContent64);
-
+                ClassicAssert.IsTrue(thumbContent.ToBase64() ==
+                                     encryptedThumbnails.Single(p => p.Key == payloadToAdd.Key).EncryptedContent64);
             }
 
             //

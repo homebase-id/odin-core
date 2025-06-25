@@ -6,7 +6,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 namespace Odin.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
-    /// A package/parcel to be send to a set of recipients
+    /// A package/parcel to be sent to a set of recipients
     /// </summary>
     public class FileUploadPackage
     {

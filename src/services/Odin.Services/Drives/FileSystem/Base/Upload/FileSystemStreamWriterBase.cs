@@ -381,7 +381,8 @@ public abstract class FileSystemStreamWriterBase
             recipientStatus = await _peerOutgoingTransferService.SendFile(package.InternalFile,
                 package.InstructionSet.TransitOptions,
                 TransferFileType.Normal,
-                fileSystemType, odinContext);
+                fileSystemType, 
+                odinContext);
 
             return recipientStatus;
         }
@@ -491,6 +492,12 @@ public abstract class FileSystemStreamWriterBase
                 OdinClientErrorCode.MalformedMetadata);
         }
 
+        
+        if (metadata.DataSource != null)
+        {
+            throw new OdinClientException($"Cannot specify DataSource when storage intent is {StorageIntent.MetadataOnly}", 
+                OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
+        }
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
@@ -564,6 +571,18 @@ public abstract class FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
+            if (metadata.PayloadsAreRemote && package.GetFinalPayloadDescriptors(fromManifest: false).Any())
+            {
+                throw new OdinClientException("Payload content cannot be uploaded when RemotePayloadIdentity is set",
+                    OdinClientErrorCode.InvalidPayloadContent);
+            }
+            
+            if (metadata.PayloadsAreRemote && !package.GetFinalPayloadDescriptors(fromManifest: true).Any())
+            {
+                throw new OdinClientException("At least one payload descriptor is required when RemotePayloadIdentity is set",
+                    OdinClientErrorCode.MissingPayloadKeys);
+            }
+            
             if (metadata.IsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
@@ -575,14 +594,5 @@ public abstract class FileSystemStreamWriterBase
         }
 
         metadata.AppData?.Validate();
-    }
-
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file, IOdinContext odinContext)
-    {
-        return new InternalDriveFileId()
-        {
-            FileId = file.FileId,
-            DriveId = file.TargetDrive.Alias
-        };
     }
 }

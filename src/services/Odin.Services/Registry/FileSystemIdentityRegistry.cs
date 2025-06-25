@@ -42,7 +42,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie<IdentityRegistration> _trie;
-    private readonly ICertificateServiceFactory _certificateServiceFactory;
+    private readonly ICertificateService _certificateService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainerAccessor _tenantContainer;
@@ -53,7 +53,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
-        ICertificateServiceFactory certificateServiceFactory,
+        ICertificateService certificateService,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainerAccessor tenantContainer,
@@ -69,7 +69,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _logger = logger;
-        _certificateServiceFactory = certificateServiceFactory;
+        _certificateService = certificateService;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
         _tenantContainer = tenantContainer;
@@ -131,7 +131,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (updateFileSystem)
         {
             tenantPathManager.CreateDirectories();
-            tenantPathManager.CreateSslRootDirectory();
         }
 
         var tc = new TenantContext(
@@ -172,9 +171,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             FirstRunToken = Guid.NewGuid()
         };
 
-
-
-
         // Create directories
         var tenantPathManager = new TenantPathManager(_config, registration.Id);
         tenantPathManager.CreateDirectories();
@@ -197,11 +193,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         else
         {
             //optionally, let an ssl certificate be provided 
-            //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            var tenantContext = CreateTenantContext(request.OdinId, true);
-
-            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-            tc.SaveSslCertificate(
+            await _certificateService.PutCertificateAsync(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
                 {
@@ -210,7 +202,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 });
         }
 
-        CacheCertificate(registration);
+        await CacheCertificateAsync(registration);
         await InitializeOdinContextCache(registration);
         if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
         {
@@ -346,7 +338,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await File.WriteAllTextAsync(regFilePath, json);
 
         _logger.LogInformation("Wrote registration file for [{registrationId}]", registration.Id);
-        await CacheIdentity(registration);
+        await CacheIdentityAsync(registration);
     }
 
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
@@ -479,9 +471,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
 
                 _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
-                await CacheIdentity(registration);
+                await CacheIdentityAsync(registration);
 
-                CacheCertificate(registration);
+                await CacheCertificateAsync(registration);
                 await InitializeOdinContextCache(registration);
                 if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
                 {
@@ -510,14 +502,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration;
     }
 
-    private async Task CacheIdentity(IdentityRegistration registration)
+    private async Task CacheIdentityAsync(IdentityRegistration registration)
     {
         // BE VERY CAREFUL NOT TO START ANY DATABASE TRANSACTIONS HERE!!
         //
         // This method is called indirectly from other requests using their own scope, which
         // can conflict with the scope here, causing transaction deadlocks.
 
-        RegisterDotYouHttpClient(registration);
+        await RegisterDotYouHttpClientAsync(registration);
 
         _trie.TryRemoveDomain(registration.PrimaryDomainName);
         _trie.AddDomain(registration.PrimaryDomainName, registration);
@@ -601,9 +593,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }));
     }
 
-    private void RegisterDotYouHttpClient(IdentityRegistration idReg)
+    private Task RegisterDotYouHttpClientAsync(IdentityRegistration idReg)
     {
-        var tenantContext = this.CreateTenantContext(idReg);
         var domain = idReg.PrimaryDomainName;
         var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
 
@@ -620,8 +611,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };
 
-            var tc = _certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-            var x509 = tc.GetSslCertificate(domain);
+            // SEB:TODO this is a problem. We don't handle expired certificates here. We need to lookup
+            // and set the cert each time we send a request.
+            var x509 = _certificateService.GetCertificateAsync(domain).Result;
             if (x509 != null)
             {
                 handler.ClientCertificates.Add(x509);
@@ -639,6 +631,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
             return handler;
         }).SetHandlerLifetime(TimeSpan.FromMinutes(2)));
+
+        return Task.CompletedTask;
     }
 
     //
@@ -678,13 +672,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     //
 
-    private void CacheCertificate(IdentityRegistration registration)
+    private async Task CacheCertificateAsync(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
-        var tenantContext = scope.Resolve<TenantContext>();
-        var certificateServiceFactory = scope.Resolve<ICertificateServiceFactory>();
-        var certificateService = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-        var certificate = certificateService.ResolveCertificate(registration.PrimaryDomainName);
+        var certificate = await _certificateService.GetCertificateAsync(registration.PrimaryDomainName);
         if (certificate != null)
         {
             _logger.LogInformation("Certificate loaded for {domain}", registration.PrimaryDomainName);

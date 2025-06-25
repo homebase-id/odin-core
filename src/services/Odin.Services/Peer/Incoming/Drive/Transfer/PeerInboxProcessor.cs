@@ -66,7 +66,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         PublicPrivateKeyService keyService,
         IDriveManager driveManager,
         ReactionContentService reactionContentService,
-        ICorrelationContext correlationContext)
+        ICorrelationContext correlationContext,
+        FeedWriter feedWriter)
     {
         private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "INBX");
 
@@ -111,7 +112,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     StorageType = TempStorageType.Inbox
                 };
 
-                PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager);
+                PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager, feedWriter);
                 var markComplete = new MarkInboxComplete(transitInboxBoxStorage, tempFile.File, inboxItem.Marker);
                 var payloads = new List<PayloadDescriptor>();
                 var success = InboxReturnTypes.DeleteFromInbox;
@@ -132,7 +133,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     else if (success == InboxReturnTypes.DeleteFromInbox)
                     {
-                        int n = await transitInboxBoxStorage.MarkCompleteAsync(tempFile.File, inboxItem.Marker); // markComplete removes in from the Inbox
+                        int n = await transitInboxBoxStorage.MarkCompleteAsync(tempFile.File,
+                            inboxItem.Marker); // markComplete removes in from the Inbox
                         if (n != 1)
                             logger.LogError("Inbox: Unable to MarkComplete for DeleteFromInbox.");
                     }
@@ -181,19 +183,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeedViaTransit)
                     {
                         //this was a file sent over transit (fully encrypted for connected identities but targeting the feed drive)
-                        var (success, payloadDescriptors) = await ProcessFeedItemViaTransit(inboxItem, odinContext, writer, tempFile, fs, markComplete);
+                        var (success, payloadDescriptors) = await ProcessFeedItemViaTransit(inboxItem, odinContext, writer, tempFile, fs,
+                            markComplete);
                         return (success ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, payloadDescriptors);
                     }
 
                     if (inboxItem.TransferFileType == TransferFileType.EncryptedFileForFeed) //older path
                     {
-                        var (success, payloadDescriptors) = await ProcessEccEncryptedFeedInboxItem(inboxItem, writer, tempFile, fs, odinContext, markComplete);
+                        var (success, payloadDescriptors) = await ProcessEccEncryptedFeedInboxItem(inboxItem, writer, tempFile, fs,
+                            odinContext, markComplete);
                         return (success ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, payloadDescriptors);
                     }
 
                     if (inboxItem.TransferFileType == TransferFileType.Normal)
                     {
-                        var (success, payloadDescriptors) = await ProcessNormalFileSaveOperation(inboxItem, odinContext, writer, tempFile, fs, markComplete);
+                        var (success, payloadDescriptors) = await ProcessNormalFileSaveOperation(inboxItem, odinContext, writer, tempFile,
+                            fs, markComplete);
                         return (success ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, payloadDescriptors);
                     }
 
@@ -202,7 +207,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                 {
-                    logger.LogDebug("Processing Inbox -> DeleteFile marker/popstamp:[{maker}]", Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
+                    logger.LogDebug("Processing Inbox -> DeleteFile marker/popstamp:[{maker}]",
+                        Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                     var success = await writer.DeleteFile(fs, inboxItem, odinContext, markComplete);
                     return (success ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, []);
                 }
@@ -307,7 +313,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
-                return (InboxReturnTypes.DeleteFromInbox, []); // TODD - SHOULD PROBABLY RETURN TryAgainLater - BUT NOT UNTIL WE HAVE A RETRY COUNT ON THE INBOX
+                return
+                    (InboxReturnTypes.DeleteFromInbox,
+                        []); // TODD - SHOULD PROBABLY RETURN TryAgainLater - BUT NOT UNTIL WE HAVE A RETRY COUNT ON THE INBOX
             }
         }
 
@@ -345,7 +353,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 (success, payloads) = await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender,
                     inboxItem.TransferInstructionSet,
-                    odinContext, markComplete: markComplete);
+                    odinContext, false, markComplete: markComplete);
             });
 
             logger.LogDebug("ProcessFeedItemViaTransit -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
@@ -364,10 +372,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 
-            return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext, markComplete);
+            return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext,
+                markComplete);
         }
 
-        private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
+        private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext,
+            WriteSecondDatabaseRowBase markComplete)
         {
             var header = await fs.Query.GetFileByGlobalTransitId(inboxItem.DriveId, inboxItem.GlobalTransitId, odinContext);
             if (header == null)
@@ -390,7 +400,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     return await reactionContentService.AddReactionAsync(localFile, reaction, inboxItem.Sender, odinContext, markComplete);
 
                 case TransferInstructionType.DeleteReaction:
-                    return await reactionContentService.DeleteReactionAsync(localFile, reaction, inboxItem.Sender, odinContext, markComplete);
+                    return await reactionContentService.DeleteReactionAsync(localFile, reaction, inboxItem.Sender, odinContext,
+                        markComplete);
                 default:
                     throw new OdinClientException("HandleReaction -> Invalid instruction type", OdinClientErrorCode.InvalidTransferType);
             }

@@ -72,12 +72,12 @@ public class UpdateBatchWithRecipientsTests
 
     public static IEnumerable GuestAllowed()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     public static IEnumerable WhenGuestOnlyHasReadAccess()
     {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
     }
 
     [Test]
@@ -112,6 +112,7 @@ public class UpdateBatchWithRecipientsTests
         };
 
         var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata, transitOptions);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Authenticated;
         ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
         await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
 

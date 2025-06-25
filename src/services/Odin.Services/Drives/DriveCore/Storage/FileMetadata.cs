@@ -103,6 +103,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Guid? VersionTag { get; set; }
 
+        /// <summary>
+        /// When this header is set, this header is a copy of the original found at the source. 
+        /// </summary>
+        public DataSource DataSource { get; set; }
 
         public void SetCreatedModifiedWithDatabaseValue(UnixTimeUtc databaseCreated, UnixTimeUtc? databaseModified)
         {
@@ -137,9 +141,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
             Payloads = fileMetadataDto.Payloads;
             // VersionTag = VersionTag,
 
+            DataSource = fileMetadataDto.DataSource;
+
             // SANITY CHECK:
-            // There are SIX fields in the DTO.
-            // There are SIXTEEN properties in the FileMetaData
+            // There are SEVEN fields in the DTO.
+            // There are SEVENTEEN properties in the FileMetaData
             // There must be TEN assignments below
 
             // Now fill in FileMetadata with column specific values from the record
@@ -179,6 +185,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             return descriptor;
         }
+
+        public bool PayloadsAreRemote => DataSource?.PayloadsAreRemote ?? false;
 
         public bool TryValidate()
         {

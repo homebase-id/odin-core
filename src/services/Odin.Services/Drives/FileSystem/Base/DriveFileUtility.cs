@@ -148,8 +148,10 @@ public static class DriveFileUtility
             ReferencedFile = fileMetadata.ReferencedFile,
             ReactionPreview = fileMetadata.ReactionPreview,
             Payloads = fileMetadata.Payloads,
-            VersionTag = fileMetadata.VersionTag.GetValueOrDefault()
+            VersionTag = fileMetadata.VersionTag.GetValueOrDefault(),
+            DataSource = fileMetadata.DataSource
         };
+        
         return clientFile;
     }
 
