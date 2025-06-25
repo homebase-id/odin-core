@@ -473,8 +473,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (!newFileMetadata.TryValidate(odinContext))
             {
-                logger.LogWarning("Could not sync feed file (fileId:{fileId}; globaltransitId:{gtid}; Validation failed",
-                    newFileMetadata.File.FileId, newFileMetadata.GlobalTransitId);
+                logger.LogWarning("Skipping sync of file with GlobalTransitId:{gtid}; Validation failed", newFileMetadata.GlobalTransitId);
                 return;
             }
 
