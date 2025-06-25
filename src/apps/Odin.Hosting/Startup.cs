@@ -705,17 +705,6 @@ public static class HostExtensions
             return false;
         }
 
-        if (args.Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
-        {
-            var services = host.Services;
-            var logger = services.GetRequiredService<ILogger<Startup>>();
-
-            logger.LogDebug("Starting drive-grant migration; stopping host");
-            MigrateDriveGrants(services).GetAwaiter().GetResult();
-            logger.LogDebug("Finished drive-grant migration; stopping host");
-            return false;
-        }
-
         if (args.Length == 2 && args[0] == "defragment")
         {
             DefragmentAsync(host.Services, args[1] == "cleanup").BlockingWait();
@@ -723,26 +712,6 @@ public static class HostExtensions
         }
 
         return true;
-    }
-
-    //
-
-    private static async Task MigrateDriveGrants(IServiceProvider services)
-    {
-        var registry = services.GetRequiredService<IIdentityRegistry>();
-        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-        var migrationLogger = loggerFactory.CreateLogger("Migration");
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-
-        var allTenants = await registry.GetTenants();
-
-        foreach (var tenant in allTenants)
-        {
-            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
-            migrationLogger.LogInformation("Starting migration for {tenant}; id: {id}", tenant.PrimaryDomainName, tenant.Id);
-            var circleMembershipService = scope.Resolve<CircleMembershipService>();
-            await circleMembershipService.Temp_ReconcileCircleAndAppGrants();
-        }
     }
 
     //
