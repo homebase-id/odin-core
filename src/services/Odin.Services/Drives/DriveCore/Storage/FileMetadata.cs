@@ -208,6 +208,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 AsciiDomainNameValidator.AssertValidDomain(SenderOdinId); // Because senderOdinId is a string and not an OdinId...
             AppData?.Validate();
             LocalAppData?.Validate();
+            DataSource?.Validate();
 
             if (Payloads != null)
             {
