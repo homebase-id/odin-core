@@ -18,7 +18,6 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version4tov5
     /// Service to handle converting data between releases
     /// </summary>
     public class V4ToV5VersionMigrationService(
-        ILogger<V4ToV5VersionMigrationService> logger,
         FollowerService followerService)
     {
         public async Task UpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
