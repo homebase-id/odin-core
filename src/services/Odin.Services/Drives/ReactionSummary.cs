@@ -58,7 +58,7 @@ public class ReactionSummary
 
 public class ReactionContentPreview
 {
-    public static readonly int MaxReactionContentLength = 5;
+    public static readonly int MaxReactionContentLength = 22;
 
     public Guid Key { get; set; }
 
