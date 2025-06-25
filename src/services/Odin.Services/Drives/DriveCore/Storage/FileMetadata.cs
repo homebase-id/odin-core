@@ -227,7 +227,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 {
                     if (!Payloads?.Any() ?? false)
                     {
-                        throw new OdinClientException("Payload Descriptors are required when DataSource.PayloadsAreRemote is true");
+                        // throw new OdinClientException("Payload Descriptors are required when DataSource.PayloadsAreRemote is true");
                     }
                 }
             }
