@@ -775,14 +775,14 @@ public static class HostExtensions
             var results = await GetHeadersInFeedDrive(db);
 
             var headers = results.Item1;
-            logger.LogDebug("Deleting {items} from feed rive for tenant {t}", headers.Count, tenant.PrimaryDomainName);
+            logger.LogDebug("Deleting {items} headers from feed rive for tenant {t}", headers.Count, tenant.PrimaryDomainName);
 
             foreach (var header in headers)
             {
                 // because im oddly paranoid
                 if (header.driveId != SystemDriveConstants.FeedDrive.Alias)
                 {
-                    logger.LogError("whoa horsy, you're going to delete something not on the feed " +
+                    logger.LogError("whoa horsey, you're going to delete something not on the feed " +
                                     "drive.  the incorrect drive was {d}", header.driveId);
                     throw new OdinSystemException("invalid drive");
                 }
