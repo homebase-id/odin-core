@@ -215,6 +215,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             AppData?.Validate();
             LocalAppData?.Validate();
+            DataSource?.Validate();
 
             if (DataSource != null)
             {
