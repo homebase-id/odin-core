@@ -471,12 +471,15 @@ namespace Odin.Services.DataSubscription.Follower
                 }
             };
 
-            if (!newFileMetadata.TryValidate(odinContext))
+            if (!newFileMetadata.TryValidate(odinContext, out var exception))
             {
                 logger.LogWarning("Skipping sync of file with GlobalTransitId:{gtid} " +
-                                  "from identity:{id}; Validation failed",
+                                  "from identity:{id} on driveId:{driveId}; " +
+                                  "Validation failed: {message}",
                     newFileMetadata.GlobalTransitId,
-                    identityIFollow);
+                    identityIFollow,
+                    channelId,
+                    exception.Message);
                 return;
             }
 

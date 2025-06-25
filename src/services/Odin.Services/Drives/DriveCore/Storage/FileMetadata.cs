@@ -189,15 +189,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public bool PayloadsAreRemote => DataSource?.PayloadsAreRemote ?? false;
 
-        public bool TryValidate(IOdinContext odinContext)
+        public bool TryValidate(IOdinContext odinContext, out OdinClientException exception)
         {
             try
             {
                 Validate(odinContext);
+                exception = null;
                 return true;
             }
-            catch
+            catch (OdinClientException oce)
             {
+                exception = oce;
                 return false;
             }
         }
