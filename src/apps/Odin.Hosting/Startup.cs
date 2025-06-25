@@ -24,7 +24,6 @@ using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
@@ -103,6 +102,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
+        services.AddSingleton<ISystemDomains, SystemDomains>();
 
         services.AddControllers()
             .AddJsonOptions(options =>
@@ -177,17 +177,17 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
             sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
-            sp.GetRequiredService<ICertificateServiceFactory>(),
+            sp.GetRequiredService<ICertificateService>(),
             sp.GetRequiredService<IHttpClientFactory>(),
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainerAccessor>(),
             TenantServices.ConfigureTenantServices,
             _config));
 
+        services.AddSingleton(new CertificateStorageKey(_config.CertificateRenewal.StorageKey));
         services.AddSingleton(new AcmeAccountConfig
         {
             AcmeContactEmail = _config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
-            AcmeAccountFolder = _config.Host.SystemSslRootPath
         });
         services.AddSingleton<ILookupClient>(new LookupClient());
         services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
@@ -209,8 +209,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             sp.GetRequiredService<IHttpClientFactory>(),
             _config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
-        services.AddSingleton<ICertificateCache, CertificateCache>();
-        services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
+        services.AddSingleton<ICertificateStore, CertificateStore>();
+        services.AddSingleton<ICertificateService, CertificateService>();
 
         services.AddSingleton<IEmailSender>(sp => new MailgunSender(
             sp.GetRequiredService<ILogger<MailgunSender>>(),
@@ -578,7 +578,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     {
         Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
         Directory.CreateDirectory(cfg.Host.SystemDataRootPath);
-        Directory.CreateDirectory(cfg.Host.SystemSslRootPath);
     }
 
     private void AssertValidRenewalConfiguration(OdinConfiguration.CertificateRenewalSection section)
@@ -614,7 +613,8 @@ public static class HostExtensions
         // Load identity registry
         var registry = services.GetRequiredService<IIdentityRegistry>();
         registry.LoadRegistrations().BlockingWait();
-        DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry);
+        var certificateStore = services.GetRequiredService<ICertificateStore>();
+        DevEnvironmentSetup.ConfigureIfPresent(logger, config, registry, certificateStore);
 
         // Check for singleton dependencies
         if (Env.IsDevelopment())
@@ -722,6 +722,12 @@ public static class HostExtensions
             return false;
         }
 
+        if (args.Length == 1 && args[0] == "migrate-certs")
+        {
+            MigrateCertificatesAsync(host.Services).BlockingWait();
+            return false;
+        }
+
         return true;
     }
 
@@ -770,5 +776,35 @@ public static class HostExtensions
             logger.LogInformation("Defragmenting {tenant}", tenant.PrimaryDomainName);
             await defragmenter.Defragment(cleanup);
         }
+    }
+
+    //
+
+    private static async Task MigrateCertificatesAsync(IServiceProvider services)
+    {
+        var logger = services.GetRequiredService<ILogger<Startup>>();
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+        var certificateStore = services.GetRequiredService<ICertificateStore>();
+
+        logger.LogInformation("Starting certificate migration");
+
+        var allTenants = await registry.GetTenants();
+        foreach (var tenant in allTenants)
+        {
+            logger.LogInformation("Migrating certificates for {tenant}", tenant.PrimaryDomainName);
+            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
+            var tenantContext = scope.Resolve<TenantContext>();
+            var pm = tenantContext.TenantPathManager;
+            var ssl = Path.Combine(pm.RegistrationPath, "ssl", tenant.PrimaryDomainName);
+            logger.LogInformation(ssl);
+
+            var certificate = await File.ReadAllTextAsync(Path.Combine(ssl, "certificate.crt"));
+            var privateKey = await File.ReadAllTextAsync(Path.Combine(ssl, "private.key"));
+
+            await certificateStore.PutCertificateAsync(tenant.PrimaryDomainName, privateKey, certificate);
+        }
+
+        logger.LogInformation("Finished certificate migration");
     }
 }

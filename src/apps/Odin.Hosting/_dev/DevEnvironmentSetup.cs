@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Tasks;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
@@ -66,27 +67,27 @@ namespace Odin.Hosting._dev
         /// <param name="logger"></param>
         /// <param name="odinConfiguration"></param>
         /// <param name="registry"></param>
-        public static void ConfigureIfPresent(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry registry)
+        /// <param name="certificateStore"></param>
+        public static void ConfigureIfPresent(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry registry, ICertificateStore certificateStore)
         {
             if (odinConfiguration.Development != null)
             {
-                ConfigureSystemSsl(odinConfiguration);
+                ConfigureSystemSsl(odinConfiguration, certificateStore);
                 RegisterPreconfiguredDomainsAsync(logger, odinConfiguration, registry);
             }
         }
 
-        private static void ConfigureSystemSsl(OdinConfiguration odinConfiguration)
+        private static void ConfigureSystemSsl(OdinConfiguration odinConfiguration, ICertificateStore certificateStore)
         {
             // Provisioning system
             if (odinConfiguration.Registry.ProvisioningEnabled)
             {
-                var targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Registry.ProvisioningDomain);
-                Directory.CreateDirectory(targetPath);
                 try
                 {
                     var sourcePaths = GetSourceDomainPath(odinConfiguration.Registry.ProvisioningDomain, odinConfiguration);
-                    File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
-                    File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
+                    var privateKey = File.ReadAllText(sourcePaths.privateKey);
+                    var publicKey = File.ReadAllText(sourcePaths.publicKey);
+                    certificateStore.PutCertificateAsync(odinConfiguration.Registry.ProvisioningDomain, privateKey, publicKey).BlockingWait();
                 }
                 catch (Exception)
                 {
@@ -101,18 +102,17 @@ namespace Odin.Hosting._dev
             // Admin system
             if (odinConfiguration.Admin.ApiEnabled)
             {
-                var targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Admin.Domain);
-                Directory.CreateDirectory(targetPath);
                 try
                 {
                     var sourcePaths = GetSourceDomainPath(odinConfiguration.Admin.Domain, odinConfiguration);
-                    File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
-                    File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
+                    var privateKey = File.ReadAllText(sourcePaths.privateKey);
+                    var publicKey = File.ReadAllText(sourcePaths.publicKey);
+                    certificateStore.PutCertificateAsync(odinConfiguration.Admin.Domain, privateKey, publicKey).BlockingWait();
                 }
                 catch (Exception)
                 {
                     // Swallow unless domain is running on 127.0.0.1
-                    if (odinConfiguration.Registry.ProvisioningDomain.EndsWith("dotyou.cloud"))
+                    if (odinConfiguration.Admin.Domain.EndsWith("dotyou.cloud"))
                     {
                         throw;
                     }

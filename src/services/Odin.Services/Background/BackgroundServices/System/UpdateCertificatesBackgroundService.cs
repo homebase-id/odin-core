@@ -12,8 +12,9 @@ namespace Odin.Services.Background.BackgroundServices.System;
 public class UpdateCertificatesBackgroundService(
     ILogger<UpdateCertificatesBackgroundService> logger,
     OdinConfiguration odinConfig,
-    ICertificateServiceFactory certificateServiceFactory,
-    IIdentityRegistry registry)
+    ICertificateService certificateService,
+    IIdentityRegistry registry,
+    ISystemDomains systemDomains)
     : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,9 +29,18 @@ public class UpdateCertificatesBackgroundService(
             var identities = await registry.GetList();
             foreach (var identity in identities.Results)
             {
-                var tenantContext = registry.CreateTenantContext(identity);
-                var tc = certificateServiceFactory.Create(tenantContext.TenantPathManager.SslPath);
-                var task = tc.RenewIfAboutToExpireAsync(identity, stoppingToken);
+                var task = certificateService.RenewIfAboutToExpireAsync(
+                    identity.PrimaryDomainName,
+                    identity.GetSans(),
+                    stoppingToken);
+                tasks.Add(task);
+            }
+
+            foreach (var systemDomain in systemDomains.Get())
+            {
+                var task = certificateService.RenewIfAboutToExpireAsync(
+                    systemDomain,
+                    stoppingToken);
                 tasks.Add(task);
             }
 

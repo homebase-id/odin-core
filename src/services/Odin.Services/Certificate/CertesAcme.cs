@@ -51,7 +51,7 @@ public sealed class CertesAcme : ICertesAcme
     
     //
 
-    public async Task<AcmeAccount> CreateAccount(string contactEmail, CancellationToken cancellationToken = default)
+    public async Task<AcmeAccount> CreateAccountAsync(string contactEmail, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Creating account for {contactEmail}", contactEmail);
         var sw = Stopwatch.StartNew();
@@ -67,7 +67,7 @@ public sealed class CertesAcme : ICertesAcme
     
     //
 
-    public async Task<KeysAndCertificates> CreateCertificate(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken = default)
+    public async Task<KeysAndCertificates> CreateCertificateAsync(AcmeAccount acmeAccount, string[] domains, CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
         
