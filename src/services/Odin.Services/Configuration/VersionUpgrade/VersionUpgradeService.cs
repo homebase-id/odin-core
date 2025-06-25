@@ -21,7 +21,7 @@ public class VersionUpgradeService(
     V1ToV2VersionMigrationService v2,
     V2ToV3VersionMigrationService v3,
     V3ToV4VersionMigrationService v4,
-    V4ToV5VersionMigrationService v5,
+    // V4ToV5VersionMigrationService v5,
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
