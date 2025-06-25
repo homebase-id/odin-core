@@ -89,9 +89,12 @@ public class PayloadDescriptor
     public void Validate()
     {
         if ((DescriptorContent?.Length ?? 0) > MaxDescriptorContentLength)
+        {
             throw new OdinClientException(
                 $"Too long DescriptorContent length {DescriptorContent?.Length ?? 0} in PayloadDescriptor max {MaxDescriptorContentLength}",
                 OdinClientErrorCode.MaxContentLengthExceeded);
+            
+        }
 
         PreviewThumbnail?.Validate();
 
@@ -102,7 +105,9 @@ public class PayloadDescriptor
                     $"Too many Thumbnails count {Thumbnails.Count} in PayloadDescriptor max {MaxThumbnailsCount}");
 
             foreach (var thumbnail in Thumbnails)
+            {
                 thumbnail.Validate();
+            }
         }
     }
 }

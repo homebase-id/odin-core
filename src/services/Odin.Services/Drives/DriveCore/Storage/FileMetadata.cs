@@ -234,14 +234,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
             }
 
-            if ((Payloads?.Count ?? 0) > MaxPayloadsCount)
+            if (!PayloadsAreRemote)
             {
-                throw new OdinClientException($"Too many Payloads count {Payloads?.Count ?? 0} in FileMetadata max {MaxPayloadsCount}");
-            }
+                if ((Payloads?.Count ?? 0) > MaxPayloadsCount)
+                {
+                    throw new OdinClientException($"Too many Payloads count {Payloads?.Count ?? 0} in FileMetadata max {MaxPayloadsCount}");
+                }
 
-            foreach (var payload in Payloads ?? [])
-            {
-                payload.Validate();
+                foreach (var payload in Payloads ?? [])
+                {
+                    payload.Validate();
+                }
             }
         }
     }
