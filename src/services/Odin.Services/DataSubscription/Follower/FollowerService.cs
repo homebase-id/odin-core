@@ -471,6 +471,13 @@ namespace Odin.Services.DataSubscription.Follower
                 }
             };
 
+            if (!newFileMetadata.TryValidate(odinContext))
+            {
+                logger.LogWarning("Could not sync feed file (fileId:{fileId}; globaltransitId:{gtid}; Validation failed",
+                    newFileMetadata.File.FileId, newFileMetadata.GlobalTransitId);
+                return;
+            }
+
             var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(
                 SystemDriveConstants.FeedDrive.Alias,
                 dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
