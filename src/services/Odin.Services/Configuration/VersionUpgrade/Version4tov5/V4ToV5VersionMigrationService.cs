@@ -35,11 +35,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version4tov5
             foreach (var identity in peopleIFollow.Results)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                logger.LogDebug("Start: Synchronizing channels from {identity}", identity);
-                await followerService.SynchronizeChannelFilesAsync((OdinId)identity, odinContext);
-                logger.LogDebug("Done: Synchronizing channels from {identity}", identity);
+                try
+                {
+                    logger.LogDebug("Start: Synchronizing channels from {identity}", identity);
+                    await followerService.SynchronizeChannelFilesAsync((OdinId)identity, odinContext);
+                    logger.LogDebug("Done: Synchronizing channels from {identity}", identity);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed syncing {identity}.", identity);
+                }
             }
         }
-
     }
 }
