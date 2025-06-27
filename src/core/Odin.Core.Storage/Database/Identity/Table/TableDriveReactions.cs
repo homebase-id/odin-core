@@ -230,6 +230,10 @@ public class TableDriveReactions(
     {
         if (count < 1)
             throw new Exception("Count must be at least 1.");
+
+        if (count == int.MaxValue)
+            count--; // avoid overflow when doing +1 on the param below
+
         if (inCursor == null)
             inCursor = 0;
 
