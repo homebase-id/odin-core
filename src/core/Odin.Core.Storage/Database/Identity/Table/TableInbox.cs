@@ -65,6 +65,9 @@ public class TableInbox(
         await using var tx = await cn.BeginStackedTransactionAsync();
         await using var cmd = cn.CreateCommand();
 
+        if (count == int.MaxValue)
+            count--; // avoid overflow when doing +1 on the param below
+
         cmd.CommandText =
             "UPDATE inbox SET popstamp=@popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NULL ORDER BY rowId ASC LIMIT @count); " +
             "SELECT rowid,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM inbox WHERE identityId = @identityId AND popstamp=@popstamp ORDER BY rowId ASC";
