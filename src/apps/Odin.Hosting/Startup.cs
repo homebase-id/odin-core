@@ -699,20 +699,9 @@ public static class HostExtensions
     // Returns true if the web server should be started, false if it should not.
     public static bool ProcessCommandLineArgs(this IHost host, string[] args)
     {
-        if (args.Contains("--dont-start-the-web-server"))
+        if (args.Contains("dont-start-the-web-server"))
         {
             // This is a one-off command example, don't start the web server.
-            return false;
-        }
-
-        if (args.Contains("--migrate-drive-grants", StringComparer.OrdinalIgnoreCase))
-        {
-            var services = host.Services;
-            var logger = services.GetRequiredService<ILogger<Startup>>();
-
-            logger.LogDebug("Starting drive-grant migration; stopping host");
-            MigrateDriveGrants(services).GetAwaiter().GetResult();
-            logger.LogDebug("Finished drive-grant migration; stopping host");
             return false;
         }
 
@@ -722,33 +711,7 @@ public static class HostExtensions
             return false;
         }
 
-        if (args.Length == 1 && args[0] == "migrate-certs")
-        {
-            MigrateCertificatesAsync(host.Services).BlockingWait();
-            return false;
-        }
-
         return true;
-    }
-
-    //
-
-    private static async Task MigrateDriveGrants(IServiceProvider services)
-    {
-        var registry = services.GetRequiredService<IIdentityRegistry>();
-        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-        var migrationLogger = loggerFactory.CreateLogger("Migration");
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-
-        var allTenants = await registry.GetTenants();
-
-        foreach (var tenant in allTenants)
-        {
-            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
-            migrationLogger.LogInformation("Starting migration for {tenant}; id: {id}", tenant.PrimaryDomainName, tenant.Id);
-            var circleMembershipService = scope.Resolve<CircleMembershipService>();
-            await circleMembershipService.Temp_ReconcileCircleAndAppGrants();
-        }
     }
 
     //
@@ -780,31 +743,4 @@ public static class HostExtensions
 
     //
 
-    private static async Task MigrateCertificatesAsync(IServiceProvider services)
-    {
-        var logger = services.GetRequiredService<ILogger<Startup>>();
-        var registry = services.GetRequiredService<IIdentityRegistry>();
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-        var certificateStore = services.GetRequiredService<ICertificateStore>();
-
-        logger.LogInformation("Starting certificate migration");
-
-        var allTenants = await registry.GetTenants();
-        foreach (var tenant in allTenants)
-        {
-            logger.LogInformation("Migrating certificates for {tenant}", tenant.PrimaryDomainName);
-            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
-            var tenantContext = scope.Resolve<TenantContext>();
-            var pm = tenantContext.TenantPathManager;
-            var ssl = Path.Combine(pm.RegistrationPath, "ssl", tenant.PrimaryDomainName);
-            logger.LogInformation(ssl);
-
-            var certificate = await File.ReadAllTextAsync(Path.Combine(ssl, "certificate.crt"));
-            var privateKey = await File.ReadAllTextAsync(Path.Combine(ssl, "private.key"));
-
-            await certificateStore.PutCertificateAsync(tenant.PrimaryDomainName, privateKey, certificate);
-        }
-
-        logger.LogInformation("Finished certificate migration");
-    }
 }

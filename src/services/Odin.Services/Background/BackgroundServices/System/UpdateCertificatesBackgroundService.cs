@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -44,7 +45,19 @@ public class UpdateCertificatesBackgroundService(
                 tasks.Add(task);
             }
 
-            await Task.WhenAll(tasks);
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception)
+            {
+                foreach (var task in tasks.Where(task => task.IsFaulted))
+                {
+                    var exception = task.Exception?.GetBaseException();
+                    logger.LogError(exception, "Error background updating certificate: {error}", exception?.Message);
+                }
+            }
+
             tasks.Clear();
 
             logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, interval);
