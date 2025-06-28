@@ -400,6 +400,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 throw;
             }
 
+            logger.LogDebug("PerformanceTest03B: Stopping multi-threaded test with a connection per thread");
+
             sw.Stop();
 
             Console.WriteLine($"Threads   : {MAXTHREADS}");
