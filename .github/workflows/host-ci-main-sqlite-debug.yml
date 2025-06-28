@@ -32,11 +32,10 @@ jobs:
 
       - name: Build
         # below: %3B is ASCII for semicolon
-        # run: dotnet build --no-restore --configuration Debug --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_WINDOWS" ./odin-core.sln
-        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_WINDOWS" ./odin-core.sln
+        run: dotnet build --no-restore --configuration Debug --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_WINDOWS" ./odin-core.sln
 
       - name: Test
         # run: dotnet test --no-build --configuration Debug --verbosity normal ./odin-core.sln
         # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests.CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
         # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
-        run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Core.Storage.Tests.Database.Identity.Abstractions.DriveMainIndexPerformanceTests.PerformanceTest03B" --configuration Release --verbosity normal
+        run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Core.Storage.Tests.Database.Identity.Abstractions.DriveMainIndexPerformanceTests.PerformanceTest03B" --configuration Debug --verbosity normal
