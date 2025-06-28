@@ -1,17 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using Autofac;
+﻿using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Test.Helpers.Benchmark;
 using Serilog.Events;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 {
@@ -315,6 +316,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 tasks[i] = Task.Run(async () =>
                 {
                     await using var scope = Services.BeginLifetimeScope();
+                    var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+                    await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
                     var metaIndex = scope.Resolve<MainIndexMeta>();
                     await WriteRowsAsync(i, MAXITERATIONS, metaIndex, driveId);
                 });
@@ -350,7 +353,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         }
 
         /// Multi-threading on a connection per thread
-        /// SEB:NOTE this is a BAD idea with scoped connections, but I'll leave it for completeness
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
@@ -378,6 +380,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 tasks[i] = Task.Run(async () =>
                 {
                     await using var scope = Services.BeginLifetimeScope();
+                    var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+                    await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
                     var metaIndex = scope.Resolve<MainIndexMeta>();
                     await WriteRowsAsync(i, MAXITERATIONS, metaIndex, driveId);
                 });

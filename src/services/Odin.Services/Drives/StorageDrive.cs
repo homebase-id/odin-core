@@ -120,6 +120,11 @@ namespace Odin.Services.Drives
         public void CreateDirectories()
         {
             string payloadDirectory = GetDrivePayloadPath();
+
+            // Just for sanity, to see if anything fails
+            if (Directory.Exists(payloadDirectory))
+                throw new Exception("CreateDirectories() called but drive folder already exists on disk.");
+
             Directory.CreateDirectory(payloadDirectory);
 
             for (int first = 0; first < 16; first++)
