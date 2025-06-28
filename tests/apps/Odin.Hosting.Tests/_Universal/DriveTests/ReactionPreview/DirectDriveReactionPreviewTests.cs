@@ -55,7 +55,7 @@ public class DirectDriveReactionPreviewTests
 
         var uploadResult = uploadMetadataResponse.Content;
 
-        const string reactionContent1 = ":cake:";
+        const string reactionContent1 = ":k:";
         var request = new AddReactionRequestRedux
         {
             File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),

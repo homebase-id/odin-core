@@ -54,7 +54,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
         [Test]
         public async Task ConnectedIdentity_CanSendAndGetAllReactions_OverTransit_ForPublicChannel_WithNoCircles()
         {
-            const string reactionContent = ":cake:";
+            const string reactionContent = ":k:";
 
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var pippinChannelDrive = new TargetDrive()
@@ -122,7 +122,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
         [Test]
         public async Task ConnectedIdentity_CanSendAndDeleteReactionsOverTransit_ForPublicChannel_WithNoCircles()
         {
-            const string reactionContent = ":cake:";
+            const string reactionContent = ":k:";
 
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var pippinChannelDrive = new TargetDrive()

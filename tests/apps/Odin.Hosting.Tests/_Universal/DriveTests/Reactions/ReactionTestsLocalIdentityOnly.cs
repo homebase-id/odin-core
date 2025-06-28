@@ -82,7 +82,7 @@ public class ReactionTestsLocalIdentityOnly
         // Act
         await callerContext.Initialize(ownerApiClient);
         var callerReactionClient = new UniversalDriveReactionClient(identity.OdinId, callerContext.GetFactory());
-        const string reactionContent1 = ":cake:";
+        const string reactionContent1 = ":k:";
         var response = await callerReactionClient.AddReaction(new AddReactionRequestRedux
         {
             File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
@@ -117,7 +117,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadResult = uploadMetadataResponse.Content;
         ClassicAssert.IsNotNull(uploadResult);
 
-        const string reactionContent1 = ":cake:";
+        const string reactionContent1 = ":k:";
 
         var addReactionResponse = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {
@@ -164,7 +164,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadResult = uploadMetadataResponse.Content;
         ClassicAssert.IsNotNull(uploadResult);
 
-        const string reactionContent1 = ":cake:";
+        const string reactionContent1 = ":k:";
         const string reactionContent2 = ":pie:";
 
         var addReactionResponse1 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
@@ -221,7 +221,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadResult = uploadMetadataResponse.Content;
         ClassicAssert.IsNotNull(uploadResult);
 
-        const string reactionContent1 = ":cake:";
+        const string reactionContent1 = ":k:";
         const string reactionContent2 = ":pie:";
 
         var addReactionResponse1 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
@@ -277,7 +277,7 @@ public class ReactionTestsLocalIdentityOnly
         var uploadResult = uploadMetadataResponse.Content;
         ClassicAssert.IsNotNull(uploadResult);
 
-        const string reactionContent1 = ":cake:";
+        const string reactionContent1 = ":k:";
         const string reactionContent2 = ":pie:";
 
         var addReactionResponse1 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux

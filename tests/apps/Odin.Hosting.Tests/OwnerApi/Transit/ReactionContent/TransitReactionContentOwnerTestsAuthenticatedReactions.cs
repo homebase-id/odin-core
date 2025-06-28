@@ -59,7 +59,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
 
         //Note: not sure if that's a good thing BUT technically sam is authenticated
 
-        const string reactionContent = ":cake:";
+        const string reactionContent = ":k:";
 
         var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
         var pippinChannelDrive = new TargetDrive()
