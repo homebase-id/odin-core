@@ -206,7 +206,7 @@ public abstract class FileSystemUpdateWriterBase
     {
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
-        await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata);
+        await this.ValidateUploadCore(Package, keyHeader, metadata, serverMetadata, odinContext);
 
         if (Package.InstructionSet.Locale == UpdateLocale.Local)
         {
@@ -385,7 +385,7 @@ public abstract class FileSystemUpdateWriterBase
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
     private async Task ValidateUploadCore(FileUpdatePackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         //re-run validation in case we need to verify the instructions are good for encrypted data
         Package.InstructionSet.AssertIsValid(metadata.IsEncrypted);
@@ -457,7 +457,7 @@ public abstract class FileSystemUpdateWriterBase
             }
         }
 
-        metadata.AppData?.Validate();
+        metadata.Validate(odinContext);
     }
 
     public async Task CleanupTempFiles(IOdinContext odinContext)
