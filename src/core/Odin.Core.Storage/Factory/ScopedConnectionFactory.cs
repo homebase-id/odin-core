@@ -326,7 +326,13 @@ public class ScopedConnectionFactory<T>(
                 try
                 {
                     instance.LogTrace("Beginning transaction");
+
+                    var start = Stopwatch.StartNew();
                     instance._transaction = await instance._connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+                    if (start.Elapsed > TimeSpan.FromSeconds(1))
+                    {
+                        instance._logger.LogWarning("BeginTransactionAsync - took {time}", start.Elapsed);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -569,7 +575,7 @@ public class ScopedConnectionFactory<T>(
     //
     public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
     {
-        private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromMilliseconds(100);
+        private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromSeconds(10);
         private bool _disposed;
         public DbCommand DangerousInstance => command;
         public DatabaseType DatabaseType => instance.DatabaseType;
