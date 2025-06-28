@@ -366,7 +366,6 @@ namespace Odin.Services.DataSubscription.Follower
                 return;
             }
 
-            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
             var channelDrives = await GetChannelsIFollow(identityIFollow, odinContext, definition);
 
             var request = new QueryBatchCollectionRequest()
@@ -471,6 +470,38 @@ namespace Odin.Services.DataSubscription.Follower
                     PayloadsAreRemote = true
                 }
             };
+
+
+            if (newFileMetadata.AppData.PreviewThumbnail != null)
+            {
+                //overwrite with a dummy one
+                if(newFileMetadata.AppData.PreviewThumbnail.TryValidate() == false)
+                {
+                    logger.LogDebug("Preview thumbnail failed validation; release the kraken");
+                    newFileMetadata.AppData.PreviewThumbnail = new ThumbnailContent
+                    {
+                        PixelWidth = 594,
+                        PixelHeight = 497,
+                        ContentType = "image/webp",
+                        BytesWritten = 0,
+                        Content = Convert.FromBase64String("UklGRr4CAABXRUJQVlA4WAoAAAAgAAAAEwAAEAAASUNDUMgBAAAAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADZWUDgg0AAAAHAFAJ0BKhQAEQA+9XKwUyqmpKKoCAFQHolnAM45i2X0kIuwndxsFE34nVBHGFszwHZV8SgAyzpLin+kW9ywqKsxofEadS2Rip94f5OHdFtM/yYfsrr7xi10XLJmghR4yV+C+ZMFqn3OT/BKMJhzf/SbgkjMD0Hik4z7sPZIfYFx8/a1qPW5hS1TbWtU6vP3cO/OORwki96rapqidTKwBau/DQMJqMCXqYjw+YbZcZXvUmuGmgiF3lz2Yh1jP0Oz1HgZE/JB3wOOhJwtKkAAAAA=")
+                    };
+                }
+            }
+
+            if (!newFileMetadata.TryValidate(odinContext, out var exception))
+            {
+                logger.LogWarning("Skipping sync of file with GlobalTransitId:{gtid} " +
+                                  "from identity:{id} on driveId:{driveId}; " +
+                                  "Validation failed: {message}",
+                    newFileMetadata.GlobalTransitId,
+                    identityIFollow,
+                    channelId,
+                    exception.Message);
+
+
+                return;
+            }
 
             var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(
                 SystemDriveConstants.FeedDrive.Alias,

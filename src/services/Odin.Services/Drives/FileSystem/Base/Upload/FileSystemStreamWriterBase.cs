@@ -437,7 +437,8 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
-
+        metadata.Validate(odinContext);
+        
         var serverMetadata = new ServerMetadata
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
@@ -485,19 +486,20 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
+        metadata.Validate(odinContext);
 
         if (metadata.Payloads?.Any() ?? false)
         {
             throw new OdinClientException($"Cannot specify additional payloads when storage intent is {StorageIntent.MetadataOnly}",
                 OdinClientErrorCode.MalformedMetadata);
         }
-
         
         if (metadata.DataSource != null)
         {
             throw new OdinClientException($"Cannot specify DataSource when storage intent is {StorageIntent.MetadataOnly}", 
                 OdinClientErrorCode.CannotModifyRemotePayloadIdentity);
         }
+        
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,

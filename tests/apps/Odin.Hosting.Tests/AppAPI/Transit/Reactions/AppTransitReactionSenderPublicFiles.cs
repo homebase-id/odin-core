@@ -72,7 +72,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             // Pippin uploads file
             var targetFile = await UploadStandardRandomPublicFileHeader(pippinOwnerClient.Identity, remoteDrive.TargetDriveInfo);
 
-            const string reactionContent = "I dunno and stuff";
+            const string reactionContent = ":k:";
 
             var request = new PeerAddReactionRequest()
             {
@@ -132,7 +132,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives,
                 false.ToString());
 
-            const string reactionContent = "I dunno and stuff";
+            const string reactionContent = ":k:";
             var request = new PeerAddReactionRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
@@ -168,7 +168,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Reactions
             await pippinOwnerClient.Configuration.UpdateTenantSettingsFlag(TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives,
                 true.ToString());
 
-            const string reactionContent = "I dunno and stuff";
+            const string reactionContent = ":k:";
             var request = new PeerAddReactionRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
