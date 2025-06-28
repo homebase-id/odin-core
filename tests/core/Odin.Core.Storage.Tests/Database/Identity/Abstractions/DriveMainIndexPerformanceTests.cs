@@ -19,7 +19,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
     public class DriveMainIndexPerformanceTests : IocTestBase
     {
         // For the performance test
-        private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXTHREADS = 3; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         private const int MAXITERATIONS = 500; // A number high enough to get warmed up and reliable
 
         private const int _performanceIterations = 5000; // Set to 5,000 when testing
