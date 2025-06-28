@@ -569,7 +569,7 @@ public class ScopedConnectionFactory<T>(
     //
     public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
     {
-        private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromSeconds(10);
+        private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromMilliseconds(100);
         private bool _disposed;
         public DbCommand DangerousInstance => command;
         public DatabaseType DatabaseType => instance.DatabaseType;
