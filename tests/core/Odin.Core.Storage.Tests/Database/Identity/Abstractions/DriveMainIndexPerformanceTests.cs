@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Autofac;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -360,7 +362,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         {
             await RegisterServicesAsync(databaseType);
 
-            // var logger = Services.Resolve<ILogger<ScopedIdentityConnectionFactory>>();
+            var logger = Services.Resolve<ILogger<ScopedIdentityConnectionFactory>>();
+            logger.LogDebug("PerformanceTest03B: Starting multi-threaded test with a connection per thread");
 
             Task[] tasks = new Task[MAXTHREADS];
             var driveId = Guid.NewGuid();
