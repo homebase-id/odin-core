@@ -13,6 +13,15 @@ namespace Odin.Core.Http;
 
 #nullable enable
 
+//
+// HandlerLifetime:
+//   - How long a handler is kept alive before being disposed.
+//   - No DNS update checks are performed during this time.
+//
+
+// SEB:TODO how do we deal with disposing handlers that are in use? IHttpClientFactory seems to ignore this.
+
+
 public interface IOdinHttpClientFactory : IDisposable
 {
     // SEB:TODO
