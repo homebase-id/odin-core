@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO.Hashing;
 using System.Linq;
@@ -179,7 +178,14 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
                     {
                         if (_expiredHandlers.Remove(guid, out var entry))
                         {
-                            entry.Dispose();
+                            try
+                            {
+                                entry.Dispose();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Dispose error: {message}", ex.Message);
+                            }
                         }
                     }
                 }
@@ -226,13 +232,27 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
             {
                 foreach (var entry in _expiredHandlers.Values)
                 {
-                    entry.Dispose();
+                    try
+                    {
+                        entry.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Dispose error: {message}", ex.Message);
+                    }
                 }
                 _expiredHandlers.Clear();
 
                 foreach (var entry in _activeHandlers.Values)
                 {
-                    entry.Dispose();
+                    try
+                    {
+                        entry.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Dispose error: {message}", ex.Message);
+                    }
                 }
                 _activeHandlers.Clear();
             }
