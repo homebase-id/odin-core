@@ -1,13 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 
 namespace Odin.Services.Drives
 {
@@ -117,10 +117,29 @@ namespace Odin.Services.Drives
             return _tenantPathManager.GetDriveInboxPath(Id);
         }
 
-        public void EnsureDirectories()
+        public void CreateDirectories()
         {
+            string payloadDirectory = GetDrivePayloadPath();
+
+            // Just for sanity, to see if anything fails
+            if (Directory.Exists(payloadDirectory))
+                throw new Exception("CreateDirectories() called but drive folder already exists on disk.");
+
             Directory.CreateDirectory(GetDriveUploadPath());
             Directory.CreateDirectory(GetDriveInboxPath());
+            Directory.CreateDirectory(payloadDirectory);
+
+            /* This code will oddly cause Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads TEST to fail
+            for (int first = 0; first < 16; first++)
+            {
+                Directory.CreateDirectory(Path.Combine(payloadDirectory, first.ToString("x")));
+
+                for (int second = 0; second < 16; second++)
+                {
+                    Directory.CreateDirectory(Path.Combine(payloadDirectory, first.ToString("x"), second.ToString("x")));
+                }
+            }
+            */
         }
 
         public void AssertValidStorageKey(SensitiveByteArray storageKey)

@@ -285,6 +285,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             continue;
                         }
 
+                        // If the payloads are remote, skip the disk check
+                        if (header.DataSource != null)
+                            if (header.DataSource.PayloadsAreRemote)
+                                continue;
+
                         if (fileType == TenantPathManager.FileType.Payload)
                         {
                             if (!HasHeaderPayload(header, parsedFile))
@@ -313,6 +318,63 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
+        private void ValidateDriveDirectories(Guid driveId, bool createDirs = false)
+        {
+            const string logPrefix = "ValidateDriveDirs";
+            string payloadDirectory = _tenantPathManager.GetDrivePayloadPath(driveId);
+
+            if (Directory.Exists(payloadDirectory) == false)
+            {
+                logger.LogError($"{logPrefix} MISSING - no such drive directory on disk {payloadDirectory}");
+
+                if (createDirs)
+                    Directory.CreateDirectory(payloadDirectory);
+            }
+
+            for (int first = 0; first < 16; first++)
+            {
+                var firstNibblePath = Path.Combine(payloadDirectory, first.ToString("x"));
+                if (Directory.Exists(firstNibblePath) == false)
+                {
+                    logger.LogError($"{logPrefix} MISSING - no such first nibble directory on disk {firstNibblePath}");
+
+                    if (createDirs)
+                        Directory.CreateDirectory(firstNibblePath);
+                }
+
+                for (int second = 0; second < 16; second++)
+                {
+                    var secondNibblePath = Path.Combine(firstNibblePath, second.ToString("x"));
+                    if (Directory.Exists(secondNibblePath) == false)
+                    {
+                        logger.LogError($"{logPrefix} MISSING - no such second nibble directory on disk {secondNibblePath}");
+
+                        if (createDirs)
+                            Directory.CreateDirectory(secondNibblePath);
+                    }
+                }
+            }
+
+            var uploadPath = _tenantPathManager.GetDriveUploadPath(driveId);
+            if (Directory.Exists(uploadPath) == false)
+            {
+                logger.LogError($"{logPrefix} MISSING - no upload directory on disk {uploadPath}");
+
+                if (createDirs)
+                    Directory.CreateDirectory(uploadPath);
+            }
+
+            var inboxPath = _tenantPathManager.GetDriveInboxPath(driveId);
+            if (Directory.Exists(inboxPath) == false)
+            {
+                logger.LogError($"{logPrefix} MISSING - no upload directory on disk {inboxPath}");
+
+                if (createDirs)
+                    Directory.CreateDirectory(inboxPath);
+            }
+        }
+
+
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
@@ -336,6 +398,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var (drives, _, _) = await identityDatabase.Drives.GetList(int.MaxValue, null);
             foreach (var drive in drives)
             {
+                ValidateDriveDirectories(drive.DriveId, cleanup);
+
                 var td = new TargetDrive() { Alias = drive.DriveId, Type = drive.DriveType };
                 await CheckDrivePayloadsIntegrity(td);
                 await VerifyInboxEntiresIntegrity(drive.DriveId, cleanup);
