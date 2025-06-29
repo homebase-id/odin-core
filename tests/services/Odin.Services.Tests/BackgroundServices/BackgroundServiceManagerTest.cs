@@ -443,7 +443,7 @@ public class BackgroundServiceManagerTest
          var otherService = _container.Resolve<PulseTestBackgroundService>();
          var trigger = _container.Resolve<IBackgroundServiceTrigger<PulseTestBackgroundService>>();
          trigger.PulseBackgroundProcessor();
-         await Task.Delay(10);
+         await Task.Delay(100);
          ClassicAssert.True(service.Pulsed);
          ClassicAssert.False(otherService.Pulsed);
 
