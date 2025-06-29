@@ -9,7 +9,7 @@ namespace Odin.Services.Drives;
 public class ReactionSummary
 {
     public static readonly int MaxReactionsCount = 5;
-    public static readonly int MaxCommentsCount = 3;
+    public static readonly int MaxCommentsCount = 5;
 
     public Dictionary<Guid, ReactionContentPreview> Reactions { get; set; } = new();
 
@@ -58,7 +58,7 @@ public class ReactionSummary
 
 public class ReactionContentPreview
 {
-    public static readonly int MaxReactionContentLength = 5;
+    public static readonly int MaxReactionContentLength = 22;
 
     public Guid Key { get; set; }
 

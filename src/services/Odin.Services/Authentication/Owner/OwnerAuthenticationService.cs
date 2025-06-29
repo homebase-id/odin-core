@@ -379,7 +379,8 @@ namespace Odin.Services.Authentication.Owner
                     FirstLoginDate = UnixTimeUtc.Now()
                 });
 
-                await _tenantConfigService.IncrementVersionAsync();
+                // put new identity on latest version of data from the get go so upgrades dont run                
+                await _tenantConfigService.ForceVersionNumberAsync(Version.DataVersionNumber);
             }
         }
 

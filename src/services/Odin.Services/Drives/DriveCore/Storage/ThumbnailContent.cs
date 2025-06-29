@@ -19,8 +19,8 @@ public class ThumbnailContent : ThumbnailDescriptor
             Validate();
             return true;
         }
-        catch 
-        { 
+        catch
+        {
             return false;
         }
     }
@@ -30,7 +30,8 @@ public class ThumbnailContent : ThumbnailDescriptor
         if (Content != null)
         {
             if (Content.Length > MaxTinyThumbLength)
-                throw new OdinClientException($"Thumbnail size of {Content.Length} exceeds {MaxTinyThumbLength}");
+                throw new OdinClientException($"Thumbnail size of {Content.Length} exceeds {MaxTinyThumbLength}",
+                    OdinClientErrorCode.ThumbnailTooLarge);
         }
     }
 }

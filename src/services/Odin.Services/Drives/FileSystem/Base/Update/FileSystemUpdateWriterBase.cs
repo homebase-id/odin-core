@@ -340,6 +340,7 @@ public abstract class FileSystemUpdateWriterBase
         await ValidateUploadDescriptor(updateDescriptor);
 
         var metadata = await MapUploadToMetadata(package, updateDescriptor, odinContext);
+        metadata.Validate(odinContext);
 
         var serverMetadata = new ServerMetadata()
         {

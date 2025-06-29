@@ -68,8 +68,8 @@ public class ThumbnailDescriptor : IEquatable<ThumbnailDescriptor>
     public void Validate()
     {
         if (BytesWritten > MaxThumbnailSize)
+        {
             throw new OdinClientException($"ThumbnailDescriptor BytesWritten {BytesWritten} too long, max {MaxThumbnailSize}");
+        }
     }
-
-
 }

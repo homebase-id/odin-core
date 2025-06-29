@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -68,7 +67,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
         finally
@@ -100,7 +99,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
         finally
@@ -142,7 +141,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
         finally
@@ -179,7 +178,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -207,7 +206,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -245,7 +244,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -281,7 +280,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -314,7 +313,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -346,7 +345,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -379,7 +378,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -418,7 +417,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -442,7 +441,7 @@ public class PeerDriveQueryService(
         }
         catch (TryRetryException t)
         {
-            HandleTryRetryException(t);
+            HandleTryRetryException(t, odinId);
             throw;
         }
     }
@@ -554,7 +553,7 @@ public class PeerDriveQueryService(
                 throw new OdinClientException("Peer server is not an ODIN server", OdinClientErrorCode.RemoteServerIsNotAnOdinServer);
             }
         }
-        
+
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
             logger.LogWarning("Unhandled peer error response from [{odinId}]: {response.StatusCode}", odinId, response.StatusCode);
@@ -651,12 +650,12 @@ public class PeerDriveQueryService(
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, payloadStream);
     }
 
-    private void HandleTryRetryException(TryRetryException ex)
+    private void HandleTryRetryException(TryRetryException ex, OdinId odinId)
     {
         var e = ex.InnerException;
         if (e is HttpRequestException or OperationCanceledException)
         {
-            throw new OdinClientException("Failed while calling remote identity", e);
+            throw new OdinClientException($"Failed while calling remote identity ({odinId})", e);
         }
     }
 }

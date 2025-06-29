@@ -10,7 +10,7 @@ public enum OdinClientErrorCode
     InvalidAuthToken = 1001,
     SharedSecretEncryptionIsInvalid = 1002,
     PublicKeyEncryptionIsInvalid = 1004,
-    
+
     // Notifcation Errors 20xx
     InvalidNotificationType = 2001,
     UnknownNotificationId = 2002,
@@ -70,10 +70,11 @@ public enum OdinClientErrorCode
     InvalidPayloadNameOrKey = 4164,
     FileLockedDuringWriteOperation = 4165,
     InvalidGlobalTransitId = 4166,
-    MaxContentLengthExceeded  = 4167,
+    MaxContentLengthExceeded = 4167,
     InvalidPayloadContent = 4168,
     CannotModifyRemotePayloadIdentity = 4169,
     MissingPayloadKeys = 4170,
+    ThumbnailTooLarge = 4171,
 
 
     // Connection errors 50xx
@@ -102,7 +103,7 @@ public enum OdinClientErrorCode
     MissingGlobalTransitId = 7903,
     RemoteServerIsNotAnOdinServer = 7904,
     RemoteServerOfflineOrUnavailable = 7905,
-    
+
 
     RegistrationStatusNotReadyForFinalization = 8001,
 

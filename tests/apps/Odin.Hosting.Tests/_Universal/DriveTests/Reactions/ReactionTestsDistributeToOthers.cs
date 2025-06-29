@@ -122,7 +122,7 @@ public class ReactionTestsDistributeToOthers
         // Act
         await callerContext.Initialize(ownerApiClient);
         var callerReactionClient = new UniversalDriveReactionClient(localIdentity.OdinId, callerContext.GetFactory());
-        const string reactionContent1 = ":cake:";
+        const string reactionContent1 = ":e:";
         var response = await callerReactionClient.AddReaction(new AddReactionRequestRedux
         {
             File = uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
@@ -207,7 +207,7 @@ public class ReactionTestsDistributeToOthers
         await WaitForEmptyInboxes(recipients, targetDrive);
 
 
-        const string reactionContent1 = ":pie:";
+        const string reactionContent1 = ":p:";
 
         var addReactionResponse = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {

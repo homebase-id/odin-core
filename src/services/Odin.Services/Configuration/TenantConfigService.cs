@@ -142,8 +142,6 @@ public class TenantConfigService
 
     public async Task<bool> IsIdentityServerConfiguredAsync()
     {
-
-
         //ok for anonymous to query this as long as we're only returning a bool
         var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValue, FirstRunInfo.Key);
         return firstRunInfo != null;
