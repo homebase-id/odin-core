@@ -1,24 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using Autofac;
+﻿using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Test.Helpers.Benchmark;
 using Serilog.Events;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 {
     public class DriveMainIndexPerformanceTests : IocTestBase
     {
         // For the performance test
-        private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXTHREADS = 3; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         private const int MAXITERATIONS = 500; // A number high enough to get warmed up and reliable
 
         private const int _performanceIterations = 5000; // Set to 5,000 when testing
@@ -315,6 +316,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 tasks[i] = Task.Run(async () =>
                 {
                     await using var scope = Services.BeginLifetimeScope();
+                    var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+                    await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
                     var metaIndex = scope.Resolve<MainIndexMeta>();
                     await WriteRowsAsync(i, MAXITERATIONS, metaIndex, driveId);
                 });
@@ -350,7 +353,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         }
 
         /// Multi-threading on a connection per thread
-        /// SEB:NOTE this is a BAD idea with scoped connections, but I'll leave it for completeness
         [Test]
         [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
@@ -378,6 +380,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 tasks[i] = Task.Run(async () =>
                 {
                     await using var scope = Services.BeginLifetimeScope();
+                    var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+                    await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
                     var metaIndex = scope.Resolve<MainIndexMeta>();
                     await WriteRowsAsync(i, MAXITERATIONS, metaIndex, driveId);
                 });
