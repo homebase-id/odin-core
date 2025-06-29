@@ -326,7 +326,13 @@ public class ScopedConnectionFactory<T>(
                 try
                 {
                     instance.LogTrace("Beginning transaction");
+
+                    var start = Stopwatch.StartNew();
                     instance._transaction = await instance._connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+                    if (start.Elapsed > TimeSpan.FromSeconds(1))
+                    {
+                        instance._logger.LogWarning("BeginTransactionAsync - took {time}", start.Elapsed);
+                    }
                 }
                 catch (Exception e)
                 {

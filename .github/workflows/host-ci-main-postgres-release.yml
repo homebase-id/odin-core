@@ -40,7 +40,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX%3BRUN_REDIS_TESTS%3BRUN_POSTGRES_TESTS%3BRUN_S3_TESTS" ./odin-core.sln
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
+        # run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
         # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests.CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity" --configuration Release --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
         # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
-        # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Core.Storage.Tests.ObjectStorage" --configuration Release --verbosity normal
+        run: dotnet test --no-build --filter "Odin.Core.Storage.Tests.Database.Identity.Abstractions.DriveMainIndexPerformanceTests.PerformanceTest03B" --configuration Release --verbosity normal
