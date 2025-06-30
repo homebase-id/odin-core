@@ -20,7 +20,6 @@ internal sealed class RequestTrackingHandler(ILogger logger, HttpMessageHandler 
             if (logger.IsEnabled(LogLevel.Trace))
             {
                 logger.LogTrace("BeforeSend ActiveRequests={count} for handler {key}: ", entry.ActiveRequests, entry.HandlerKey);
-                logger.LogTrace("BeforeSend CanDispose={canDispose} for handler {key}: ", entry.CanDispose, entry.HandlerKey);
             }
             return await base.SendAsync(request, cancellationToken);
         }
@@ -30,7 +29,6 @@ internal sealed class RequestTrackingHandler(ILogger logger, HttpMessageHandler 
             if (logger.IsEnabled(LogLevel.Trace))
             {
                 logger.LogTrace("AfterSend ActiveRequests={count} for handler {key}: ", entry.ActiveRequests, entry.HandlerKey);
-                logger.LogTrace("AfterSend CanDispose={canDispose} for handler {key}: ", entry.CanDispose, entry.HandlerKey);
             }
         }
 

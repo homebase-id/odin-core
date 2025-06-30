@@ -21,6 +21,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -105,7 +106,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         //   HttpClientHandlers are called)
         //
         var httpClientFactory = new HttpClientFactory();
-        services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
+        services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite (SEB:TODO kill it)
+        services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();

@@ -168,19 +168,17 @@ public class DynamicHttpClientFactoryTests
         // Arrange
         using var factory = new DynamicHttpClientFactory(
             logger: _logger,
-            defaultHandlerLifetime: TimeSpan.FromMilliseconds(100),
+            defaultHandlerLifetime: TimeSpan.FromMinutes(100),
             cleanupInterval: TimeSpan.FromMilliseconds(20),
-            cleanupGracePeriod: TimeSpan.FromMilliseconds(500));
+            cleanupGracePeriod: TimeSpan.FromMilliseconds(100));
 
         var client = factory.CreateClient("www.google.com");
-        var response = await client.GetAsync("https://www.google.com");
+        await client.GetAsync("https://www.google.com");
 
         var logEvents = _logEventMemoryStore.GetLogEvents();
         var events = logEvents[LogEventLevel.Verbose].Select(x => x.RenderMessage().Trim('"')).ToList();
         Assert.That(events, Has.Some.StartsWith("BeforeSend ActiveRequests=1"));
-        Assert.That(events, Has.Some.StartsWith("BeforeSend CanDispose=False"));
         Assert.That(events, Has.Some.StartsWith("AfterSend ActiveRequests=0"));
-        Assert.That(events, Has.Some.StartsWith("AfterSend CanDispose=True"));
     }
 
     //
