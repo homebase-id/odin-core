@@ -222,6 +222,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
+        /// <summary>
+        /// For each folder on the given drive, checks all the files on the disk.
+        /// Makes sure the file belongs to a header in the database
+        /// </summary>
+        /// <param name="driveId"></param>
+        /// <param name="cleanup"></param>
         public async Task VerifyPayloadsFilesInDiskFolder(Guid driveId, bool cleanup)
         {
             const string logPrefix = "PAYLOAD-FILE";
@@ -285,10 +291,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             continue;
                         }
 
-                        // If the payloads are remote, skip the disk check
-                        if (header.DataSource != null)
-                            if (header.DataSource.PayloadsAreRemote)
-                                continue;
+                        // If the payloads are remote, the file shouldn't be on disk
+                        if (header.DataSource?.PayloadsAreRemote == true)
+                        {
+                            logger.LogDebug($"{logPrefix} DELETE - Payloads are remote but found a file {fileAndDirectory}");
+                            if (cleanup)
+                                File.Delete(fileAndDirectory);
+                            continue;
+                        }
 
                         if (fileType == TenantPathManager.FileType.Payload)
                         {
@@ -500,7 +510,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Returns null if file is OK, otherwise returns the list of missing payloads / thumbnails as full filename plus directory
+        /// Checks the  given header from the database.
+        /// Ensures the required payloads and thumbnails are on disk.
+        /// Returns null if all are present
+        /// Otherwise returns the list of missing payloads / thumbnails as full filename plus directory
+        /// If payloads are remote, skips check (caught in VerifyDriveDirectoriesPayloads())
         /// </summary>
         private async Task<List<string>> CheckPayloadsIntegrity(StorageDrive drive, ServerFileHeader header)
         {
@@ -508,6 +522,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var payloads = header.FileMetadata?.Payloads ?? [];
             var sl = new List<string>();
 
+            // If the payloads are remote, skip the disk check
+            if (header?.FileMetadata?.DataSource.PayloadsAreRemote == true)
+                 return null;
+            
             // Future improvement: Compare byte-sizes in header to bytes on disk
 
             foreach (var payload in payloads)
