@@ -189,11 +189,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public bool PayloadsAreRemote => DataSource?.PayloadsAreRemote ?? false;
 
-        public bool TryValidate(IOdinContext odinContext, out OdinClientException exception)
+        public bool TryValidate(OdinId tenant, out OdinClientException exception)
         {
             try
             {
-                Validate(odinContext);
+                Validate(tenant);
                 exception = null;
                 return true;
             }
@@ -204,7 +204,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        public void Validate(IOdinContext odinContext)
+        public void Validate(OdinId tenant)
         {
             ReactionPreview?.Validate();
 
@@ -215,12 +215,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             AppData?.Validate();
             LocalAppData?.Validate();
+            DataSource?.Validate();
 
             if (DataSource != null)
             {
                 DataSource.Validate();
 
-                if (DataSource.DriveId == this.File.DriveId && DataSource.Identity == odinContext.Tenant)
+                if (DataSource.DriveId == this.File.DriveId && DataSource.Identity == tenant)
                 {
                     throw new OdinClientException("DataSource DriveId must be different than the drive for this file");
                 }

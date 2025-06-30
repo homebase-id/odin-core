@@ -205,7 +205,7 @@ public abstract class FileSystemStreamWriterBase
     {
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
-        await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata);
+        await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata, odinContext);
 
         await this.ValidateUnpackedData(Package, keyHeader, metadata, serverMetadata, odinContext);
 
@@ -437,7 +437,7 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
-        metadata.Validate(odinContext);
+        metadata.Validate(odinContext.Tenant);
         
         var serverMetadata = new ServerMetadata
         {
@@ -486,7 +486,7 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
-        metadata.Validate(odinContext);
+        metadata.Validate(odinContext.Tenant);
 
         if (metadata.Payloads?.Any() ?? false)
         {
@@ -513,7 +513,7 @@ public abstract class FileSystemStreamWriterBase
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
     private async Task ValidateUploadCoreAsync(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
-        ServerMetadata serverMetadata)
+        ServerMetadata serverMetadata, IOdinContext odinContext)
     {
         if (null == serverMetadata.AccessControlList)
         {
@@ -595,6 +595,6 @@ public abstract class FileSystemStreamWriterBase
             }
         }
 
-        metadata.AppData?.Validate();
+        metadata.Validate(odinContext.Tenant);
     }
 }

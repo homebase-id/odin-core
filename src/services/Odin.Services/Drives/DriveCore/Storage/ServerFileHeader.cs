@@ -123,9 +123,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public void Validate(IOdinContext odinContext)
         {
-            FileMetadata?.Validate(odinContext);
+            FileMetadata?.Validate(odinContext.Tenant);
+            ServerMetadata?.Validate();
 
-            // TODO possibly validate the ServerMetadata and EncryptedKeyHeader here
+            // TODO possibly validate the EncryptedKeyHeader here
         }
     }
 }
