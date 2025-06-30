@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO.Hashing;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -14,24 +15,55 @@ namespace Odin.Core.Http;
 #nullable enable
 
 //
+// This is a variation of dotnet v9's IHttpClientFactory and DefaultClientFactory.
+// The primary reason for it, is to solve the problem of IHttpClientFactory only being able to register http clients
+// during startup, when DI services are being registered.
+// Since this project is multi-tenant and tenants and new end-points can come and go, we have to be able to
+// create (and reuse) a new http client on the fly.
+//
+// In the current implementation, this code has the same potential issues with disposal as IHttpClientFactory:
+// once a handler's lifetime expires, it is possible for it to be disposed of while still being used by a
+// HttpClient instance.
+//
+
+//
 // HandlerLifetime:
 //   - How long a handler is kept alive before being disposed.
 //   - No DNS update checks are performed during this time.
 //
 
-// SEB:TODO how do we deal with disposing handlers that are in use? IHttpClientFactory seems to ignore this.
+//
+// Usage:
+//
+// var client = factory.CreateClient("example.com", config =>
+// {
+//    config.HandlerLifetime = TimeSpan.FromMinutes(2);
+// });
+//
+// var response = await client.GetAsync("https://www.example.com");
+//
 
+//
+// BEWARE BEWARE BEWARE BEWARE!
+//
+// Don't use the same client remoteHostName for different remote hosts!
+//
 
-public interface IOdinHttpClientFactory : IDisposable
+//
+// Prompt for AI:
+// Please review this code, comparing it to the IHttpClientFactory and DefaultClientFactory implementations in .NET 9. At this point I'm not interested in performance or nitpicks, unless you spot something seriously wrong. Pay special attention to the comment in the top that explains what the purpose for this code is.
+//
+
+public interface IDynamicHttpClientFactory : IDisposable
 {
-    // SEB:TODO
+    HttpClient CreateClient(string remoteHostName, Action<ClientConfig>? configure = null);
 }
 
 //
 
-public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
+public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 {
-    private readonly ILogger<OdinHttpClientFactory> _logger;
+    private readonly ILogger<DynamicHttpClientFactory> _logger;
     private readonly ReaderWriterLockSlim _rwLock = new ();
     private readonly Dictionary<string, HandlerEntry> _activeHandlers = new ();
     private readonly Dictionary<Guid, HandlerEntry> _expiredHandlers = new ();
@@ -44,7 +76,7 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
 
     //
 
-    public OdinHttpClientFactory(ILogger<OdinHttpClientFactory> logger)
+    public DynamicHttpClientFactory(ILogger<DynamicHttpClientFactory> logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
@@ -53,35 +85,19 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
 
     //
 
-    public HttpClient CreateClient(string name, Action<ClientConfig>? configure = null)
+    public HttpClient CreateClient(string remoteHostName, Action<ClientConfig>? configure = null)
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(OdinHttpClientFactory));
-        }
-
-        ArgumentException.ThrowIfNullOrEmpty(name, nameof(name));
+        ObjectDisposedException.ThrowIf(_disposed, nameof(DynamicHttpClientFactory));
+        ArgumentException.ThrowIfNullOrEmpty(remoteHostName, nameof(remoteHostName));
 
         var config = new ClientConfig();
         configure?.Invoke(config);
         
-        var handlerKey = name + "-" + config.GetHashedString();
+        var handlerKey = remoteHostName + "-" + config.GetHashedString();
         var handler = GetOrCreateHandler(handlerKey, config);
         var client = new HttpClient(handler, disposeHandler: false);
 
-        if (config.BaseAddress != null)
-        {
-            client.BaseAddress = config.BaseAddress;
-        }
-
-        foreach (var header in config.DefaultHeaders)
-        {
-            client.DefaultRequestHeaders.Add(header.Key, header.Value);
-        }
-
-        client.Timeout = config.Timeout;
-
-        _logger.LogDebug("Created HttpClient for {name} with handler key {key}", name, handlerKey);
+        _logger.LogDebug("Created HttpClient for {remoteHostName} with handler key {key}", remoteHostName, handlerKey);
 
         return client;
     }
@@ -105,7 +121,6 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
             _rwLock.ExitReadLock();
         }
 
-        HttpMessageHandler? messageHandler;
         _rwLock.EnterWriteLock();
         try
         {
@@ -114,17 +129,28 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
                 return entry.Handler;
             }
 
-            messageHandler = new HttpClientHandler();
+            var clientHandler = new HttpClientHandler();
+            ConfigureClientHandler(clientHandler, config);
+
+            HttpMessageHandler messageHandler = clientHandler;
             foreach (var factory in config.CustomHandlerFactories.AsEnumerable().Reverse())
             {
                 messageHandler = factory(messageHandler);
+            }
+
+            if (config.HandlerLifetime <= TimeSpan.Zero)
+            {
+                throw new ArgumentException("HandlerLifetime must be positive", nameof(config));
             }
 
             var handlerLifetime = config.HandlerLifetime != TimeSpan.Zero
                 ? config.HandlerLifetime
                 : _defaultHandlerLifetime;
 
-            var newEntry = new HandlerEntry(handlerKey, config, messageHandler, handlerLifetime);
+            var newEntry = new HandlerEntry(handlerKey, config, handlerLifetime);
+            messageHandler = new RequestTrackingHandler(_logger, messageHandler, newEntry);
+            newEntry.Handler = messageHandler;
+
             _activeHandlers[handlerKey] = newEntry;
 
             if (entry is { IsExpired: true })
@@ -133,13 +159,33 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
             }
 
             _logger.LogDebug("Created new handler for key {key}", handlerKey);
+
+            return messageHandler;
         }
         finally
         {
             _rwLock.ExitWriteLock();
         }
+    }
 
-        return messageHandler;
+    //
+
+    private static void ConfigureClientHandler(HttpClientHandler handler, ClientConfig config)
+    {
+        if (config.ClientCertificate != null)
+        {
+            handler.ClientCertificates.Add(config.ClientCertificate);
+        }
+
+        handler.AllowAutoRedirect = false; // We don't want auto redirects to avoid unexpected behavior.
+        handler.UseCookies = false; // We don't want cookies since they can't be shared across tenants.
+        handler.UseProxy = false; // No proxy support for now.
+        handler.SslProtocols = SslProtocols.None; // No specific SSL protocols set, defaults will be used.
+
+        if (config.AllowUntrustedServerCertificate)
+        {
+            handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+        }
     }
 
     //
@@ -157,7 +203,10 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
                 _rwLock.EnterWriteLock();
                 try
                 {
+                    //
                     // Move expired handlers to the expired list
+                    //
+
                     keysToRemove.Clear();
                     foreach (var pair in _activeHandlers)
                     {
@@ -174,11 +223,15 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
                         }
                     }
 
-                    // Dispose expired handlers after grace period
+                    //
+                    // Dispose expired handlers after grace period if not in use
+                    //
+
                     guidsToRemove.Clear();
                     foreach (var pair in _expiredHandlers)
                     {
-                        if (DateTimeOffset.UtcNow > pair.Value.Expiration + _cleanupGracePeriod)
+                        var handler = pair.Value;
+                        if (handler.CanDispose && DateTimeOffset.UtcNow > pair.Value.Expiration + _cleanupGracePeriod)
                         {
                             guidsToRemove.Add(pair.Key);
                         }
@@ -280,11 +333,15 @@ public sealed class OdinHttpClientFactory : IOdinHttpClientFactory
 
 public sealed class ClientConfig
 {
-    public Uri? BaseAddress { get; set; }
-    public Dictionary<string, string> DefaultHeaders { get; set; } = new ();
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(100);
-    public TimeSpan HandlerLifetime { get; set; } = TimeSpan.FromMinutes(2);
+    //
+    // HttpMessageHandler-level settings (affect handler sharing/creation)
+    // Make sure to set these in OdinHttpClientFactory.ConfigureHandler method
+    //
+    public bool AllowUntrustedServerCertificate { get; set; } = false;
     public X509Certificate2? ClientCertificate { get; set; }
+    public TimeSpan HandlerLifetime { get; set; } = TimeSpan.FromMinutes(2);
+
+    // Handler "middleware" factories
     public List<Func<HttpMessageHandler, HttpMessageHandler>> CustomHandlerFactories { get; set; } = [];
 
     //
@@ -302,17 +359,10 @@ public sealed class ClientConfig
     private string SerializeForHashing()
     {
         var sb = new StringBuilder();
-        sb.Append(BaseAddress?.ToString() ?? "");
-        sb.Append(Timeout.Ticks);
-        sb.Append(HandlerLifetime.Ticks);
+        sb.Append(AllowUntrustedServerCertificate);
         sb.Append(ClientCertificate?.Thumbprint ?? "");
-        // CustomHandlerFactories is excluded from hash due to unreliable delegate comparison
-        sb.Append(CustomHandlerFactories.Count == 0 ? "" : "ignored-for-hashing");
-        foreach (var kvp in DefaultHeaders.OrderBy(k => k.Key))
-        {
-            sb.Append(kvp.Key);
-            sb.Append(kvp.Value ?? "");
-        }
+        sb.Append(CustomHandlerFactories.Count == 0 ? "" : "not-reliable-for-hashing");
+        sb.Append(HandlerLifetime.Ticks);
         return sb.ToString();
     }
 
@@ -322,19 +372,21 @@ public sealed class ClientConfig
 
 //
 
-public sealed class HandlerEntry(
-    string handlerKey,
-    ClientConfig clientConfig,
-    HttpMessageHandler handler,
-    TimeSpan lifetime) : IDisposable
+public sealed class HandlerEntry(string handlerKey, ClientConfig clientConfig, TimeSpan lifetime) : IDisposable
 {
-    public string HandlerKey { get; } = handlerKey;
-    public ClientConfig ClientConfig { get; } = clientConfig;
-    public HttpMessageHandler Handler { get; } = handler;
-    public DateTimeOffset Expiration { get; } = DateTimeOffset.UtcNow.Add(lifetime);
-    public bool IsExpired => DateTimeOffset.UtcNow > Expiration;
-    private bool _disposed;
+    internal string HandlerKey { get; } = handlerKey;
+    internal ClientConfig ClientConfig { get; } = clientConfig;
+    internal HttpMessageHandler Handler { get; set; } = null!;
+    internal DateTimeOffset Expiration { get; } = DateTimeOffset.UtcNow.Add(lifetime);
+    internal bool IsExpired => DateTimeOffset.UtcNow > Expiration;
 
+    internal int ActiveRequests => _activeRequests;
+    private int _activeRequests;
+    internal void IncrementActiveRequests() => Interlocked.Increment(ref _activeRequests);
+    internal void DecrementActiveRequests() => Interlocked.Decrement(ref _activeRequests);
+    internal bool CanDispose => IsExpired && Interlocked.CompareExchange(ref _activeRequests, 0, 0) == 0;
+
+    private bool _disposed;
     public void Dispose()
     {
         if (!_disposed)
@@ -346,3 +398,59 @@ public sealed class HandlerEntry(
 }
 
 //
+
+internal sealed class RequestTrackingHandler(ILogger logger, HttpMessageHandler innerHandler, HandlerEntry entry)
+    : DelegatingHandler(innerHandler)
+{
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        entry.IncrementActiveRequests();
+        try
+        {
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("Active requests for handler {key}: {count}", entry.HandlerKey, entry.ActiveRequests);
+                logger.LogTrace("CanDispose for handler {key}: {canDispose}", entry.HandlerKey, entry.CanDispose);
+            }
+            return await base.SendAsync(request, cancellationToken);
+        }
+        finally
+        {
+            entry.DecrementActiveRequests();
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("Active requests for handler {key}: {count}", entry.HandlerKey, entry.ActiveRequests);
+                logger.LogTrace("CanDispose for handler {key}: {canDispose}", entry.HandlerKey, entry.CanDispose);
+            }
+        }
+
+    }
+
+    //
+
+    protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        entry.IncrementActiveRequests();
+        try
+        {
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("Active requests for handler {key}: {count}", entry.HandlerKey, entry.ActiveRequests);
+                logger.LogTrace("CanDispose for handler {key}: {canDispose}", entry.HandlerKey, entry.CanDispose);
+            }
+            return base.Send(request, cancellationToken);
+        }
+        finally
+        {
+            entry.DecrementActiveRequests();
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("Active requests for handler {key}: {count}", entry.HandlerKey, entry.ActiveRequests);
+                logger.LogTrace("CanDispose for handler {key}: {canDispose}", entry.HandlerKey, entry.CanDispose);
+            }
+        }
+    }
+
+}

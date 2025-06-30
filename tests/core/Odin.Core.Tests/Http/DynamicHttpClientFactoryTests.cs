@@ -15,16 +15,16 @@ namespace Odin.Core.Tests.Http;
 
 #nullable enable
 
-public class OdinHttpClientFactoryTests
+public class DynamicHttpClientFactoryTests
 {
     private ILogEventMemoryStore _logEventMemoryStore = null!;
-    private ILogger<OdinHttpClientFactory> _logger = null!;
+    private ILogger<DynamicHttpClientFactory> _logger = null!;
 
     [SetUp]
     public void Setup()
     {
         _logEventMemoryStore = new LogEventMemoryStore();
-        _logger = TestLogFactory.CreateConsoleLogger<OdinHttpClientFactory>(_logEventMemoryStore);
+        _logger = TestLogFactory.CreateConsoleLogger<DynamicHttpClientFactory>(_logEventMemoryStore, LogEventLevel.Verbose);
     }
 
     [TearDown]
@@ -33,14 +33,12 @@ public class OdinHttpClientFactoryTests
     }
 
     [Test]
-    public async Task TestOdinHttpClientFactoryCreation()
+    public async Task CreateClient_WorksWith_DefaultConfig()
     {
-        // Arrange
-        using (var factory = new OdinHttpClientFactory(_logger))
-        {
-            await Task.Delay(100); // Simulate some async work
-        }
-        ;
+        using var factory = new DynamicHttpClientFactory(_logger);
+        var client1 = factory.CreateClient("test1");
+        var response1 = await client1.GetAsync("https://www.google.com");
+        Assert.That(response1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     //
@@ -49,37 +47,37 @@ public class OdinHttpClientFactoryTests
     public async Task CreateClient_WithSameNameAndConfig_ReusesExistingHandler()
     {
         // Arrange
-        using var factory = new OdinHttpClientFactory(_logger);
+        using var factory = new DynamicHttpClientFactory(_logger);
 
         // First client
         var client1 = factory.CreateClient("test1", config =>
         {
-            config.DefaultHeaders.Add("Test-Header1", "Value");
+            // config.HandlerLifetime 2mins is default
         });
 
         // Second client, same name and config
         var client2 = factory.CreateClient("test1", config =>
         {
-            config.DefaultHeaders.Add("Test-Header1", "Value");
+            config.HandlerLifetime = TimeSpan.FromMinutes(2);
         });
 
         // Third client, new name, same config
         var client3 = factory.CreateClient("test2", config =>
         {
-            config.DefaultHeaders.Add("Test-Header1", "Value");
+            config.HandlerLifetime = TimeSpan.FromMinutes(2);
         });
 
-        // Fourth client, new name, new config
+        // Fourth client, same name, new config
         var client4 = factory.CreateClient("test2", config =>
         {
-            config.DefaultHeaders.Add("Test-Header2", "Value");
+            config.HandlerLifetime = TimeSpan.FromMinutes(10);
         });
 
         // Act
         var response1 = await client1.GetAsync("https://www.google.com");
         var response2 = await client2.GetAsync("https://www.google.com");
         var response3 = await client3.GetAsync("https://www.google.com");
-        var response4 = await client3.GetAsync("https://www.google.com");
+        var response4 = await client4.GetAsync("https://www.google.com");
 
         // Assert responses are correct
         Assert.That(response1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -95,7 +93,6 @@ public class OdinHttpClientFactoryTests
         Assert.That(messages.Count(x => x.StartsWith("Created HttpClient for \"test2\" with handler key \"test2-")), Is.EqualTo(2));
     }
 
-
     //
 
     [Test]
@@ -103,7 +100,7 @@ public class OdinHttpClientFactoryTests
     {
         // Arrange
         var clientName = "TestClient";
-        using var factory = new OdinHttpClientFactory(_logger);
+        using var factory = new DynamicHttpClientFactory(_logger);
         var handlerLogger = TestLogFactory.CreateConsoleLogger<LoggingHandler>(_logEventMemoryStore);
 
         var handler1 = new LoggingHandler(handlerLogger, "Handler1: Request Sent", true);
@@ -113,13 +110,13 @@ public class OdinHttpClientFactoryTests
         // Configure the client with multiple handlers
         var client = factory.CreateClient(clientName, config =>
         {
-            config.BaseAddress = new Uri("https://www.google.com");
             config.CustomHandlerFactories.Add(inner => handler1.SetInnerHandler(inner));
             config.CustomHandlerFactories.Add(inner => handler2.SetInnerHandler(inner));
             config.CustomHandlerFactories.Add(inner => handler3.SetInnerHandler(inner));
         });
 
         // Act
+        client.BaseAddress = new Uri("https://www.google.com");
         var response = await client.GetAsync("/");
         _logger.LogInformation("{StatusCode}", response.StatusCode);
 
