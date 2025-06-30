@@ -340,7 +340,7 @@ public abstract class FileSystemUpdateWriterBase
         await ValidateUploadDescriptor(updateDescriptor);
 
         var metadata = await MapUploadToMetadata(package, updateDescriptor, odinContext);
-        metadata.Validate(odinContext);
+        metadata.Validate(odinContext.Tenant);
 
         var serverMetadata = new ServerMetadata()
         {
@@ -457,7 +457,7 @@ public abstract class FileSystemUpdateWriterBase
             }
         }
 
-        metadata.Validate(odinContext);
+        metadata.Validate(odinContext.Tenant);
     }
 
     public async Task CleanupTempFiles(IOdinContext odinContext)

@@ -1054,7 +1054,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             OdinValidationUtils.AssertNotEmptyGuid(manifest.NewVersionTag, nameof(manifest.NewVersionTag));
             var metadata = manifest.FileMetadata;
-            metadata?.Validate(odinContext);
+            metadata?.Validate(odinContext.Tenant);
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
 
             //

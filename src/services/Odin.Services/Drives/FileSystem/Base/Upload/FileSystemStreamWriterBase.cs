@@ -437,7 +437,7 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
-        metadata.Validate(odinContext);
+        metadata.Validate(odinContext.Tenant);
         
         var serverMetadata = new ServerMetadata
         {
@@ -486,7 +486,7 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor, odinContext);
-        metadata.Validate(odinContext);
+        metadata.Validate(odinContext.Tenant);
 
         if (metadata.Payloads?.Any() ?? false)
         {
@@ -595,6 +595,6 @@ public abstract class FileSystemStreamWriterBase
             }
         }
 
-        metadata.Validate(odinContext);
+        metadata.Validate(odinContext.Tenant);
     }
 }
