@@ -165,7 +165,7 @@ public class ReactionTestsLocalIdentityOnly
         ClassicAssert.IsNotNull(uploadResult);
 
         const string reactionContent1 = ":k:";
-        const string reactionContent2 = ":p:";
+        const string reactionContent2 = ":pie:";
 
         var addReactionResponse1 = await ownerApiClient.Reactions.AddReaction(new AddReactionRequestRedux
         {

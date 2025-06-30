@@ -52,5 +52,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             FileSystemType = (FileSystemType) record.fileSystemType;
         }
+
+        public void Validate()
+        {
+            AccessControlList?.Validate();
+        }
     }
 }
