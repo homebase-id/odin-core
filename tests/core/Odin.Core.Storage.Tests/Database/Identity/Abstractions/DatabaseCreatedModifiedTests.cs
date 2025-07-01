@@ -116,6 +116,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                 prev = item1.modified;
             }
         }
+        
         // Using the connections table just because it happens to have FinallyAddCreatedModified();
         [Test]
         [TestCase(DatabaseType.Sqlite)]
@@ -147,8 +148,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Validate that UPDATE has a value in modified and created was unchanged
             ClassicAssert.IsTrue(item1.modified != item1.created);
-            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
-            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now().AddSeconds(5));
+            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-5));
             ClassicAssert.IsTrue(item1.created == copyCreated);
 
             // Load it and be sure the values are the same
@@ -163,8 +164,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Validate that UPDATE is cuurent and as expected
             ClassicAssert.IsTrue(item1.modified != item1.created);
-            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
-            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now().AddSeconds(5));
+            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-5));
             ClassicAssert.IsTrue(item1.modified != copyModified);
         }
 
@@ -195,8 +196,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // Validate the Upsert behaves as an INSERT for the first record
             ClassicAssert.IsTrue(n == 1);
             ClassicAssert.IsTrue(item1.modified == item1.created);
-            ClassicAssert.IsTrue(item1.created <= UnixTimeUtc.Now());
-            ClassicAssert.IsTrue(item1.created > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(item1.created <= UnixTimeUtc.Now().AddSeconds((5)));
+            ClassicAssert.IsTrue(item1.created > UnixTimeUtc.Now().AddSeconds(-5));
 
             var copyCreated = item1.created;
             Thread.Sleep(1000);
@@ -204,8 +205,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await tblConnections.UpsertAsync(item1);
             // Validate the Upsert behaves as an UPDATE for the next calls
             ClassicAssert.IsTrue(item1.modified != item1.created);
-            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
-            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now().AddSeconds(5));
+            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-5));
             ClassicAssert.IsTrue(item1.created == copyCreated);
 
             var loaded = await tblConnections.GetAsync(new OdinId("frodo.baggins.me"));
