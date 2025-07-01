@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using Odin.Core.Time;
+using Odin.Services.Drives;
 
 namespace Odin.Services.LinkPreview.Posts;
 
@@ -40,6 +42,12 @@ public class PostContent
     [JsonPropertyName("primaryMediaFile")]
     //primaryMediaFile?: PrimaryMediaFile;
     public PrimaryMediaFile PrimaryMediaFile { get; set; }
+    
+    [JsonIgnore]
+    public UnixTimeUtc? UserDate { get; set; }
+    
+    [JsonIgnore]
+    public TargetDrive TargetDrive { get; set; }
 }
 
 public class PrimaryMediaFile

@@ -20,14 +20,14 @@ namespace Odin.Core.Storage
 
                 if (_timeUtc.milliseconds > 1L << 42)
                 {
-                    Log.Logger.Information("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", _timeUtc.milliseconds, _timeUtc.milliseconds >> 16);
+                    Log.Logger.Information("CursorLog: INFO TimeRowCursor shifted value {before} >> 16 {after} ", _timeUtc.milliseconds,
+                        _timeUtc.milliseconds >> 16);
                     _timeUtc = new UnixTimeUtc(Time.milliseconds >> 16);
                 }
             }
         }
 
-        [JsonPropertyName("row")]
-        public long? rowId { get; set; }
+        [JsonPropertyName("row")] public long? rowId { get; set; }
 
         public TimeRowCursor(UnixTimeUtc time, long? rowId)
         {
@@ -86,8 +86,8 @@ namespace Odin.Core.Storage
                 return new TimeRowCursor(ts, null);
             }
             else if (parts.Length == 2 &&
-                        long.TryParse(parts[0], out long ts2) &&
-                        long.TryParse(parts[1], out long rowId))
+                     long.TryParse(parts[0], out long ts2) &&
+                     long.TryParse(parts[1], out long rowId))
             {
                 Log.Logger.Information("CursorLog: INFO TimeRowCursor string long pair {cursor} ", s);
 
@@ -123,14 +123,12 @@ namespace Odin.Core.Storage
         /// nextBoundaryCursur: Used by the QueryBatchAuto() to manage getting continuous datasets.
         /// 
         /// </summary>
-        [JsonPropertyName("paging")] 
+        [JsonPropertyName("paging")]
         public TimeRowCursor pagingCursor { get; set; }
 
-        [JsonPropertyName("stop")]
-        public TimeRowCursor stopAtBoundary { get; set; }
+        [JsonPropertyName("stop")] public TimeRowCursor stopAtBoundary { get; set; }
 
-        [JsonPropertyName("next")]
-        public TimeRowCursor nextBoundaryCursor { get; set; }
+        [JsonPropertyName("next")] public TimeRowCursor nextBoundaryCursor { get; set; }
 
         public QueryBatchCursor()
         {
@@ -271,6 +269,13 @@ namespace Odin.Core.Storage
         public string ToJson()
         {
             return JsonSerializer.Serialize(this);
+        }
+
+        public static QueryBatchCursor FromStartPoint(UnixTimeUtc fromTimestamp)
+        {
+            var c = new QueryBatchCursor();
+            c.CursorStartPoint(fromTimestamp);
+            return c;
         }
     }
 }

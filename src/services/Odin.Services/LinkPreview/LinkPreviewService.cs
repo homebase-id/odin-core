@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -14,9 +15,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -54,6 +57,7 @@ public class LinkPreviewService(
 
     private const int MaxDescriptionLength = 160;
 
+    public const int PostFileType = 101;
     private const int ChannelDefinitionFileType = 103;
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
@@ -92,18 +96,21 @@ public class LinkPreviewService(
                 Query = request.QueryString.Value
             }.ToString();
 
-            contentBuilder.AppendLine($"<head>");
-            contentBuilder.AppendLine("<meta charset='UTF-8' />");
-            contentBuilder.AppendLine($"<meta property='og:image' content='{imageUrl}'/>");
-            contentBuilder.AppendLine($"<link rel='canonical' href='{canonical}' />");
-            contentBuilder.AppendLine($"<title>{title}</title>");
-            contentBuilder.AppendLine($"<meta name='description' content='{description}' />");
-            contentBuilder.AppendLine($"</head>");
-            contentBuilder.AppendLine($"<body>");
-            contentBuilder.AppendLine($"<h1>{title}</h1>");
-            contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
-            contentBuilder.AppendLine($"<p>{description}</p>");
-            contentBuilder.AppendLine($"<hr/>");
+            contentBuilder.Append($"<head>\n");
+            contentBuilder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
+            contentBuilder.Append($"<link rel='canonical' href='{canonical}' />\n");
+            contentBuilder.Append($"<title>{title}</title>\n");
+            contentBuilder.Append($"<meta name='description' content='{description}' />\n");
+            contentBuilder.Append($"</head>\n");
+            contentBuilder.Append($"<body>\n");
+            contentBuilder.Append($"<h1>{title}</h1>\n");
+            contentBuilder.Append($"<img src='{imageUrl}' width='600'/>\n");
+            contentBuilder.Append($"<p>{description}</p>\n");
+            contentBuilder.Append($"<hr/>\n");
+
+            var person = await GeneratePersonSchema();
+            contentBuilder.Append(PrepareIdentityContent(person));
+            
             try
             {
                 var bodyJson = Convert.ToString(postContent.Body) ?? string.Empty;
@@ -112,6 +119,39 @@ public class LinkPreviewService(
                     var bodyHtml = PlateRichTextParser.Parse(bodyJson);
                     contentBuilder.Append(bodyHtml);
                 }
+
+                var posts = await GetPostsAfter(
+                    postContent.TargetDrive,
+                    odinContext,
+                    PostFileType,
+                    postContent.UserDate);
+
+                //TODO: remove duplicate code
+                string path = context.Request.Path.Value;
+                if (path.StartsWith($"/{SsrPath}/", StringComparison.OrdinalIgnoreCase))
+                {
+                    path = path.Substring($"/{SsrPath}".Length);
+                }
+
+                var segments = path?.TrimEnd('/').Split('/');
+                string channelKey = segments[2];
+
+                string odinId = context.Request.Host.Host;
+                contentBuilder.AppendLine($"<p>See more content from {person?.Name ?? odinId}!</p>");
+                contentBuilder.AppendLine($"<ul>");
+                foreach (var post in posts)
+                {
+                    var pc = OdinSystemSerializer.Deserialize<PostContent>(post.FileMetadata.AppData.Content);
+                    var url = new UriBuilder(request.Scheme, request.Host.Host)
+                    {
+                        Path = $"/{SsrPath}/posts/{channelKey}/{pc.Slug}",
+                        Query = request.QueryString.Value
+                    }.ToString();
+
+                    contentBuilder.AppendLine($"<li><a href='{url}'>{pc.Caption}</a></li>");
+                }
+
+                contentBuilder.AppendLine($"</ul>");
             }
             catch (Exception e)
             {
@@ -212,7 +252,6 @@ public class LinkPreviewService(
         }
 
         var segments = path?.TrimEnd('/').Split('/');
-
         if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
         {
             // segments[0] = ""  from the leading slash
@@ -243,6 +282,7 @@ public class LinkPreviewService(
         }
 
         var postFile = await FindPost(postKey, odinContext, targetDrive);
+
         if (null == postFile)
         {
             // logger.LogDebug("File for channelKey:[{ck}] and with postKey {pk} not found", channelKey, postKey);
@@ -254,7 +294,6 @@ public class LinkPreviewService(
             DriveId = targetDrive.Alias,
             FileId = postFile.FileId
         };
-
 
         PostContent content = null;
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
@@ -276,6 +315,8 @@ public class LinkPreviewService(
             }
 
             content = OdinSystemSerializer.Deserialize<PostContent>(json);
+            content.UserDate = postFile.FileMetadata.AppData.UserDate;
+            content.TargetDrive = targetDrive;
         }
         catch (Exception e)
         {
@@ -371,6 +412,32 @@ public class LinkPreviewService(
 
         return postFile;
     }
+
+    private async Task<List<SharedSecretEncryptedFileHeader>> GetPostsAfter(TargetDrive targetDrive, IOdinContext odinContext,
+        int? fileType = null, UnixTimeUtc? fromTimestamp = null)
+    {
+        var qp = new FileQueryParams
+        {
+            TargetDrive = targetDrive,
+            FileType = fileType == null ? default : [fileType.GetValueOrDefault()]
+        };
+
+        var options = new QueryBatchResultOptions
+        {
+            MaxRecords = 10,
+            IncludeHeaderContent = true,
+            ExcludePreviewThumbnail = true,
+            ExcludeServerMetaData = true,
+            IncludeTransferHistory = false,
+            Sorting = QueryBatchSortField.UserDate,
+            Ordering = QueryBatchSortOrder.NewestFirst,
+            Cursor = QueryBatchCursor.FromStartPoint(fromTimestamp.GetValueOrDefault())
+        };
+
+        var result = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
+        return result.SearchResults.ToList();
+    }
+
 
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
         Guid? postIdAsTag = null, int? fileType = null)
@@ -579,7 +646,7 @@ public class LinkPreviewService(
         var builder = PrepareHeadBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
         builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
-        builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
+        // builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
 
         builder.Append(PrepareIdentityContent(person));
 
