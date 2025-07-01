@@ -47,6 +47,8 @@ public class LinkPreviewService(
     private const string DefaultDescription = "Decentralized identity powered by Homebase.id";
 
     public const string PublicImagePath = "pub/image.jpg";
+
+    public const string SsrPath = "ssr";
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
@@ -75,6 +77,32 @@ public class LinkPreviewService(
         }
     }
 
+    public async Task WriteServerSideRenderedPost(IOdinContext odinContext)
+    {
+        var context = httpContextAccessor.HttpContext;
+        var request = context.Request;
+
+        var (success, description, imageUrl, title) = await TryGetPostData(odinContext);
+        if (success)
+        {
+            var contentBuilder = new StringBuilder();
+            var canonical = new UriBuilder(request.Scheme, request.Host.Host)
+            {
+                Path = request.Path.Value.Replace($"/{SsrPath}", "", StringComparison.OrdinalIgnoreCase),
+                Query = request.QueryString.Value
+            }.ToString();
+
+            contentBuilder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
+            contentBuilder.Append($"<link rel='canonical' href='{canonical}' />\n");
+            contentBuilder.Append($"<title>{title}</title>\n");
+            contentBuilder.Append($"<meta name='description' content='{description}' />\n");
+
+            await WriteAsync(contentBuilder.ToString(), context.RequestAborted);
+        }
+
+        throw new OdinClientException("Failed to parse post at path");
+    }
+
     private async Task WriteEnhancedIndexAsync(string indexFilePath, IOdinContext odinContext)
     {
         if (await TryWritePostPreview(indexFilePath, odinContext))
@@ -100,46 +128,16 @@ public class LinkPreviewService(
     {
         try
         {
+            var (_, description, imageUrl, title) = await TryGetPostData(odinContext);
+
             var context = httpContextAccessor.HttpContext;
-
-            // React route is
-            // <Route path="posts/:channelKey/:postKey" element={<PostDetail />} />
-
-            if (!IsPostPath())
-            {
-                // logger.LogDebug("Path is not a posts path; falling back");
-                return false;
-            }
-
-            string path = context.Request.Path.Value;
-            var segments = path?.TrimEnd('/').Split('/');
-
             string odinId = context.Request.Host.Host;
-
-            string description = DefaultDescription;
-            string imageUrl = null;
-            string title = null;
-
-            if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
-            {
-                // segments[0] = ""  from the leading slash
-                // segments[1] = "posts"
-                string channelKey = segments[2];
-                string postKey = segments[3];
-
-                (var success, title, imageUrl, description) = await TryParsePostFile(channelKey, postKey, odinContext,
-                    context.RequestAborted);
-
-                if (!success)
-                {
-                    return false;
-                }
-            }
-
             var person = await GeneratePersonSchema();
 
             if (title == null)
+            {
                 title = $"{person?.Name ?? odinId} | Posts";
+            }
 
             if (string.IsNullOrEmpty(imageUrl))
             {
@@ -166,6 +164,38 @@ public class LinkPreviewService(
             logger.LogError(e, "Failed to parse post");
             return false;
         }
+    }
+
+    private async Task<(bool success, string description, string imageUrl, string title)> TryGetPostData(
+        IOdinContext odinContext)
+    {
+        var context = httpContextAccessor.HttpContext;
+
+        // React route is
+        // <Route path="posts/:channelKey/:postKey" element={<PostDetail />} />
+
+        if (!IsPostPath())
+        {
+            // logger.LogDebug("Path is not a posts path; falling back");
+            return (false, null, null, null);
+        }
+
+        string path = context.Request.Path.Value;
+        var segments = path?.TrimEnd('/').Split('/');
+
+        if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
+        {
+            // segments[0] = ""  from the leading slash
+            // segments[1] = "posts"
+            string channelKey = segments[2];
+            string postKey = segments[3];
+
+            var (success, title, imageUrl, description) = await TryParsePostFile(channelKey, postKey, odinContext,
+                context.RequestAborted);
+            return (success, description, imageUrl, title);
+        }
+
+        return (false, null, null, null);
     }
 
     private async Task<(bool success, string title, string imageUrl, string description)> TryParsePostFile(
@@ -460,6 +490,7 @@ public class LinkPreviewService(
 
         StringBuilder b = new StringBuilder(500);
 
+        
         b.Append($"<h1>{title}</h1>\n");
         b.Append($"<p>{description}</p>");
         b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
@@ -471,6 +502,7 @@ public class LinkPreviewService(
         b.Append($"<p>{person?.WorksFor?.Name}</p>\n");
         b.Append($"<p>{person?.Bio}</p>\n");
         b.Append($"<p>{person?.BioSummary}</p>\n");
+        b.Append($"<a href='{GetDisplayUrlWithSsr()}'>View content without JavaScript</a>\n");
         return b;
     }
 
@@ -568,6 +600,20 @@ public class LinkPreviewService(
         }.ToString();
     }
 
+    private string GetDisplayUrlWithSsr()
+    {
+        var request = httpContextAccessor.HttpContext.Request;
+
+        var originalPath = request.Path.Value ?? "";
+        var pathWithSsr = $"/{SsrPath}{originalPath}";
+
+        return new UriBuilder(request.Scheme, request.Host.Host)
+        {
+            Path = pathWithSsr,
+            Query = request.QueryString.Value
+        }.ToString();
+    }
+
     private async Task<PersonSchema> GeneratePersonSchema()
     {
         // read the profile file.
@@ -614,11 +660,11 @@ public class LinkPreviewService(
         return content;
     }
 
-    private async Task WriteAsync(string cache, CancellationToken cancellationToken)
+    private async Task WriteAsync(string content, CancellationToken cancellationToken)
     {
         var context = httpContextAccessor.HttpContext;
         context.Response.Headers[HeaderNames.ContentType] = MediaTypeNames.Text.Html;
-        await context.Response.WriteAsync(cache, cancellationToken);
+        await context.Response.WriteAsync(content, cancellationToken);
     }
 
     private static Guid ToGuidId(string input)
