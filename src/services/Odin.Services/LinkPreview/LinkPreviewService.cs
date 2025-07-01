@@ -104,7 +104,6 @@ public class LinkPreviewService(
             contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
             contentBuilder.AppendLine($"<p>{description}</p>");
             contentBuilder.AppendLine($"<hr/>");
-
             try
             {
                 var bodyJson = Convert.ToString(postContent.Body) ?? string.Empty;
@@ -120,7 +119,6 @@ public class LinkPreviewService(
             }
 
             contentBuilder.AppendLine($"</body>");
-            
             context.Response.ContentType = "text/html; charset=utf-8";
             await context.Response.WriteAsync(contentBuilder.ToString(), context.RequestAborted);
             return;
