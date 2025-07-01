@@ -418,6 +418,18 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments($"/{LinkPreviewService.SsrPath}"),
+                ssrApp =>
+                {
+                    ssrApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                        var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
+                        await svc.WriteServerSideRenderedPost(odinContext);
+                    });
+                });
+            
             // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
             app.MapWhen(ctx => true,
                 homeApp =>
@@ -517,6 +529,19 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         return;
                     });
                 });
+
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments($"/{LinkPreviewService.SsrPath}"),
+                ssrApp =>
+                {
+                    ssrApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                        var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
+                        await svc.WriteServerSideRenderedPost(odinContext);
+                    });
+                });
+
 
             app.MapWhen(ctx => true,
                 homeApp =>

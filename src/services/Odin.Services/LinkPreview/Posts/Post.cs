@@ -26,6 +26,9 @@ public class PostContent
     [JsonPropertyName("abstract")]
     public string Abstract { get; set; }
 
+    [JsonPropertyName("body")]
+    public object Body { get; set; }
+    
     [JsonPropertyName("slug")] 
     public string Slug { get; set; }
     
