@@ -60,6 +60,9 @@ public interface IDynamicHttpClientFactory : IDisposable
 
 public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 {
+    private static readonly TimeSpan DefaultHandlerLifetime = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan DefaultCleanupInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan DefaultDisposeGracePeriod = TimeSpan.FromMinutes(2);
     private readonly ILogger<DynamicHttpClientFactory> _logger;
     private readonly ReaderWriterLockSlim _rwLock = new ();
     private readonly Dictionary<string, HandlerEntry> _activeHandlers = new ();
@@ -67,38 +70,25 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
     private readonly CancellationTokenSource _cts = new ();
     private readonly TimeSpan _defaultHandlerLifetime;
     private readonly TimeSpan _cleanupInterval;
-    private readonly TimeSpan _cleanupGracePeriod;
+    private readonly TimeSpan _disposeGracePeriod;
     private readonly Task _cleanupTask;
     private volatile bool _disposed;
 
     //
 
-    public DynamicHttpClientFactory(ILogger<DynamicHttpClientFactory> logger) : this(
-        logger,
-        defaultHandlerLifetime: TimeSpan.FromMinutes(2),
-        cleanupInterval: TimeSpan.FromSeconds(30),
-        cleanupGracePeriod: TimeSpan.FromMinutes(2))
-    {
-    }
-
-    //
-
     public DynamicHttpClientFactory(
         ILogger<DynamicHttpClientFactory> logger,
-        TimeSpan defaultHandlerLifetime,
-        TimeSpan cleanupInterval,
-        TimeSpan cleanupGracePeriod)
+        TimeSpan? defaultHandlerLifetime = null,
+        TimeSpan? cleanupInterval = null,
+        TimeSpan? disposeGracePeriod = null)
     {
         ArgumentNullException.ThrowIfNull(logger);
-        ArgumentOutOfRangeException.ThrowIfLessThan(defaultHandlerLifetime, TimeSpan.Zero, nameof(defaultHandlerLifetime));
-        ArgumentOutOfRangeException.ThrowIfLessThan(cleanupInterval, TimeSpan.Zero, nameof(cleanupInterval));
-        ArgumentOutOfRangeException.ThrowIfLessThan(cleanupGracePeriod, TimeSpan.Zero, nameof(cleanupGracePeriod));
 
         _logger = logger;
-        _defaultHandlerLifetime = defaultHandlerLifetime;
-        _cleanupInterval = cleanupInterval;
-        _cleanupGracePeriod = cleanupGracePeriod;
-
+        _defaultHandlerLifetime = defaultHandlerLifetime ?? DefaultHandlerLifetime;
+        _cleanupInterval = cleanupInterval ?? DefaultCleanupInterval;
+        _disposeGracePeriod = disposeGracePeriod ?? DefaultDisposeGracePeriod;
+        
         _cleanupTask = Task.Run(CleanupLoopAsync, _cts.Token);
     }
 
@@ -277,7 +267,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
                     foreach (var pair in _expiredHandlers)
                     {
                         var handler = pair.Value;
-                        if (handler.CanDispose && DateTimeOffset.UtcNow > pair.Value.Lifetime + _cleanupGracePeriod)
+                        if (handler.CanDispose && DateTimeOffset.UtcNow > pair.Value.Lifetime + _disposeGracePeriod)
                         {
                             _logger.LogTrace("Disposing handler {key}", pair.Key);
                             guidsToRemove.Add(pair.Key);

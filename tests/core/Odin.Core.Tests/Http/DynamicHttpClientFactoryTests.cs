@@ -140,7 +140,7 @@ public class DynamicHttpClientFactoryTests
             logger: _logger,
             defaultHandlerLifetime: TimeSpan.FromMilliseconds(100),
             cleanupInterval: TimeSpan.FromMilliseconds(20),
-            cleanupGracePeriod: TimeSpan.FromMilliseconds(500));
+            disposeGracePeriod: TimeSpan.FromMilliseconds(500));
 
         var client = factory.CreateClient("www.google.com");
 
@@ -170,7 +170,7 @@ public class DynamicHttpClientFactoryTests
             logger: _logger,
             defaultHandlerLifetime: TimeSpan.FromMinutes(100),
             cleanupInterval: TimeSpan.FromMilliseconds(20),
-            cleanupGracePeriod: TimeSpan.FromMilliseconds(100));
+            disposeGracePeriod: TimeSpan.FromMilliseconds(100));
 
         var client = factory.CreateClient("www.google.com");
         await client.GetAsync("https://www.google.com");
