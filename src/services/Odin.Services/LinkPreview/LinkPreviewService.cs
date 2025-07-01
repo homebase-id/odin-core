@@ -100,11 +100,12 @@ public class LinkPreviewService(
             contentBuilder.Append($"</head>\n");
             contentBuilder.Append($"<body>\n");
             contentBuilder.Append($"<h1>{title}</h1>\n");
-            contentBuilder.Append($"<img src='{imageUrl}'/>\n");
+            contentBuilder.Append($"<img src='{imageUrl}' width='600'/>\n");
             contentBuilder.Append($"<p>{description}</p>\n");
             contentBuilder.Append($"</body>\n");
 
             await WriteAsync(contentBuilder.ToString(), context.RequestAborted);
+            return;
         }
 
         throw new OdinClientException("Failed to parse post at path");
@@ -122,7 +123,7 @@ public class LinkPreviewService(
 
     public bool IsPostPath()
     {
-        return IsPath("/posts");
+        return IsPath("/posts") || IsPath($"/{SsrPath}/posts");
     }
 
     private bool IsPath(string path)
@@ -188,6 +189,12 @@ public class LinkPreviewService(
         }
 
         string path = context.Request.Path.Value;
+        
+        if (path.StartsWith($"/{SsrPath}/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path.Substring($"/{SsrPath}".Length);
+        }
+        
         var segments = path?.TrimEnd('/').Split('/');
 
         if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
