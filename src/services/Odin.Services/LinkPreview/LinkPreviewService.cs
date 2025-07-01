@@ -82,7 +82,7 @@ public class LinkPreviewService(
         var context = httpContextAccessor.HttpContext;
         var request = context.Request;
 
-        var (success, description, imageUrl, title) = await TryGetPostData(odinContext);
+        var (success, description, imageUrl, title, postContent) = await TryGetPostData(odinContext);
         if (success)
         {
             var contentBuilder = new StringBuilder();
@@ -102,6 +102,8 @@ public class LinkPreviewService(
             contentBuilder.Append($"<h1>{title}</h1>\n");
             contentBuilder.Append($"<img src='{imageUrl}' width='600'/>\n");
             contentBuilder.Append($"<p>{description}</p>\n");
+            contentBuilder.Append($"<p>{postContent?.Body}</p>\n");
+            
             contentBuilder.Append($"</body>\n");
 
             await WriteAsync(contentBuilder.ToString(), context.RequestAborted);
@@ -136,7 +138,7 @@ public class LinkPreviewService(
     {
         try
         {
-            var (_, description, imageUrl, title) = await TryGetPostData(odinContext);
+            var (_, description, imageUrl, title, _) = await TryGetPostData(odinContext);
 
             var context = httpContextAccessor.HttpContext;
             string odinId = context.Request.Host.Host;
@@ -174,7 +176,7 @@ public class LinkPreviewService(
         }
     }
 
-    private async Task<(bool success, string description, string imageUrl, string title)> TryGetPostData(
+    private async Task<(bool success, string description, string imageUrl, string title, PostContent content)> TryGetPostData(
         IOdinContext odinContext)
     {
         var context = httpContextAccessor.HttpContext;
@@ -185,16 +187,16 @@ public class LinkPreviewService(
         if (!IsPostPath())
         {
             // logger.LogDebug("Path is not a posts path; falling back");
-            return (false, null, null, null);
+            return (false, null, null, null, null);
         }
 
         string path = context.Request.Path.Value;
-        
+
         if (path.StartsWith($"/{SsrPath}/", StringComparison.OrdinalIgnoreCase))
         {
             path = path.Substring($"/{SsrPath}".Length);
         }
-        
+
         var segments = path?.TrimEnd('/').Split('/');
 
         if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
@@ -204,15 +206,15 @@ public class LinkPreviewService(
             string channelKey = segments[2];
             string postKey = segments[3];
 
-            var (success, title, imageUrl, description) = await TryParsePostFile(channelKey, postKey, odinContext,
+            var (success, title, imageUrl, description, content) = await TryParsePostFile(channelKey, postKey, odinContext,
                 context.RequestAborted);
-            return (success, description, imageUrl, title);
+            return (success, description, imageUrl, title, content);
         }
 
-        return (false, null, null, null);
+        return (false, null, null, null, null);
     }
 
-    private async Task<(bool success, string title, string imageUrl, string description)> TryParsePostFile(
+    private async Task<(bool success, string title, string imageUrl, string description, PostContent content)> TryParsePostFile(
         string channelKey,
         string postKey,
         IOdinContext odinContext,
@@ -223,14 +225,14 @@ public class LinkPreviewService(
         var (success, targetDrive) = await TryGetChannelDrive(channelKey, odinContext);
         if (!success)
         {
-            return (false, null, null, null);
+            return (false, null, null, null, null);
         }
 
         var postFile = await FindPost(postKey, odinContext, targetDrive);
         if (null == postFile)
         {
             // logger.LogDebug("File for channelKey:[{ck}] and with postKey {pk} not found", channelKey, postKey);
-            return (false, null, null, null);
+            return (false, null, null, null, null);
         }
 
         var fileId = new InternalDriveFileId()
@@ -318,7 +320,7 @@ public class LinkPreviewService(
         //     imageUrl,
         //     content.Abstract);
 
-        return (true, content.Caption, imageUrl, content.Abstract);
+        return (true, content.Caption, imageUrl, content.Abstract, content);
     }
 
     private async Task<SharedSecretEncryptedFileHeader> FindPost(string postKey, IOdinContext odinContext, TargetDrive targetDrive)
@@ -504,7 +506,7 @@ public class LinkPreviewService(
 
         StringBuilder b = new StringBuilder(500);
 
-        
+
         b.Append($"<h1>{title}</h1>\n");
         b.Append($"<p>{description}</p>");
         b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
