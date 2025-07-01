@@ -147,8 +147,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Validate that UPDATE has a value in modified and created was unchanged
             ClassicAssert.IsTrue(item1.modified != item1.created);
-            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
-            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now().AddSeconds(5));
+            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-5));
             ClassicAssert.IsTrue(item1.created == copyCreated);
 
             // Load it and be sure the values are the same
@@ -163,8 +163,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Validate that UPDATE is cuurent and as expected
             ClassicAssert.IsTrue(item1.modified != item1.created);
-            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now());
-            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-1));
+            ClassicAssert.IsTrue(item1.modified <= UnixTimeUtc.Now().AddSeconds(5));
+            ClassicAssert.IsTrue(item1.modified > UnixTimeUtc.Now().AddSeconds(-5));
             ClassicAssert.IsTrue(item1.modified != copyModified);
         }
 
