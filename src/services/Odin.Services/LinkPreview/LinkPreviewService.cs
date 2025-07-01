@@ -92,17 +92,18 @@ public class LinkPreviewService(
                 Query = request.QueryString.Value
             }.ToString();
 
-            contentBuilder.Append($"<head>\n");
-            contentBuilder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-            contentBuilder.Append($"<link rel='canonical' href='{canonical}' />\n");
-            contentBuilder.Append($"<title>{title}</title>\n");
-            contentBuilder.Append($"<meta name='description' content='{description}' />\n");
-            contentBuilder.Append($"</head>\n");
-            contentBuilder.Append($"<body>\n");
-            contentBuilder.Append($"<h1>{title}</h1>\n");
-            contentBuilder.Append($"<img src='{imageUrl}' width='600'/>\n");
-            contentBuilder.Append($"<p>{description}</p>\n");
-            contentBuilder.Append($"<hr/>\n");
+            contentBuilder.AppendLine($"<head>");
+            contentBuilder.AppendLine("<meta charset='UTF-8' />");
+            contentBuilder.AppendLine($"<meta property='og:image' content='{imageUrl}'/>");
+            contentBuilder.AppendLine($"<link rel='canonical' href='{canonical}' />");
+            contentBuilder.AppendLine($"<title>{title}</title>");
+            contentBuilder.AppendLine($"<meta name='description' content='{description}' />");
+            contentBuilder.AppendLine($"</head>");
+            contentBuilder.AppendLine($"<body>");
+            contentBuilder.AppendLine($"<h1>{title}</h1>");
+            contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
+            contentBuilder.AppendLine($"<p>{description}</p>");
+            contentBuilder.AppendLine($"<hr/>");
 
             try
             {
@@ -118,9 +119,10 @@ public class LinkPreviewService(
                 logger.LogDebug(e, "Failed to Post article body");
             }
 
-            contentBuilder.Append($"</body>\n");
-
-            await WriteAsync(contentBuilder.ToString(), context.RequestAborted);
+            contentBuilder.AppendLine($"</body>");
+            
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.WriteAsync(contentBuilder.ToString(), context.RequestAborted);
             return;
         }
 
