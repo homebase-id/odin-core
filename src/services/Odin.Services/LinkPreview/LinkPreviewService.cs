@@ -102,8 +102,22 @@ public class LinkPreviewService(
             contentBuilder.Append($"<h1>{title}</h1>\n");
             contentBuilder.Append($"<img src='{imageUrl}' width='600'/>\n");
             contentBuilder.Append($"<p>{description}</p>\n");
-            contentBuilder.Append($"<p>{postContent?.Body}</p>\n");
-            
+            contentBuilder.Append($"<hr/>\n");
+
+            try
+            {
+                var bodyJson = Convert.ToString(postContent.Body) ?? string.Empty;
+                if (!string.IsNullOrEmpty(bodyJson))
+                {
+                    var bodyHtml = PlateRichTextParser.Parse(bodyJson);
+                    contentBuilder.Append(bodyHtml);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Failed to Post article body");
+            }
+
             contentBuilder.Append($"</body>\n");
 
             await WriteAsync(contentBuilder.ToString(), context.RequestAborted);
