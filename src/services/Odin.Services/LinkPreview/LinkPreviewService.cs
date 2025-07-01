@@ -92,10 +92,17 @@ public class LinkPreviewService(
                 Query = request.QueryString.Value
             }.ToString();
 
+            contentBuilder.Append($"<head>\n");
             contentBuilder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
             contentBuilder.Append($"<link rel='canonical' href='{canonical}' />\n");
             contentBuilder.Append($"<title>{title}</title>\n");
             contentBuilder.Append($"<meta name='description' content='{description}' />\n");
+            contentBuilder.Append($"</head>\n");
+            contentBuilder.Append($"<body>\n");
+            contentBuilder.Append($"<h1>{title}</h1>\n");
+            contentBuilder.Append($"<img src='{imageUrl}'/>\n");
+            contentBuilder.Append($"<p>{description}</p>\n");
+            contentBuilder.Append($"</body>\n");
 
             await WriteAsync(contentBuilder.ToString(), context.RequestAborted);
         }
