@@ -38,7 +38,7 @@ public class AdminApiRestrictedAttributeTest
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient($"admin.dotyou.cloud:{WebScaffold.AdminPort}");
         var exception = Assert.ThrowsAsync<HttpRequestException>(() =>
             apiClient.GetAsync($"https://admin.dotyou.cloud:{WebScaffold.AdminPort}/api/admin/v1/ping"));
         Assert.That(exception.Message, Contains.Substring("refused"));
@@ -57,7 +57,7 @@ public class AdminApiRestrictedAttributeTest
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient($"admin.dotyou.cloud:{WebScaffold.AdminPort}");
         var response = await apiClient.GetAsync($"https://admin.dotyou.cloud:{WebScaffold.HttpsPort}/api/admin/v1/ping");
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
@@ -75,7 +75,7 @@ public class AdminApiRestrictedAttributeTest
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("frodo.dotyou.cloud:4444");
         var response = await apiClient.GetAsync($"https://frodo.dotyou.cloud:4444/api/admin/v1/ping");
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
@@ -95,8 +95,7 @@ public class AdminApiRestrictedAttributeTest
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
-
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
         var request = new HttpRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/ping")
         {
             Headers = { { "Odin-Admin-Api-Key", "WRONG-KEY" } },
@@ -120,8 +119,7 @@ public class AdminApiRestrictedAttributeTest
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
-
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
         var request = new HttpRequestMessage(HttpMethod.Get, "https://admin.dotyou.cloud:4444/api/admin/v1/ping")
         {
             Headers = { { "Odin-Admin-Api-Key", "your-secret-api-key-here" } },

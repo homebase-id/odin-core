@@ -10,11 +10,6 @@ using Spectre.Console.Cli;
 // DI currently doesnt work with a custom help provider:
 // https://github.com/spectreconsole/spectre.console/issues/1313
 //
-// var serviceCollection = new ServiceCollection();
-// serviceCollection.AddSingleton<ITenantFileSystem, TenantFileSystem>();
-// var registrar = new TypeRegistrar(serviceCollection);
-// serviceCollection.AddSingleton<IHttpClientFactory, HttpClientFactory>();
-// serviceCollection.AddSingleton<ICliHttpClientFactory, CliHttpClientFactory>();
 
 var app = new CommandApp();
 

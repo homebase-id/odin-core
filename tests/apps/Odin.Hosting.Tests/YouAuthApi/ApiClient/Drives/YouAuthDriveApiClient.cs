@@ -92,8 +92,10 @@ public class YouAuthDriveApiClient
     
     private HttpClient CreateYouAuthApiHttpClient(ClientAccessToken token, FileSystemType fileSystemType)
     {
-        // var client = WebScaffold.CreateHttpClient<YouAuthDriveApiClient>();
-        HttpClient client = new();
+        var client = WebScaffold.HttpClientFactory.CreateClient(
+            $"{nameof(YouAuthDriveApiClient)}:{_identity.OdinId}:{WebScaffold.HttpsPort}",
+            config => config.MessageHandlerChain.Add(inner => new SharedSecretGetRequestHandler(inner)));
+
         //
         // SEB:NOTE below is a hack to make SharedSecretGetRequestHandler work without instance data.
         // DO NOT do this in production code!
@@ -109,7 +111,8 @@ public class YouAuthDriveApiClient
         client.Timeout = TimeSpan.FromMinutes(15);
             
         client.BaseAddress = new Uri($"https://{_identity.OdinId}:{WebScaffold.HttpsPort}");
-        return client;    }
+        return client;
+    }
 
     private IRefitGuestDriveQuery CreateDriveService(HttpClient client)
     {

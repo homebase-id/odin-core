@@ -4,14 +4,15 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Serialization;
@@ -46,7 +47,8 @@ namespace Odin.Hosting.Tests
         public const string PAYLOAD_KEY = "test_key";
 
         // count TIME_WAIT: netstat -p tcp | grep TIME_WAIT | wc -l
-        public static readonly HttpClientFactoryLite.HttpClientFactory HttpClientFactory = new();
+        public static readonly IDynamicHttpClientFactory HttpClientFactory =
+            new DynamicHttpClientFactory(NullLogger<DynamicHttpClientFactory>.Instance);
 
         public const string HttpPort = "8080";
         public const string HttpsPort = "8443";
@@ -84,34 +86,6 @@ namespace Odin.Hosting.Tests
         protected MinioContainer MinioContainer = null!;
 #endif
 
-        static WebScaffold()
-        {
-            HttpClientFactory.Register<OwnerApiTestUtils>(b =>
-                b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
-                {
-                    UseCookies = false // DO NOT CHANGE!
-                }));
-
-            HttpClientFactory.Register<AppApiTestUtils>(b =>
-                b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
-                {
-                    UseCookies = false // DO NOT CHANGE!
-                }));
-
-            HttpClientFactory.Register<AppApiClientBase>(b =>
-                b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
-                {
-                    UseCookies = false // DO NOT CHANGE!
-                }));
-
-            HttpClientFactory.Register("no-cookies-no-redirects", b =>
-                b.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-                {
-                    AllowAutoRedirect = false, // DO NOT CHANGE!
-                    UseCookies = false // DO NOT CHANGE!
-                }));
-        }
-
         public WebScaffold(string folder, string fixedSubPath = null)
         {
             this._folder = folder;
@@ -122,16 +96,6 @@ namespace Odin.Hosting.Tests
             // Logging errors in the scaffold logger will NOT fail tests.
             // You can get the host logger like this: Services.GetRequiredService<ILogger<WebScaffold>>();
             Logger = TestLogFactory.CreateConsoleLogger<WebScaffold>(LogEventLevel.Verbose);
-        }
-
-        public static HttpClient CreateHttpClient<T>()
-        {
-            return HttpClientFactory.CreateClient<T>();
-        }
-
-        public static HttpClient CreateDefaultHttpClient()
-        {
-            return HttpClientFactory.CreateClient("no-cookies-no-redirects");
         }
 
         public void RunBeforeAnyTests(

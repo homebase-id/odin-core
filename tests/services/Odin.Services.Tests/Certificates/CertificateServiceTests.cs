@@ -4,16 +4,14 @@ using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using DnsClient;
-using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Dns;
+using Odin.Core.Http;
 using Odin.Core.Logging;
-using Odin.Core.Logging.CorrelationId;
-using Odin.Core.Logging.Hostname;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
@@ -95,8 +93,8 @@ public class CertificateServiceTests
         builder.Host.ConfigureContainer<ContainerBuilder>(cb =>
         {
             cb.RegisterInstance<OdinConfiguration>(config);
-            cb.RegisterInstance<IHttpClientFactory>(new HttpClientFactory()); // this is HttpClientFactoryLite
             cb.RegisterInstance<ILookupClient>(new LookupClient());
+            cb.RegisterType<DynamicHttpClientFactory>().As<IDynamicHttpClientFactory>().SingleInstance();
             cb.RegisterType<AuthoritativeDnsLookup>().As<IAuthoritativeDnsLookup>().SingleInstance();
             cb.RegisterType<DnsLookupService>().As<IDnsLookupService>().SingleInstance();
             cb.RegisterType<AcmeHttp01TokenCache>().As<IAcmeHttp01TokenCache>().SingleInstance();
@@ -107,7 +105,7 @@ public class CertificateServiceTests
             cb.Register(c =>
                 new CertesAcme(
                     c.Resolve<ILogger<CertesAcme>>(), c.Resolve<IAcmeHttp01TokenCache>(),
-                    c.Resolve<IHttpClientFactory>(),
+                    c.Resolve<IDynamicHttpClientFactory>(),
                     isProduction: false))
                 .As<ICertesAcme>().SingleInstance();
             cb.RegisterInstance(new CertificateStorageKey(config.CertificateRenewal.StorageKey)).SingleInstance();

@@ -15,17 +15,15 @@ namespace Odin.Attestation.Controllers
     public class AttestationRequestController : ControllerBase
     {
         private readonly ILogger<AttestationRequestController> _logger;
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly AttestationDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         //private readonly bool _simulate = true;
         private readonly EccFullKeyData _eccKey;
         private readonly SensitiveByteArray _eccPwd;
 
-        public AttestationRequestController(ILogger<AttestationRequestController> logger, IHttpClientFactory httpClientFactory, AttestationDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
+        public AttestationRequestController(ILogger<AttestationRequestController> logger, AttestationDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
         {
             _logger = logger;
-            _httpClientFactory = httpClientFactory;
             _db = db;
             _eccKey = eccKey;
             _eccPwd = pwdEcc;

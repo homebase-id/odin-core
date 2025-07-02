@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Odin.Core.Http;
 using Odin.Services.Email;
 
 namespace Odin.Services.Tests.Email;
@@ -15,9 +15,9 @@ namespace Odin.Services.Tests.Email;
 public partial class MailgunSenderTest
 {
     private readonly ILogger<MailgunSender> _logger = new Mock<ILogger<MailgunSender>>().Object;
-    private readonly HttpClientFactory _httpClientFactory = new ();
-    private const string ApiKey = "dabae6512f685d927bbab05dcc1db0a4-5d9bd83c-8511d3cf";
-    private const string EmailDomain = "sandbox967e15d7fff949a289ff21761c9428cc.mailgun.org";
+    private readonly DynamicHttpClientFactory _httpClientFactory = new (new Mock<ILogger<DynamicHttpClientFactory>>().Object);
+    private const string ApiKey = "your-mailgun-api-key";
+    private const string EmailDomain = "your-mailgun-domain.com";
     
     //
     

@@ -10,6 +10,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
@@ -27,7 +28,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry;
 
@@ -43,7 +43,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ConcurrentDictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateService _certificateService;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainerAccessor _tenantContainer;
     private readonly Action<ContainerBuilder, IdentityRegistration, OdinConfiguration> _tenantContainerBuilder;
@@ -54,7 +54,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
         ICertificateService certificateService,
-        IHttpClientFactory httpClientFactory,
+        IDynamicHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainerAccessor tenantContainer,
         Action<ContainerBuilder, IdentityRegistration, OdinConfiguration> tenantContainerBuilder,
@@ -77,8 +77,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _config = config;
 
         _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
-
-        RegisterCertificateInitializerHttpClient();
     }
 
     public Guid? ResolveId(string domain)
@@ -509,8 +507,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // This method is called indirectly from other requests using their own scope, which
         // can conflict with the scope here, causing transaction deadlocks.
 
-        await RegisterDotYouHttpClientAsync(registration);
-
         _trie.TryRemoveDomain(registration.PrimaryDomainName);
         _trie.AddDomain(registration.PrimaryDomainName, registration);
         _cache[registration.Id] = registration;
@@ -549,7 +545,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task InitializeCertificate(string domain)
     {
-        var httpClient = _httpClientFactory.CreateClient(nameof(RegisterCertificateInitializerHttpClient));
+        var httpClient = _httpClientFactory.CreateClient(domain);
+
         var uri = $"https://{domain}:{_config.Host.DefaultHttpsPort}/.well-known/acme-challenge/ping";
         try
         {
@@ -565,74 +562,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             // know the domain
             _logger.LogWarning("InitializeCertificate: {error}. Will retry on next request to the domain.", e.Message);
         }
-    }
-
-    private void RegisterCertificateInitializerHttpClient()
-    {
-        _httpClientFactory.Register(nameof(RegisterCertificateInitializerHttpClient), builder => builder
-            .ConfigureHttpClient(c =>
-            {
-                // this is called everytime you request a httpclient
-                c.Timeout = TimeSpan.FromMinutes(20);
-            })
-            .ConfigurePrimaryHttpMessageHandler(() =>
-            {
-                var handler = new HttpClientHandler
-                {
-                    AllowAutoRedirect = false,
-                    UseCookies = false, // DO NOT CHANGE!
-                };
-
-                // Make sure we accept certificates from letsencrypt staging servers if not in production
-                if (!_useCertificateAuthorityProductionServers)
-                {
-                    handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
-                }
-
-                return handler;
-            }));
-    }
-
-    private Task RegisterDotYouHttpClientAsync(IdentityRegistration idReg)
-    {
-        var domain = idReg.PrimaryDomainName;
-        var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
-
-        // SEB:NOTE
-        // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the
-        // baked-in one. We have to be able to create HttpClientHandlers on the fly, this is not possible with
-        // the original IHttpClientFactory.
-        _httpClientFactory.Register(httpClientKey, builder => builder.ConfigurePrimaryHttpMessageHandler(() =>
-        {
-            var handler = new HttpClientHandler
-            {
-                UseCookies = false, // DO NOT CHANGE!
-                AllowAutoRedirect = false,
-                SslProtocols = SslProtocols.None, //allow OS to choose;
-            };
-
-            // SEB:TODO this is a problem. We don't handle expired certificates here. We need to lookup
-            // and set the cert each time we send a request.
-            var x509 = _certificateService.GetCertificateAsync(domain).Result;
-            if (x509 != null)
-            {
-                handler.ClientCertificates.Add(x509);
-            }
-            else
-            {
-                _logger.LogError("RegisterHttpClient: could not find certificate for {domain}", domain);
-            }
-            
-            // Make sure we accept certificates from letsencrypt staging servers if not in production
-            if (!_useCertificateAuthorityProductionServers)
-            {
-                handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
-            }
-
-            return handler;
-        }).SetHandlerLifetime(TimeSpan.FromMinutes(2)));
-
-        return Task.CompletedTask;
     }
 
     //

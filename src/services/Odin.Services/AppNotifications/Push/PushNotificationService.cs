@@ -6,12 +6,12 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
-using HttpClientFactoryLite;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Dto;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Refit;
@@ -43,7 +43,7 @@ public class PushNotificationService(
     ICorrelationContext correlationContext,
     PublicPrivateKeyService keyService,
     NotificationListService notificationListService,
-    IHttpClientFactory httpClientFactory,
+    IDynamicHttpClientFactory httpClientFactory,
     ICertificateStore certificateStore,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
@@ -278,7 +278,8 @@ public class PushNotificationService(
             };
 
             var baseUri = new Uri(configuration.PushNotification.BaseUrl);
-            var httpClient = httpClientFactory.CreateClient<PushNotificationService>(baseUri);
+            var httpClient = httpClientFactory.CreateClient(baseUri.Host);
+            httpClient.BaseAddress = baseUri;
             httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, correlationContext.Id);
             var push = RestService.For<IDevicePushNotificationApi>(httpClient);
 
