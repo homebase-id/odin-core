@@ -523,7 +523,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var sl = new List<string>();
 
             // If the payloads are remote, skip the disk check
-            if (header?.FileMetadata?.DataSource.PayloadsAreRemote == true)
+            if (header?.FileMetadata?.DataSource?.PayloadsAreRemote == true)
                  return null;
             
             // Future improvement: Compare byte-sizes in header to bytes on disk
