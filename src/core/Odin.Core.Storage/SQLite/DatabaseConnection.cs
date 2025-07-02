@@ -236,7 +236,6 @@ namespace Odin.Core.Storage.SQLite
                 _connection = null;
 
                 GC.SuppressFinalize(this);
-                Console.WriteLine("XXXXXXXXXXXXXXXXXXXXXXXXX dispose");
             }
         }
 
