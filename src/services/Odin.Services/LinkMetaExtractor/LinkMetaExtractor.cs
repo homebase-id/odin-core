@@ -3,17 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
+using Odin.Core.Http;
 
 namespace Odin.Services.LinkMetaExtractor;
 
 
-public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMetaExtractor> logger) : ILinkMetaExtractor
+public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<LinkMetaExtractor> logger) : ILinkMetaExtractor
 {
     /// <summary>
     /// List of sites that needs bot headers to be fetched CSR website
@@ -129,34 +127,33 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
 
     private async Task<string> FetchHtmlContentAsync(string url)
     {
-        var client = clientFactory.CreateClient<LinkMetaExtractor>();
-        // Set headers
-        client.DefaultRequestHeaders.Add("Accept", "text/html");
-
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Add("Accept", "text/html");
 
         // Use specific User-Agent based on the URL
         if (SiteThatNeedsBotHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
         {
-            client.DefaultRequestHeaders.Add("User-Agent", "grapeshot|googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
+            request.Headers.Add("User-Agent", "grapeshot|googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
         }
         else if (SiteThatNeedsMozillaHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
         {
             // Use a modern browser-like User-Agent for general requests
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         }
         else
         {
             // Use facebookexternalhit for Open Graph previews
-            client.DefaultRequestHeaders.Add("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)");
+            request.Headers.Add("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)");
         }
 
-        // Set a timeout
-        client.Timeout = TimeSpan.FromSeconds(20);
         const long maxContentLength = 3 * 1024 * 1024;
 
         try
         {
-            var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            var response = await clientFactory.SendWithRedirectsAsync(
+                request,
+                timeout: TimeSpan.FromSeconds(20),
+                httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
@@ -244,14 +241,18 @@ public class LinkMetaExtractor(IHttpClientFactory clientFactory, ILogger<LinkMet
             logger.LogDebug("LinkExtractor: Unsafe image URL {ImageUrl} for original URL {OriginalUrl}", imageUrl, originalUrl);
             return null;
         }
-        var client = clientFactory.CreateClient<LinkMetaExtractor>();
-        client.DefaultRequestHeaders.Add("User-Agent", "*");
-        client.Timeout = TimeSpan.FromSeconds(10);
         const long maxImageSize = 5 * 1024 * 1024;
         try
         {
             var cleanedUrl = WebUtility.HtmlDecode(imageUrl);
-            var response = await client.GetAsync(cleanedUrl, HttpCompletionOption.ResponseHeadersRead);
+            var request = new HttpRequestMessage(HttpMethod.Get, cleanedUrl);
+            request.Headers.Add("User-Agent", "*");
+
+            var response = await clientFactory.SendWithRedirectsAsync(
+                request,
+                timeout: TimeSpan.FromSeconds(10),
+                httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
+
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogDebug("LinkExtractor: Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Cache;
+using Odin.Core.Http;
 
 namespace Odin.SetupHelper.Tests;
 
@@ -11,18 +12,10 @@ public class HttpProbeTests
     public void Setup()
     {
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddSingleton<IGenericMemoryCache, GenericMemoryCache>();
         services.AddSingleton<HttpProbe>();
-        services.AddHttpClient("NoRedirectClient", client =>
-            {
-                client.Timeout = TimeSpan.FromSeconds(2);
-            })
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                UseCookies = false,
-                AllowAutoRedirect = false
-            });
-        
+        services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
         _serviceProvider = services.BuildServiceProvider();
     }    
    

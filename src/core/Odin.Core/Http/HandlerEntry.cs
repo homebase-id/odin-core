@@ -6,12 +6,12 @@ namespace Odin.Core.Http;
 
 #nullable enable
 
-internal sealed class HandlerEntry(string handlerKey, ClientConfig config) : IDisposable
+internal sealed class HandlerEntry(string handlerKey, ClientHandlerConfig handlerConfig) : IDisposable
 {
     internal string HandlerKey { get; } = handlerKey;
-    internal ClientConfig Config { get; } = config;
+    internal ClientHandlerConfig HandlerConfig { get; } = handlerConfig;
     internal HttpMessageHandler Handler { get; set; } = null!;
-    internal DateTimeOffset Lifetime { get; } = DateTimeOffset.UtcNow.Add(config.HandlerLifetime);
+    internal DateTimeOffset Lifetime { get; } = DateTimeOffset.UtcNow.Add(handlerConfig.HandlerLifetime);
     internal bool IsExpired => DateTimeOffset.UtcNow > Lifetime;
 
     internal int ActiveRequests => _activeRequests;

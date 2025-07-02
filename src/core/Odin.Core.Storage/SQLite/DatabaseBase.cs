@@ -78,6 +78,7 @@ namespace Odin.Core.Storage.SQLite
             {
                 throw new ObjectDisposedException("DatabaseBase");
             }
+            Console.WriteLine("XXXXXXXXXXXXXXXXXXXXXXXXX Creating new connection for " + _connectionString);
             return new DatabaseConnection(this, _connectionString);
         }
 

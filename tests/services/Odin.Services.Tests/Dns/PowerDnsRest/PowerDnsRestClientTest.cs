@@ -3,11 +3,11 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using DnsClient;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Http;
 using Odin.Services.Dns;
 using Odin.Services.Dns.PowerDns;
 
@@ -18,7 +18,7 @@ namespace Odin.Services.Tests.Dns.PowerDnsRest;
 public class PowerDnsRestClientTest
 {
     private const string PdnsHostAddess = "dns.id.pub";
-    private const string PdnsApiKey = "replace_with_top_secret_powerdns_api_key";
+    private const string PdnsApiKey = "t1pquJlAvdnkNLTaP2D3MgBEbEwJ0RWl";
     private readonly IDnsRestClient _pdnsClient;
 
     private const string Ns1 = "ns1.id.pub.";
@@ -30,7 +30,7 @@ public class PowerDnsRestClientTest
     {
         var logger = new Mock<ILogger<PowerDnsRestClient>>().Object;
 
-        var httpClientFactory = new HttpClientFactory();
+        var httpClientFactory = new DynamicHttpClientFactory(new Mock<ILogger<DynamicHttpClientFactory>>().Object);
         var baseAddress = new Uri($"https://{PdnsHostAddess}/api/v1");
         _pdnsClient = new PowerDnsRestClient(logger, httpClientFactory, baseAddress, PdnsApiKey);
     }

@@ -9,8 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Odin.Core.Http;
 
-#nullable enable
-
 //
 // This is a variation of dotnet v9's IHttpClientFactory and DefaultClientFactory.
 // The primary reason for it, is to solve the problem of IHttpClientFactory only being able to register http clients
@@ -51,9 +49,13 @@ namespace Odin.Core.Http;
 // Please review this code, comparing it to the IHttpClientFactory and DefaultClientFactory implementations in .NET 9. At this point I'm not interested in performance or nitpicks, unless you spot something seriously wrong. Pay special attention to the comment in the top that explains what the purpose for this code is.
 //
 
+//
+
+#nullable enable
+
 public interface IDynamicHttpClientFactory : IDisposable
 {
-    HttpClient CreateClient(string remoteHostName, Action<ClientConfig>? configure = null);
+    HttpClient CreateClient(string remoteHostName, Action<ClientHandlerConfig>? configure = null);
 }
 
 //
@@ -94,12 +96,12 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
     //
 
-    public HttpClient CreateClient(string remoteHostName, Action<ClientConfig>? configure = null)
+    public HttpClient CreateClient(string remoteHostName, Action<ClientHandlerConfig>? configure = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(DynamicHttpClientFactory));
         ArgumentException.ThrowIfNullOrEmpty(remoteHostName, nameof(remoteHostName));
 
-        var config = new ClientConfig();
+        var config = new ClientHandlerConfig();
         configure?.Invoke(config);
        
         if (config.HandlerLifetime <= TimeSpan.Zero)
@@ -118,7 +120,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
     //
 
-    private HttpMessageHandler GetOrCreateHandler(string handlerKey, ClientConfig config)
+    private HttpMessageHandler GetOrCreateHandler(string handlerKey, ClientHandlerConfig handlerConfig)
     {
         HandlerEntry? entry;
 
@@ -144,15 +146,15 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
             }
 
             var clientHandler = new HttpClientHandler();
-            ConfigureClientHandler(clientHandler, config);
+            ConfigureClientHandler(clientHandler, handlerConfig);
 
             HttpMessageHandler messageHandler = clientHandler;
-            foreach (var factory in config.CustomHandlerFactories.AsEnumerable().Reverse())
+            foreach (var factory in handlerConfig.MessageHandlerChain.AsEnumerable().Reverse())
             {
                 messageHandler = factory(messageHandler);
             }
 
-            var newEntry = new HandlerEntry(handlerKey, config);
+            var newEntry = new HandlerEntry(handlerKey, handlerConfig);
             messageHandler = new RequestTrackingHandler(_logger, messageHandler, newEntry);
             newEntry.Handler = messageHandler;
 
@@ -163,7 +165,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
                 _expiredHandlers[Guid.NewGuid()] = entry;
             }
 
-            _logger.LogTrace("Created new handler for key {key} with lifetime {lifetime}", handlerKey, config.HandlerLifetime);
+            _logger.LogTrace("Created new handler for key {key} with lifetime {lifetime}", handlerKey, handlerConfig.HandlerLifetime);
 
             return messageHandler;
         }
@@ -175,19 +177,19 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
     //
 
-    private static void ConfigureClientHandler(HttpClientHandler handler, ClientConfig config)
+    private static void ConfigureClientHandler(HttpClientHandler handler, ClientHandlerConfig handlerConfig)
     {
-        if (config.ClientCertificate != null)
+        if (handlerConfig.ClientCertificate != null)
         {
-            handler.ClientCertificates.Add(config.ClientCertificate);
+            handler.ClientCertificates.Add(handlerConfig.ClientCertificate);
         }
 
-        handler.AllowAutoRedirect = false; // We don't want auto redirects to avoid unexpected behavior.
+        handler.AllowAutoRedirect = false; // We don't want auto redirects to avoid handler/connection pollution.
         handler.UseCookies = false; // We don't want cookies since they can't be shared across tenants.
         handler.UseProxy = false; // No proxy support for now.
         handler.SslProtocols = SslProtocols.None; // No specific SSL protocols set, defaults will be used.
 
-        if (config.AllowUntrustedServerCertificate)
+        if (handlerConfig.AllowUntrustedServerCertificate)
         {
             handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
         }
@@ -232,9 +234,11 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
         while (!_cts.Token.IsCancellationRequested)
         {
-            _logger.LogTrace("Starting cleanup for expired HTTP handlers");
             try
             {
+                await Task.Delay(_cleanupInterval, _cts.Token);
+                _logger.LogTrace("Starting cleanup for expired HTTP handlers");
+
                 _rwLock.EnterWriteLock();
                 try
                 {
@@ -292,8 +296,6 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
                 {
                     _rwLock.ExitWriteLock();
                 }
-
-                await Task.Delay(_cleanupInterval, _cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -303,9 +305,9 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
             {
                 _logger.LogError(ex, "Cleanup error: {message}", ex.Message);
             }
+
             _logger.LogTrace("Finished cleanup for expired HTTP handlers");
         }
-        _logger.LogTrace("Exiting OdinHttpClientFactory cleanup loop");
     }
 
     //

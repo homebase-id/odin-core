@@ -12,7 +12,7 @@ using Org.BouncyCastle.Utilities.Encoders;
 
 namespace Odin.Hosting.Tests;
 
-public class SharedSecretGetRequestHandler : HttpClientHandler
+public class SharedSecretGetRequestHandler(HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
 {
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {

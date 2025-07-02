@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.SQLite;
 using Odin.Core.Storage.SQLite.AttestationDatabase;
 using Odin.Core.Util;
 
@@ -18,17 +17,15 @@ namespace Odin.Attestation.Controllers
     public class InternalAttestationController : ControllerBase
     {
         private readonly ILogger<AttestationRequestController> _logger;
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly AttestationDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         // private readonly bool _simulate = true;
         private readonly EccFullKeyData _eccKey;
         private readonly SensitiveByteArray _eccPwd;
 
-        public InternalAttestationController(ILogger<AttestationRequestController> logger, IHttpClientFactory httpClientFactory, AttestationDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
+        public InternalAttestationController(ILogger<AttestationRequestController> logger, AttestationDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
         {
             _logger = logger;
-            _httpClientFactory = httpClientFactory;
             _db = db;
             _eccKey = eccKey;
             _eccPwd = pwdEcc;

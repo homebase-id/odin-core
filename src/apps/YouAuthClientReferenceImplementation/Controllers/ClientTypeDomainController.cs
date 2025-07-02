@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Http;
 using Odin.Core.Serialization;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
@@ -25,12 +26,12 @@ public class ClientTypeDomainController : BaseController
     private string SharedSecret => Request.Cookies[SharedSecretCookieName] ?? "";
 
     private readonly ILogger<ClientTypeDomainController> _logger;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ConcurrentDictionary<string, State> _stateMap;
 
     public ClientTypeDomainController(
         ILogger<ClientTypeDomainController> logger,
-        IHttpClientFactory httpClientFactory,
+        IDynamicHttpClientFactory httpClientFactory,
         ConcurrentDictionary<string, State> stateMap) : base(logger)
     {
         _logger = logger;
@@ -57,7 +58,7 @@ public class ClientTypeDomainController : BaseController
         {
             Headers = { { "Cookie", new Cookie("XT32", Cat).ToString() } }
         };
-        var client = _httpClientFactory.CreateClient("default");
+        var client = _httpClientFactory.CreateClient(LoggedInIdentity);
         var response = await client.SendAsync(request);
         if (response.StatusCode != HttpStatusCode.OK)
         {
@@ -194,7 +195,7 @@ public class ClientTypeDomainController : BaseController
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         };
 
-        var client = _httpClientFactory.CreateClient("default");
+        var client = _httpClientFactory.CreateClient(state.Identity);
         var response = await client.SendAsync(request);
 
         if (response.StatusCode != HttpStatusCode.OK)

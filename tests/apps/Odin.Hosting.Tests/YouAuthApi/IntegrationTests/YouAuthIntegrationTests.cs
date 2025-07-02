@@ -35,7 +35,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task a1_AuthorizeEndpointMustRedirectToLogonIfUserNotAuthenticated()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             const string thirdParty = "frodo.dotyou.cloud";
 
             //
@@ -114,7 +114,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task b0_AuthorizeEndpointMust400IfYouAuthingToSelf()
         {
             const string hobbit = "frodo.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
@@ -177,7 +177,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task b1_domain_AuthorizeEndpointMust400IfMissingClientId()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
@@ -237,7 +237,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task b2_domain_AuthorizeEndpointMustRedirectToConsentPageIfConsentIsNeeded()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
@@ -319,7 +319,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task b4_domain_ConsentNotRequiredWhenPreviousConsentDidNotExpire()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
@@ -494,7 +494,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task b3_domain_ConsentNeededWhenPreviousConsentHasExpired()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
@@ -697,7 +697,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task b5_domain_WithExplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponse()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
@@ -897,7 +897,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task b6_domain_WithImplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponse()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             await ConnectHobbits();
@@ -1017,7 +1017,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task c1_app_registration_AuthorizeEndpointMustRedirectToRegistrationPageIfRegistrationIsNeeded()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             var appId = Guid.NewGuid();
@@ -1101,7 +1101,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task c2_app_consent_AuthorizeEndpointMustRedirectRegisteredAppToConsentPageIfConsentIsNeeded()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             var appId = Guid.NewGuid().ToString();
@@ -1207,7 +1207,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task c3_app_consent_AuthorizeMustSkipConsentForAppsOnOwner()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             var appId = Guid.NewGuid().ToString();
@@ -1312,7 +1312,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         public async Task c4_app_exchange_WithExplicitConsentItShouldExchangeAuthorizationCodeForToken()
         {
             const string hobbit = "sam.dotyou.cloud";
-            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             var appId = Guid.NewGuid();

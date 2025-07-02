@@ -9,7 +9,7 @@ namespace Odin.Core.Http;
 
 #nullable enable
 
-public sealed class ClientConfig
+public sealed class ClientHandlerConfig
 {
     //
     // HttpMessageHandler-level settings (affect handler sharing/creation)
@@ -20,7 +20,7 @@ public sealed class ClientConfig
     public TimeSpan HandlerLifetime { get; set; }
 
     // Handler "middleware" factories
-    public List<Func<HttpMessageHandler, HttpMessageHandler>> CustomHandlerFactories { get; set; } = [];
+    public List<Func<HttpMessageHandler, HttpMessageHandler>> MessageHandlerChain { get; set; } = [];
 
     //
 
@@ -39,7 +39,7 @@ public sealed class ClientConfig
         var sb = new StringBuilder();
         sb.Append(AllowUntrustedServerCertificate);
         sb.Append(ClientCertificate?.Thumbprint ?? "");
-        sb.Append(CustomHandlerFactories.Count == 0 ? "" : "not-reliable-for-hashing");
+        sb.Append(MessageHandlerChain.Count == 0 ? "" : "not-reliable-for-hashing");
         sb.Append(HandlerLifetime.Ticks);
         return sb.ToString();
     }

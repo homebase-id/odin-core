@@ -4,9 +4,11 @@ using System.Security.Cryptography;
 using System.Text;
 using YouAuthClientReferenceImplementation.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Rewrite;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Http;
 using Odin.Core.Serialization;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
@@ -25,12 +27,12 @@ public class ClientTypeAppController : BaseController
     private string SharedSecret => Request.Cookies[SharedSecretCookieName] ?? "";
 
     private readonly ILogger<ClientTypeAppController> _logger;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ConcurrentDictionary<string, State> _stateMap;
 
     public ClientTypeAppController(
         ILogger<ClientTypeAppController> logger,
-        IHttpClientFactory httpClientFactory,
+        IDynamicHttpClientFactory httpClientFactory,
         ConcurrentDictionary<string, State> stateMap) : base(logger)
     {
         _logger = logger;
@@ -201,7 +203,7 @@ public class ClientTypeAppController : BaseController
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         };
 
-        var client = _httpClientFactory.CreateClient("default");
+        var client = _httpClientFactory.CreateClient(uri.Host);
         var response = await client.SendAsync(request);
 
         if (response.StatusCode != HttpStatusCode.OK)

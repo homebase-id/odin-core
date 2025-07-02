@@ -29,9 +29,9 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Factory.DbConnectionPool), "37e46385"},
         {typeof(Odin.Hosting.Controllers.Registration.RegistrationRestrictedAttribute), "e7045f27"},
         {typeof(Odin.Hosting.Controllers.Admin.AdminApiRestrictedAttribute), "509d6046"},
-        {typeof(Odin.Services.Email.IEmailSender), "eacd5b8f"},
-        {typeof(Odin.Services.Certificate.ICertesAcme), "c742bc8f"},
-        {typeof(Odin.Services.Dns.IDnsRestClient), "c363ae45"},
+        {typeof(Odin.Services.Email.IEmailSender), "5a48691d"},
+        {typeof(Odin.Services.Certificate.ICertesAcme), "c749fcc8"},
+        {typeof(Odin.Services.Dns.IDnsRestClient), "39903988"},
         {typeof(Odin.Services.Certificate.AcmeAccountConfig), "e6f1c919"},
         {typeof(Odin.Services.Configuration.OdinConfiguration), "6fba0459"},
         {typeof(Odin.Core.Logging.Hostname.StickyHostname), "3b8b6d5d"},
@@ -39,7 +39,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.FileReaderWriter), "d78f7501"},
-        {typeof(Odin.Services.Registry.IIdentityRegistry), "819dd1a0"},
+        {typeof(Odin.Services.Registry.IIdentityRegistry), "aa459ea1"},
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},
@@ -48,6 +48,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Certificate.CertificateService), "69a1f6ca"},
         {typeof(Odin.Services.Certificate.CertificateStore), "3d5de885"},
         {typeof(Odin.Services.Certificate.CertificateStorageKey), "4bbcfd3f"},
+        {typeof(Odin.Core.Http.DynamicHttpClientFactory), "f7ffd4c4"},
     };
 
     //

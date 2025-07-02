@@ -10,15 +10,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Odin.Core;
 using Odin.Core.Configuration;
 using Odin.Core.Dns;
+using Odin.Core.Http;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
 using Spectre.Console;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 [assembly: InternalsVisibleTo("Odin.SetupHelper.Tests")]
 
@@ -27,7 +26,8 @@ namespace Odin.Hosting.Cli;
 #nullable enable
 public static class DockerSetup
 {
-    private static readonly IHttpClientFactory HttpClientFactory = new HttpClientFactory();
+    private static readonly IDynamicHttpClientFactory HttpClientFactory =
+        new DynamicHttpClientFactory(NullLogger<DynamicHttpClientFactory>.Instance);
 
     public static int Execute(string[] args)
     {
@@ -425,7 +425,7 @@ public static class DockerSetup
 
     private static string? LookupMyIp()
     {
-        var client = HttpClientFactory.CreateClient("ipify");
+        var client = HttpClientFactory.CreateClient("api.ipify.org");
         client.Timeout = TimeSpan.FromSeconds(5);
         try
         {

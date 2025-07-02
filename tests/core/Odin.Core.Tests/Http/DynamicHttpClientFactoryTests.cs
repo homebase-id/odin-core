@@ -104,16 +104,12 @@ public class DynamicHttpClientFactoryTests
         using var factory = new DynamicHttpClientFactory(_logger);
         var handlerLogger = TestLogFactory.CreateConsoleLogger<LoggingHandler>(_logEventMemoryStore);
 
-        var handler1 = new LoggingHandler(handlerLogger, "Handler1: Request Sent", true);
-        var handler2 = new LoggingHandler(handlerLogger, "Handler2: Request Sent", true);
-        var handler3 = new LoggingHandler(handlerLogger, "Handler3: Response Received", false);
-
         // Configure the client with multiple handlers
         var client = factory.CreateClient(clientName, config =>
         {
-            config.CustomHandlerFactories.Add(inner => handler1.SetInnerHandler(inner));
-            config.CustomHandlerFactories.Add(inner => handler2.SetInnerHandler(inner));
-            config.CustomHandlerFactories.Add(inner => handler3.SetInnerHandler(inner));
+            config.MessageHandlerChain.Add(inner => new LoggingHandler(handlerLogger, "Handler1: Request Sent", true, inner));
+            config.MessageHandlerChain.Add(inner => new LoggingHandler(handlerLogger, "Handler2: Request Sent", true, inner));
+            config.MessageHandlerChain.Add(inner => new LoggingHandler(handlerLogger, "Handler3: Response Received", false, inner));
         });
 
         // Act
@@ -253,35 +249,23 @@ public class DynamicHttpClientFactoryTests
 
 
 // Custom DelegatingHandler for logging
-public class LoggingHandler : DelegatingHandler
+public class LoggingHandler(
+    ILogger<LoggingHandler> logger,
+    string logMessage,
+    bool beforeInner,
+    HttpMessageHandler innerHandler)
+    : DelegatingHandler(innerHandler)
 {
-    private readonly ILogger<LoggingHandler> _logger;
-    private readonly string _logMessage;
-    private readonly bool _beforeInner;
-
-    public LoggingHandler(ILogger<LoggingHandler> logger, string logMessage, bool beforeInner)
-    {
-        _logMessage = logMessage;
-        _logger = logger;
-        _beforeInner = beforeInner;
-    }
-
-    public LoggingHandler SetInnerHandler(HttpMessageHandler innerHandler)
-    {
-        InnerHandler = innerHandler;
-        return this;
-    }
-
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (_beforeInner)
+        if (beforeInner)
         {
-            _logger.LogInformation("{message}", _logMessage);
+            logger.LogInformation("{message}", logMessage);
         }
         var response = await base.SendAsync(request, cancellationToken);
-        if (!_beforeInner)
+        if (!beforeInner)
         {
-            _logger.LogInformation("{message} {status}", _logMessage, response.StatusCode);
+            logger.LogInformation("{message} {status}", logMessage, response.StatusCode);
         }
 
         return response;

@@ -8,10 +8,10 @@ using Certes;
 using Certes.Acme;
 using Certes.Acme.Resource;
 using Certes.Pkcs;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 
 namespace Odin.Services.Certificate;
 
@@ -28,7 +28,7 @@ public sealed class CertesAcme : ICertesAcme
 {
     private readonly ILogger<CertesAcme> _logger;
     private readonly IAcmeHttp01TokenCache _tokenCache;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly Uri _directoryUri;
     
     public bool IsProduction { get; }
@@ -36,7 +36,7 @@ public sealed class CertesAcme : ICertesAcme
     public CertesAcme(
         ILogger<CertesAcme> logger, 
         IAcmeHttp01TokenCache tokenCache, 
-        IHttpClientFactory httpClientFactory, 
+        IDynamicHttpClientFactory httpClientFactory,
         bool isProduction)
     {
         _logger = logger;
@@ -230,10 +230,10 @@ public sealed class CertesAcme : ICertesAcme
             "https://letsencrypt.org/certs/staging/letsencrypt-stg-root-x2.pem" 
         };
 
-        var httpClient = _httpClientFactory.CreateClient<CertesAcme>();
+        var httpClient = _httpClientFactory.CreateClient("letsencrypt.org");
         foreach (var uri in uris)
         {
-            _logger.LogInformation("Downloading staging certitiate: {uri}", uri);
+            _logger.LogInformation("Downloading staging certificate: {uri}", uri);
             var response = await httpClient.GetAsync(uri, cancellationToken);
             var cert = await response.Content.ReadAsStringAsync(cancellationToken);
             result.Add(cert);
