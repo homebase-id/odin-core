@@ -69,7 +69,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> HasValidCertificate(string domain)
     {
-        var httpClient = _httpClientFactory.CreateClient(domain);
+        var httpClient = _httpClientFactory.CreateClient(domain, config =>
+        {
+            config.HandlerLifetime = TimeSpan.FromSeconds(5); // Short-lived to deal with DNS changes
+        });
         try
         {
             await httpClient.GetAsync($"https://{domain}:{_configuration.Host.DefaultHttpsPort}");
