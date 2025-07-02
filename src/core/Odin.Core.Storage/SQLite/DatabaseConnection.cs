@@ -26,6 +26,7 @@ namespace Odin.Core.Storage.SQLite
 
         public DatabaseConnection(DatabaseBase db, string connectionString)
         {
+            Console.WriteLine("XXXXXXXXXXXXXX DatabaseConnection created with connection string: " + connectionString);
             this.db = db;
             _connection = new SqliteConnection(connectionString);
             _connection.Open();
@@ -237,6 +238,7 @@ namespace Odin.Core.Storage.SQLite
 
                 GC.SuppressFinalize(this);
             }
+            Console.WriteLine("XXXXXXXXXXXXXX DatabaseConnection dispose");
         }
 
         internal int TransactionCount()
