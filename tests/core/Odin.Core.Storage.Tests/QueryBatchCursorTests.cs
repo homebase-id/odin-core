@@ -32,12 +32,10 @@ namespace Odin.Core.Storage.Tests
         public void TimeStringTests()
         {
             var cursor = TimeRowCursor.FromJson("42");
-            Assert.That(cursor.Time == 42);
-            Assert.That(cursor.rowId == null);
+            Assert.That(cursor == null);
 
             cursor = TimeRowCursor.FromJson("42,7");
-            Assert.That(cursor.Time == 42);
-            Assert.That(cursor.rowId == 7);
+            Assert.That(cursor == null);
 
             Assert.Pass();
         }
