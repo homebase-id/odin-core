@@ -8,7 +8,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(USER)' == 'XXXseb'">
+  <PropertyGroup Condition="'$(USER)' == 'seb'">
     <DefineConstants>RUN_POSTGRES_TESTS;RUN_REDIS_TESTS;RUN_S3_TESTS</DefineConstants>
   </PropertyGroup>
 
