@@ -36,7 +36,7 @@ public class PowerDnsRestClient : IDnsRestClient
     {
         get
         {
-            var httpClient = _httpClientFactory.CreateClient(_baseAddress.Host, config =>
+            var httpClient = _httpClientFactory.CreateClient($"{nameof(IPowerDnsApi)}:{_baseAddress.Host}", config =>
             {
                 config.HandlerLifetime = TimeSpan.FromSeconds(5); // Short-lived to deal with DNS changes
             });
