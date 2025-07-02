@@ -41,7 +41,8 @@ namespace Odin.Core.Http;
 //
 // BEWARE BEWARE BEWARE BEWARE!
 //
-// Don't use the same client remoteHostName for different remote hosts!
+// - Don't use the same client remoteHostKey for different remote hosts!
+// - Change remoteHostKey for SAME hosts if you have different configurations for them!
 //
 
 //
@@ -55,7 +56,7 @@ namespace Odin.Core.Http;
 
 public interface IDynamicHttpClientFactory : IDisposable
 {
-    HttpClient CreateClient(string remoteHostName, Action<ClientHandlerConfig>? configure = null);
+    HttpClient CreateClient(string remoteHostKey, Action<ClientHandlerConfig>? configure = null);
 }
 
 //
@@ -65,11 +66,11 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
     private static readonly TimeSpan DefaultHandlerLifetime = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan DefaultCleanupInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan DefaultDisposeGracePeriod = TimeSpan.FromMinutes(2);
-    private readonly ILogger<DynamicHttpClientFactory> _logger;
     private readonly ReaderWriterLockSlim _rwLock = new ();
     private readonly Dictionary<string, HandlerEntry> _activeHandlers = new ();
     private readonly Dictionary<Guid, HandlerEntry> _expiredHandlers = new ();
     private readonly CancellationTokenSource _cts = new ();
+    private readonly ILogger<DynamicHttpClientFactory> _logger;
     private readonly TimeSpan _defaultHandlerLifetime;
     private readonly TimeSpan _cleanupInterval;
     private readonly TimeSpan _disposeGracePeriod;
@@ -96,10 +97,10 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
     //
 
-    public HttpClient CreateClient(string remoteHostName, Action<ClientHandlerConfig>? configure = null)
+    public HttpClient CreateClient(string remoteHostKey, Action<ClientHandlerConfig>? configure = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(DynamicHttpClientFactory));
-        ArgumentException.ThrowIfNullOrEmpty(remoteHostName, nameof(remoteHostName));
+        ArgumentException.ThrowIfNullOrEmpty(remoteHostKey, nameof(remoteHostKey));
 
         var config = new ClientHandlerConfig();
         configure?.Invoke(config);
@@ -109,18 +110,18 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
             config.HandlerLifetime = _defaultHandlerLifetime;
         }
         
-        var handlerKey = remoteHostName + "-" + config.GetHashedString();
-        var handler = GetOrCreateHandler(handlerKey, config);
+        var handlerKey = remoteHostKey + "-" + config.GetHashedString();
+        var handler = GetOrCreateHandler(remoteHostKey, handlerKey, config);
         var client = new HttpClient(handler, disposeHandler: false);
 
-        _logger.LogTrace("Created HttpClient for {remoteHostName} with handler key {key}", remoteHostName, handlerKey);
+        _logger.LogTrace("Created HttpClient for {remoteHostKey} with handler key {key}", remoteHostKey, handlerKey);
 
         return client;
     }
 
     //
 
-    private HttpMessageHandler GetOrCreateHandler(string handlerKey, ClientHandlerConfig handlerConfig)
+    private HttpMessageHandler GetOrCreateHandler(string remoteHostKey, string handlerKey, ClientHandlerConfig handlerConfig)
     {
         HandlerEntry? entry;
 
@@ -146,7 +147,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
             }
 
             var clientHandler = new HttpClientHandler();
-            ConfigureClientHandler(clientHandler, handlerConfig);
+            ConfigureClientHandler(remoteHostKey, clientHandler, handlerConfig);
 
             HttpMessageHandler messageHandler = clientHandler;
             foreach (var factory in handlerConfig.MessageHandlerChain.AsEnumerable().Reverse())
@@ -177,7 +178,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
     //
 
-    private static void ConfigureClientHandler(HttpClientHandler handler, ClientHandlerConfig handlerConfig)
+    private void ConfigureClientHandler(string remoteHostKey, HttpClientHandler handler, ClientHandlerConfig handlerConfig)
     {
         if (handlerConfig.ClientCertificate != null)
         {
@@ -191,6 +192,9 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
         if (handlerConfig.AllowUntrustedServerCertificate)
         {
+            _logger.LogWarning("Allowing untrusted server certificates for {remoteHostKey} handler {key}",
+                remoteHostKey,
+                handlerConfig.GetHashedString());
             handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
         }
     }

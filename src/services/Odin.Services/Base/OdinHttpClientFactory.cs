@@ -58,11 +58,15 @@ namespace Odin.Services.Base
             Dictionary<string, string> headers = null)
         {
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;
-            var httpClient = _httpClientFactory.CreateClient(remoteHost, config =>
+            var httpClient = _httpClientFactory.CreateClient($"{nameof(OdinHttpClientFactory)}:{remoteHost}", cfg =>
             {
-                config.ClientCertificate = _certificateStore.GetCertificateAsync(_odinIdentity.PrimaryDomain).Result;
+                cfg.AllowUntrustedServerCertificate =
+                    _config.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
+
+                cfg.ClientCertificate = _certificateStore.GetCertificateAsync(_odinIdentity.PrimaryDomain).Result;
+
                 // Sanity
-                if (null == config.ClientCertificate)
+                if (cfg.ClientCertificate == null)
                 {
                     throw new OdinSystemException($"No client certificate found for domain {_odinIdentity.PrimaryDomain}");
                 }

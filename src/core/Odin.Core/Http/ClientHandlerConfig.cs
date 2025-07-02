@@ -19,7 +19,7 @@ public sealed class ClientHandlerConfig
     public X509Certificate2? ClientCertificate { get; set; }
     public TimeSpan HandlerLifetime { get; set; }
 
-    // Handler "middleware" factories
+    // MessageHandler "middleware" chain
     public List<Func<HttpMessageHandler, HttpMessageHandler>> MessageHandlerChain { get; set; } = [];
 
     //

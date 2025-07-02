@@ -69,17 +69,21 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> HasValidCertificate(string domain)
     {
-        var httpClient = _httpClientFactory.CreateClient(domain, config =>
+        var httpClient = _httpClientFactory.CreateClient($"{nameof(IdentityRegistrationService)}:{domain}", cfg =>
         {
-            config.HandlerLifetime = TimeSpan.FromSeconds(5); // Short-lived to deal with DNS changes
+            cfg.HandlerLifetime = TimeSpan.FromSeconds(5); // Short-lived to deal with DNS changes
+            cfg.AllowUntrustedServerCertificate =
+                _configuration.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
         });
         try
         {
             await httpClient.GetAsync($"https://{domain}:{_configuration.Host.DefaultHttpsPort}");
             return true;
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            var message = e.InnerException?.Message ?? e.Message;
+            _logger.LogDebug("IdentityRegistrationService:HasValidCertificate: {message}", message);
             return false;
         }
     }
