@@ -34,13 +34,11 @@ public class PostContent
     [JsonPropertyName("slug")] 
     public string Slug { get; set; }
     
-
     [JsonPropertyName("type")]
     //type: 'Article' | 'Media' | 'Tweet';
     public string Type { get; set; }
 
     [JsonPropertyName("primaryMediaFile")]
-    //primaryMediaFile?: PrimaryMediaFile;
     public PrimaryMediaFile PrimaryMediaFile { get; set; }
     
     [JsonIgnore]
@@ -48,16 +46,4 @@ public class PostContent
     
     [JsonIgnore]
     public TargetDrive TargetDrive { get; set; }
-}
-
-public class PrimaryMediaFile
-{
-    [JsonPropertyName("fileKey")] // this is the payload key
-    public string FileKey { get; set; }
-
-    [JsonPropertyName("fileId")] // ignore this (it was pre multi-payload support)
-    public string FileId { get; set; }
-
-    [JsonPropertyName("type")] //mime-type
-    public string Type { get; set; }
 }

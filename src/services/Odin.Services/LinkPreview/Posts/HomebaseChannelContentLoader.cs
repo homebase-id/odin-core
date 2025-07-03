@@ -28,67 +28,39 @@ using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
-using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
 
-namespace Odin.Services.LinkPreview;
+namespace Odin.Services.LinkPreview.Posts;
 
-public class LinkPreviewService(
+/// <summary>
+/// Loads content from the /home app for channels, posts, articles. (duplicates logic from the Frontend,
+/// so we can work w/ the content server side)
+/// </summary>
+public class HomebaseChannelContentLoader(
     IGlobalLevel1Cache globalCache,
-    ITenantLevel1Cache<LinkPreviewService> tenantCache,
+    ITenantLevel1Cache<HomebaseChannelContentLoader> tenantCache,
     StaticFileContentService staticFileContentService,
     IHttpContextAccessor httpContextAccessor,
     StandardFileSystem fileSystem,
     IDriveManager driveManager,
-    ILogger<LinkPreviewService> logger)
+    ILogger<HomebaseChannelContentLoader> logger)
 {
     private const string IndexFileKey = "link-preview-service-index-file";
-    private const string GenericLinkPreviewCacheKey = "link-preview-service-index-file";
     private const string DefaultPayloadKey = "dflt_key";
 
+    private const string DefaultTitle = "Homebase.id";
+    private const string DefaultDescription = "Decentralized identity powered by Homebase.id";
+
+    public const string PublicImagePath = "pub/image.jpg";
 
 
-    const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
-    const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
-
-
+    private const int MaxDescriptionLength = 160;
     public const int PostFileType = 101;
     private const int ChannelDefinitionFileType = 103;
 
-    public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
-    {
-        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
-        {
-            try
-            {
-                await WriteEnhancedIndexAsync(indexFilePath, odinContext);
-            }
-            catch (OperationCanceledException ex)
-            {
-                logger.LogError(ex, "Timeout of 2 seconds; falling back - Writing plain index");
-                await WriteFallbackIndex(indexFilePath);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Total Failure creating link-preview.  Writing plain index");
-                await WriteFallbackIndex(indexFilePath);
-            }
-        }
-    }
-
-    private async Task WriteEnhancedIndexAsync(string indexFilePath, IOdinContext odinContext)
-    {
-        if (await TryWritePostPreview(indexFilePath, odinContext))
-        {
-            return;
-        }
-
-        await WriteGenericPreview(indexFilePath);
-    }
-
     public bool IsPostPath()
     {
-        return IsPath("/posts");
+        return IsPath("/posts") || IsPath($"/ssr/posts");
     }
 
     private bool IsPath(string path)
@@ -97,81 +69,7 @@ public class LinkPreviewService(
         return context.Request.Path.StartsWithSegments(path);
     }
 
-    private async Task<bool> TryWritePostPreview(string indexFilePath, IOdinContext odinContext)
-    {
-        try
-        {
-            var (_, description, imageUrl, title, _) = await TryGetPostData(odinContext);
-
-            var context = httpContextAccessor.HttpContext;
-            string odinId = context.Request.Host.Host;
-            var person = await GeneratePersonSchema();
-
-            if (title == null)
-            {
-                title = $"{person?.Name ?? odinId} | Posts";
-            }
-
-            if (string.IsNullOrEmpty(imageUrl))
-            {
-                imageUrl = $"{context.Request.Scheme}://{odinId}/{LinkPreviewDefaults.PublicImagePath}";
-            }
-
-            if (string.IsNullOrEmpty(description))
-            {
-                description = LinkPreviewDefaults.DefaultDescription;
-            }
-
-            var content = await PrepareIndexHtml(indexFilePath, title, imageUrl,
-                description,
-                person,
-                siteType: "website",
-                robotsTag: "index, follow",
-                context.RequestAborted);
-
-            await WriteAsync(content, context.RequestAborted);
-            return true;
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to parse post");
-            return false;
-        }
-    }
-
-    private async Task<(bool success, string description, string imageUrl, string title, PostContent content)> TryGetPostData(
-        IOdinContext odinContext)
-    {
-        var context = httpContextAccessor.HttpContext;
-
-        // React route is
-        // <Route path="posts/:channelKey/:postKey" element={<PostDetail />} />
-
-        if (!IsPostPath())
-        {
-            // logger.LogDebug("Path is not a posts path; falling back");
-            return (false, null, null, null, null);
-        }
-
-        string path = context.Request.Path.Value;
-
-        var segments = path?.TrimEnd('/').Split('/');
-        if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
-        {
-            // segments[0] = ""  from the leading slash
-            // segments[1] = "posts"
-            string channelKey = segments[2];
-            string postKey = segments[3];
-
-            var (success, title, imageUrl, description, content) = await TryParsePostFile(channelKey, postKey, odinContext,
-                context.RequestAborted);
-            return (success, description, imageUrl, title, content);
-        }
-
-        return (false, null, null, null, null);
-    }
-
-    private async Task<(bool success, string title, string imageUrl, string description, PostContent content)> TryParsePostFile(
+    public async Task<(bool success, string title, string imageUrl, string description, PostContent content)> TryParsePostFile(
         string channelKey,
         string postKey,
         IOdinContext odinContext,
@@ -342,7 +240,6 @@ public class LinkPreviewService(
         return result.SearchResults.ToList();
     }
 
-
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
         Guid? postIdAsTag = null, int? fileType = null)
     {
@@ -421,40 +318,10 @@ public class LinkPreviewService(
         await WriteAsync(data, context.RequestAborted);
     }
 
-    private async Task WriteFallbackIndex(string indexFilePath)
+    private StringBuilder PrepareHeadBuilder(string title, string description, string siteType, string imageUrl)
     {
-        var context = httpContextAccessor.HttpContext;
-
-        var cache = await tenantCache.GetOrSetAsync(
-            GenericLinkPreviewCacheKey,
-            _ => PrepareIndex(indexFilePath, context.RequestAborted),
-            TimeSpan.FromSeconds(30)
-        );
-
-        await WriteAsync(cache, context.RequestAborted);
-    }
-
-    private async Task<string> PrepareIndex(string indexFilePath, CancellationToken cancellationToken)
-    {
-        var indexTemplate = await globalCache.GetOrSetAsync(
-            IndexFileKey,
-            _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
-            TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
-
-        if (string.IsNullOrEmpty(indexTemplate))
-        {
-            throw new OdinSystemException("index contents read from cache or disk is empty");
-        }
-
-        var markup = PrepareHeadBuilder(LinkPreviewDefaults.DefaultTitle, LinkPreviewDefaults.DefaultDescription, "website");
-        var updatedContent = indexTemplate.Replace(IndexPlaceholder, markup.ToString());
-        return updatedContent;
-    }
-
-    private StringBuilder PrepareHeadBuilder(string title, string description, string siteType)
-    {
-        description = Truncate(description, LinkPreviewDefaults.MaxDescriptionLength);
-        title = Truncate(title, LinkPreviewDefaults.MaxDescriptionLength);
+        description = Truncate(description, MaxDescriptionLength);
+        title = Truncate(title, MaxDescriptionLength);
 
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
@@ -471,30 +338,11 @@ public class LinkPreviewService(
         b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
         b.Append($"<meta property='og:site_name' content='{title}'/>\n");
         b.Append($"<meta property='og:type' content='{siteType}'/>\n");
+        b.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
 
-        return b;
-    }
+        b.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
+        // b.Append($"<meta name='robots' content='{robotsTag}'/>\n");
 
-    private StringBuilder PrepareNoscriptBuilder(string title, string description, string siteType, string imageUrl, PersonSchema person)
-    {
-        title = HttpUtility.HtmlEncode(title);
-        description = HttpUtility.HtmlEncode(description);
-
-        StringBuilder b = new StringBuilder(500);
-
-
-        b.Append($"<h1>{title}</h1>\n");
-        b.Append($"<p>{description}</p>");
-        b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
-        b.Append($"<img src='{imageUrl}'/>\n");
-        b.Append($"<p>{person?.GivenName} {person?.FamilyName}</p>\n");
-        b.Append($"<p>{person?.Description}</p>\n");
-        b.Append($"<p>{person?.Image}</p>\n");
-        b.Append($"<p>{person?.JobTitle}</p>\n");
-        b.Append($"<p>{person?.WorksFor?.Name}</p>\n");
-        b.Append($"<p>{person?.Bio}</p>\n");
-        b.Append($"<p>{person?.BioSummary}</p>\n");
-        b.Append($"<a href='{GetDisplayUrlWithSsr()}'>View content without JavaScript</a>\n");
         return b;
     }
 
@@ -503,11 +351,10 @@ public class LinkPreviewService(
         var context = httpContextAccessor.HttpContext;
         string odinId = context.Request.Host.Host;
 
-        var imageUrl = $"{context.Request.Scheme}://{odinId}/{LinkPreviewDefaults.PublicImagePath}";
-        
+        var imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
         var person = await GeneratePersonSchema();
 
-        string suffix = LinkPreviewDefaults.DefaultTitle;
+        string suffix = DefaultTitle;
         string siteType = "profile";
         string robotsTag = "index, follow";
 
@@ -532,17 +379,14 @@ public class LinkPreviewService(
         }
 
         var title = $"{person?.Name ?? odinId} | {suffix}";
-        var description = person?.Description ?? LinkPreviewDefaults.DefaultDescription;
+        var description = person?.Description ?? DefaultDescription;
         return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, robotsTag, cancellationToken);
     }
 
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
         PersonSchema person, string siteType, string robotsTag, CancellationToken cancellationToken)
     {
-        var builder = PrepareHeadBuilder(title, description, siteType);
-        builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
-        // builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
+        var builder = PrepareHeadBuilder(title, description, siteType, imageUrl);
 
         builder.Append(PrepareIdentityContent(person));
 
@@ -550,12 +394,7 @@ public class LinkPreviewService(
             IndexFileKey,
             _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
             TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
-
-        var noScriptContent = PrepareNoscriptBuilder(title, description, siteType, imageUrl, person);
-        var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString())
-            .Replace(NoScriptPlaceholder, noScriptContent.ToString());
-
-        return updatedContent;
+        return "";
     }
 
     private string PrepareIdentityContent(PersonSchema person)
@@ -592,22 +431,22 @@ public class LinkPreviewService(
             Query = request.QueryString.Value
         }.ToString();
     }
+    //
+    // private string GetDisplayUrlWithSsr()
+    // {
+    //     var request = httpContextAccessor.HttpContext.Request;
+    //
+    //     var originalPath = request.Path.Value ?? "";
+    //     var pathWithSsr = $"/{SsrPath}{originalPath}";
+    //
+    //     return new UriBuilder(request.Scheme, request.Host.Host)
+    //     {
+    //         Path = pathWithSsr,
+    //         Query = request.QueryString.Value
+    //     }.ToString();
+    // }
 
-    private string GetDisplayUrlWithSsr()
-    {
-        var request = httpContextAccessor.HttpContext.Request;
-
-        var originalPath = request.Path.Value ?? "";
-        var pathWithSsr = $"/{LinkPreviewDefaults.SsrPath}{originalPath}";
-
-        return new UriBuilder(request.Scheme, request.Host.Host)
-        {
-            Path = pathWithSsr,
-            Query = request.QueryString.Value
-        }.ToString();
-    }
-
-    private async Task<PersonSchema> GeneratePersonSchema()
+    public async Task<PersonSchema> GeneratePersonSchema()
     {
         // read the profile file.
         var (_, fileExists, fileStream) =
