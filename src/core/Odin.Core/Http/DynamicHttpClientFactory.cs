@@ -10,13 +10,12 @@ using Microsoft.Extensions.Logging;
 namespace Odin.Core.Http;
 
 //
-// This is a variation of dotnet v9's IHttpClientFactory and DefaultClientFactory.
-// The primary reason for it, is to solve the problem of IHttpClientFactory only being able to register http clients
-// during startup, when DI services are being registered.
-// Since this project is multi-tenant and tenants and new end-points can come and go, we have to be able to
-// create (and reuse) a new http client on the fly.
+// IDynamicHttpClientFactory is a variation of dotnet v9's IHttpClientFactory and DefaultClientFactory.
+// The primary reason for it is to solve the problem of IHttpClientFactory only being able to register http clients
+// during startup, when DI services are being registered.Since this project is multi-tenant and tenants and new
+// end-points can come and go, we have to be able to create (and reuse) a new http client on the fly.
 //
-// In the current implementation, this code has the same potential issues with disposal as IHttpClientFactory:
+// Note that in the current implementation, this code has the same potential issues with disposal as IHttpClientFactory:
 // once a handler's lifetime expires, it is possible for it to be disposed of while still being used by a
 // HttpClient instance.
 //
@@ -30,7 +29,7 @@ namespace Odin.Core.Http;
 //
 // Usage:
 //
-// var client = factory.CreateClient("example.com", config =>
+// var client = factory.CreateClient("www.example.com", config =>
 // {
 //    config.HandlerLifetime = TimeSpan.FromMinutes(2);
 // });
@@ -41,12 +40,15 @@ namespace Odin.Core.Http;
 //
 // BEWARE BEWARE BEWARE BEWARE!
 //
-// - Don't use the same client remoteHostKey for different remote hosts!
-// - Change remoteHostKey for SAME hosts if you have different configurations for them!
+// - Don't use the same client remoteHostKey for different remote hosts.
+// - Change remoteHostKey for SAME hosts if you have different configurations for them.
+// - If you add one or more MessageHandler chains, make sure to use a unique remoteHostKey for each configuration.
+//   The chains are not included in the handler lifetime hash, so handlers with otherwise identical configurations
+//   can clash.
 //
 
 //
-// Prompt for AI:
+// Prompt for AI review:
 // Please review this code, comparing it to the IHttpClientFactory and DefaultClientFactory implementations in .NET 9. At this point I'm not interested in performance or nitpicks, unless you spot something seriously wrong. Pay special attention to the comment in the top that explains what the purpose for this code is.
 //
 
