@@ -48,7 +48,7 @@ public abstract class YouAuthIntegrationTestBase
     // Authenticate and return owner cookie and shared secret
     protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity)
     {
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{identity}:{WebScaffold.HttpsPort}");
 
         // Step 1:
         // Check owner cookie (we don't send any).

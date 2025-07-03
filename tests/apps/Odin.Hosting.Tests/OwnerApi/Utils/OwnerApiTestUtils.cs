@@ -335,7 +335,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         public HttpClient CreateOwnerApiHttpClient(OdinId identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret,
             FileSystemType fileSystemType)
         {
-            var client = WebScaffold.CreateHttpClient<OwnerApiTestUtils>();
+            var client = WebScaffold.HttpClientFactory.CreateClient(
+                $"{nameof(OwnerApiTestUtils)}:{identity}:{WebScaffold.HttpsPort}",
+                config => config.MessageHandlerChain.Add(inner => new SharedSecretGetRequestHandler(inner)));
 
             //
             // SEB:NOTE below is a hack to make SharedSecretGetRequestHandler work without instance data.

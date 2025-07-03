@@ -1,10 +1,5 @@
 ﻿using System.Threading.Tasks;
-using AngleSharp.Css.Values;
-using Autofac.Features.Metadata;
-using System.Xml.Linq;
-using HttpClientFactoryLite;
 using NUnit.Framework;
-using NUnit.Framework.Internal;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Services.LinkMetaExtractor;
@@ -15,15 +10,16 @@ using System;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Text.RegularExpressions;
-using System.Web;
 using System.Net;
 using NUnit.Framework.Legacy;
+using Odin.Core.Http;
 
 namespace Odin.Services.Tests.LinkMetaExtractor;
 
 public class LinkMetaExtractorTests
 {
-    private readonly HttpClientFactory _httpClientFactory = new ();
+    private readonly IDynamicHttpClientFactory _httpClientFactory =
+        new DynamicHttpClientFactory(new Mock<ILogger<DynamicHttpClientFactory>>().Object);
 
 #if !CI_GITHUB
     [Test]

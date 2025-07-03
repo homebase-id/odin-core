@@ -37,7 +37,7 @@ public class RegistrationRestrictedAttributeTest
         };
         _scaffold.RunBeforeAnyTests(envOverrides: env);
 
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient($"provisioning.dotyou.cloud:{WebScaffold.HttpsPort}");
         var exception = Assert.ThrowsAsync<HttpRequestException>(async () =>
             await apiClient.GetAsync($"https://provisioning.dotyou.cloud:{WebScaffold.HttpsPort}/api/registration/v1/registration/is-valid-domain/example.com"));
         Assert.That(exception!.Message, Is.EqualTo("The SSL connection could not be established, see inner exception."));

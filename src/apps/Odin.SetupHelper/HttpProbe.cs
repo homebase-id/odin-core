@@ -1,10 +1,11 @@
 using Odin.Core.Cache;
+using Odin.Core.Http;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Util;
 
 namespace Odin.SetupHelper;
 
-public class HttpProbe(IHttpClientFactory httpClientFactory, IGenericMemoryCache cache)
+public class HttpProbe(IDynamicHttpClientFactory httpClientFactory, IGenericMemoryCache cache)
 {
     public record HttpProbeResult(bool Success, string Message);
     public async Task<HttpProbeResult> ProbeAsync(
@@ -42,7 +43,7 @@ public class HttpProbe(IHttpClientFactory httpClientFactory, IGenericMemoryCache
             return result with { Message = $"{result.Message} [cache hit]" };
         }
 
-        var client = httpClientFactory.CreateClient("NoRedirectClient");
+        var client = httpClientFactory.CreateClient($"{domainName}:{port}");
         try
         {
             var request = new HttpRequestMessage(HttpMethod.Get, uri);

@@ -5,9 +5,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
+using Odin.Core.Http;
 
 #nullable enable
 
@@ -16,14 +15,14 @@ namespace Odin.Services.Email;
 public class MailgunSender : IEmailSender
 {
     private readonly ILogger<MailgunSender> _logger;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly string _authToken;
     private readonly string _emailDomain;
     private readonly NameAndEmailAddress _defaultFrom;
 
     public MailgunSender(
         ILogger<MailgunSender> logger, 
-        IHttpClientFactory httpClientFactory, 
+        IDynamicHttpClientFactory httpClientFactory,
         string apiKey,
         string emailDomain, 
         NameAndEmailAddress defaultFrom)
@@ -48,7 +47,7 @@ public class MailgunSender : IEmailSender
             { "html", envelope.HtmlMessage }
         });        
         
-        var httpClient = _httpClientFactory.CreateClient<MailgunSender>();
+        var httpClient = _httpClientFactory.CreateClient("api.mailgun.net");
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", _authToken);
         
         var result = await httpClient.PostAsync($"https://api.mailgun.net/v3/{_emailDomain}/messages", formContent);

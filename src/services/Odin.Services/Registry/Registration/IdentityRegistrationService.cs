@@ -1,19 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using HttpClientFactoryLite;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.JobManagement;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -28,7 +25,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IIdentityRegistry _registry;
     private readonly OdinConfiguration _configuration;
     private readonly IDnsRestClient _dnsRestClient;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly IDnsLookupService _dnsLookupService;
     private readonly IJobManager _jobManager;
 
@@ -37,7 +34,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         IIdentityRegistry registry,
         OdinConfiguration configuration,
         IDnsRestClient dnsRestClient,
-        IHttpClientFactory httpClientFactory,
+        IDynamicHttpClientFactory httpClientFactory,
         IDnsLookupService dnsLookupService,
         IJobManager jobManager)
     {
@@ -72,14 +69,21 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> HasValidCertificate(string domain)
     {
-        var httpClient = _httpClientFactory.CreateClient<IdentityRegistrationService>();
+        var httpClient = _httpClientFactory.CreateClient($"{nameof(IdentityRegistrationService)}:{domain}", cfg =>
+        {
+            cfg.HandlerLifetime = TimeSpan.FromSeconds(5); // Short-lived to deal with DNS changes
+            cfg.AllowUntrustedServerCertificate =
+                _configuration.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
+        });
         try
         {
             await httpClient.GetAsync($"https://{domain}:{_configuration.Host.DefaultHttpsPort}");
             return true;
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            var message = e.InnerException?.Message ?? e.Message;
+            _logger.LogDebug("IdentityRegistrationService:HasValidCertificate: {message}", message);
             return false;
         }
     }
@@ -332,48 +336,5 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var match = _configuration.Registry.InvitationCodes
             .Exists(c => string.Equals(c, code, StringComparison.InvariantCultureIgnoreCase));
         return Task.FromResult(match);
-    }
-}
-
-public static class IdentityRegistrationServiceExtensions
-{
-    public static IServiceCollection AddIdentityRegistrationServices(
-        this IServiceCollection services,
-        IHttpClientFactory httpClientFactory,
-        OdinConfiguration configuration)
-    {
-        services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
-
-        RegisterHttpClientFactory(httpClientFactory, configuration);
-
-        return services;
-    }
-
-    private static void RegisterHttpClientFactory(IHttpClientFactory httpClientFactory, OdinConfiguration configuration)
-    {
-        httpClientFactory.Register<IdentityRegistrationService>(builder => builder
-            .ConfigureHttpClient(c =>
-            {
-                // this is called everytime you request a httpclient
-                c.Timeout = TimeSpan.FromSeconds(3);
-            })
-            .ConfigurePrimaryHttpMessageHandler(() =>
-            {
-                // this is called whenever you request a httpclient and handler lifetime has expired
-                var handler = new HttpClientHandler
-                {
-                    AllowAutoRedirect = false,
-                    UseCookies = false, // DO NOT CHANGE!
-                };
-
-                // Make sure we accept certifactes from letsencrypt staging servers if not in production
-                if (!configuration.CertificateRenewal.UseCertificateAuthorityProductionServers)
-                {
-                    handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
-                }
-
-                return handler;
-            })
-            .SetHandlerLifetime(TimeSpan.FromSeconds(5))); // Shortlived to deal with DNS changes
     }
 }
