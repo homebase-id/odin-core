@@ -11,7 +11,6 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Services.LinkPreview;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
-using Org.BouncyCastle.Ocsp;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 
@@ -85,7 +84,7 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<div>");
 
             // Channel name with link to /posts/{slug}
-            contentBuilder.AppendLine($"  <h2><a href=\"/posts/{channel.Slug}\">{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h2>");
+            contentBuilder.AppendLine($"  <h2><a href=\"/{LinkPreviewDefaults.SsrPath}/posts/{channel.Slug}\">{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h2>");
             if (!string.IsNullOrWhiteSpace(channel.Description))
             {
                 contentBuilder.AppendLine($"  <p>{HttpUtility.HtmlEncode(channel.Description ?? "")}</p>");
@@ -120,7 +119,7 @@ public class HomebaseSsrController(
             // Title with link
             if (!string.IsNullOrWhiteSpace(content.Caption))
             {
-                var link = $"/posts/{channelKey}/{content.Slug}";
+                var link = $"/{LinkPreviewDefaults.SsrPath}/posts/{channelKey}/{content.Slug}";
                 contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
             }
 
@@ -194,7 +193,7 @@ public class HomebaseSsrController(
 
         foreach (var anovahPost in otherPosts)
         {
-            var link = $"/posts/{channelKey}/{anovahPost.Content.Slug}";
+            var link = $"/{LinkPreviewDefaults.SsrPath}/posts/{channelKey}/{anovahPost.Content.Slug}";
             contentBuilder.AppendLine($"  <h5><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a></h5>");
         }
 

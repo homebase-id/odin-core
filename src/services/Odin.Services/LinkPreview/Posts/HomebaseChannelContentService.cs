@@ -113,7 +113,7 @@ public class HomebaseChannelContentService(
             channelPosts.Add(post);
         }
 
-        return (channelPosts, batch.Cursor.pagingCursor.Time.milliseconds.ToString());
+        return (channelPosts, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
     }
 
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
