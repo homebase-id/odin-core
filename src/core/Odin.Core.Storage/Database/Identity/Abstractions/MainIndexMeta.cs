@@ -636,7 +636,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> localTagsAllOf = null)
         {
 
-            var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
+            var cursor = TimeRowCursor.FromJson(cursorString);
 
             if (cursor == null)
                 cursor = new TimeRowCursor(0, 0);
