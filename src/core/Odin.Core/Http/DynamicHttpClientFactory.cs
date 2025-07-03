@@ -255,7 +255,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
                     {
                         if (pair.Value.IsExpired)
                         {
-                            _logger.LogTrace("Moving handler {key}", pair.Key);
+                            _logger.LogTrace("Moving handler {key} from active to expired", pair.Key);
                             keysToRemove.Add(pair.Key);
                         }
                     }
@@ -277,7 +277,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
                         var handler = pair.Value;
                         if (handler.CanDispose && DateTimeOffset.UtcNow > pair.Value.Lifetime + _disposeGracePeriod)
                         {
-                            _logger.LogTrace("Disposing handler {key}", pair.Key);
+                            _logger.LogTrace("Preparing handler disposal {key}", pair.Key);
                             guidsToRemove.Add(pair.Key);
                         }
                     }
@@ -285,6 +285,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
                     {
                         if (_expiredHandlers.Remove(guid, out var entry))
                         {
+                            _logger.LogDebug("Disposing HttpClient handler {key}", entry.HandlerKey);
                             try
                             {
                                 entry.Dispose();
