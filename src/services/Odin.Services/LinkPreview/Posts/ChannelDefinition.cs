@@ -28,11 +28,11 @@ public class ChannelDefinition
     [JsonProperty("showOnHomePage")]
     public bool ShowOnHomePage { get; init; }
     
-    [JsonIgnore]
-    [JsonProperty("templateId")]
-    public string TemplateId { get; init; }
+    // [JsonIgnore]
+    // [JsonProperty("templateId")]
+    // public int? TemplateId { get; init; }
     
-    [JsonIgnore]
-    [JsonProperty("isCollaborative")]
-    public string IsCollaborative { get; init; }
+    // [JsonIgnore]
+    // [JsonProperty("isCollaborative")]
+    // public string IsCollaborative { get; init; }
 }

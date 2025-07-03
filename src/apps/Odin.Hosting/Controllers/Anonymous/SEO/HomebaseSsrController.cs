@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
@@ -40,6 +39,14 @@ public class HomebaseSsrController(
                 body.AppendLine($"<hr/>");
                 body.AppendLine($"<p>Bio: {person.Bio}</p>");
             }
+            
+            body.AppendLine($"<ul>");
+            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
+            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
+            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
+            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
+
+            body.AppendLine($"</ul>");
         }
 
         await WriteContent(head, body.ToString());
@@ -84,7 +91,8 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<div>");
 
             // Channel name with link to /posts/{slug}
-            contentBuilder.AppendLine($"  <h2><a href=\"/{LinkPreviewDefaults.SsrPath}/posts/{channel.Slug}\">{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h2>");
+            contentBuilder.AppendLine($"  <h2><a href='{SsrUrlHelper.ToSsrUrl($"/posts/{channel.Slug}")}'>{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h2>");
+
             if (!string.IsNullOrWhiteSpace(channel.Description))
             {
                 contentBuilder.AppendLine($"  <p>{HttpUtility.HtmlEncode(channel.Description ?? "")}</p>");
@@ -119,8 +127,9 @@ public class HomebaseSsrController(
             // Title with link
             if (!string.IsNullOrWhiteSpace(content.Caption))
             {
-                var link = $"/{LinkPreviewDefaults.SsrPath}/posts/{channelKey}/{content.Slug}";
+                var link = SsrUrlHelper.ToSsrUrl("/posts/{channelKey}/{content.Slug}");
                 contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
+                
             }
 
             // Abstract
@@ -193,8 +202,13 @@ public class HomebaseSsrController(
 
         foreach (var anovahPost in otherPosts)
         {
-            var link = $"/{LinkPreviewDefaults.SsrPath}/posts/{channelKey}/{anovahPost.Content.Slug}";
-            contentBuilder.AppendLine($"  <h5><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a></h5>");
+            if (anovahPost?.Content != null &&
+                !string.IsNullOrWhiteSpace(anovahPost.Content.Slug) &&
+                !string.IsNullOrWhiteSpace(anovahPost.Content.Caption))
+            {
+                var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
+                contentBuilder.AppendLine($"  <h5><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a></h5>");
+            }
         }
 
         contentBuilder.AppendLine($"</body>");
