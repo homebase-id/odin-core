@@ -44,6 +44,4 @@ public class PostContent
     [JsonIgnore]
     public UnixTimeUtc? UserDate { get; set; }
     
-    [JsonIgnore]
-    public TargetDrive TargetDrive { get; set; }
 }

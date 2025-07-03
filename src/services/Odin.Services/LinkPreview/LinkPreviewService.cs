@@ -220,7 +220,6 @@ public class LinkPreviewService(
 
             content = OdinSystemSerializer.Deserialize<PostContent>(json);
             content.UserDate = postFile.FileMetadata.AppData.UserDate;
-            content.TargetDrive = targetDrive;
         }
         catch (Exception e)
         {
@@ -316,33 +315,7 @@ public class LinkPreviewService(
 
         return postFile;
     }
-
-    private async Task<List<SharedSecretEncryptedFileHeader>> GetPostsAfter(TargetDrive targetDrive, IOdinContext odinContext,
-        int? fileType = null, UnixTimeUtc? fromTimestamp = null)
-    {
-        var qp = new FileQueryParams
-        {
-            TargetDrive = targetDrive,
-            FileType = fileType == null ? default : [fileType.GetValueOrDefault()]
-        };
-
-        var options = new QueryBatchResultOptions
-        {
-            MaxRecords = 10,
-            IncludeHeaderContent = true,
-            ExcludePreviewThumbnail = true,
-            ExcludeServerMetaData = true,
-            IncludeTransferHistory = false,
-            Sorting = QueryBatchSortField.UserDate,
-            Ordering = QueryBatchSortOrder.NewestFirst,
-            Cursor = QueryBatchCursor.FromStartPoint(fromTimestamp.GetValueOrDefault())
-        };
-
-        var result = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
-        return result.SearchResults.ToList();
-    }
-
-
+    
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
         Guid? postIdAsTag = null, int? fileType = null)
     {

@@ -1,19 +1,12 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Cache;
 using Odin.Services.Base;
 using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
-using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
 
 namespace Odin.Services.LinkPreview;
@@ -21,12 +14,9 @@ namespace Odin.Services.LinkPreview;
 /// <summary>
 /// Loads information about this tenant and their profile information for server side rendering requirements
 /// </summary>
-public class HomebaseProfileContentLoader(
-    IGlobalLevel1Cache globalCache,
-    ITenantLevel1Cache<HomebaseChannelContentLoader> tenantCache,
+public class HomebaseProfileContentService(
     StaticFileContentService staticFileContentService,
-    IHttpContextAccessor httpContextAccessor,
-    ILogger<HomebaseChannelContentLoader> logger)
+    IHttpContextAccessor httpContextAccessor)
 {
     public string GetPublicImageUrl(IOdinContext odinContext)
     {

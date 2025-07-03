@@ -34,7 +34,7 @@ public static class LayoutBuilder
         return sb.ToString();
     }
 
-    public static StringBuilder BuildHead(
+    public static StringBuilder BuildHeadContent(
         string title,
         string description,
         string siteType,
@@ -46,6 +46,13 @@ public static class LayoutBuilder
         title = HttpUtility.HtmlEncode(Truncate(title, MaxDescriptionLength));
         description = HttpUtility.HtmlEncode(Truncate(description, MaxDescriptionLength));
 
+        // var request = HttpContext.Request;
+        // var canonical = new UriBuilder(request.Scheme, request.Host.Host)
+        // {
+        //     Path = request.Path.Value.Replace($"/{LinkPreviewDefaults.SsrPath}", "", StringComparison.OrdinalIgnoreCase),
+        //     Query = request.QueryString.Value
+        // }.ToString();
+        //
         var displayUrl = GetDisplayUrl(httpContext);
 
         var b = new StringBuilder(1024);

@@ -368,7 +368,9 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         app.UseRouting();
         app.UseAuthentication();
+#pragma warning disable ASP0001
         app.UseAuthorization();
+#pragma warning restore ASP0001
 
         app.UseIdentityReadyState();
         app.UseVersionUpgrade();

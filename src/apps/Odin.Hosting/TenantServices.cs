@@ -318,8 +318,8 @@ public static class TenantServices
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
 
         
-        cb.RegisterType<HomebaseProfileContentLoader>().AsSelf().InstancePerLifetimeScope();
-        cb.RegisterType<HomebaseChannelContentLoader>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<HomebaseProfileContentService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<HomebaseChannelContentService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
         
