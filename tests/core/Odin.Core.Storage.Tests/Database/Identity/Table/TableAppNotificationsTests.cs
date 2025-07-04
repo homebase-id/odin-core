@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             ClassicAssert.IsTrue(results.Count == 1);
             ClassicAssert.IsTrue(cursor != null);
-            var c = TimeRowCursor.FromJson(cursor);
+            var c = TimeRowCursor.FromJsonOrOldString(cursor);
             ClassicAssert.IsTrue(c.Time == results[0].created);
             ClassicAssert.IsTrue(c.rowId == 2);
 
