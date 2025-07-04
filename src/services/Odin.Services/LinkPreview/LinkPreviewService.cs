@@ -584,7 +584,12 @@ public class LinkPreviewService(
     {
         var request = httpContext.Request;
         var originalPath = request.Path.Value ?? "";
-        var pathWithSsr = $"/{LinkPreviewDefaults.SsrPath}{originalPath}";
+
+        // Avoid double /ssr prefix
+        var ssrPrefix = $"/{LinkPreviewDefaults.SsrPath}";
+        var pathWithSsr = originalPath.StartsWith(ssrPrefix, StringComparison.OrdinalIgnoreCase)
+            ? originalPath
+            : $"{ssrPrefix}{originalPath}";
 
         return new UriBuilder(request.Scheme, request.Host.Host)
         {
