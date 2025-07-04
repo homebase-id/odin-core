@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -15,11 +14,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -46,12 +43,17 @@ public class LinkPreviewService(
     private const string GenericLinkPreviewCacheKey = "link-preview-service-index-file";
     private const string DefaultPayloadKey = "dflt_key";
 
+    private const string DefaultTitle = "Homebase.id";
+    private const string DefaultDescription = "Decentralized identity powered by Homebase.id";
 
+    public const string PublicImagePath = "pub/image.jpg";
+
+    public const string SsrPath = "ssr";
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
+    private const int MaxDescriptionLength = 160;
 
-    public const int PostFileType = 101;
     private const int ChannelDefinitionFileType = 103;
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
@@ -75,6 +77,56 @@ public class LinkPreviewService(
         }
     }
 
+    public async Task WriteServerSideRenderedPost(IOdinContext odinContext)
+    {
+        var context = httpContextAccessor.HttpContext;
+        var request = context.Request;
+
+        var (success, description, imageUrl, title, postContent) = await TryGetPostData(odinContext);
+        if (success)
+        {
+            var contentBuilder = new StringBuilder();
+            var canonical = new UriBuilder(request.Scheme, request.Host.Host)
+            {
+                Path = request.Path.Value.Replace($"/{SsrPath}", "", StringComparison.OrdinalIgnoreCase),
+                Query = request.QueryString.Value
+            }.ToString();
+
+            contentBuilder.AppendLine($"<head>");
+            contentBuilder.AppendLine("<meta charset='UTF-8' />");
+            contentBuilder.AppendLine($"<meta property='og:image' content='{imageUrl}'/>");
+            contentBuilder.AppendLine($"<link rel='canonical' href='{canonical}' />");
+            contentBuilder.AppendLine($"<title>{title}</title>");
+            contentBuilder.AppendLine($"<meta name='description' content='{description}' />");
+            contentBuilder.AppendLine($"</head>");
+            contentBuilder.AppendLine($"<body>");
+            contentBuilder.AppendLine($"<h1>{title}</h1>");
+            contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
+            contentBuilder.AppendLine($"<p>{description}</p>");
+            contentBuilder.AppendLine($"<hr/>");
+            try
+            {
+                var bodyJson = Convert.ToString(postContent.Body) ?? string.Empty;
+                if (!string.IsNullOrEmpty(bodyJson))
+                {
+                    var bodyHtml = PlateRichTextParser.Parse(bodyJson);
+                    contentBuilder.Append(bodyHtml);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Failed to Post article body");
+            }
+
+            contentBuilder.AppendLine($"</body>");
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.WriteAsync(contentBuilder.ToString(), context.RequestAborted);
+            return;
+        }
+
+        throw new OdinClientException("Failed to parse post at path");
+    }
+
     private async Task WriteEnhancedIndexAsync(string indexFilePath, IOdinContext odinContext)
     {
         if (await TryWritePostPreview(indexFilePath, odinContext))
@@ -87,7 +139,7 @@ public class LinkPreviewService(
 
     public bool IsPostPath()
     {
-        return IsPath("/posts");
+        return IsPath("/posts") || IsPath($"/{SsrPath}/posts");
     }
 
     private bool IsPath(string path)
@@ -113,12 +165,12 @@ public class LinkPreviewService(
 
             if (string.IsNullOrEmpty(imageUrl))
             {
-                imageUrl = $"{context.Request.Scheme}://{odinId}/{LinkPreviewDefaults.PublicImagePath}";
+                imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
             }
 
             if (string.IsNullOrEmpty(description))
             {
-                description = LinkPreviewDefaults.DefaultDescription;
+                description = DefaultDescription;
             }
 
             var content = await PrepareIndexHtml(indexFilePath, title, imageUrl,
@@ -154,7 +206,13 @@ public class LinkPreviewService(
 
         string path = context.Request.Path.Value;
 
+        if (path.StartsWith($"/{SsrPath}/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path.Substring($"/{SsrPath}".Length);
+        }
+
         var segments = path?.TrimEnd('/').Split('/');
+
         if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
         {
             // segments[0] = ""  from the leading slash
@@ -185,7 +243,6 @@ public class LinkPreviewService(
         }
 
         var postFile = await FindPost(postKey, odinContext, targetDrive);
-
         if (null == postFile)
         {
             // logger.LogDebug("File for channelKey:[{ck}] and with postKey {pk} not found", channelKey, postKey);
@@ -197,6 +254,7 @@ public class LinkPreviewService(
             DriveId = targetDrive.Alias,
             FileId = postFile.FileId
         };
+
 
         PostContent content = null;
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
@@ -218,7 +276,6 @@ public class LinkPreviewService(
             }
 
             content = OdinSystemSerializer.Deserialize<PostContent>(json);
-            content.UserDate = postFile.FileMetadata.AppData.UserDate;
         }
         catch (Exception e)
         {
@@ -389,6 +446,15 @@ public class LinkPreviewService(
     private async Task WriteGenericPreview(string indexFilePath)
     {
         var context = httpContextAccessor.HttpContext;
+
+        // var cache = await tenantCache.GetOrSetAsync(
+        //     GenericLinkPreviewCacheKey,
+        //     _ => PrepareGenericPreview(indexFilePath, context.RequestAborted),
+        //     TimeSpan.FromSeconds(30)
+        // );
+        //
+        // await WriteAsync(cache, context.RequestAborted);
+
         var data = await PrepareGenericPreview(indexFilePath, context.RequestAborted);
         await WriteAsync(data, context.RequestAborted);
     }
@@ -418,15 +484,15 @@ public class LinkPreviewService(
             throw new OdinSystemException("index contents read from cache or disk is empty");
         }
 
-        var markup = PrepareHeadBuilder(LinkPreviewDefaults.DefaultTitle, LinkPreviewDefaults.DefaultDescription, "website");
+        var markup = PrepareHeadBuilder(DefaultTitle, DefaultDescription, "website");
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, markup.ToString());
         return updatedContent;
     }
 
     private StringBuilder PrepareHeadBuilder(string title, string description, string siteType)
     {
-        description = Truncate(description, LinkPreviewDefaults.MaxDescriptionLength);
-        title = Truncate(title, LinkPreviewDefaults.MaxDescriptionLength);
+        description = Truncate(description, MaxDescriptionLength);
+        title = Truncate(title, MaxDescriptionLength);
 
         title = HttpUtility.HtmlEncode(title);
         description = HttpUtility.HtmlEncode(description);
@@ -440,7 +506,7 @@ public class LinkPreviewService(
         // Open Graph attributes
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
-        b.Append($"<meta property='og:url' content='{GetCanonical(httpContextAccessor.HttpContext)}'/>\n");
+        b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
         b.Append($"<meta property='og:site_name' content='{title}'/>\n");
         b.Append($"<meta property='og:type' content='{siteType}'/>\n");
 
@@ -450,26 +516,23 @@ public class LinkPreviewService(
     private StringBuilder PrepareNoscriptBuilder(string title, string description, string siteType, string imageUrl, PersonSchema person)
     {
         title = HttpUtility.HtmlEncode(title);
-        // description = HttpUtility.HtmlEncode(description);
+        description = HttpUtility.HtmlEncode(description);
 
         StringBuilder b = new StringBuilder(500);
-        // b.Append($"<h1>{title}</h1>\n");
-        // b.Append($"<p>{description}</p>");
-        // b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
-        // b.Append($"<img src='{imageUrl}'/>\n");
-        // b.Append($"<p>{person?.GivenName} {person?.FamilyName}</p>\n");
-        // b.Append($"<p>{person?.Description}</p>\n");
-        // b.Append($"<p>{person?.Image}</p>\n");
-        // b.Append($"<p>{person?.JobTitle}</p>\n");
-        // b.Append($"<p>{person?.WorksFor?.Name}</p>\n");
-        // b.Append($"<p>{person?.Bio}</p>\n");
-        // b.Append($"<p>{person?.BioSummary}</p>\n");
 
-        b.AppendLine($"<a href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}'>");
-        b.AppendLine("<h1>");
-        b.AppendLine(title);
-        b.AppendLine("</h1>");
-        b.AppendLine("</a>");
+
+        b.Append($"<h1>{title}</h1>\n");
+        b.Append($"<p>{description}</p>");
+        b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
+        b.Append($"<img src='{imageUrl}'/>\n");
+        b.Append($"<p>{person?.GivenName} {person?.FamilyName}</p>\n");
+        b.Append($"<p>{person?.Description}</p>\n");
+        b.Append($"<p>{person?.Image}</p>\n");
+        b.Append($"<p>{person?.JobTitle}</p>\n");
+        b.Append($"<p>{person?.WorksFor?.Name}</p>\n");
+        b.Append($"<p>{person?.Bio}</p>\n");
+        b.Append($"<p>{person?.BioSummary}</p>\n");
+        b.Append($"<a href='{GetDisplayUrlWithSsr()}'>View content without JavaScript</a>\n");
         return b;
     }
 
@@ -478,11 +541,10 @@ public class LinkPreviewService(
         var context = httpContextAccessor.HttpContext;
         string odinId = context.Request.Host.Host;
 
-        var imageUrl = $"{context.Request.Scheme}://{odinId}/{LinkPreviewDefaults.PublicImagePath}";
-
+        var imageUrl = $"{context.Request.Scheme}://{odinId}/{PublicImagePath}";
         var person = await GeneratePersonSchema();
 
-        string suffix = LinkPreviewDefaults.DefaultTitle;
+        string suffix = DefaultTitle;
         string siteType = "profile";
         string robotsTag = "index, follow";
 
@@ -507,7 +569,7 @@ public class LinkPreviewService(
         }
 
         var title = $"{person?.Name ?? odinId} | {suffix}";
-        var description = person?.Description ?? LinkPreviewDefaults.DefaultDescription;
+        var description = person?.Description ?? DefaultDescription;
         return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, robotsTag, cancellationToken);
     }
 
@@ -516,9 +578,8 @@ public class LinkPreviewService(
     {
         var builder = PrepareHeadBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        builder.Append($"<link rel='canonical' href='{GetCanonical(httpContextAccessor.HttpContext)}' />\n");
-        builder.Append($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}' />\n");
-        // builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
+        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
+        builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
 
         builder.Append(PrepareIdentityContent(person));
 
@@ -569,32 +630,17 @@ public class LinkPreviewService(
         }.ToString();
     }
 
-    private static string GetCanonical(HttpContext httpContext)
+    private string GetDisplayUrlWithSsr()
     {
-        var request = httpContext.Request;
-        var path = request.Path.HasValue ? request.Path.Value : "";
-        return new UriBuilder(request.Scheme, request.Host.Host)
-        {
-            Path = path.Replace($"/{LinkPreviewDefaults.SsrPath}", "", StringComparison.OrdinalIgnoreCase),
-            Query = request.QueryString.Value ?? ""
-        }.ToString();
-    }
+        var request = httpContextAccessor.HttpContext.Request;
 
-    private static string GetDisplayUrlWithSsr(HttpContext httpContext)
-    {
-        var request = httpContext.Request;
         var originalPath = request.Path.Value ?? "";
-
-        // Avoid double /ssr prefix
-        var ssrPrefix = $"/{LinkPreviewDefaults.SsrPath}";
-        var pathWithSsr = originalPath.StartsWith(ssrPrefix, StringComparison.OrdinalIgnoreCase)
-            ? originalPath
-            : $"{ssrPrefix}{originalPath}";
+        var pathWithSsr = $"/{SsrPath}{originalPath}";
 
         return new UriBuilder(request.Scheme, request.Host.Host)
         {
             Path = pathWithSsr,
-            Query = request.QueryString.Value ?? ""
+            Query = request.QueryString.Value
         }.ToString();
     }
 

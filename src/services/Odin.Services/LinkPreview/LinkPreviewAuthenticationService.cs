@@ -12,7 +12,7 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.LinkPreview;
 
-public class LinkPreviewAuthenticationService(IDriveManager driveManager, TenantContext tenantContext)
+public class LinkPreviewAuthenticationService(IDriveManager driveManager)
 {
     // private readonly SharedOdinContextCache<LinkPreviewAuthenticationService> _cache;
 
@@ -25,18 +25,18 @@ public class LinkPreviewAuthenticationService(IDriveManager driveManager, Tenant
         {
             var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContextAsync(odinContext);
-
+        
             if (null == permissionContext || callerContext == null)
             {
                 return null;
             }
-
+        
             dotYouContext.Caller = callerContext;
             dotYouContext.SetPermissionContext(permissionContext);
-
+        
             return dotYouContext;
         });
-
+        
         return await creator();
 
         //TODO: cache this but we need a token
@@ -62,20 +62,9 @@ public class LinkPreviewAuthenticationService(IDriveManager driveManager, Tenant
             }
         }).ToList();
 
-        var anonPerms = new List<int>();
-        if (tenantContext.Settings.AnonymousVisitorsCanViewConnections)
-        {
-            anonPerms.Add(PermissionKeys.ReadConnections);
-        }
-
-        if (tenantContext.Settings.AnonymousVisitorsCanViewWhoIFollow)
-        {
-            anonPerms.Add(PermissionKeys.ReadWhoIFollow);
-        }
-
         var permissionGroupMap = new Dictionary<string, PermissionGroup>
         {
-            { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
+            { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null) },
         };
 
         var callerContext = new CallerContext(default, null, SecurityGroupType.Anonymous);
