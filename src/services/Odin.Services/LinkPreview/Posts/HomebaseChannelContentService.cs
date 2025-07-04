@@ -101,7 +101,7 @@ public class HomebaseChannelContentService(
             IncludeTransferHistory = false,
             Sorting = QueryBatchSortField.UserDate,
             Ordering = QueryBatchSortOrder.NewestFirst,
-            Cursor = QueryBatchCursor.FromStartPoint(fromTimestamp.GetValueOrDefault())
+            Cursor = fromTimestamp == null ? null : QueryBatchCursor.FromStartPoint(fromTimestamp.GetValueOrDefault())
         };
 
         var batch = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);

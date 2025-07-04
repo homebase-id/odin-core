@@ -127,9 +127,8 @@ public class HomebaseSsrController(
             // Title with link
             if (!string.IsNullOrWhiteSpace(content.Caption))
             {
-                var link = SsrUrlHelper.ToSsrUrl("/posts/{channelKey}/{content.Slug}");
+                var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
                 contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
-                
             }
 
             // Abstract
@@ -174,7 +173,7 @@ public class HomebaseSsrController(
         contentBuilder.AppendLine($"<body>");
         contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
         contentBuilder.AppendLine($"<img src='{post.ImageUrl}' width='600'/>");
-        contentBuilder.AppendLine($"<p>{post.Content.Caption}</p>");
+        contentBuilder.AppendLine($"<p>{post.Content.UserDate.GetValueOrDefault().ToDateTime()}</p>");
         contentBuilder.AppendLine($"<hr/>");
         try
         {
@@ -182,7 +181,10 @@ public class HomebaseSsrController(
             if (!string.IsNullOrEmpty(bodyJson))
             {
                 var bodyHtml = PlateRichTextParser.Parse(bodyJson);
+                contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
+                contentBuilder.AppendLine($"</div>");
+
             }
         }
         catch (Exception e)
@@ -196,10 +198,11 @@ public class HomebaseSsrController(
             post.Content.UserDate,
             maxPosts: 10,
             HttpContext.RequestAborted);
-
+        
         contentBuilder.AppendLine($"<hr/>");
-        contentBuilder.AppendLine($"<h3>See More</h1>");
+        contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h1>");
 
+        contentBuilder.AppendLine($"<ul>");
         foreach (var anovahPost in otherPosts)
         {
             if (anovahPost?.Content != null &&
@@ -207,9 +210,10 @@ public class HomebaseSsrController(
                 !string.IsNullOrWhiteSpace(anovahPost.Content.Caption))
             {
                 var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
-                contentBuilder.AppendLine($"  <h5><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a></h5>");
+                contentBuilder.AppendLine($"<li><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
             }
         }
+        contentBuilder.AppendLine($"</ul>");
 
         contentBuilder.AppendLine($"</body>");
         await WriteContent(head, contentBuilder.ToString());
