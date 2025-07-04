@@ -119,7 +119,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
 
             QueryBatchCursor cursor = null;
-
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 4);
             ClassicAssert.IsTrue(moreRows == false);
@@ -139,14 +138,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             ClassicAssert.IsTrue(result[0].userDate == 1751378818343);
             ClassicAssert.IsTrue(result[1].userDate == 1751378848865);
-
-            // =============================
-            /*
-            cursor = QueryBatchCursor.FromStartPoint(1751364725536);
-
-            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
-            ClassicAssert.IsTrue(result.Count == 4); 
-            ClassicAssert.IsTrue(moreRows == false);*/
         }
 
 
