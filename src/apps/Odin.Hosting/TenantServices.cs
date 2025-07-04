@@ -67,6 +67,7 @@ using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.LinkPreview.Posts;
 
 namespace Odin.Hosting;
 
@@ -315,6 +316,10 @@ public static class TenantServices
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
+
+        
+        cb.RegisterType<HomebaseProfileContentService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<HomebaseChannelContentService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
         
