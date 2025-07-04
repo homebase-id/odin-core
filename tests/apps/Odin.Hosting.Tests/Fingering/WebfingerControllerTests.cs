@@ -37,7 +37,7 @@ public class WebfingerControllerTests
     [Test]
     public async Task ItShouldGetWebfinger()
     {
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("frodo.dotyou.cloud:4444");
         var request = new HttpRequestMessage(HttpMethod.Get, "https://frodo.dotyou.cloud:4444/.well-known/webfinger");
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

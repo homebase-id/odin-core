@@ -11,13 +11,13 @@ using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
 using Odin.Services.Admin.Tenants;
-using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.JobManagement;
@@ -82,7 +82,7 @@ public class AdminControllerTest
     [Test]
     public async Task ItShouldGetAllTenants()
     {
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
         var request = NewRequestMessage(HttpMethod.Get,
             "https://admin.dotyou.cloud:4444/api/admin/v1/tenants");
         var response = await apiClient.SendAsync(request);
@@ -98,7 +98,7 @@ public class AdminControllerTest
     [Test]
     public async Task ItShouldGetSpecificTenant()
     {
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
         var request = NewRequestMessage(HttpMethod.Get,
             "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud");
         var response = await apiClient.SendAsync(request);
@@ -119,7 +119,7 @@ public class AdminControllerTest
     [Test]
     public async Task ItShouldGetSpecificTenantWithNonExistingPayloads()
     {
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
         var request = NewRequestMessage(HttpMethod.Get,
             "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true");
         var response = await apiClient.SendAsync(request);
@@ -155,7 +155,7 @@ public class AdminControllerTest
     {
         await CreatePayload(TestIdentities.Frodo);
 
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient($"admin.dotyou.cloud:4444");
         var request = NewRequestMessage(HttpMethod.Get,
             "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud?include-payload=true");
         var response = await apiClient.SendAsync(request);
@@ -188,18 +188,18 @@ public class AdminControllerTest
     //
 
     [Test]
-    public async Task 
-        ItShouldDeleteTenant()
+    public async Task ItShouldDeleteTenant()
     {
         await CreatePayload(TestIdentities.Frodo);
 
         var url = "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud";
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
         var request = NewRequestMessage(HttpMethod.Delete, url);
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
         ClassicAssert.IsTrue(response.Headers.TryGetValues("Location", out var locations), "could not find Location header");
-        var location = locations.First();
+        var location = locations!.First();
         Assert.That(location, Does.StartWith("https://admin.dotyou.cloud:4444/api/job/v1/"));
 
         var idx = 0;
@@ -253,7 +253,7 @@ public class AdminControllerTest
         await CreatePayload(TestIdentities.Frodo);
 
         var url = "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/export";
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
+        var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
         var request = NewRequestMessage(HttpMethod.Post, url);
         var response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
@@ -314,10 +314,9 @@ public class AdminControllerTest
     [Test]
     public async Task ItShouldEnableAndDisableATenant()
     {
-        var apiClient = WebScaffold.CreateDefaultHttpClient();
-
         // Verify enabled
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"frodo.dotyou.cloud:{WebScaffold.HttpsPort}");
             var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -325,6 +324,7 @@ public class AdminControllerTest
 
         // Enable
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
             var request = NewRequestMessage(HttpMethod.Patch, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -332,6 +332,7 @@ public class AdminControllerTest
 
         // Verify still enabled
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"frodo.dotyou.cloud:{WebScaffold.HttpsPort}");
             var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -339,6 +340,7 @@ public class AdminControllerTest
 
         // Disable
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
             var request = NewRequestMessage(HttpMethod.Patch, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/disable");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -346,6 +348,7 @@ public class AdminControllerTest
 
         // Verify disabled
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"frodo.dotyou.cloud:{WebScaffold.HttpsPort}");
             var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
@@ -353,6 +356,7 @@ public class AdminControllerTest
 
         // Disabled tenants should still be returned in the tenant list
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
             var request = NewRequestMessage(HttpMethod.Get,
                 "https://admin.dotyou.cloud:4444/api/admin/v1/tenants");
             var response = await apiClient.SendAsync(request);
@@ -364,6 +368,7 @@ public class AdminControllerTest
 
         // Enable
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
             var request = NewRequestMessage(HttpMethod.Patch, "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/enable");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -371,6 +376,7 @@ public class AdminControllerTest
 
         // Verify enabled
         {
+            var apiClient = WebScaffold.HttpClientFactory.CreateClient($"frodo.dotyou.cloud:{WebScaffold.HttpsPort}");
             var request = NewRequestMessage(HttpMethod.Get, $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/api/owner/v1/authentication/verifyToken");
             var response = await apiClient.SendAsync(request);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

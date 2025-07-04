@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Http;
 using Refit;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Dns.PowerDns;
 
@@ -14,18 +13,21 @@ public class PowerDnsRestClient : IDnsRestClient
 {
     private const int DefaultTtl = 3600;
 
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IDynamicHttpClientFactory _httpClientFactory;
+    private readonly Uri _baseAddress;
+    private readonly string _apiKey;
     private readonly ILogger<PowerDnsRestClient> _logger;
     
     public PowerDnsRestClient(
         ILogger<PowerDnsRestClient> logger, 
-        IHttpClientFactory httpClientFactory,
+        IDynamicHttpClientFactory httpClientFactory,
         Uri baseAddress, 
         string apiKey)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
-        RegisterHttpClient(baseAddress, apiKey);
+        _baseAddress = baseAddress;
+        _apiKey = apiKey;
     }
    
     //
@@ -34,7 +36,12 @@ public class PowerDnsRestClient : IDnsRestClient
     {
         get
         {
-            var httpClient = _httpClientFactory.CreateClient<PowerDnsRestClient>(); 
+            var httpClient = _httpClientFactory.CreateClient($"{nameof(IPowerDnsApi)}:{_baseAddress.Host}", config =>
+            {
+                config.HandlerLifetime = TimeSpan.FromSeconds(5); // Short-lived to deal with DNS changes
+            });
+            httpClient.BaseAddress = _baseAddress;
+            httpClient.DefaultRequestHeaders.Add("X-API-Key", _apiKey);
             return RestService.For<IPowerDnsApi>(httpClient);
         } 
     }    
@@ -187,23 +194,6 @@ public class PowerDnsRestClient : IDnsRestClient
         };
         
         return Api.CreateReplaceDeleteRrsets(zoneId, data);
-    }
-
-    private void RegisterHttpClient(Uri baseAddress, string apiKey)
-    {
-        _httpClientFactory.Register<PowerDnsRestClient>(builder => builder
-            .ConfigureHttpClient(c =>
-            {
-                // this is called everytime you request a httpclient
-                c.BaseAddress = baseAddress;
-                c.DefaultRequestHeaders.Add("X-API-Key", apiKey);
-            })
-            .ConfigurePrimaryHttpMessageHandler(() =>
-             {
-                 // this is called whenever handler lifetime expires
-                 return new HttpClientHandler { UseCookies = false /* DO NOT CHANGE! */ };
-             })
-            .SetHandlerLifetime(TimeSpan.FromSeconds(5))); // Shortlived to deal with DNS changes
     }
 }
 

@@ -1,31 +1,17 @@
-using System.Security.Authentication;
+using Microsoft.Extensions.Logging.Abstractions;
+using Odin.Core.Http;
 
 namespace Odin.Cli.Factories;
-using HttpClientFactory = HttpClientFactoryLite.HttpClientFactory;
-
-// public interface ICliHttpClientFactory
-// {
-//     HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey);
-// }
 
 //
 
 public static class CliHttpClientFactory
 {
-    private static readonly HttpClientFactory HttpClientFactory;
+    private static readonly IDynamicHttpClientFactory HttpClientFactory;
 
     static CliHttpClientFactory()
     {
-        HttpClientFactory = new HttpClientFactory();
-        HttpClientFactory.Register(nameof(CliHttpClientFactory), builder => builder.ConfigurePrimaryHttpMessageHandler(() =>
-        {
-            var handler = new HttpClientHandler
-            {
-                UseCookies = false,
-                AllowAutoRedirect = false,
-            };
-            return handler;
-        }));
+        HttpClientFactory = new DynamicHttpClientFactory(NullLogger<DynamicHttpClientFactory>.Instance);
     }
 
     //
@@ -33,7 +19,7 @@ public static class CliHttpClientFactory
     public static HttpClient Create(string hostAndPort, string apiKeyHeader, string apiKey)
     {
 
-        var httpClient = HttpClientFactory.CreateClient(nameof(CliHttpClientFactory));
+        var httpClient = HttpClientFactory.CreateClient(hostAndPort);
         httpClient.BaseAddress = CreateUriFromHostname(hostAndPort);
         httpClient.DefaultRequestHeaders.Add(apiKeyHeader, apiKey);
         return httpClient;

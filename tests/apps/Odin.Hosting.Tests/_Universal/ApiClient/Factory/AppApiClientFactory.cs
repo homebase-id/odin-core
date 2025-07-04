@@ -24,7 +24,9 @@ public class AppApiClientFactory : IApiClientFactory
 
     public HttpClient CreateHttpClient(OdinId identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        var client = WebScaffold.CreateHttpClient<AppApiClientBase>();
+        var client = WebScaffold.HttpClientFactory.CreateClient(
+            $"{nameof(AppApiClientFactory)}:{identity}:{WebScaffold.HttpsPort}",
+            config => config.MessageHandlerChain.Add(inner => new SharedSecretGetRequestHandler(inner)));
 
         var token = _token;
         sharedSecret = _sharedSecret.ToSensitiveByteArray();

@@ -3,11 +3,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Dns;
+using Odin.Core.Http;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
 using Odin.Services.JobManagement;
@@ -21,7 +21,7 @@ public class IdentityRegistrationServiceTest
     private readonly Mock<ILogger<IdentityRegistrationService>> _loggerMock = new();
     private readonly Mock<IIdentityRegistry> _registry = new();
     private readonly Mock<IDnsRestClient> _dnsRestClient = new();
-    private readonly Mock<IHttpClientFactory> _httpClientFactory = new();
+    private readonly Mock<IDynamicHttpClientFactory> _httpClientFactory = new();
     private readonly Mock<IJobManager> _jobManager = new();
 
     private IdentityRegistrationService CreateIdentityRegistrationService(OdinConfiguration configuration)

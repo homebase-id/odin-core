@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage;
@@ -8,7 +10,6 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 using Refit;
-using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Odin.Services.Base
 {
@@ -17,41 +18,38 @@ namespace Odin.Services.Base
     /// </summary>
     public class OdinHttpClientFactory : IOdinHttpClientFactory
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-
-        private readonly ICertificateService _certificateService;
-        private readonly TenantContext _tenantContext;
+        private readonly IDynamicHttpClientFactory _httpClientFactory;
         private readonly ICorrelationContext _correlationContext;
         private readonly OdinConfiguration _config;
-
-        public static string HttpFactoryKey(string domain) => $"{nameof(OdinHttpClientFactory)}.{domain}";
+        private readonly ICertificateStore _certificateStore;
+        private readonly OdinIdentity _odinIdentity;
 
         public OdinHttpClientFactory(
-            IHttpClientFactory httpClientFactory,
-            ICertificateService certificateService,
-            TenantContext tenantContext,
+            IDynamicHttpClientFactory httpClientFactory,
             ICorrelationContext correlationContext,
-            OdinConfiguration config)
+            OdinConfiguration config,
+            ICertificateStore certificateStore,
+            OdinIdentity odinIdentity)
         {
             _httpClientFactory = httpClientFactory;
-            _certificateService = certificateService;
-            _tenantContext = tenantContext;
             _correlationContext = correlationContext;
             _config = config;
+            _certificateStore = certificateStore;
+            _odinIdentity = odinIdentity;
         }
 
         //
 
         public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null)
         {
-            return this.CreateClientInternal<T>(odinId, clientAuthenticationToken, fileSystemType);
+            return CreateClientInternal<T>(odinId, clientAuthenticationToken, fileSystemType);
         }
 
         //
 
         public T CreateClient<T>(OdinId odinId, FileSystemType? fileSystemType = null, Dictionary<string, string> headers = null)
         {
-            return this.CreateClientInternal<T>(odinId, null, fileSystemType, headers);
+            return CreateClientInternal<T>(odinId, null, fileSystemType, headers);
         }
 
         //
@@ -59,15 +57,28 @@ namespace Odin.Services.Base
         private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType,
             Dictionary<string, string> headers = null)
         {
-            var httpClientKey = HttpFactoryKey(_tenantContext.HostOdinId.DomainName);
-            var httpClient = _httpClientFactory.CreateClient(httpClientKey);
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;
+            var httpClient = _httpClientFactory.CreateClient($"{nameof(OdinHttpClientFactory)}:{remoteHost}", cfg =>
+            {
+                cfg.AllowUntrustedServerCertificate =
+                    _config.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
+
+                cfg.ClientCertificate = _certificateStore.GetCertificateAsync(_odinIdentity.PrimaryDomain).Result;
+
+                // Sanity
+                if (cfg.ClientCertificate == null)
+                {
+                    throw new OdinSystemException($"No client certificate found for domain {_odinIdentity.PrimaryDomain}");
+                }
+            });
+
             httpClient.BaseAddress = new UriBuilder
             {
                 Scheme = "https",
                 Host = remoteHost,
                 Port = _config.Host.DefaultHttpsPort
             }.Uri;
+
             httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, _correlationContext.Id);
 
             if (fileSystemType.HasValue)

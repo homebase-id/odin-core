@@ -7,7 +7,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Autofac;
 using DnsClient;
-using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -21,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
@@ -61,10 +61,8 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Background;
 using Odin.Services.Concurrency;
 using Odin.Services.Drives;
-using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
-using Odin.Services.Membership.CircleMembership;
 using StackExchange.Redis;
 
 namespace Odin.Hosting;
@@ -88,25 +86,22 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         AssertValidRenewalConfiguration(_config.CertificateRenewal);
 
         //
-        // We are using HttpClientFactoryLite because we have to be able to create HttpClientHandlers on the fly.
-        //   (e.g.: FileSystemIdentityRegistry.RegisterDotYouHttpClient())
-        // This is not possible with the baked in HttpClientFactory.
+        // We are using DynamicHttpClientFactory because we have to be able to create shared HttpClientHandlers
+        // on the fly. This is not possible with the baked in HttpClientFactory.
         //
-        //
-        // IHttpClientFactory rules when creating a HttpClient:
+        // IDynamicHttpClientFactory rules when creating a HttpClient:
         // - It is HttpClientHandler instance that is managed by HttpClientFactory, not the HttpClient instance.
-        // - The HttpClientHandler instance, which is explictly or implicitly attached to a HttpClient instance,
+        // - The HttpClientHandler instance, which is explicitly or implicitly attached to a HttpClient instance,
         //   is shared by different HttpClient instances across all threads.
         // - It is OK to change properties on the HttpClient instance (e.g. AddDefaultHeaders)
         //   as long as you make sure that the instance is short-lived and not mutated on another thread.
         // - It is OK to create a HttpClientHandler, but it *MUST NOT* hold any instance data. This includes
-        //   cookies in a CookieContainer. Therefore avoid using Cookies. If you need cookies, set the headers
+        //   cookies in a CookieContainer. Therefore, avoid using Cookies. If you need cookies, set the headers
         //   manually.
-        // - Use SetHandlerLifetime to control how long connections are pooled (this also controls when existing
-        //   HttpClientHandlers are called)
+        // - Use HandlerLifetime to control how long connections are pooled.
+        // - As long as a connection is pooled, no DNS updates will be visible on that connection.
         //
-        var httpClientFactory = new HttpClientFactory();
-        services.AddSingleton<IHttpClientFactory>(httpClientFactory); // this is HttpClientFactoryLite
+        services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
@@ -186,7 +181,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
             sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
             sp.GetRequiredService<ICertificateService>(),
-            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<IDynamicHttpClientFactory>(),
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainerAccessor>(),
             TenantServices.ConfigureTenantServices,
@@ -200,21 +195,21 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         services.AddSingleton<ILookupClient>(new LookupClient());
         services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
 
-        services.AddIdentityRegistrationServices(httpClientFactory, _config);
+        services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
         services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
         services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
             sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),
-            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<IDynamicHttpClientFactory>(),
             new Uri($"https://{_config.Registry.PowerDnsHostAddress}/api/v1"),
             _config.Registry.PowerDnsApiKey));
 
         services.AddSingleton<ICertesAcme>(sp => new CertesAcme(
             sp.GetRequiredService<ILogger<CertesAcme>>(),
             sp.GetRequiredService<IAcmeHttp01TokenCache>(),
-            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<IDynamicHttpClientFactory>(),
             _config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
         services.AddSingleton<ICertificateStore, CertificateStore>();
@@ -222,7 +217,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         services.AddSingleton<IEmailSender>(sp => new MailgunSender(
             sp.GetRequiredService<ILogger<MailgunSender>>(),
-            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<IDynamicHttpClientFactory>(),
             _config.Mailgun.ApiKey,
             _config.Mailgun.EmailDomain,
             _config.Mailgun.DefaultFrom));
@@ -405,18 +400,9 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments($"/{LinkPreviewDefaults.SsrPath}"),
             ssrApp =>
             {
-                // ssrApp.Run(async context =>
-                // {
-                //     var svc = context.RequestServices.GetRequiredService<ServerSideRenderer>();
-                //     var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
-                //     await svc.WriteAsync(odinContext);
-                // });
-                //
-                    
                 ssrApp.UseRouting();
                 ssrApp.UseEndpoints(endpoints =>
                 {
-                    // endpoints.MapServerSideRenderedEndpoints();
                     endpoints.MapControllers();
                 });
             });
@@ -440,7 +426,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
-            
+
             // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
             app.MapWhen(ctx => true,
                 homeApp =>
