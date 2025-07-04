@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
@@ -7,9 +9,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.DataSubscription.Follower;
 using Odin.Services.LinkPreview;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
+using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 
@@ -18,6 +23,8 @@ namespace Odin.Hosting.Controllers.Anonymous.SEO;
 public class HomebaseSsrController(
     HomebaseProfileContentService profileContentService,
     HomebaseChannelContentService channelContentService,
+    CircleNetworkService cn,
+    FollowerService followerService,
     ILogger<HomebaseSsrController> logger) : OdinControllerBase
 {
     [HttpGet("")]
@@ -26,46 +33,108 @@ public class HomebaseSsrController(
     {
         var (head, person) = await BuildHeadSection();
 
-        var body = new StringBuilder();
+        var contentBuilder = new StringBuilder();
         if (person != null)
         {
+            var imageUrl = profileContentService.GetPublicImageUrl(WebOdinContext);
+            
+            contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
+            
             if (person.BioSummary != null)
             {
-                body.AppendLine($"<h2>Summary: {person.BioSummary}</h2>");
+                contentBuilder.AppendLine($"<h2>Summary: {person.BioSummary}</h2>");
             }
 
             if (person.Bio != null)
             {
-                body.AppendLine($"<hr/>");
-                body.AppendLine($"<p>Bio: {person.Bio}</p>");
+                contentBuilder.AppendLine($"<hr/>");
+                contentBuilder.AppendLine($"<p>Bio: {person.Bio}</p>");
             }
-            
-            body.AppendLine($"<ul>");
-            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
-            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
-            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
-            body.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
 
-            body.AppendLine($"</ul>");
+            contentBuilder.AppendLine($"<ul>");
+            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
+            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
+            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
+            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
+
+            contentBuilder.AppendLine($"</ul>");
         }
 
-        await WriteContent(head, body.ToString());
+        await WriteContent(head, contentBuilder.ToString());
     }
 
     [HttpGet("connections")]
     public async Task RenderConnections()
     {
         var (head, _) = await BuildHeadSection(suffix: "Connections");
-        var body = "";
-        await WriteContent(head, body);
+
+        var contentBuilder = new StringBuilder();
+
+        var count = Int32.MaxValue;
+        if (WebOdinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
+        {
+            var result = await cn.GetConnectedIdentitiesAsync(count, null, WebOdinContext);
+            var connections = result.Results.Select(p => p.Redacted()).ToList();
+
+            contentBuilder.AppendLine("<h3>My Connections</h3>");
+            contentBuilder.AppendLine("<ul>");
+
+            foreach (var identity in connections)
+            {
+                var odinId = identity.OdinId;
+                var imageUrl = $"https://{odinId}/pub/image";
+                contentBuilder.AppendLine("  <li>");
+                contentBuilder.AppendLine(
+                    $"    <img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
+                contentBuilder.AppendLine($"    <span>{WebUtility.HtmlEncode(odinId)}</span>");
+                contentBuilder.AppendLine("  </li>");
+            }
+
+            contentBuilder.AppendLine("</ul>");
+        }
+       
+        if (WebOdinContext.PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow))
+        {
+            var peopleIFollow = await followerService.GetIdentitiesIFollowAsync(count, null, WebOdinContext);
+            contentBuilder.AppendLine("<h3>Who I follow</h3>");
+            contentBuilder.AppendLine("<ul>");
+
+            foreach (var identity in peopleIFollow.Results)
+            {
+                var odinId = identity;
+                var imageUrl = $"https://{odinId}/pub/image";
+                contentBuilder.AppendLine("  <li>");
+                contentBuilder.AppendLine(
+                    $"    <img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
+                contentBuilder.AppendLine($"    <span>{WebUtility.HtmlEncode(odinId)}</span>");
+                contentBuilder.AppendLine("  </li>");
+            }
+
+            contentBuilder.AppendLine("</ul>");
+        }
+        
+        await WriteContent(head, contentBuilder.ToString());
     }
 
     [HttpGet("links")]
     public async Task RenderLinks()
     {
         var (head, _) = await BuildHeadSection(suffix: "Links");
-        var body = "";
-        await WriteContent(head, body);
+        var links = await profileContentService.LoadLinks();
+
+        var contentBuilder = new StringBuilder();
+        
+        contentBuilder.AppendLine("<h3>My Links</h3>");
+        contentBuilder.AppendLine("<ul>");
+        foreach (var link in links)
+        {
+            contentBuilder.AppendLine("  <li>");
+            contentBuilder.AppendLine($"    <a href='{link.Url}'>{WebUtility.HtmlEncode(link.Type)}</span>");
+            contentBuilder.AppendLine("  </li>");
+        }
+        contentBuilder.AppendLine("</ul>");
+
+        await WriteContent(head, contentBuilder.ToString());
     }
 
     [HttpGet("about")]
@@ -91,7 +160,8 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<div>");
 
             // Channel name with link to /posts/{slug}
-            contentBuilder.AppendLine($"  <h2><a href='{SsrUrlHelper.ToSsrUrl($"/posts/{channel.Slug}")}'>{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h2>");
+            contentBuilder.AppendLine($"<h2><a href='{SsrUrlHelper.ToSsrUrl($"/posts/{channel.Slug}")}'>" +
+                                      $"{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h2>");
 
             if (!string.IsNullOrWhiteSpace(channel.Description))
             {
@@ -184,7 +254,6 @@ public class HomebaseSsrController(
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
                 contentBuilder.AppendLine($"</div>");
-
             }
         }
         catch (Exception e)
@@ -198,7 +267,7 @@ public class HomebaseSsrController(
             post.Content.UserDate,
             maxPosts: 10,
             HttpContext.RequestAborted);
-        
+
         contentBuilder.AppendLine($"<hr/>");
         contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h1>");
 
@@ -210,9 +279,11 @@ public class HomebaseSsrController(
                 !string.IsNullOrWhiteSpace(anovahPost.Content.Caption))
             {
                 var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
-                contentBuilder.AppendLine($"<li><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
+                contentBuilder.AppendLine(
+                    $"<li><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
             }
         }
+
         contentBuilder.AppendLine($"</ul>");
 
         contentBuilder.AppendLine($"</body>");

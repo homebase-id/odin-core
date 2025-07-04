@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -63,6 +64,25 @@ public class HomebaseProfileContentService(
             ]
         };
         return person;
+    }
+
+    
+    public async Task<List<FrontEndProfileLink>> LoadLinks()
+    {
+        // read the profile file.
+        var (_, fileExists, fileStream) = await staticFileContentService.GetStaticFileStreamAsync(
+            StaticFileConstants.PublicProfileCardFileName);
+
+        FrontEndProfile profile = null;
+
+        if (fileExists)
+        {
+            using var reader = new StreamReader(fileStream);
+            var data = await reader.ReadToEndAsync();
+            profile = OdinSystemSerializer.Deserialize<FrontEndProfile>(data);
+        }
+        
+        return profile?.Links ?? [];
     }
 
     private static string AppendJpgIfNoExtension(string url)

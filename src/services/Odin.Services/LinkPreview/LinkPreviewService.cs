@@ -47,7 +47,6 @@ public class LinkPreviewService(
     private const string DefaultPayloadKey = "dflt_key";
 
 
-
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
@@ -315,7 +314,7 @@ public class LinkPreviewService(
 
         return postFile;
     }
-    
+
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
         Guid? postIdAsTag = null, int? fileType = null)
     {
@@ -441,7 +440,7 @@ public class LinkPreviewService(
         // Open Graph attributes
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
-        b.Append($"<meta property='og:url' content='{GetDisplayUrl()}'/>\n");
+        b.Append($"<meta property='og:url' content='{GetCanonical(httpContextAccessor.HttpContext)}'/>\n");
         b.Append($"<meta property='og:site_name' content='{title}'/>\n");
         b.Append($"<meta property='og:type' content='{siteType}'/>\n");
 
@@ -451,23 +450,26 @@ public class LinkPreviewService(
     private StringBuilder PrepareNoscriptBuilder(string title, string description, string siteType, string imageUrl, PersonSchema person)
     {
         title = HttpUtility.HtmlEncode(title);
-        description = HttpUtility.HtmlEncode(description);
+        // description = HttpUtility.HtmlEncode(description);
 
         StringBuilder b = new StringBuilder(500);
+        // b.Append($"<h1>{title}</h1>\n");
+        // b.Append($"<p>{description}</p>");
+        // b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
+        // b.Append($"<img src='{imageUrl}'/>\n");
+        // b.Append($"<p>{person?.GivenName} {person?.FamilyName}</p>\n");
+        // b.Append($"<p>{person?.Description}</p>\n");
+        // b.Append($"<p>{person?.Image}</p>\n");
+        // b.Append($"<p>{person?.JobTitle}</p>\n");
+        // b.Append($"<p>{person?.WorksFor?.Name}</p>\n");
+        // b.Append($"<p>{person?.Bio}</p>\n");
+        // b.Append($"<p>{person?.BioSummary}</p>\n");
 
-
-        b.Append($"<h1>{title}</h1>\n");
-        b.Append($"<p>{description}</p>");
-        b.Append($"<p>It's so much more fun to look at this page when you have the Java thingy enabled...</p>");
-        b.Append($"<img src='{imageUrl}'/>\n");
-        b.Append($"<p>{person?.GivenName} {person?.FamilyName}</p>\n");
-        b.Append($"<p>{person?.Description}</p>\n");
-        b.Append($"<p>{person?.Image}</p>\n");
-        b.Append($"<p>{person?.JobTitle}</p>\n");
-        b.Append($"<p>{person?.WorksFor?.Name}</p>\n");
-        b.Append($"<p>{person?.Bio}</p>\n");
-        b.Append($"<p>{person?.BioSummary}</p>\n");
-        b.Append($"<a href='{GetDisplayUrlWithSsr()}'>View content without JavaScript</a>\n");
+        b.AppendLine($"<a href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}'>");
+        b.AppendLine("<h1>");
+        b.AppendLine(title);
+        b.AppendLine("</h1>");
+        b.AppendLine("</a>");
         return b;
     }
 
@@ -477,7 +479,7 @@ public class LinkPreviewService(
         string odinId = context.Request.Host.Host;
 
         var imageUrl = $"{context.Request.Scheme}://{odinId}/{LinkPreviewDefaults.PublicImagePath}";
-        
+
         var person = await GeneratePersonSchema();
 
         string suffix = LinkPreviewDefaults.DefaultTitle;
@@ -514,7 +516,8 @@ public class LinkPreviewService(
     {
         var builder = PrepareHeadBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        builder.Append($"<link rel='canonical' href='{GetDisplayUrl()}' />\n");
+        builder.Append($"<link rel='canonical' href='{GetCanonical(httpContextAccessor.HttpContext)}' />\n");
+        builder.Append($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}' />\n");
         // builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
 
         builder.Append(PrepareIdentityContent(person));
@@ -566,17 +569,27 @@ public class LinkPreviewService(
         }.ToString();
     }
 
-    private string GetDisplayUrlWithSsr()
+    private static string GetCanonical(HttpContext httpContext)
     {
-        var request = httpContextAccessor.HttpContext.Request;
+        var request = httpContext.Request;
+        var path = request.Path.HasValue ? request.Path.Value : "";
+        return new UriBuilder(request.Scheme, request.Host.Host)
+        {
+            Path = path.Replace($"/{LinkPreviewDefaults.SsrPath}", "", StringComparison.OrdinalIgnoreCase),
+            Query = request.QueryString.Value ?? ""
+        }.ToString();
+    }
 
+    private static string GetDisplayUrlWithSsr(HttpContext httpContext)
+    {
+        var request = httpContext.Request;
         var originalPath = request.Path.Value ?? "";
         var pathWithSsr = $"/{LinkPreviewDefaults.SsrPath}{originalPath}";
 
         return new UriBuilder(request.Scheme, request.Host.Host)
         {
             Path = pathWithSsr,
-            Query = request.QueryString.Value
+            Query = request.QueryString.Value ?? ""
         }.ToString();
     }
 
