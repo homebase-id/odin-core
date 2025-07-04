@@ -77,7 +77,11 @@ namespace Odin.Core.Storage
 
 
         /// <summary>
-        /// Sets the cursor so that it will retrieve pages from the startFromPoint (inclusive)
+        /// THIS FUNCTION SHOULD ONLY BE USED WITH OLDESTFIRST SORT ORDERING
+        /// Sets the cursor so that it will retrieve pages from the startFromPoint
+        /// If you do not specify a rowId, then the startPoint is inclusive
+        /// If you do specify a rowId as well, the item you're passing in will not
+        /// be inclusive
         /// </summary>
         /// <param name="startFromPoint">UnixTimeUtc of the cursor (userDate, created, modified)</param>
         public void CursorStartPoint(UnixTimeUtc startFromPoint, long ?rowId = null)
