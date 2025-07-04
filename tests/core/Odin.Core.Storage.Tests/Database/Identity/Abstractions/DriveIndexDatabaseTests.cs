@@ -89,6 +89,76 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task ToddsFailedPagingTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId = Guid.NewGuid();
+
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751364725536), 0, null, null, 1);
+            await Task.Delay(50);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751365381150), 1, null, null, 1);
+            await Task.Delay(50);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751378818343), 2, null, null, 1);
+            await Task.Delay(50);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751378848865), 2, null, null, 1);
+
+
+
+            QueryBatchCursor cursor = null;
+
+            var (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 4);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            ClassicAssert.IsTrue(result[0].userDate == 1751364725536);
+            ClassicAssert.IsTrue(result[1].userDate == 1751365381150);
+            ClassicAssert.IsTrue(result[2].userDate == 1751378818343);
+            ClassicAssert.IsTrue(result[3].userDate == 1751378848865);
+
+            // Now we start from 1150 and if we specify the rowId we don't get the same row back
+            // only the next one. If you want to also get the same row back, don't add the rowId
+            cursor = QueryBatchCursor.FromStartPoint(result[1].userDate, result[1].rowId);
+
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            ClassicAssert.IsTrue(result[0].userDate == 1751378818343);
+            ClassicAssert.IsTrue(result[1].userDate == 1751378848865);
+
+            // =============================
+            /*
+            cursor = QueryBatchCursor.FromStartPoint(1751364725536);
+
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 4); 
+            ClassicAssert.IsTrue(moreRows == false);*/
+        }
+
+
+
+
+        /// <summary>
+        /// Scenario: A newly installed chat client downloads the entire database. Gets everything in one go.
+        /// The newest chat item will be the first result[0] and the oldest will be result[4]
+        /// Tests only the QueryBatch().
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif

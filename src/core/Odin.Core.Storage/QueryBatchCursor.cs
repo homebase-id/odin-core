@@ -80,14 +80,20 @@ namespace Odin.Core.Storage
         /// Sets the cursor so that it will retrieve pages from the startFromPoint (inclusive)
         /// </summary>
         /// <param name="startFromPoint">UnixTimeUtc of the cursor (userDate, created, modified)</param>
-        public void CursorStartPoint(UnixTimeUtc startFromPoint)
+        public void CursorStartPoint(UnixTimeUtc startFromPoint, long ?rowId = null)
         {
-            pagingCursor = new TimeRowCursor(startFromPoint, null);
+            pagingCursor = new TimeRowCursor(startFromPoint, rowId);
 
             nextBoundaryCursor = null;
             stopAtBoundary = null;
         }
 
+        public static QueryBatchCursor FromStartPoint(UnixTimeUtc fromTimestamp, long? rowId = null)
+        {
+            var c = new QueryBatchCursor();
+            c.CursorStartPoint(fromTimestamp, rowId);
+            return c;
+        }
 
         /// <summary>
         /// Creates a cursor that stops at the supplied time boundary.
@@ -122,13 +128,6 @@ namespace Odin.Core.Storage
         public string ToJson()
         {
             return JsonSerializer.Serialize(this);
-        }
-
-        public static QueryBatchCursor FromStartPoint(UnixTimeUtc fromTimestamp)
-        {
-            var c = new QueryBatchCursor();
-            c.CursorStartPoint(fromTimestamp);
-            return c;
         }
     }
 }
