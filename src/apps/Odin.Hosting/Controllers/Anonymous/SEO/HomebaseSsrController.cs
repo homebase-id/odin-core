@@ -88,7 +88,8 @@ public class HomebaseSsrController(
                 contentBuilder.AppendLine("  <li>");
                 contentBuilder.AppendLine(
                     $"    <img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
-                contentBuilder.AppendLine($"    <span>{WebUtility.HtmlEncode(odinId)}</span>");
+                contentBuilder.AppendLine($"<li><a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a></li>");
+
                 contentBuilder.AppendLine("  </li>");
             }
 
@@ -228,14 +229,18 @@ public class HomebaseSsrController(
         foreach (var post in posts)
         {
             var content = post.Content;
-            if (content == null) continue;
+            if (content == null)
+            {
+                continue;
+            }
+            
+            var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
 
             contentBuilder.AppendLine("<div>");
 
             // Title with link
             if (!string.IsNullOrWhiteSpace(content.Caption))
             {
-                var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
                 contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
             }
 
@@ -247,9 +252,11 @@ public class HomebaseSsrController(
 
             // Image
             if (!string.IsNullOrWhiteSpace(post.ImageUrl))
-            {
+            {                
+                contentBuilder.AppendLine($"<a href=\"{link}\">");
                 contentBuilder.AppendLine(
                     $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(content.Caption)}\" />");
+                contentBuilder.AppendLine("</a>");
             }
 
             contentBuilder.AppendLine("</div>");
