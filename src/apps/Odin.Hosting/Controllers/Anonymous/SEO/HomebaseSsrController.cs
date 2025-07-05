@@ -85,10 +85,10 @@ public class HomebaseSsrController(
             {
                 var odinId = identity.OdinId;
                 var imageUrl = $"https://{odinId}/pub/image";
-                contentBuilder.AppendLine("  <li>");
-                contentBuilder.AppendLine(
-                    $"    <img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
-                contentBuilder.AppendLine($"<li><a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a></li>");
+                contentBuilder.AppendLine("<li>");
+                contentBuilder.AppendLine($"<img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\"" +
+                                          $" style=\"vertical-align: middle; margin-right: 8px;\"/>");
+                contentBuilder.AppendLine($"<a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a>");
 
                 contentBuilder.AppendLine("  </li>");
             }
@@ -107,9 +107,10 @@ public class HomebaseSsrController(
                 var odinId = identity;
                 var imageUrl = $"https://{odinId}/pub/image";
                 contentBuilder.AppendLine("  <li>");
-                contentBuilder.AppendLine(
-                    $"    <img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
-                contentBuilder.AppendLine($"    <span>{WebUtility.HtmlEncode(odinId)}</span>");
+                
+                contentBuilder.AppendLine($"<img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" " +
+                                          $"height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
+                contentBuilder.AppendLine($"<a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a>");
                 contentBuilder.AppendLine("  </li>");
             }
 
