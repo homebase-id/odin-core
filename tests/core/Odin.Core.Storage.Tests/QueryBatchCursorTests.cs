@@ -10,9 +10,9 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public void TimeCursorEmptyStateTest()
         {
-            var cursor = TimeRowCursor.FromJsonOrOldString(null);
+            var cursor = TimeRowCursor.FromJson(null);
             Assert.That(cursor == null);
-            cursor = TimeRowCursor.FromJsonOrOldString("");
+            cursor = TimeRowCursor.FromJson("");
             Assert.That(cursor == null);
             Assert.Pass();
         }
@@ -20,9 +20,9 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public void TimeCursorInvalidStateTest()
         {
-            var cursor = TimeRowCursor.FromJsonOrOldString("asdasda");
+            var cursor = TimeRowCursor.FromJson("asdasda");
             Assert.That(cursor == null);
-            cursor = TimeRowCursor.FromJsonOrOldString("1,2,3");
+            cursor = TimeRowCursor.FromJson("1,2,3");
             Assert.That(cursor == null);
             Assert.Pass();
         }
@@ -31,13 +31,11 @@ namespace Odin.Core.Storage.Tests
         [Test]
         public void TimeStringTests()
         {
-            var cursor = TimeRowCursor.FromJsonOrOldString("42");
-            Assert.That(cursor.Time == 42);
-            Assert.That(cursor.rowId == null);
+            var cursor = TimeRowCursor.FromJson("42");
+            Assert.That(cursor == null);
 
-            cursor = TimeRowCursor.FromJsonOrOldString("42,7");
-            Assert.That(cursor.Time == 42);
-            Assert.That(cursor.rowId == 7);
+            cursor = TimeRowCursor.FromJson("42,7");
+            Assert.That(cursor == null);
 
             Assert.Pass();
         }

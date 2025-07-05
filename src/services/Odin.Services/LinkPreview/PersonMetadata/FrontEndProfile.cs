@@ -18,6 +18,8 @@ public class FrontEndProfile
     [JsonPropertyName("familyName")]
     public string FamilyName { get; set; }
     
+    [JsonPropertyName("status")]
+    public string Status { get; set; }
     
     [JsonPropertyName("image")]
     public string Image { get; set; }

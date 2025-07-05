@@ -89,6 +89,67 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task ToddsFailedPagingTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId = Guid.NewGuid();
+
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751364725536), 0, null, null, 1);
+            await Task.Delay(50);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751365381150), 1, null, null, 1);
+            await Task.Delay(50);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751378818343), 2, null, null, 1);
+            await Task.Delay(50);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1751378848865), 2, null, null, 1);
+
+
+
+            QueryBatchCursor cursor = null;
+            var (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 4);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            ClassicAssert.IsTrue(result[0].userDate == 1751364725536);
+            ClassicAssert.IsTrue(result[1].userDate == 1751365381150);
+            ClassicAssert.IsTrue(result[2].userDate == 1751378818343);
+            ClassicAssert.IsTrue(result[3].userDate == 1751378848865);
+
+            // Now we start from 1150 and if we specify the rowId we don't get the same row back
+            // only the next one. If you want to also get the same row back, don't add the rowId
+            cursor = QueryBatchCursor.FromStartPoint(result[1].userDate, result[1].rowId);
+
+            (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            ClassicAssert.IsTrue(result[0].userDate == 1751378818343);
+            ClassicAssert.IsTrue(result[1].userDate == 1751378848865);
+        }
+
+
+
+
+        /// <summary>
+        /// Scenario: A newly installed chat client downloads the entire database. Gets everything in one go.
+        /// The newest chat item will be the first result[0] and the oldest will be result[4]
+        /// Tests only the QueryBatch().
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
@@ -458,7 +519,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
-            QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000), true);
+            QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000));
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 100, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(cursor.nextBoundaryCursor == null);
@@ -546,7 +607,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
             await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null, 1);
 
-            QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000), true);
+            QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000));
             var (result, moreRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 100, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(cursor.nextBoundaryCursor == null);
@@ -1904,7 +1965,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
-            cursor.CursorStartPoint(t3, false);
+            cursor.CursorStartPoint(t3);
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
@@ -1917,7 +1978,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor.CursorStartPoint(t3, false);
+            cursor.CursorStartPoint(t3);
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
@@ -1964,7 +2025,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
 
             // Set the start point to f3 (which we didn't put in the DB)
             var cursor = new QueryBatchCursor();
-            cursor.CursorStartPoint(new UnixTimeUtc(4000-1), true);  // Behavior change, subtracted 1
+            cursor.CursorStartPoint(new UnixTimeUtc(4000-1));  // Behavior change, subtracted 1
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
@@ -1978,7 +2039,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor.CursorStartPoint(new UnixTimeUtc(4000-1), true);  // Behavior change, subtracted 1
+            cursor.CursorStartPoint(new UnixTimeUtc(4000-1));  // Behavior change, subtracted 1
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, sortField: QueryBatchSortField.UserDate, requiredSecurityGroup: allIntRange);
@@ -2090,7 +2151,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var (c6, _) = await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null, 1);
 
             // Set the boundary item to f3 (which we didn't put in the DB)
-            var cursor = new QueryBatchCursor(t3, false);
+            var cursor = new QueryBatchCursor(t3);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
             var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
@@ -2108,7 +2169,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             // ====== Now do the same, oldest first
             //
             // Set the boundary item to f3 (which we didn't put in the DB)
-            cursor = new QueryBatchCursor(t3, false);
+            cursor = new QueryBatchCursor(t3);
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
             (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);

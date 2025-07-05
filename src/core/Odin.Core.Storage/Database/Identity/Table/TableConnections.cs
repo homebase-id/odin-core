@@ -55,7 +55,7 @@ public class TableConnections(
 
     public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, Int32 status, string cursorString)
     {
-        var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
+        var cursor = TimeRowCursor.FromJson(cursorString);
 
         var (r, tsc, ri) = await base.PagingByCreatedAsync(count, odinIdentity, status, cursor?.Time, cursor?.rowId);
 
@@ -64,7 +64,7 @@ public class TableConnections(
 
     public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursorString)
     {
-        var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
+        var cursor = TimeRowCursor.FromJson(cursorString);
 
         var (r, tsc, ri) = await base.PagingByCreatedAsync(count, odinIdentity, cursor?.Time, cursor?.rowId);
 

@@ -33,7 +33,7 @@ public class TableAppNotifications(
 
     public async Task<(List<AppNotificationsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursorString)
     {
-        var cursor = TimeRowCursor.FromJsonOrOldString(cursorString);
+        var cursor = TimeRowCursor.FromJson(cursorString);
 
         var (r, tsc, ri) = await base.PagingByCreatedAsync(count, odinIdentity, cursor?.Time, cursor?.rowId);
 
