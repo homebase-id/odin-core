@@ -440,7 +440,7 @@ public class LinkPreviewService(
         // Open Graph attributes
         b.Append($"<meta property='og:title' content='{title}'/>\n");
         b.Append($"<meta property='og:description' content='{description}'/>\n");
-        b.Append($"<meta property='og:url' content='{GetCanonical(httpContextAccessor.HttpContext)}'/>\n");
+        b.Append($"<meta property='og:url' content='{GetHumanReadableVersion(httpContextAccessor.HttpContext)}'/>\n");
         b.Append($"<meta property='og:site_name' content='{title}'/>\n");
         b.Append($"<meta property='og:type' content='{siteType}'/>\n");
 
@@ -507,17 +507,33 @@ public class LinkPreviewService(
         }
 
         var title = $"{person?.Name ?? odinId} | {suffix}";
-        var description = person?.Description ?? LinkPreviewDefaults.DefaultDescription;
+        var description = DataOrNull(person?.BioSummary) ?? Truncate(DataOrNull(person?.Bio)) ?? LinkPreviewDefaults.DefaultDescription;
         return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, robotsTag, cancellationToken);
     }
 
+    private string DataOrNull(string data)
+    {
+        return string.IsNullOrEmpty(data) ? null : data;
+    }
+
+    private string Truncate(string data)
+    {
+        if (string.IsNullOrEmpty(data))
+        {
+            return null;
+        }
+
+        return data.Substring(0, 160);
+    }
+
+    
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
         PersonSchema person, string siteType, string robotsTag, CancellationToken cancellationToken)
     {
         var builder = PrepareHeadBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
-        builder.Append($"<link rel='canonical' href='{GetCanonical(httpContextAccessor.HttpContext)}' />\n");
-        builder.Append($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}' />\n");
+        builder.Append($"<link rel='alternate' href='{GetHumanReadableVersion(httpContextAccessor.HttpContext)}' />\n");
+        builder.Append($"<link rel='canonical' href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}' />\n");
         // builder.Append($"<meta name='robots' content='{robotsTag}'/>\n");
 
         builder.Append(PrepareIdentityContent(person));
@@ -569,7 +585,7 @@ public class LinkPreviewService(
         }.ToString();
     }
 
-    private static string GetCanonical(HttpContext httpContext)
+    private static string GetHumanReadableVersion(HttpContext httpContext)
     {
         var request = httpContext.Request;
         var path = request.Path.HasValue ? request.Path.Value : "";

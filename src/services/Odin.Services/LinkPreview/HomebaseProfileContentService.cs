@@ -56,6 +56,7 @@ public class HomebaseProfileContentService(
             BirthDate = null,
             JobTitle = null,
             Image = AppendJpgIfNoExtension(profile?.Image ?? ""),
+            Status = profile?.Status,
             SameAs = profile?.SameAs?.Select(s => s.Url).ToList() ?? [],
             Identifier =
             [
@@ -66,7 +67,6 @@ public class HomebaseProfileContentService(
         return person;
     }
 
-    
     public async Task<List<FrontEndProfileLink>> LoadLinks()
     {
         // read the profile file.

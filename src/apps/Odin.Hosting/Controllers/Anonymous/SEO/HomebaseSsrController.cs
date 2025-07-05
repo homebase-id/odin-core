@@ -37,12 +37,13 @@ public class HomebaseSsrController(
         if (person != null)
         {
             var imageUrl = profileContentService.GetPublicImageUrl(WebOdinContext);
-            
             contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
-            
+            contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
+            contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
+
             if (person.BioSummary != null)
             {
-                contentBuilder.AppendLine($"<h2>Summary: {person.BioSummary}</h2>");
+                contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
             }
 
             if (person.Bio != null)
@@ -51,24 +52,25 @@ public class HomebaseSsrController(
                 contentBuilder.AppendLine($"<p>Bio: {person.Bio}</p>");
             }
 
-            contentBuilder.AppendLine($"<ul>");
-            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
-            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
-            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
-            contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
-
-            contentBuilder.AppendLine($"</ul>");
+            CreateMenu(contentBuilder);
         }
 
         await WriteContent(head, contentBuilder.ToString());
     }
-
+    
     [HttpGet("connections")]
     public async Task RenderConnections()
     {
-        var (head, _) = await BuildHeadSection(suffix: "Connections");
+        var (head, person) = await BuildHeadSection(suffix: "Connections");
 
         var contentBuilder = new StringBuilder();
+        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
+        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
+
+        if (person.BioSummary != null)
+        {
+            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
+        }
 
         var count = Int32.MaxValue;
         if (WebOdinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
@@ -92,7 +94,7 @@ public class HomebaseSsrController(
 
             contentBuilder.AppendLine("</ul>");
         }
-       
+
         if (WebOdinContext.PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow))
         {
             var peopleIFollow = await followerService.GetIdentitiesIFollowAsync(count, null, WebOdinContext);
@@ -112,6 +114,8 @@ public class HomebaseSsrController(
 
             contentBuilder.AppendLine("</ul>");
         }
+
+        CreateMenu(contentBuilder);
         
         await WriteContent(head, contentBuilder.ToString());
     }
@@ -119,11 +123,18 @@ public class HomebaseSsrController(
     [HttpGet("links")]
     public async Task RenderLinks()
     {
-        var (head, _) = await BuildHeadSection(suffix: "Links");
+        var (head, person) = await BuildHeadSection(suffix: "Links");
         var links = await profileContentService.LoadLinks();
-
         var contentBuilder = new StringBuilder();
-        
+
+        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
+        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
+
+        if (person.BioSummary != null)
+        {
+            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
+        }
+
         contentBuilder.AppendLine("<h3>My Links</h3>");
         contentBuilder.AppendLine("<ul>");
         foreach (var link in links)
@@ -132,17 +143,35 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine($"    <a href='{link.Url}'>{WebUtility.HtmlEncode(link.Type)}</span>");
             contentBuilder.AppendLine("  </li>");
         }
+
         contentBuilder.AppendLine("</ul>");
 
+        CreateMenu(contentBuilder);
+        
         await WriteContent(head, contentBuilder.ToString());
     }
 
     [HttpGet("about")]
     public async Task RenderAbout()
     {
-        var (head, _) = await BuildHeadSection(suffix: "About");
-        var body = "";
-        await WriteContent(head, body);
+        var (head, person) = await BuildHeadSection(suffix: "About");
+
+        var contentBuilder = new StringBuilder();
+        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
+        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
+
+        if (person.BioSummary != null)
+        {
+            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
+        }
+
+        if (person.Bio != null)
+        {
+            contentBuilder.AppendLine($"<p>Bio: {person.Bio}</h3>");
+        }
+
+        CreateMenu(contentBuilder);
+        await WriteContent(head, contentBuilder.ToString());
     }
 
     [HttpGet("posts")]
@@ -160,8 +189,8 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<div>");
 
             // Channel name with link to /posts/{slug}
-            contentBuilder.AppendLine($"<h2><a href='{SsrUrlHelper.ToSsrUrl($"/posts/{channel.Slug}")}'>" +
-                                      $"{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h2>");
+            contentBuilder.AppendLine($"<h1><a href='{SsrUrlHelper.ToSsrUrl($"/posts/{channel.Slug}")}'>" +
+                                      $"{HttpUtility.HtmlEncode(channel.Name ?? "")}</a></h1>");
 
             if (!string.IsNullOrWhiteSpace(channel.Description))
             {
@@ -172,6 +201,7 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<hr/>");
         }
 
+        CreateMenu(contentBuilder);
         await WriteContent(head, contentBuilder.ToString());
     }
 
@@ -184,9 +214,17 @@ public class HomebaseSsrController(
         }
 
         var (head, _) = await BuildHeadSection(suffix: "Posts", siteType: "website");
-        var (posts, cursor) = await channelContentService.GetChannelPosts(channelKey, WebOdinContext);
+        var (posts, _) = await channelContentService.GetChannelPosts(channelKey, WebOdinContext);
 
+        var thisChannel = (await channelContentService.GetChannels(WebOdinContext)).FirstOrDefault(c => c.Slug == channelKey);
+        
         var contentBuilder = new StringBuilder();
+        
+        if (thisChannel != null)
+        {
+            contentBuilder.AppendLine($"<h1>{HttpUtility.HtmlEncode(thisChannel.Name ?? "")}</h1>");
+        }
+        
         foreach (var post in posts)
         {
             var content = post.Content;
@@ -218,6 +256,8 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("<hr/>"); // spacing between posts
         }
 
+        CreateMenu(contentBuilder);
+
         await WriteContent(head, contentBuilder.ToString());
     }
 
@@ -240,7 +280,6 @@ public class HomebaseSsrController(
         }
 
         var contentBuilder = new StringBuilder();
-        contentBuilder.AppendLine($"<body>");
         contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
         contentBuilder.AppendLine($"<img src='{post.ImageUrl}' width='600'/>");
         contentBuilder.AppendLine($"<p>{post.Content.UserDate.GetValueOrDefault().ToDateTime()}</p>");
@@ -286,7 +325,8 @@ public class HomebaseSsrController(
 
         contentBuilder.AppendLine($"</ul>");
 
-        contentBuilder.AppendLine($"</body>");
+        CreateMenu(contentBuilder);
+        
         await WriteContent(head, contentBuilder.ToString());
     }
 
@@ -296,11 +336,36 @@ public class HomebaseSsrController(
     {
         var person = await profileContentService.LoadPersonSchema();
         var title = $"{person?.Name ?? WebOdinContext.Tenant} | {suffix}";
-        var description = person?.Description ?? LinkPreviewDefaults.DefaultDescription;
+        var description = DataOrNull(person?.BioSummary) ?? Truncate(DataOrNull(person?.Bio)) ?? LinkPreviewDefaults.DefaultDescription;
         var imageUrl = profileContentService.GetPublicImageUrl(WebOdinContext);
 
         var head = LayoutBuilder.BuildHeadContent(title, description, siteType, imageUrl, person, HttpContext, WebOdinContext);
         return (head.ToString(), person);
+    }
+
+    private static void CreateMenu(StringBuilder contentBuilder)
+    {
+        contentBuilder.AppendLine($"<ul>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
+        contentBuilder.AppendLine($"</ul>");
+    }
+
+    private string DataOrNull(string data)
+    {
+        return string.IsNullOrEmpty(data) ? null : data;
+    }
+
+    private string Truncate(string data)
+    {
+        if (string.IsNullOrEmpty(data))
+        {
+            return null;
+        }
+
+        return data.Substring(0, 160);
     }
 
     private async Task WriteContent(string head, string body)

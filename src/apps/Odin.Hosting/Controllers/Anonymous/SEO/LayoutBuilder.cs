@@ -54,7 +54,7 @@ public static class LayoutBuilder
         //     Query = request.QueryString.Value
         // }.ToString();
         //
-        var canonicalUrl = GetCanonical(httpContext);
+        var humanReadableVersion = GetHumanReadableVersion(httpContext);
 
         var b = new StringBuilder(1024);
 
@@ -65,13 +65,13 @@ public static class LayoutBuilder
         // Open Graph
         b.AppendLine($"<meta property='og:title' content='{title}'/>");
         b.AppendLine($"<meta property='og:description' content='{description}'/>");
-        b.AppendLine($"<meta property='og:url' content='{canonicalUrl}'/>");
+        b.AppendLine($"<meta property='og:url' content='{humanReadableVersion}'/>");
         b.AppendLine($"<meta property='og:site_name' content='{title}'/>");
         b.AppendLine($"<meta property='og:type' content='{siteType}'/>");
         b.AppendLine($"<meta property='og:image' content='{imageUrl}'/>");
 
-        b.AppendLine($"<link rel='canonical' href='{canonicalUrl}' />");
-        b.AppendLine($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContext)}' />");
+        b.AppendLine($"<link rel='alternate' href='{humanReadableVersion}' />");
+        b.AppendLine($"<link rel='canonical' href='{GetDisplayUrlWithSsr(httpContext)}' />");
         b.AppendLine(PrepareIdentityContent(person, odinContext));
 
         return b;
@@ -102,7 +102,7 @@ public static class LayoutBuilder
         return b.ToString();
     }
 
-    private static string GetCanonical(HttpContext httpContext)
+    private static string GetHumanReadableVersion(HttpContext httpContext)
     {
         var request = httpContext.Request;
         var path = request.Path.HasValue ? request.Path.Value : "";
