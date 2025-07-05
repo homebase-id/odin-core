@@ -35,5 +35,31 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
+        public static async Task<int> GetCountAsync(IConnectionWrapper cn, string tableName)
+        {
+            await using var renameCommand = cn.CreateCommand();
+            {
+                renameCommand.CommandText = $"SELECT COUNT(*) FROM {tableName};";
+                var count = await renameCommand.ExecuteScalarAsync();
+                if (count == null || count == DBNull.Value || !(count is int || count is long))
+                    return -1;
+                else
+                    return Convert.ToInt32(count);
+            }
+        }
+
+        public static async Task<bool> VerifyRowCount(IConnectionWrapper cn, string sourceTable, string destTable)
+        {
+            var n1 = await GetCountAsync(cn, sourceTable);
+            if (n1 < 0)
+                return false;
+
+            var n2 = await GetCountAsync(cn, destTable);
+            if (n2 < 0)
+                return false;
+
+            return n1 == n2;
+        }
+
     }
 }
