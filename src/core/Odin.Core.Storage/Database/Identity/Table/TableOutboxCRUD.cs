@@ -207,6 +207,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
+            if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
+            if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
+            if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
+            if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
+            if (correlationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {correlationId.Length} (min 0)");
+            if (correlationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {correlationId.Length} (max 64)");
+        }
     } // End of record OutboxRecord
 
     public abstract class TableOutboxCRUD
@@ -219,7 +229,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -255,7 +265,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0Outbox ON Outbox(identityId,nextRunTime);"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(OutboxRecord item)

@@ -95,6 +95,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
+            if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
+        }
     } // End of record FollowsMeRecord
 
     public abstract class TableFollowsMeCRUD
@@ -109,7 +115,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -136,7 +142,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0FollowsMe ON FollowsMe(identityId,identity);"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(FollowsMeRecord item)

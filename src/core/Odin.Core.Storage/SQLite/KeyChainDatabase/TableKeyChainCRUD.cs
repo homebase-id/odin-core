@@ -183,6 +183,27 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                   _recordHash = value;
                }
         }
+        public void Validate()
+        {
+            if (previousHash == null) throw new OdinDatabaseValidationException("Cannot be null previousHash");
+            if (previousHash?.Length < 16) throw new OdinDatabaseValidationException($"Too short previousHash, was {previousHash.Length} (min 16)");
+            if (previousHash?.Length > 64) throw new OdinDatabaseValidationException($"Too long previousHash, was {previousHash.Length} (max 64)");
+            if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
+            if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 256) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 256)");
+            if (signedPreviousHash == null) throw new OdinDatabaseValidationException("Cannot be null signedPreviousHash");
+            if (signedPreviousHash?.Length < 16) throw new OdinDatabaseValidationException($"Too short signedPreviousHash, was {signedPreviousHash.Length} (min 16)");
+            if (signedPreviousHash?.Length > 200) throw new OdinDatabaseValidationException($"Too long signedPreviousHash, was {signedPreviousHash.Length} (max 200)");
+            if (algorithm == null) throw new OdinDatabaseValidationException("Cannot be null algorithm");
+            if (algorithm?.Length < 1) throw new OdinDatabaseValidationException($"Too short algorithm, was {algorithm.Length} (min 1)");
+            if (algorithm?.Length > 40) throw new OdinDatabaseValidationException($"Too long algorithm, was {algorithm.Length} (max 40)");
+            if (publicKeyJwkBase64Url == null) throw new OdinDatabaseValidationException("Cannot be null publicKeyJwkBase64Url");
+            if (publicKeyJwkBase64Url?.Length < 16) throw new OdinDatabaseValidationException($"Too short publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (min 16)");
+            if (publicKeyJwkBase64Url?.Length > 600) throw new OdinDatabaseValidationException($"Too long publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (max 600)");
+            if (recordHash == null) throw new OdinDatabaseValidationException("Cannot be null recordHash");
+            if (recordHash?.Length < 16) throw new OdinDatabaseValidationException($"Too short recordHash, was {recordHash.Length} (min 16)");
+            if (recordHash?.Length > 64) throw new OdinDatabaseValidationException($"Too long recordHash, was {recordHash.Length} (max 64)");
+        }
     } // End of record KeyChainRecord
 
     public class TableKeyChainCRUD
@@ -195,7 +216,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
             await using var cmd = conn.db.CreateCommand();
             if (dropExisting)
@@ -219,7 +240,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                    +", UNIQUE(identity,publicKeyJwkBase64Url)"
                    +$"){wori};"
                    ;
-            await conn.ExecuteNonQueryAsync(cmd);
+            return await conn.ExecuteNonQueryAsync(cmd);
         }
 
         public virtual async Task<int> InsertAsync(DatabaseConnection conn, KeyChainRecord item)

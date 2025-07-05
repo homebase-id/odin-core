@@ -87,6 +87,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _timestamp = value;
                }
         }
+        public void Validate()
+        {
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 65535)");
+            if (requestEnvelope == null) throw new OdinDatabaseValidationException("Cannot be null requestEnvelope");
+            if (requestEnvelope?.Length < 0) throw new OdinDatabaseValidationException($"Too short requestEnvelope, was {requestEnvelope.Length} (min 0)");
+            if (requestEnvelope?.Length > 65535) throw new OdinDatabaseValidationException($"Too long requestEnvelope, was {requestEnvelope.Length} (max 65535)");
+        }
     } // End of record AttestationRequestRecord
 
     public class TableAttestationRequestCRUD
@@ -99,7 +108,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
             await using var cmd = conn.db.CreateCommand();
             if (dropExisting)
@@ -118,7 +127,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    +"timestamp BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await conn.ExecuteNonQueryAsync(cmd);
+            return await conn.ExecuteNonQueryAsync(cmd);
         }
 
         public virtual async Task<int> InsertAsync(DatabaseConnection conn, AttestationRequestRecord item)

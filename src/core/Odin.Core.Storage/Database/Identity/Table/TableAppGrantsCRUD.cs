@@ -91,6 +91,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _data = value;
                }
         }
+        public void Validate()
+        {
+            if (data?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {data.Length} (min 0)");
+            if (data?.Length > 65535) throw new OdinDatabaseValidationException($"Too long data, was {data.Length} (max 65535)");
+        }
     } // End of record AppGrantsRecord
 
     public abstract class TableAppGrantsCRUD
@@ -105,7 +110,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -131,7 +136,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,odinHashId,appId,circleId)"
                    +$"){wori};"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(AppGrantsRecord item)

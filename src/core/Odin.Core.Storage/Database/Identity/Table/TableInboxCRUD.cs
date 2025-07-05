@@ -153,6 +153,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
+            if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
+            if (correlationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {correlationId.Length} (min 0)");
+            if (correlationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {correlationId.Length} (max 64)");
+        }
     } // End of record InboxRecord
 
     public abstract class TableInboxCRUD
@@ -165,7 +172,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -199,7 +206,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX IF NOT EXISTS Idx1Inbox ON Inbox(identityId,boxId);"
                    +"CREATE INDEX IF NOT EXISTS Idx2Inbox ON Inbox(identityId,popStamp);"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(InboxRecord item)

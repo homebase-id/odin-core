@@ -93,6 +93,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _singleReaction = value;
                }
         }
+        public void Validate()
+        {
+            if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
+            if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
+        }
     } // End of record DriveReactionsRecord
 
     public abstract class TableDriveReactionsCRUD
@@ -105,7 +111,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -131,7 +137,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,driveId,postId,identity,singleReaction)"
                    +$"){wori};"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(DriveReactionsRecord item)

@@ -173,6 +173,20 @@ namespace Odin.Core.Storage.Database.System.Table
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (privateKey == null) throw new OdinDatabaseValidationException("Cannot be null privateKey");
+            if (privateKey?.Length < 0) throw new OdinDatabaseValidationException($"Too short privateKey, was {privateKey.Length} (min 0)");
+            if (privateKey?.Length > 65535) throw new OdinDatabaseValidationException($"Too long privateKey, was {privateKey.Length} (max 65535)");
+            if (certificate == null) throw new OdinDatabaseValidationException("Cannot be null certificate");
+            if (certificate?.Length < 0) throw new OdinDatabaseValidationException($"Too short certificate, was {certificate.Length} (min 0)");
+            if (certificate?.Length > 65535) throw new OdinDatabaseValidationException($"Too long certificate, was {certificate.Length} (max 65535)");
+            if (correlationId == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+            if (correlationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {correlationId.Length} (min 0)");
+            if (correlationId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long correlationId, was {correlationId.Length} (max 65535)");
+            if (lastError?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {lastError.Length} (min 0)");
+            if (lastError?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {lastError.Length} (max 65535)");
+        }
     } // End of record CertificatesRecord
 
     public abstract class TableCertificatesCRUD
@@ -185,7 +199,7 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -214,7 +228,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         public virtual async Task<int> InsertAsync(CertificatesRecord item)
