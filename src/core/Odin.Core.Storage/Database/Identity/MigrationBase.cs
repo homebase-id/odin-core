@@ -13,17 +13,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
     }
 
 
-    public abstract class Migration
+    public abstract class MigrationBase
     {
         public abstract int MigrationVersion { get; }
-        public abstract Migration DownMigration { get; }
+        public abstract int PreviousMigrationVersion { get; }
 
         public int PreviousVersion()
         {
-            if (DownMigration == null)
-                return 0;
-            else
-                return DownMigration.MigrationVersion;
+            return PreviousMigrationVersion;
+        }
+
+        public static async Task<int> DeleteTableAsync(IConnectionWrapper cn, string tableName)
+        {
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = $"DROP TABLE IF EXISTS {tableName};";
+                return await deleteCommand.ExecuteNonQueryAsync();
+            }
         }
 
         public static async Task<int> RenameAsync(IConnectionWrapper cn, string oldName, string newName)

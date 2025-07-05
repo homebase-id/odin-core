@@ -8,10 +8,11 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableDriveMainIndexMigration0 : Migration
+    public class TableDriveMainIndexMigration0 : MigrationBase
     {
         public override int MigrationVersion => 0;
-        public override Migration DownMigration => null;
+        public override int PreviousMigrationVersion => -1;
+
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
         public TableDriveMainIndexMigration0(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
