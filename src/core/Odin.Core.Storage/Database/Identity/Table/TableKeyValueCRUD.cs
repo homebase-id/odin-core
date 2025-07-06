@@ -88,6 +88,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _data = value;
                }
         }
+        public void Validate()
+        {
+            if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
+            if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
+            if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
+            if (data?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {data.Length} (min 0)");
+            if (data?.Length > 1048576) throw new OdinDatabaseValidationException($"Too long data, was {data.Length} (max 1048576)");
+        }
     } // End of record KeyValueRecord
 
     public abstract class TableKeyValueCRUD
@@ -102,7 +110,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -126,7 +134,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,key)"
                    +$"){wori};"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(KeyValueRecord item)

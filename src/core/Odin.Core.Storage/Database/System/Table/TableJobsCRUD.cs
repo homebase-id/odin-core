@@ -297,6 +297,24 @@ namespace Odin.Core.Storage.Database.System.Table
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (name == null) throw new OdinDatabaseValidationException("Cannot be null name");
+            if (name?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {name.Length} (min 0)");
+            if (name?.Length > 64) throw new OdinDatabaseValidationException($"Too long name, was {name.Length} (max 64)");
+            if (correlationId == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
+            if (correlationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {correlationId.Length} (min 0)");
+            if (correlationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {correlationId.Length} (max 64)");
+            if (jobType == null) throw new OdinDatabaseValidationException("Cannot be null jobType");
+            if (jobType?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobType, was {jobType.Length} (min 0)");
+            if (jobType?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobType, was {jobType.Length} (max 65535)");
+            if (jobData?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobData, was {jobData.Length} (min 0)");
+            if (jobData?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobData, was {jobData.Length} (max 65535)");
+            if (jobHash?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobHash, was {jobHash.Length} (min 0)");
+            if (jobHash?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobHash, was {jobHash.Length} (max 65535)");
+            if (lastError?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {lastError.Length} (min 0)");
+            if (lastError?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {lastError.Length} (max 65535)");
+        }
     } // End of record JobsRecord
 
     public abstract class TableJobsCRUD
@@ -309,7 +327,7 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -351,7 +369,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"CREATE INDEX IF NOT EXISTS Idx1Jobs ON Jobs(expiresAt);"
                    +"CREATE INDEX IF NOT EXISTS Idx2Jobs ON Jobs(nextRun,priority);"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         public virtual async Task<int> InsertAsync(JobsRecord item)
