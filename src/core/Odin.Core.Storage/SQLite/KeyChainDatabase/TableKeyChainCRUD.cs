@@ -206,26 +206,32 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         }
     } // End of record KeyChainRecord
 
-    public class TableKeyChainCRUD
+    public abstract class TableKeyChainCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableKeyChainCRUD(CacheHelper cache)
+        protected TableKeyChainCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task<int> EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
-            await using var cmd = conn.db.CreateCommand();
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
                 cmd.CommandText = "DROP TABLE IF EXISTS KeyChain;";
-                await conn.ExecuteNonQueryAsync(cmd);
+                await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS KeyChain("
@@ -240,12 +246,13 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                    +", UNIQUE(identity,publicKeyJwkBase64Url)"
                    +$"){wori};"
                    ;
-            return await conn.ExecuteNonQueryAsync(cmd);
+            return await cmd.ExecuteNonQueryAsync();
         }
 
-        public virtual async Task<int> InsertAsync(DatabaseConnection conn, KeyChainRecord item)
+        public virtual async Task<int> InsertAsync(KeyChainRecord item)
         {
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                            $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
@@ -285,7 +292,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 insertParam5.Value = item.algorithm;
                 insertParam6.Value = item.publicKeyJwkBase64Url;
                 insertParam7.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -296,9 +303,10 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
         }
 
-        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, KeyChainRecord item)
+        public virtual async Task<bool> TryInsertAsync(KeyChainRecord item)
         {
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash) " +
@@ -339,7 +347,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 insertParam5.Value = item.algorithm;
                 insertParam6.Value = item.publicKeyJwkBase64Url;
                 insertParam7.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -350,9 +358,10 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
         }
 
-        public virtual async Task<int> UpsertAsync(DatabaseConnection conn, KeyChainRecord item)
+        public virtual async Task<int> UpsertAsync(KeyChainRecord item)
         {
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO KeyChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@recordHash)"+
@@ -394,7 +403,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 upsertParam5.Value = item.algorithm;
                 upsertParam6.Value = item.publicKeyJwkBase64Url;
                 upsertParam7.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -405,9 +414,10 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
         }
 
-        public virtual async Task<int> UpdateAsync(DatabaseConnection conn, KeyChainRecord item)
+        public virtual async Task<int> UpdateAsync(KeyChainRecord item)
         {
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE KeyChain " +
                                             $"SET previousHash = @previousHash,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,recordHash = @recordHash "+
@@ -448,7 +458,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 updateParam5.Value = item.algorithm;
                 updateParam6.Value = item.publicKeyJwkBase64Url;
                 updateParam7.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(updateCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -459,13 +469,14 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             }
         }
 
-        public virtual async Task<int> GetCountAsync(DatabaseConnection conn)
+        public virtual async Task<int> GetCountAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "SELECT COUNT(*) FROM KeyChain;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -513,7 +524,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(DatabaseConnection conn, string identity,string publicKeyJwkBase64Url)
+        public virtual async Task<int> DeleteAsync(string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
@@ -521,7 +532,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (publicKeyJwkBase64Url == null) throw new OdinDatabaseValidationException("Cannot be null publicKeyJwkBase64Url");
             if (publicKeyJwkBase64Url?.Length < 16) throw new OdinDatabaseValidationException($"Too short publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (min 16)");
             if (publicKeyJwkBase64Url?.Length > 600) throw new OdinDatabaseValidationException($"Too long publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (max 600)");
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM KeyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url";
@@ -536,7 +548,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 
                 delete0Param1.Value = identity;
                 delete0Param2.Value = publicKeyJwkBase64Url;
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
                 return count;
@@ -574,7 +586,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             return item;
        }
 
-        public virtual async Task<KeyChainRecord> GetAsync(DatabaseConnection conn,string identity,string publicKeyJwkBase64Url)
+        public virtual async Task<KeyChainRecord> GetAsync(string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
@@ -585,7 +597,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
             if (hit)
                 return (KeyChainRecord)cacheObject;
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,previousHash,timestamp,signedPreviousHash,algorithm,recordHash FROM KeyChain " +
                                              "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url LIMIT 1;"+
@@ -602,7 +615,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                 get0Param1.Value = identity;
                 get0Param2.Value = publicKeyJwkBase64Url;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

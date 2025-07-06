@@ -1,4 +1,10 @@
-﻿using System;
+﻿using Autofac;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
+using System;
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -16,8 +22,51 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Odin.Core.Storage.SQLite.NotaryDatabase
 {
-    public class NotaryDatabase : DatabaseBase
+    public class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IIdentityDbConnectionFactory>(lifetimeScope)
     {
+        //
+        // Put all database tables alphabetically here.
+        // Don't forget to add the table to the lazy properties as well.
+        //
+        public static readonly ImmutableList<Type> TableTypes =
+        [
+            typeof(TableNotaryChain)
+        ];
+
+        private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
+
+        //
+        // Table convenience properties
+        //
+
+        // AppGrants
+        private Lazy<TableNotaryChain> _notaryChain;
+        public TableNotaryChain NotaryChain => LazyResolve(ref _notaryChain);
+
+
+        //
+        // Connection
+        //
+        public override async Task<IConnectionWrapper> CreateScopedConnectionAsync()
+        {
+            var factory = _lifetimeScope.Resolve<ScopedIdentityConnectionFactory>();
+            var cn = await factory.CreateScopedConnectionAsync();
+            return cn;
+        }
+
+        //
+        // Transaction
+        //
+        public override async Task<IScopedTransaction> BeginStackedTransactionAsync()
+        {
+            var factory = _lifetimeScope.Resolve<ScopedIdentityTransactionFactory>();
+            var tx = await factory.BeginStackedTransactionAsync();
+            return tx;
+        }
+
+        // === SEB STUFF ABOVE TO THE BEST OF MY ABILITY
+        // OLD STUFF BELOW...
+
         public readonly TableNotaryChain tblNotaryChain = null;
 
         private readonly CacheHelper _cache = new CacheHelper("notarychain");
@@ -25,7 +74,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         private readonly int _line;
         public NotaryDatabase(string connectionString, long commitFrequencyMs = 50, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString)
         {
-            tblNotaryChain = new TableNotaryChain(this, _cache);
+            tblNotaryChain = new TableNotaryChain(_cache, ...seb);
 
             _file = file;
             _line = line;
@@ -37,7 +86,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
             using var conn = CreateDisposableConnection();
-            await tblNotaryChain.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblNotaryChain.EnsureTableExistsAsync(dropExistingTables);
             if (dropExistingTables)
             {
                 await conn.VacuumAsync();

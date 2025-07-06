@@ -1,9 +1,11 @@
-﻿namespace Odin.Core.Storage.SQLite.AttestationDatabase
+﻿using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity.Connection;
+
+namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {
-    public class TableAttestationStatus : TableAttestationStatusCRUD
+    public class TableAttestationStatus(
+    CacheHelper cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : TableAttestationStatusCRUD(cache, scopedConnectionFactory)
     {
-        public TableAttestationStatus(CacheHelper cache) : base(cache)
-        {
-        }
     }
 }

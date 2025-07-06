@@ -1,4 +1,10 @@
-﻿using System;
+﻿using Autofac;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.SQLite.NotaryDatabase;
+using System;
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -16,8 +22,51 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
-    public class KeyChainDatabase : DatabaseBase
+    public class KeyChainDatabase(ILifetimeScope lifetimeScope) :           AbstractDatabase<IIdentityDbConnectionFactory>(lifetimeScope)
     {
+        //
+        // Put all database tables alphabetically here.
+        // Don't forget to add the table to the lazy properties as well.
+        //
+        public static readonly ImmutableList<Type> TableTypes =
+        [
+            typeof(TableKeyChain)
+        ];
+
+        private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
+
+        //
+        // Table convenience properties
+        //
+
+        // KeyChain
+        private Lazy<TableKeyChain> _keyChain;
+        public TableKeyChain KeyChain => LazyResolve(ref _keyChain);
+
+
+        //
+        // Connection
+        //
+        public override async Task<IConnectionWrapper> CreateScopedConnectionAsync()
+        {
+            var factory = _lifetimeScope.Resolve<ScopedIdentityConnectionFactory>();
+            var cn = await factory.CreateScopedConnectionAsync();
+            return cn;
+        }
+
+        //
+        // Transaction
+        //
+        public override async Task<IScopedTransaction> BeginStackedTransactionAsync()
+        {
+            var factory = _lifetimeScope.Resolve<ScopedIdentityTransactionFactory>();
+            var tx = await factory.BeginStackedTransactionAsync();
+            return tx;
+        }
+
+        // === SEB STUFF ABOVE TO THE BEST OF MY ABILITY
+        // OLD STUFF BELOW...
+
         public readonly TableKeyChain tblKeyChain = null;
 
         private readonly CacheHelper _cache = new CacheHelper("blockchain");
@@ -25,7 +74,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         private readonly int _line;
         public KeyChainDatabase(string dataSource, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(dataSource)
         {
-            tblKeyChain = new TableKeyChain(this, _cache);
+            tblKeyChain = new TableKeyChain(_cache, ...seb);
 
             _file = file;
             _line = line;
@@ -37,7 +86,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public override async Task CreateDatabaseAsync(bool dropExistingTables = true)
         {
             using var conn = CreateDisposableConnection();
-            await tblKeyChain.EnsureTableExistsAsync(conn, dropExistingTables);
+            await tblKeyChain.EnsureTableExistsAsync(dropExistingTables);
             if (dropExistingTables)
             {
                 await conn.VacuumAsync();

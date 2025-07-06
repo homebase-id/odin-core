@@ -233,26 +233,32 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
         }
     } // End of record NotaryChainRecord
 
-    public class TableNotaryChainCRUD
+    public abstract class TableNotaryChainCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        public TableNotaryChainCRUD(CacheHelper cache)
+        protected TableNotaryChainCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task<int> EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
-            await using var cmd = conn.db.CreateCommand();
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
                 cmd.CommandText = "DROP TABLE IF EXISTS NotaryChain;";
-                await conn.ExecuteNonQueryAsync(cmd);
+                await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS NotaryChain("
@@ -267,12 +273,13 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                    +"recordHash BYTEA NOT NULL UNIQUE "
                    +$"){wori};"
                    ;
-            return await conn.ExecuteNonQueryAsync(cmd);
+            return await cmd.ExecuteNonQueryAsync();
         }
 
-        public virtual async Task<int> InsertAsync(DatabaseConnection conn, NotaryChainRecord item)
+        public virtual async Task<int> InsertAsync(NotaryChainRecord item)
         {
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                            $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)"+
@@ -317,7 +324,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 insertParam6.Value = item.publicKeyJwkBase64Url;
                 insertParam7.Value = item.notarySignature;
                 insertParam8.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -328,9 +335,10 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, NotaryChainRecord item)
+        public virtual async Task<bool> TryInsertAsync(NotaryChainRecord item)
         {
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
                 insertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash) " +
@@ -376,7 +384,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 insertParam6.Value = item.publicKeyJwkBase64Url;
                 insertParam7.Value = item.notarySignature;
                 insertParam8.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -387,9 +395,10 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<int> UpsertAsync(DatabaseConnection conn, NotaryChainRecord item)
+        public virtual async Task<int> UpsertAsync(NotaryChainRecord item)
         {
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
                 upsertCommand.CommandText = "INSERT INTO NotaryChain (previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
                                             $"VALUES (@previousHash,@identity,@timestamp,@signedPreviousHash,@algorithm,@publicKeyJwkBase64Url,@notarySignature,@recordHash)"+
@@ -436,7 +445,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 upsertParam6.Value = item.publicKeyJwkBase64Url;
                 upsertParam7.Value = item.notarySignature;
                 upsertParam8.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -447,9 +456,10 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<int> UpdateAsync(DatabaseConnection conn, NotaryChainRecord item)
+        public virtual async Task<int> UpdateAsync(NotaryChainRecord item)
         {
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
                 updateCommand.CommandText = "UPDATE NotaryChain " +
                                             $"SET previousHash = @previousHash,identity = @identity,timestamp = @timestamp,signedPreviousHash = @signedPreviousHash,algorithm = @algorithm,publicKeyJwkBase64Url = @publicKeyJwkBase64Url,recordHash = @recordHash "+
@@ -495,7 +505,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 updateParam6.Value = item.publicKeyJwkBase64Url;
                 updateParam7.Value = item.notarySignature;
                 updateParam8.Value = item.recordHash;
-                await using var rdr = await conn.ExecuteReaderAsync(updateCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
@@ -506,13 +516,14 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             }
         }
 
-        public virtual async Task<int> GetCountAsync(DatabaseConnection conn)
+        public virtual async Task<int> GetCountAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "SELECT COUNT(*) FROM NotaryChain;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -564,12 +575,13 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(DatabaseConnection conn, byte[] notarySignature)
+        public virtual async Task<int> DeleteAsync(byte[] notarySignature)
         {
             if (notarySignature == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
             if (notarySignature?.Length < 16) throw new OdinDatabaseValidationException($"Too short notarySignature, was {notarySignature.Length} (min 16)");
             if (notarySignature?.Length > 200) throw new OdinDatabaseValidationException($"Too long notarySignature, was {notarySignature.Length} (max 200)");
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM NotaryChain " +
                                              "WHERE notarySignature = @notarySignature";
@@ -579,7 +591,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
                 delete0Command.Parameters.Add(delete0Param1);
 
                 delete0Param1.Value = notarySignature;
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableNotaryChainCRUD", notarySignature.ToBase64());
                 return count;
@@ -615,7 +627,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             return item;
        }
 
-        public virtual async Task<NotaryChainRecord> GetAsync(DatabaseConnection conn,byte[] notarySignature)
+        public virtual async Task<NotaryChainRecord> GetAsync(byte[] notarySignature)
         {
             if (notarySignature == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
             if (notarySignature?.Length < 16) throw new OdinDatabaseValidationException($"Too short notarySignature, was {notarySignature.Length} (min 16)");
@@ -623,7 +635,8 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
             var (hit, cacheObject) = _cache.Get("TableNotaryChainCRUD", notarySignature.ToBase64());
             if (hit)
                 return (NotaryChainRecord)cacheObject;
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM NotaryChain " +
                                              "WHERE notarySignature = @notarySignature LIMIT 1;"+
@@ -635,7 +648,7 @@ namespace Odin.Core.Storage.SQLite.NotaryDatabase
 
                 get0Param1.Value = notarySignature;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

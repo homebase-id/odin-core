@@ -1,16 +1,15 @@
-﻿using System;
+﻿using Microsoft.Data.Sqlite;
+using Odin.Core.Storage.Database.Identity.Connection;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
 
 namespace Odin.Core.Storage.SQLite.NotaryDatabase
 {
-    public class TableNotaryChain : TableNotaryChainCRUD
+    public class TableNotaryChain(
+    CacheHelper cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : TableNotaryChainCRUD(cache, scopedConnectionFactory)
     {
-
-        public TableNotaryChain(NotaryDatabase db, CacheHelper cache) : base(cache)
-        {
-        }
 
         /// <summary>
         /// Get the last link in the chain, will return NULL if this is the first link

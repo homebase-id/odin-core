@@ -1,16 +1,15 @@
-﻿using System;
+﻿using Microsoft.Data.Sqlite;
+using Odin.Core.Storage.Database.Identity.Connection;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
 
 namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
-    public class TableKeyChain : TableKeyChainCRUD
+    public class TableKeyChain(
+    CacheHelper cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : TableKeyChainCRUD(cache, scopedConnectionFactory)
     {
-        public TableKeyChain(KeyChainDatabase db, CacheHelper cache) : base(cache)
-        {
-        }
-
         /// <summary>
         /// Get the last link in the chain, will return NULL if this is the first link
         /// </summary>
