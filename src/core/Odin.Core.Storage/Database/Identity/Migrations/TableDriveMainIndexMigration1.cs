@@ -20,7 +20,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public class TableDriveMainIndexMigration1 : MigrationBase
     {
         public override int MigrationVersion => 1;
-        public override int PreviousMigrationVersion => 0; // Fill it out with a real value
+        public override int PreviousMigrationVersion => 0;
 
         private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
         public TableDriveMainIndexMigration1(ScopedIdentityConnectionFactory scopedConnectionFactory)
@@ -141,8 +141,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())
                 {
-                    if (await EnsureTableExistsAsync(dropExisting: true) != 0)
-                        throw new MigrationException("Unable to create the new table");
+                    await EnsureTableExistsAsync(dropExisting: true);
                     if (await CopyDataAsync(cn) < 0)
                         throw new MigrationException("Unable to copy the data");
                     if (await VerifyRowCount(cn, "DriveMainIndex", "DriveMainIndexMigration1") == false)
