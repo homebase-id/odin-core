@@ -13,6 +13,8 @@ using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using WaitingListApi.Config;
 
+#nullable enable
+
 namespace WaitingListApi
 {
     public static class Program

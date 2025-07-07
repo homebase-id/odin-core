@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -9,12 +8,14 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.SQLite.KeyChainDatabase;
+using Odin.Core.Storage.Database.KeyChain;
+using Odin.Core.Storage.Database.KeyChain.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.Keychain;
 using Odin.KeyChain;
-using static Odin.Keychain.RegisterKeyController;
+using Odin.KeyChain.Controllers;
+using static Odin.KeyChain.Controllers.RegisterKeyController;
+
 
 namespace Odin.KeyChainTests.Integration.Controllers;
 
@@ -260,10 +261,7 @@ public class RegisterKeyControllerTest
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
-        using (var conn = db.CreateDisposableConnection())
-        {
-            ClassicAssert.IsTrue(await KeyChainDatabaseUtil.VerifyEntireBlockChainAsync(db, conn));
-        }
+        ClassicAssert.IsTrue(await KeyChainDatabaseUtil.VerifyEntireBlockChainAsync(db));
     }
 
 
@@ -423,10 +421,7 @@ public class RegisterKeyControllerTest
             publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
             recordHash = hash
         };
-        using (var myc = db.CreateDisposableConnection())
-        {
-            db.tblKeyChain.InsertAsync(myc, r).Wait();
-        }
+        db.KeyChain.InsertAsync(r).Wait();
     }
 
     //

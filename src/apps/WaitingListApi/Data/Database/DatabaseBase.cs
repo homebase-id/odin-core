@@ -1,13 +1,7 @@
-﻿using Microsoft.Data.Sqlite;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Factory;
-using System;
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
+using Odin.Core.Storage.SQLite;
 
 
 /*
@@ -22,10 +16,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 */
 
-// Enable testing
-[assembly: InternalsVisibleTo("Odin.Core.Storage.Tests")]
-
-namespace Odin.Core.Storage.SQLite
+namespace WaitingListApi.Data.Database
 {
 
     public abstract class DatabaseBase : IDisposable

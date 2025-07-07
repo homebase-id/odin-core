@@ -1,46 +1,68 @@
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Storage.SQLite.NotaryDatabase;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Notary;
+using Odin.Core.Storage.Database.Notary.Table;
 using Odin.Core.Time;
 
-namespace Odin.KeyChainTests
+namespace Odin.NotariusTests;
+
+public class Tests
 {
-    public class Tests
+    private IContainer _container = null!;
+    private NotaryDatabase _db = null!;
+
+    [SetUp]
+    public void Setup()
     {
-        [SetUp]
-        public void Setup()
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddLogging(builder => builder.AddConsole());
+
+        var builder = new ContainerBuilder();
+        builder.Populate(serviceCollection);
+
+        builder.AddDatabaseCacheServices();
+        builder.AddDatabaseCounterServices();
+        builder.AddSqliteNotaryDatabaseServices(":memory:");
+
+        _container = builder.Build();
+        _db = _container.Resolve<NotaryDatabase>();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _container.Dispose();
+    }
+
+    [Test]
+    public async Task Test1()
+    {
+        await _db.CreateDatabaseAsync();
+
+        var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+        var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
+
+        var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
+        var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
+        var r = new NotaryChainRecord()
         {
-        }
+            previousHash = hash,
+            identity = "frodo.baggins.me",
+            signedPreviousHash = key,
+            algorithm = "ublah",
+            publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
+            recordHash = hash,
+            timestamp = UnixTimeUtc.Now(),
+            notarySignature = Guid.Empty.ToByteArray()
+        };
+        await _db.NotaryChain.InsertAsync(r);
 
-        [Test]
-        public async Task Test1()
-        {
-            using var db = new NotaryDatabase("NotariusTest001");
-            using (var myc = db.CreateDisposableConnection())
-            {
-                await db.CreateDatabaseAsync();
-
-                var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-                var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
-
-                var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
-                var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
-                var r = new NotaryChainRecord()
-                {
-                    previousHash = hash,
-                    identity = "frodo.baggins.me",
-                    signedPreviousHash = key,
-                    algorithm = "ublah",
-                    publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
-                    recordHash = hash,
-                    timestamp = UnixTimeUtc.Now(),
-                    notarySignature = Guid.Empty.ToByteArray()
-                };
-                await db.tblNotaryChain.InsertAsync(myc, r);
-
-                Assert.Pass();
-            }
-        }
+        Assert.Pass();
     }
 }

@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Storage.SQLite.NotaryDatabase;
-using Odin.KeyChain;
+using Microsoft.Extensions.Configuration;
 
 namespace Odin.NotariusTests.Integration;
 
@@ -10,23 +8,13 @@ internal class NotaryWebApplicationFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.ConfigureServices(services =>
+        builder.ConfigureAppConfiguration((context, configBuilder) =>
         {
-            // Remove existing KeyChainDatabase service
-            var dbDescriptor = services.SingleOrDefault(x => x.ServiceType == typeof(NotaryDatabase));
-            if (dbDescriptor != null)
+            var testConfig = new Dictionary<string, string?>
             {
-                services.Remove(dbDescriptor);
-            }
-
-            // Create new KeyChainDatabase in memory
-            //var db = new NotaryDatabase("DataSource=:memory:");
-            var db = new NotaryDatabase("DataSource=ondiskfornow.db");
-            using (var conn = db.CreateDisposableConnection())
-            {
-                NotaryDatabaseUtil.InitializeDatabaseAsync(db, conn).Wait();
-            }
-            services.AddSingleton(db);
+                {"ConnectionStrings:DatabasePath", ":memory:"}
+            };
+            configBuilder.AddInMemoryCollection(testConfig);
         });
         builder.UseEnvironment("Development");
     }

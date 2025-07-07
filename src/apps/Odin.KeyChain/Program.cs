@@ -1,10 +1,21 @@
-using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.KeyChain;
 using System.Collections.Concurrent;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.KeyChain;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
+{
+    var databasePath = builder.Configuration.GetConnectionString("DatabasePath") ?? "blockchain.db";
+    containerBuilder.AddSqliteKeyChainDatabaseServices(databasePath);
+    containerBuilder.AddDatabaseCacheServices();
+    containerBuilder.AddDatabaseCounterServices();
+});
 
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
@@ -13,19 +24,13 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-using var db = new KeyChainDatabase(@"blockchain.db");
-
-using (var conn = db.CreateDisposableConnection())
-{
-    KeyChainDatabaseUtil.InitializeDatabaseAsync(db, conn).Wait(); // Only do this once per boot
-}
-
-builder.Services.AddSingleton<KeyChainDatabase>(db);
-
 var pendingRegistrationsCache = new ConcurrentDictionary<string, PendingRegistrationData>();
 builder.Services.AddSingleton<ConcurrentDictionary<string, PendingRegistrationData>>(pendingRegistrationsCache);
 
 var app = builder.Build();
+
+var db = app.Services.GetRequiredService<KeyChainDatabase>();
+KeyChainDatabaseUtil.InitializeDatabaseAsync(db).Wait(); // Only do this once per boot
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
