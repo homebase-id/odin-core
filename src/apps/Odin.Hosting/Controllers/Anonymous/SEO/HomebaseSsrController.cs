@@ -172,6 +172,7 @@ public class HomebaseSsrController(
         {
             contentBuilder.AppendLine($"<p>{status}</p>");
         }
+
         contentBuilder.AppendLine("<br/><hr/><br/>");
 
         contentBuilder.AppendLine("<h2>Bio</h2>");
@@ -179,7 +180,7 @@ public class HomebaseSsrController(
         {
             try
             {
-                if(!string.IsNullOrEmpty(bio))
+                if (!string.IsNullOrEmpty(bio))
                 {
                     var bodyHtml = PlateRichTextParser.Parse(bio);
                     contentBuilder.AppendLine($"<div>");
@@ -187,11 +188,12 @@ public class HomebaseSsrController(
                     contentBuilder.AppendLine($"</div>");
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                logger.LogError(e, "Could not parse bio in about section"); 
+                logger.LogError(e, "Could not parse bio in about section");
             }
         }
+
         contentBuilder.AppendLine("<br/><hr/><br/>");
 
         contentBuilder.AppendLine("<h2>ShortBio</h2>");
@@ -199,18 +201,19 @@ public class HomebaseSsrController(
         {
             try
             {
-                if(!string.IsNullOrEmpty(shortBio))
+                if (!string.IsNullOrEmpty(shortBio))
                 {
                     contentBuilder.AppendLine($"<p>");
                     contentBuilder.Append(shortBio);
                     contentBuilder.AppendLine($"</p>");
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                logger.LogError(e, "Could not parse shortBio in about section"); 
+                logger.LogError(e, "Could not parse shortBio in about section");
             }
         }
+
         contentBuilder.AppendLine("<br/><hr/><br/>");
 
         contentBuilder.AppendLine("<h2>Experience</h2>");
@@ -218,17 +221,16 @@ public class HomebaseSsrController(
         {
             contentBuilder.AppendLine($"<img src='{exp.ImageUrl}'/>");
             contentBuilder.AppendLine($"<h3>{exp.Title}</h3>");
-            if(!string.IsNullOrEmpty(exp.Description))
+            if (!string.IsNullOrEmpty(exp.Description))
             {
                 var bodyHtml = PlateRichTextParser.Parse(exp.Description);
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
                 contentBuilder.AppendLine($"</div>");
-            }   
-            
+            }
+
             contentBuilder.AppendLine($"<a href='{exp.Link}'>{exp.Link}</a>");
             contentBuilder.AppendLine("<br/><hr/><br/>");
-
         }
 
         CreateMenu(contentBuilder);
@@ -403,7 +405,8 @@ public class HomebaseSsrController(
     {
         var person = await profileContentService.LoadPersonSchema();
         var title = $"{person?.Name ?? WebOdinContext.Tenant} | {suffix}";
-        var description = DataOrNull(person?.BioSummary) ?? Truncate(DataOrNull(person?.Bio)) ?? LinkPreviewDefaults.DefaultDescription;
+        var description = DataOrNull(person?.BioSummary) ??
+                          Truncate(DataOrNull(person?.Bio), 160) ?? LinkPreviewDefaults.DefaultDescription;
         var imageUrl = profileContentService.GetPublicImageUrl(WebOdinContext);
 
         var head = LayoutBuilder.BuildHeadContent(title, description, siteType, imageUrl, person, HttpContext, WebOdinContext);
@@ -425,15 +428,21 @@ public class HomebaseSsrController(
         return string.IsNullOrEmpty(data) ? null : data;
     }
 
-    private string Truncate(string data)
+    private string Truncate(string input, int maxLength)
     {
-        if (string.IsNullOrEmpty(data))
+        if (string.IsNullOrEmpty(input) || maxLength <= 0)
         {
-            return null;
+            return input;
         }
 
-        return data.Substring(0, 160);
+        if (input.Length <= maxLength)
+        {
+            return input;
+        }
+
+        return input.Substring(0, maxLength);
     }
+
 
     private async Task WriteContent(string head, string body)
     {
