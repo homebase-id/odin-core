@@ -2,6 +2,8 @@ using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Time;
 
+#nullable enable
+
 namespace WaitingListApi.Data.Database
 {
     public class WaitingListRecord

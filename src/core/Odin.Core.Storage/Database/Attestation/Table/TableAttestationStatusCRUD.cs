@@ -6,16 +6,19 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Attestation.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.KeyChain.Connection;
+using Odin.Core.Storage.Database.Notary.Connection;
+using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.AttestationDatabase
+namespace Odin.Core.Storage.Database.Attestation.Table
 {
     public record AttestationStatusRecord
     {
@@ -91,26 +94,32 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         }
     } // End of record AttestationStatusRecord
 
-    public class TableAttestationStatusCRUD
+    public abstract class TableAttestationStatusCRUD
     {
         private readonly CacheHelper _cache;
+        private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
 
-        public TableAttestationStatusCRUD(CacheHelper cache)
+        protected TableAttestationStatusCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
+            _scopedConnectionFactory = scopedConnectionFactory;
         }
 
 
-        public virtual async Task<int> EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
-            await using var cmd = conn.db.CreateCommand();
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
             if (dropExisting)
             {
                 cmd.CommandText = "DROP TABLE IF EXISTS AttestationStatus;";
-                await conn.ExecuteNonQueryAsync(cmd);
+                await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             cmd.CommandText =
                 "CREATE TABLE IF NOT EXISTS AttestationStatus("
@@ -121,15 +130,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            return await conn.ExecuteNonQueryAsync(cmd);
+            return await cmd.ExecuteNonQueryAsync();
         }
 
-        public virtual async Task<int> InsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<int> InsertAsync(AttestationStatusRecord item)
         {
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                            $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
@@ -143,7 +152,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 insertCommand.Parameters.Add(insertParam2);
                 insertParam1.Value = item.attestationId;
                 insertParam2.Value = item.status;
-                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
@@ -163,12 +172,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public virtual async Task<bool> TryInsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<bool> TryInsertAsync(AttestationStatusRecord item)
         {
-            using (var insertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var insertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = insertCommand.SqlNow();
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                             $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
@@ -183,7 +192,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 insertCommand.Parameters.Add(insertParam2);
                 insertParam1.Value = item.attestationId;
                 insertParam2.Value = item.status;
-                await using var rdr = await conn.ExecuteReaderAsync(insertCommand, CommandBehavior.SingleRow);
+                await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
@@ -203,16 +212,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public virtual async Task<int> UpsertAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<int> UpsertAsync(AttestationStatusRecord item)
         {
-            using (var upsertCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var upsertCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = upsertCommand.SqlNow();
                 upsertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                             $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (attestationId) DO UPDATE "+
-                                            $"SET status = @status,modified = MAX(AttestationStatus.modified+1,{sqlNowStr}) "+
+                                            $"SET status = @status,modified = {upsertCommand.SqlMax()}(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.Binary;
@@ -224,7 +233,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 upsertCommand.Parameters.Add(upsertParam2);
                 upsertParam1.Value = item.attestationId;
                 upsertParam2.Value = item.status;
-                await using var rdr = await conn.ExecuteReaderAsync(upsertCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
@@ -244,14 +253,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public virtual async Task<int> UpdateAsync(DatabaseConnection conn, AttestationStatusRecord item)
+        public virtual async Task<int> UpdateAsync(AttestationStatusRecord item)
         {
-            using (var updateCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var updateCommand = cn.CreateCommand();
             {
-                string sqlNowStr;
-                sqlNowStr = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)"; // Needs _scopedConnectionFactory to support Postgres
+                string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE AttestationStatus " +
-                                            $"SET status = @status,modified = MAX(AttestationStatus.modified+1,{sqlNowStr}) "+
+                                            $"SET status = @status,modified = {updateCommand.SqlMax()}(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -264,7 +273,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 updateCommand.Parameters.Add(updateParam2);
                 updateParam1.Value = item.attestationId;
                 updateParam2.Value = item.status;
-                await using var rdr = await conn.ExecuteReaderAsync(updateCommand, System.Data.CommandBehavior.SingleRow);
+                await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
                     long created = (long) rdr[0];
@@ -284,13 +293,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             }
         }
 
-        public virtual async Task<int> GetCountAsync(DatabaseConnection conn)
+        public virtual async Task<int> GetCountAsync()
         {
-            using (var getCountCommand = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getCountCommand = cn.CreateCommand();
             {
                  // TODO: this is SQLite specific
                 getCountCommand.CommandText = "SELECT COUNT(*) FROM AttestationStatus;";
-                var count = await conn.ExecuteScalarAsync(getCountCommand);
+                var count = await getCountCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
                 else
@@ -328,12 +338,13 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(DatabaseConnection conn, byte[] attestationId)
+        public virtual async Task<int> DeleteAsync(byte[] attestationId)
         {
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
             if (attestationId?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 16)");
             if (attestationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 64)");
-            using (var delete0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM AttestationStatus " +
                                              "WHERE attestationId = @attestationId";
@@ -343,7 +354,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 delete0Command.Parameters.Add(delete0Param1);
 
                 delete0Param1.Value = attestationId;
-                var count = await conn.ExecuteNonQueryAsync(delete0Command);
+                var count = await delete0Command.ExecuteNonQueryAsync();
                 if (count > 0)
                     _cache.Remove("TableAttestationStatusCRUD", attestationId.ToBase64());
                 return count;
@@ -369,7 +380,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public virtual async Task<AttestationStatusRecord> GetAsync(DatabaseConnection conn,byte[] attestationId)
+        public virtual async Task<AttestationStatusRecord> GetAsync(byte[] attestationId)
         {
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
             if (attestationId?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 16)");
@@ -377,7 +388,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             var (hit, cacheObject) = _cache.Get("TableAttestationStatusCRUD", attestationId.ToBase64());
             if (hit)
                 return (AttestationStatusRecord)cacheObject;
-            using (var get0Command = conn.db.CreateCommand())
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,status,created,modified FROM AttestationStatus " +
                                              "WHERE attestationId = @attestationId LIMIT 1;"+
@@ -389,7 +401,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
 
                 get0Param1.Value = attestationId;
                 {
-                    using (var rdr = await conn.ExecuteReaderAsync(get0Command, System.Data.CommandBehavior.SingleRow))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
                         {

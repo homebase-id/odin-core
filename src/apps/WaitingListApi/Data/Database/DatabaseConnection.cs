@@ -1,15 +1,10 @@
-﻿using Microsoft.Data.Sqlite;
-using System;
-using System.Data;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
+﻿using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
+using Microsoft.Data.Sqlite;
 using Nito.AsyncEx;
 
-[assembly:InternalsVisibleTo("Odin.Core.Storage.Tests")]
-
-namespace Odin.Core.Storage.SQLite
+namespace WaitingListApi.Data.Database
 {
     public class DatabaseConnection : IDisposable
     {

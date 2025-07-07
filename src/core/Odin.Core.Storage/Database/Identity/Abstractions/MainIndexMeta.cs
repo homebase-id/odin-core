@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -9,6 +10,8 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
+
+[assembly: InternalsVisibleTo("Odin.Core.Storage.Tests")]
 
 namespace Odin.Core.Storage.Database.Identity.Abstractions
 {

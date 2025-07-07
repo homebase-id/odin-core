@@ -6,7 +6,8 @@ using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using System.Text.Json;
-using static Odin.Notarius.NotarizeController;
+using Odin.Notarius.Controllers;
+using static Odin.Notarius.Controllers.NotarizeController;
 
 namespace Odin.Notarius
 {
