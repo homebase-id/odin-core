@@ -3,8 +3,8 @@ using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Notary.Connection;
+using Odin.Core.Storage.Database.Notary.Table;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.SQLite.NotaryDatabase;
 
 namespace Odin.Core.Storage.Database.Notary;
 

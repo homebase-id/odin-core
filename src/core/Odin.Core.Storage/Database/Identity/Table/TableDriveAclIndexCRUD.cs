@@ -6,12 +6,15 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Attestation.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.KeyChain.Connection;
+using Odin.Core.Storage.Database.Notary.Connection;
+using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 

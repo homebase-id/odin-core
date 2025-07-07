@@ -13,6 +13,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 */
 
+#nullable enable
 
 namespace WaitingListApi.Data.Database
 {
@@ -34,11 +35,6 @@ namespace WaitingListApi.Data.Database
             await WaitingListTable!.EnsureTableExistsAsync(dropExistingTables);
         }
         
-        // SEB:NOTE this is a temporary hack while we refactor the database code
-        public DatabaseConnection CreateDisposableConnection() 
-        {
-            return new DatabaseConnection(this, _connectionString);
-        }
-        
+
     }
 }

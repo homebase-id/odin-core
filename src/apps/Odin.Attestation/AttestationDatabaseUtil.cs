@@ -1,5 +1,4 @@
-﻿using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.AttestationDatabase;
+﻿using Odin.Core.Storage.Database.Attestation;
 
 namespace Odin.Attestation
 {
@@ -9,10 +8,10 @@ namespace Odin.Attestation
         /// Called once from the controller to make sure database is setup
         /// Need to set drop to false in production
         /// </summary>
-        /// <param name="_db"></param>
-        public static async Task InitializeDatabaseAsync(AttestationDatabase _db, DatabaseConnection conn)
+        /// <param name="db"></param>
+        public static async Task InitializeDatabaseAsync(AttestationDatabase db)
         {
-            await _db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
+            await db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
         }
     }
 }

@@ -1,12 +1,12 @@
-﻿using Odin.Core.Storage.SQLite.NotaryDatabase;
-using Odin.Core.Time;
+﻿using System.Text;
 using Odin.Core;
-using System.Text;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Storage.Database.Notary;
+using Odin.Core.Storage.Database.Notary.Table;
+using Odin.Core.Time;
 
-namespace Odin.KeyChain
+namespace Odin.Notarius
 {
     public static class NotaryDatabaseUtil
     {
@@ -14,12 +14,12 @@ namespace Odin.KeyChain
         /// Called once from the controller to make sure database is setup
         /// Need to set drop to false in production
         /// </summary>
-        /// <param name="_db"></param>
-        public static async Task InitializeDatabaseAsync(NotaryDatabase _db, DatabaseConnection conn)
+        /// <param name="db"></param>
+        public static async Task InitializeDatabaseAsync(NotaryDatabase db)
         {
-            await _db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
+            await db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
 
-            var r = await _db.tblNotaryChain.GetLastLinkAsync(conn);
+            var r = await db.NotaryChain.GetLastLinkAsync();
 
             // If the database is empty then we need to create the genesis record
             if (r == null)
@@ -40,7 +40,7 @@ namespace Odin.KeyChain
                 genesis.notarySignature = "asdjkhasdjkhasdkhj".ToUtf8ByteArray(); //TODO FIX
                 genesis.recordHash = CalculateRecordHash(genesis);
                 VerifyBlockChainRecord(genesis, null, false);
-                await _db.tblNotaryChain.InsertAsync(conn, genesis);
+                await db.NotaryChain.InsertAsync(genesis);
             }
         }
 
@@ -115,30 +115,25 @@ namespace Odin.KeyChain
 
 
         // Verifies the entire chain
-        public static async Task<bool> VerifyEntireBlockChainAsync(NotaryDatabase _db)
+        public static async Task<bool> VerifyEntireBlockChainAsync(NotaryDatabase db)
         {
-            using (var conn = _db.CreateDisposableConnection())
+            await using var cn = await db.CreateScopedConnectionAsync();
+            await using var cmd = cn.CreateCommand();
+
+            cmd.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
+
+            await using var rdr = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SingleRow);
+            NotaryChainRecord? previousRecord = null;
+
+            while (await rdr.ReadAsync())
             {
-                using (var _sqlcmd = _db.CreateCommand())
-                {
-                    _sqlcmd.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash FROM notaryChain ORDER BY rowid ASC;";
-
-                    using (var rdr = await conn.ExecuteReaderAsync(_sqlcmd, System.Data.CommandBehavior.SingleRow))
-                    {
-                        NotaryChainRecord? previousRecord = null;
-
-                        while (rdr.Read())
-                        {
-                            var record = _db.tblNotaryChain.ReadRecordFromReaderAll(rdr);
-                            if (VerifyBlockChainRecord(record, previousRecord, true) == false)
-                                return false;
-                            previousRecord = record;
-                        }
-                    } // using
-
-                    return true;
-                }
+                var record = db.NotaryChain.ReadRecordFromReaderAll(rdr);
+                if (VerifyBlockChainRecord(record, previousRecord, true) == false)
+                    return false;
+                previousRecord = record;
             }
-        }
+
+            return true;
+       }
     }
 }

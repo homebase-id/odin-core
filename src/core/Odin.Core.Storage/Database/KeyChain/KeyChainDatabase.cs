@@ -3,8 +3,8 @@ using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.KeyChain.Connection;
+using Odin.Core.Storage.Database.KeyChain.Table;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.SQLite.KeyChainDatabase;
 
 namespace Odin.Core.Storage.Database.KeyChain;
 

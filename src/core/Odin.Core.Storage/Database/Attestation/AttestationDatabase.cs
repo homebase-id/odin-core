@@ -3,8 +3,8 @@ using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Attestation.Connection;
+using Odin.Core.Storage.Database.Attestation.Table;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.SQLite.AttestationDatabase;
 
 namespace Odin.Core.Storage.Database.Attestation;
 

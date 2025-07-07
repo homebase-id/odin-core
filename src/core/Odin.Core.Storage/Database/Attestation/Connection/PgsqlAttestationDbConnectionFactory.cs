@@ -1,4 +1,3 @@
-using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory.Pgsql;
 
 namespace Odin.Core.Storage.Database.Attestation.Connection;
@@ -6,6 +5,6 @@ namespace Odin.Core.Storage.Database.Attestation.Connection;
 #nullable enable
 
 public class PgsqlAttestationDbConnectionFactory(string connectionString)
-    : AbstractPgsqlDbConnectionFactory(connectionString), ISystemDbConnectionFactory
+    : AbstractPgsqlDbConnectionFactory(connectionString), IAttestationDbConnectionFactory
 {
 }

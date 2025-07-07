@@ -3,8 +3,8 @@ using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Util;
-using Odin.Keychain;
-using static Odin.Keychain.RegisterKeyController;
+using Odin.KeyChain.Controllers;
+using static Odin.KeyChain.Controllers.RegisterKeyController;
 
 namespace Odin.KeyChain
 {

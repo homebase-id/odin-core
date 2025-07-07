@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -8,9 +7,10 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.SQLite.NotaryDatabase;
+using Odin.Core.Storage.Database.Notary;
+using Odin.Core.Storage.Database.Notary.Table;
 using Odin.Notarius;
-using static Odin.Notarius.NotarizeController;
+using static Odin.Notarius.Controllers.NotarizeController;
 
 namespace Odin.NotariusTests.Integration.Controllers;
 
@@ -177,7 +177,7 @@ public class NotaryControllerTest
 
     private void SeedDatabase(string identity)
     {
-        using var db = _factory.Services.GetRequiredService<NotaryDatabase>();
+        var db = _factory.Services.GetRequiredService<NotaryDatabase>();
 
         var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
         var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
@@ -193,10 +193,8 @@ public class NotaryControllerTest
             publicKeyJwkBase64Url = ecc.PublicKeyJwkBase64Url(),
             recordHash = hash
         };
-        using (var myc = db.CreateDisposableConnection())
-        {
-            db.tblNotaryChain.InsertAsync(myc, r).Wait();
-        }
+
+        db.NotaryChain.InsertAsync(r).Wait();
     }
 }
 

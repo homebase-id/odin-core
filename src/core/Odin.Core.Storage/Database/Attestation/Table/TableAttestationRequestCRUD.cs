@@ -6,16 +6,19 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Database.Attestation.Connection;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.KeyChain.Connection;
+using Odin.Core.Storage.Database.Notary.Connection;
+using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.SQLite.AttestationDatabase
+namespace Odin.Core.Storage.Database.Attestation.Table
 {
     public record AttestationRequestRecord
     {
@@ -101,9 +104,9 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
     public abstract class TableAttestationRequestCRUD
     {
         private readonly CacheHelper _cache;
-        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
 
-        protected TableAttestationRequestCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableAttestationRequestCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
