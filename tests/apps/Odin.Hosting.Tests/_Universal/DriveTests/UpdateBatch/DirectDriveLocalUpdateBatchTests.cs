@@ -9,6 +9,7 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -501,6 +502,188 @@ public class DirectDriveLocalUpdateBatchTests
             ClassicAssert.IsTrue(getThumbnailToBeDeletedResponse.StatusCode == HttpStatusCode.NotFound);
 
             //
+            // Ensure we find the file on the recipient
+            // 
+            var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
+            {
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = targetFile.TargetDrive,
+                    DataType = [updatedFileMetadata.AppData.DataType]
+                },
+                ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+            });
+
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
+            var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+        }
+    }
+    
+    
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    public async Task CanUpdateBatchByIdentifyingFileWithUniqueIdWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        //
+        // Setup - upload a new file with payloads 
+        // 
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AppData.UniqueId = Guid.NewGuid();
+        var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+
+        var uploadResult = uploadNewFileResponse.Content;
+        var targetFile = uploadResult.File;
+
+        //
+        // Act - call update batch with UpdateLocale = Local
+        //
+
+        // change around some data
+        var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.AppData.Content = "some new content here...";
+        updatedFileMetadata.AppData.DataType = 991;
+        updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
+
+        var updateInstructionSet = new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Local,
+
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = new FileIdentifier()
+            {
+                UniqueId = uploadedFileMetadata.AppData.UniqueId,
+                TargetDrive = targetDrive
+            },
+            Recipients = default,
+            Manifest = new UploadManifest
+            {
+                PayloadDescriptors = []
+            }
+        };
+
+        await callerContext.Initialize(ownerApiClient);
+
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
+
+        // Let's test more
+        if (expectedStatusCode == HttpStatusCode.OK)
+        {
+            //
+            // Get the updated file and test it
+            //
+            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            var header = getHeaderResponse.Content;
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
+
+            // Ensure we find the file on the recipient
+            // 
+            var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
+            {
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = targetFile.TargetDrive,
+                    DataType = [updatedFileMetadata.AppData.DataType]
+                },
+                ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+            });
+
+            ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
+            var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
+            ClassicAssert.IsNotNull(theFileSearchResult);
+            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+        }
+    }
+    
+    
+    [Test]
+    [TestCaseSource(nameof(OwnerAllowed))]
+    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(GuestAllowed))]
+    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    public async Task CanUpdateBatchByIdentifyingFileWithGlobalTransitIdWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        //
+        // Setup - upload a new file with payloads 
+        // 
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AppData.UniqueId = Guid.NewGuid();
+        var uploadNewFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
+        ClassicAssert.IsTrue(uploadNewFileResponse.IsSuccessStatusCode);
+
+        var uploadResult = uploadNewFileResponse.Content;
+        var targetFile = uploadResult.File;
+
+        //
+        // Act - call update batch with UpdateLocale = Local
+        //
+
+        // change around some data
+        var updatedFileMetadata = uploadedFileMetadata;
+        updatedFileMetadata.AppData.Content = "some new content here...";
+        updatedFileMetadata.AppData.DataType = 991;
+        updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
+
+        var updateInstructionSet = new FileUpdateInstructionSet
+        {
+            Locale = UpdateLocale.Local,
+
+            TransferIv = ByteArrayUtil.GetRndByteArray(16),
+            File = new FileIdentifier()
+            {
+                GlobalTransitId = uploadResult.GlobalTransitId,
+                TargetDrive = targetDrive
+            },
+            Recipients = default,
+            Manifest = new UploadManifest
+            {
+                PayloadDescriptors = []
+            }
+        };
+
+        await callerContext.Initialize(ownerApiClient);
+
+        var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
+        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
+        ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
+
+        // Let's test more
+        if (expectedStatusCode == HttpStatusCode.OK)
+        {
+            //
+            // Get the updated file and test it
+            //
+            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
+            ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+            var header = getHeaderResponse.Content;
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == updatedFileMetadata.AppData.Content);
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.DataType == updatedFileMetadata.AppData.DataType);
+            ClassicAssert.IsFalse(header.FileMetadata.Payloads.Any());
+
             // Ensure we find the file on the recipient
             // 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest

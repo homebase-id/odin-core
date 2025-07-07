@@ -70,7 +70,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var (updatedCursor, recordList, hasMoreRows) =
                 await _driveQuery.GetModifiedCoreAsync(drive, odinContext, GetFileSystemType(), qp, o);
 
-            var headers = await CreateClientFileHeadersAsync(driveId, recordList, o, odinContext);
+            var (headers, _) = await CreateClientFileHeadersAsync(driveId, recordList, o, odinContext);
 
             //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
             return new QueryModifiedResult()
@@ -102,8 +102,19 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return null;
             }
 
-            var headers = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext);
-            return headers.SingleOrDefault();
+            var (headers, aclFailures) = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext,
+                logAclFailuresAsErrors: false);
+            var theSingleLonelyResult = headers.SingleOrDefault();
+            if (theSingleLonelyResult == null)
+            {
+                // see if it's because of a permissions issue
+                if (aclFailures.Any(f => f.FileMetadata.AppData.UniqueId == clientUniqueId))
+                {
+                    throw new OdinSecurityException($"Cannot access file with uniqueId: {clientUniqueId}");
+                }
+            }
+
+            return theSingleLonelyResult;
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
@@ -262,9 +273,20 @@ namespace Odin.Services.Drives.FileSystem.Base
                 IncludeTransferHistory = includeTransferHistory
             };
 
-            var headers = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext,
-                forceIncludeServerMetadata);
-            return headers.SingleOrDefault();
+            var (headers, aclFailures) = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext,
+                forceIncludeServerMetadata, logAclFailuresAsErrors: false);
+
+            var theSingleLonelyResult = headers.SingleOrDefault();
+            if (theSingleLonelyResult == null)
+            {
+                // see if it's because of a permissions issue
+                if (aclFailures.Any(f => f.FileMetadata.GlobalTransitId == globalTransitId))
+                {
+                    throw new OdinSecurityException($"Cannot access file with globalTransitId: {globalTransitId}");
+                }
+            }
+
+            return theSingleLonelyResult;
         }
 
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
@@ -286,11 +308,19 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeadersAsync(Guid driveId,
-            List<DriveMainIndexRecord> recordList, ResultOptions options, IOdinContext odinContext,
-            bool forceIncludeServerMetadata = false)
+        private async Task<(
+                IEnumerable<SharedSecretEncryptedFileHeader> results,
+                IEnumerable<ServerFileHeader> aclFailures)>
+            CreateClientFileHeadersAsync(
+                Guid driveId,
+                List<DriveMainIndexRecord> recordList,
+                ResultOptions options,
+                IOdinContext odinContext,
+                bool forceIncludeServerMetadata = false,
+                bool logAclFailuresAsErrors = false)
         {
             var results = new List<SharedSecretEncryptedFileHeader>();
+            var aclFailures = new List<ServerFileHeader>();
 
             foreach (var record in recordList)
             {
@@ -303,7 +333,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
                 if (null == serverFileHeader)
                 {
-                    _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk", file.FileId,
+                    _logger.LogError("File {file} on drive {drive} was found in index but was not returned from disk",
+                        file.FileId,
                         file.DriveId);
                     continue;
                 }
@@ -312,8 +343,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var hasPermissionToFile = await _storage.CallerHasPermissionToFile(serverFileHeader, odinContext);
                 if (!hasPermissionToFile)
                 {
-                    _logger.LogError($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
-                                     $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
+                    aclFailures.Add(serverFileHeader);
+                    if (logAclFailuresAsErrors)
+                    {
+                        _logger.LogError($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
+                                         $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
+                    }
                 }
                 else
                 {
@@ -404,7 +439,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
             }
 
-            return results;
+            return (results, aclFailures);
         }
 
         /// <summary>
@@ -425,7 +460,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             _logger.LogInformation("Found {fc} files in db", fileIdList.Count());
 
-            var headers = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
+            var (headers, _) = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
 
             _logger.LogInformation("Loaded header count {fc}", headers.Count());
 

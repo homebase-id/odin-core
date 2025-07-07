@@ -59,17 +59,26 @@ public abstract class FileSystemUpdateWriterBase
 
         if (instructionSet.Locale == UpdateLocale.Local)
         {
-            instructionSet.File.AssertIsValid(expectedType: FileIdentifierType.File);
+            // instructionSet.File.AssertIsValid(expectedType: FileIdentifierType.File);
+            instructionSet.File.AssertIsValid();
 
             //  There must be a local file that will be updated - then sent out to recipients
             //  the outbox is used, and we can write the result to the local file in the transfer history
 
+            // resolve the file by one of the specified Ids
 
+            var fileId = await ResolveLocalFileId(instructionSet.File, odinContext);
+
+            if (null == fileId)
+            {
+                throw new OdinClientException("Cannot resolve file", OdinClientErrorCode.InvalidFile);
+            }
+            
             // File to overwrite
             InternalDriveFileId file = new InternalDriveFileId()
             {
                 DriveId = instructionSet.File.TargetDrive.Alias,
-                FileId = instructionSet.File.FileId.GetValueOrDefault()
+                FileId = fileId.GetValueOrDefault()
             };
 
             this.Package = new FileUpdatePackage(file)
@@ -105,6 +114,28 @@ public abstract class FileSystemUpdateWriterBase
         throw new NotImplementedException("Unhandled locale specified");
     }
 
+    private async Task<Guid?> ResolveLocalFileId(FileIdentifier fileIdentifier, IOdinContext odinContext)
+    {
+        var type = fileIdentifier.GetFileIdentifierType();
+        switch (type)
+        {
+            case FileIdentifierType.File:
+                return fileIdentifier.FileId;
+
+            case FileIdentifierType.GlobalTransitId:
+                var fileByGlobalTransitId = await FileSystem.Query.GetFileByGlobalTransitId(fileIdentifier.TargetDrive.Alias,
+                    fileIdentifier.GlobalTransitId.GetValueOrDefault(), odinContext);
+                return fileByGlobalTransitId?.FileId;
+
+            case FileIdentifierType.UniqueId:
+                var fileByClientUniqueId = await FileSystem.Query.GetFileByClientUniqueId(fileIdentifier.TargetDrive.Alias,
+                    fileIdentifier.UniqueId.GetValueOrDefault(), odinContext);
+                return fileByClientUniqueId?.FileId;
+            default:
+                throw new OdinClientException("Unknown file identifier");
+        }
+    }
+
     public virtual Task AddMetadata(Stream data)
     {
         Package.Metadata = data.ToByteArray();
@@ -131,12 +162,10 @@ public abstract class FileSystemUpdateWriterBase
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile
             .AsTempFileUpload(), extension, data, odinContext);
 
-        if (bytesWritten <= 0)
+        if (bytesWritten != data.Length)
         {
-            _logger.LogError("Zero bytes written while uploading payload with fileId [{file}] with " +
-                             "extension [{extension}]", Package.InternalFile, extension);
-
-            throw new OdinSystemException("Failed while writing temp file during upload");
+            throw new OdinSystemException(
+                $"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {data.Length}");
         }
 
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
@@ -182,12 +211,10 @@ public abstract class FileSystemUpdateWriterBase
 
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
 
-        if (bytesWritten <= 0)
+        if (bytesWritten != data.Length)
         {
-            _logger.LogError("Zero bytes written while uploading thumbnail with fileId [{file}] with " +
-                             "extension [{extension}]", Package.InternalFile, extension);
-
-            throw new OdinSystemException("Failed while writing temp file during upload");
+            throw new OdinSystemException(
+                $"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {data.Length}");
         }
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()
