@@ -51,6 +51,7 @@ using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Admin;
+using Odin.Hosting.Controllers.Anonymous.SEO;
 using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
@@ -362,7 +363,9 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         app.UseRouting();
         app.UseAuthentication();
+#pragma warning disable ASP0001
         app.UseAuthorization();
+#pragma warning restore ASP0001
 
         app.UseIdentityReadyState();
         app.UseVersionUpgrade();
@@ -393,6 +396,17 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             endpoints.MapControllers();
         });
 
+        // Intentionally for dev and production since we don't need to proxy anything
+        app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments($"/{LinkPreviewDefaults.SsrPath}"),
+            ssrApp =>
+            {
+                ssrApp.UseRouting();
+                ssrApp.UseEndpoints(endpoints =>
+                {
+                    endpoints.MapControllers();
+                });
+            });
+        
         if (env.IsDevelopment())
         {
             app.UseSwagger();
@@ -412,18 +426,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
-
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments($"/{LinkPreviewService.SsrPath}"),
-                ssrApp =>
-                {
-                    ssrApp.Run(async context =>
-                    {
-                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                        var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
-                        var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
-                        await svc.WriteServerSideRenderedPost(odinContext);
-                    });
-                });
 
             // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
             app.MapWhen(ctx => true,
@@ -524,20 +526,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         return;
                     });
                 });
-
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments($"/{LinkPreviewService.SsrPath}"),
-                ssrApp =>
-                {
-                    ssrApp.Run(async context =>
-                    {
-                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                        var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
-                        var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
-                        await svc.WriteServerSideRenderedPost(odinContext);
-                    });
-                });
-
-
+            
             app.MapWhen(ctx => true,
                 homeApp =>
                 {

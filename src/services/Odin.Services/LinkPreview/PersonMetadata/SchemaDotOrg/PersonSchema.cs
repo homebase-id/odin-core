@@ -50,4 +50,5 @@ public class PersonSchema
 
     public string Bio { get; set; }
     public string BioSummary { get; set; }
+    public string Status { get; set; }
 }
