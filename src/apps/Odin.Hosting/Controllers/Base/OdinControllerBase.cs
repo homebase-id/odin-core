@@ -15,6 +15,7 @@ using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.Controllers.Base;
 
@@ -53,6 +54,10 @@ public abstract class OdinControllerBase : ControllerBase
     /// <summary />
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
     {
+        var driveManager = this.HttpContext.RequestServices.GetRequiredService<DriveManager>();
+        
+        _ = driveManager.GetDriveAsync(file.TargetDrive.Alias, true).GetAwaiter().GetType();
+
         return new InternalDriveFileId()
         {
             FileId = file.FileId,

@@ -100,10 +100,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
             TenantPathManager.AssertValidPayloadKey(request.Key);
-
+            
             var file = MapToInternalFile(request.File);
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
-
+            
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, request.Key, WebOdinContext);
 
