@@ -12,13 +12,13 @@ public interface IGlobalLevel1Cache<T> : ILevel1Cache<T>
     // This space is intentionally left blank
 }
 
-public class GlobalLevel1Cache(IFusionCache cache)
+public class SystemLevel1Cache(IFusionCache cache)
     : Level1Cache("global", cache), IGlobalLevel1Cache
 {
     // This space is intentionally left blank
 }
 
-public class GlobalLevel1Cache<T>(IFusionCache cache)
+public class SystemLevel1Cache<T>(IFusionCache cache)
     : Level1Cache<T>("global", cache), IGlobalLevel1Cache<T>
 {
     // This space is intentionally left blank
