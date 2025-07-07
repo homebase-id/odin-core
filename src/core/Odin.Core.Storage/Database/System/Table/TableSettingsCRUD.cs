@@ -97,6 +97,15 @@ namespace Odin.Core.Storage.Database.System.Table
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
+            if (key?.Length < 0) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 0)");
+            if (key?.Length > 65535) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 65535)");
+            if (value == null) throw new OdinDatabaseValidationException("Cannot be null value");
+            if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
+            if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
+        }
     } // End of record SettingsRecord
 
     public abstract class TableSettingsCRUD
@@ -109,7 +118,7 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -133,7 +142,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         public virtual async Task<int> InsertAsync(SettingsRecord item)

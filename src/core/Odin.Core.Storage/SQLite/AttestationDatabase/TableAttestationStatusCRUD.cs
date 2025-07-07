@@ -83,6 +83,12 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 16)");
+            if (attestationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 64)");
+        }
     } // End of record AttestationStatusRecord
 
     public class TableAttestationStatusCRUD
@@ -95,7 +101,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(DatabaseConnection conn, bool dropExisting = false)
         {
             await using var cmd = conn.db.CreateCommand();
             if (dropExisting)
@@ -115,7 +121,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await conn.ExecuteNonQueryAsync(cmd);
+            return await conn.ExecuteNonQueryAsync(cmd);
         }
 
         public virtual async Task<int> InsertAsync(DatabaseConnection conn, AttestationStatusRecord item)

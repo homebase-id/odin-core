@@ -219,6 +219,24 @@ namespace Odin.Core.Storage.Database.Identity.Table
                   _modified = value;
                }
         }
+        public void Validate()
+        {
+            if (DriveName == null) throw new OdinDatabaseValidationException("Cannot be null DriveName");
+            if (DriveName?.Length < 0) throw new OdinDatabaseValidationException($"Too short DriveName, was {DriveName.Length} (min 0)");
+            if (DriveName?.Length > 1024) throw new OdinDatabaseValidationException($"Too long DriveName, was {DriveName.Length} (max 1024)");
+            if (MasterKeyEncryptedStorageKeyJson == null) throw new OdinDatabaseValidationException("Cannot be null MasterKeyEncryptedStorageKeyJson");
+            if (MasterKeyEncryptedStorageKeyJson?.Length < 0) throw new OdinDatabaseValidationException($"Too short MasterKeyEncryptedStorageKeyJson, was {MasterKeyEncryptedStorageKeyJson.Length} (min 0)");
+            if (MasterKeyEncryptedStorageKeyJson?.Length > 1024) throw new OdinDatabaseValidationException($"Too long MasterKeyEncryptedStorageKeyJson, was {MasterKeyEncryptedStorageKeyJson.Length} (max 1024)");
+            if (EncryptedIdIv64 == null) throw new OdinDatabaseValidationException("Cannot be null EncryptedIdIv64");
+            if (EncryptedIdIv64?.Length < 0) throw new OdinDatabaseValidationException($"Too short EncryptedIdIv64, was {EncryptedIdIv64.Length} (min 0)");
+            if (EncryptedIdIv64?.Length > 1024) throw new OdinDatabaseValidationException($"Too long EncryptedIdIv64, was {EncryptedIdIv64.Length} (max 1024)");
+            if (EncryptedIdValue64 == null) throw new OdinDatabaseValidationException("Cannot be null EncryptedIdValue64");
+            if (EncryptedIdValue64?.Length < 0) throw new OdinDatabaseValidationException($"Too short EncryptedIdValue64, was {EncryptedIdValue64.Length} (min 0)");
+            if (EncryptedIdValue64?.Length > 1024) throw new OdinDatabaseValidationException($"Too long EncryptedIdValue64, was {EncryptedIdValue64.Length} (max 1024)");
+            if (detailsJson == null) throw new OdinDatabaseValidationException("Cannot be null detailsJson");
+            if (detailsJson?.Length < 0) throw new OdinDatabaseValidationException($"Too short detailsJson, was {detailsJson.Length} (min 0)");
+            if (detailsJson?.Length > 21504) throw new OdinDatabaseValidationException($"Too long detailsJson, was {detailsJson.Length} (max 21504)");
+        }
     } // End of record DrivesRecord
 
     public abstract class TableDrivesCRUD
@@ -231,7 +249,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var cmd = cn.CreateCommand();
@@ -265,7 +283,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,DriveId,DriveType)"
                    +$"){wori};"
                    ;
-            await cmd.ExecuteNonQueryAsync();
+            return await cmd.ExecuteNonQueryAsync();
         }
 
         protected virtual async Task<int> InsertAsync(DrivesRecord item)
