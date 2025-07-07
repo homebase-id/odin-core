@@ -42,7 +42,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         /// Returns the public profile image
         /// </summary>
         [HttpGet("pub/image")]
-        [HttpGet(LinkPreviewService.PublicImagePath)]
+        [HttpGet(LinkPreviewDefaults.PublicImagePath)]
         public async Task<IActionResult> GetPublicImage()
         {
             return await this.SendStream(StaticFileConstants.ProfileImageFileName);
@@ -80,6 +80,7 @@ namespace Odin.Hosting.Controllers.Anonymous
                 {
                     Response.Headers.Remove("Access-Control-Allow-Origin");
                 }
+
                 Response.Headers.Append("Access-Control-Allow-Origin", "*");
             }
 
