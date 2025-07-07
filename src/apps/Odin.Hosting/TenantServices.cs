@@ -68,6 +68,7 @@ using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
+using Odin.Services.LinkPreview.Profile;
 
 namespace Odin.Hosting;
 

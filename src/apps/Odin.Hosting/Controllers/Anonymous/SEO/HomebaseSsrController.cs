@@ -8,12 +8,14 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.LinkPreview;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
+using Odin.Services.LinkPreview.Profile;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
@@ -57,7 +59,7 @@ public class HomebaseSsrController(
 
         await WriteContent(head, contentBuilder.ToString());
     }
-    
+
     [HttpGet("connections")]
     public async Task RenderConnections()
     {
@@ -107,7 +109,7 @@ public class HomebaseSsrController(
                 var odinId = identity;
                 var imageUrl = $"https://{odinId}/pub/image";
                 contentBuilder.AppendLine("  <li>");
-                
+
                 contentBuilder.AppendLine($"<img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" " +
                                           $"height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
                 contentBuilder.AppendLine($"<a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a>");
@@ -118,7 +120,7 @@ public class HomebaseSsrController(
         }
 
         CreateMenu(contentBuilder);
-        
+
         await WriteContent(head, contentBuilder.ToString());
     }
 
@@ -149,7 +151,7 @@ public class HomebaseSsrController(
         contentBuilder.AppendLine("</ul>");
 
         CreateMenu(contentBuilder);
-        
+
         await WriteContent(head, contentBuilder.ToString());
     }
 
@@ -162,14 +164,71 @@ public class HomebaseSsrController(
         contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
         contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
 
-        if (person.BioSummary != null)
-        {
-            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
-        }
+        var aboutSection = await profileContentService.LoadAboutSection(WebOdinContext);
+        contentBuilder.AppendLine("<br/><hr/><br/>");
 
-        if (person.Bio != null)
+        contentBuilder.AppendLine("<h2>Status</h2>");
+        foreach (var status in aboutSection.Status)
         {
-            contentBuilder.AppendLine($"<p>Bio: {person.Bio}</h3>");
+            contentBuilder.AppendLine($"<p>{status}</p>");
+        }
+        contentBuilder.AppendLine("<br/><hr/><br/>");
+
+        contentBuilder.AppendLine("<h2>Bio</h2>");
+        foreach (var bio in aboutSection.Bio)
+        {
+            try
+            {
+                if(!string.IsNullOrEmpty(bio))
+                {
+                    var bodyHtml = PlateRichTextParser.Parse(bio);
+                    contentBuilder.AppendLine($"<div>");
+                    contentBuilder.Append(bodyHtml);
+                    contentBuilder.AppendLine($"</div>");
+                }
+            }
+            catch(Exception e)
+            {
+                logger.LogError(e, "Could not parse bio in about section"); 
+            }
+        }
+        contentBuilder.AppendLine("<br/><hr/><br/>");
+
+        contentBuilder.AppendLine("<h2>ShortBio</h2>");
+        foreach (var shortBio in aboutSection.ShortBio)
+        {
+            try
+            {
+                if(!string.IsNullOrEmpty(shortBio))
+                {
+                    contentBuilder.AppendLine($"<p>");
+                    contentBuilder.Append(shortBio);
+                    contentBuilder.AppendLine($"</p>");
+                }
+            }
+            catch(Exception e)
+            {
+                logger.LogError(e, "Could not parse shortBio in about section"); 
+            }
+        }
+        contentBuilder.AppendLine("<br/><hr/><br/>");
+
+        contentBuilder.AppendLine("<h2>Experience</h2>");
+        foreach (var exp in aboutSection.Experience)
+        {
+            contentBuilder.AppendLine($"<img src='{exp.ImageUrl}'/>");
+            contentBuilder.AppendLine($"<h3>{exp.Title}</h3>");
+            if(!string.IsNullOrEmpty(exp.Description))
+            {
+                var bodyHtml = PlateRichTextParser.Parse(exp.Description);
+                contentBuilder.AppendLine($"<div>");
+                contentBuilder.Append(bodyHtml);
+                contentBuilder.AppendLine($"</div>");
+            }   
+            
+            contentBuilder.AppendLine($"<a href='{exp.Link}'>{exp.Link}</a>");
+            contentBuilder.AppendLine("<br/><hr/><br/>");
+
         }
 
         CreateMenu(contentBuilder);
@@ -219,14 +278,14 @@ public class HomebaseSsrController(
         var (posts, _) = await channelContentService.GetChannelPosts(channelKey, WebOdinContext);
 
         var thisChannel = (await channelContentService.GetChannels(WebOdinContext)).FirstOrDefault(c => c.Slug == channelKey);
-        
+
         var contentBuilder = new StringBuilder();
-        
+
         if (thisChannel != null)
         {
             contentBuilder.AppendLine($"<h1>{HttpUtility.HtmlEncode(thisChannel.Name ?? "")}</h1>");
         }
-        
+
         foreach (var post in posts)
         {
             var content = post.Content;
@@ -234,7 +293,7 @@ public class HomebaseSsrController(
             {
                 continue;
             }
-            
+
             var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
 
             contentBuilder.AppendLine("<div>");
@@ -253,7 +312,7 @@ public class HomebaseSsrController(
 
             // Image
             if (!string.IsNullOrWhiteSpace(post.ImageUrl))
-            {                
+            {
                 contentBuilder.AppendLine($"<a href=\"{link}\">");
                 contentBuilder.AppendLine(
                     $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(content.Caption)}\" />");
@@ -334,7 +393,7 @@ public class HomebaseSsrController(
         contentBuilder.AppendLine($"</ul>");
 
         CreateMenu(contentBuilder);
-        
+
         await WriteContent(head, contentBuilder.ToString());
     }
 
