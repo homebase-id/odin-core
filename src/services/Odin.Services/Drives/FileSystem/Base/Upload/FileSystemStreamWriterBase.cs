@@ -127,12 +127,9 @@ public abstract class FileSystemStreamWriterBase
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
 
-        if (bytesWritten <= 0)
+        if (bytesWritten != data.Length)
         {
-            _logger.LogError("Zero bytes written while uploading payload with fileId [{file}] with " +
-                             "extension [{extension}]", Package.InternalFile, extension);
-
-            throw new OdinSystemException("Failed while writing temp file during upload");
+            throw new OdinSystemException($"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {data.Length}");
         }
 
         Package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
@@ -178,12 +175,9 @@ public abstract class FileSystemStreamWriterBase
 
         var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
 
-        if (bytesWritten <= 0)
+        if (bytesWritten != data.Length)
         {
-            _logger.LogError("Zero bytes written while uploading thumbnail with fileId [{file}] with " +
-                             "extension [{extension}]", Package.InternalFile, extension);
-
-            throw new OdinSystemException("Failed while writing temp file during upload");
+            throw new OdinSystemException($"Failed to write all expected data in stream. Wrote {bytesWritten} but should have been {data.Length}");
         }
 
         Package.Thumbnails.Add(new PackageThumbnailDescriptor()

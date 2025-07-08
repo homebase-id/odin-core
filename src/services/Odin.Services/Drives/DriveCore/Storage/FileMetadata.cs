@@ -208,7 +208,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             ReactionPreview?.Validate();
 
-            if (SenderOdinId != null)
+            if (!string.IsNullOrEmpty(SenderOdinId))
             {
                 AsciiDomainNameValidator.AssertValidDomain(SenderOdinId); // Because senderOdinId is a string and not an OdinId...
             }
