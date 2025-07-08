@@ -12,7 +12,7 @@ namespace Odin.Core.Http;
 //
 // IDynamicHttpClientFactory is a variation of dotnet v9's IHttpClientFactory and DefaultClientFactory.
 // The primary reason for it is to solve the problem of IHttpClientFactory only being able to register http clients
-// during startup, when DI services are being registered.Since this project is multi-tenant and tenants and new
+// during startup, when DI services are being registered. Since this project is multi-tenant and tenants and new
 // end-points can come and go, we have to be able to create (and reuse) a new http client on the fly.
 //
 // Note that in the current implementation, this code has the same potential issues with disposal as IHttpClientFactory:
@@ -21,9 +21,17 @@ namespace Odin.Core.Http;
 //
 
 //
-// HandlerLifetime:
-//   - How long a handler is kept alive before being disposed.
-//   - No DNS update checks are performed during this time.
+// IDynamicHttpClientFactory rules when creating a HttpClient:
+// - It is HttpClientHandler instance that is managed by DynamicHttpClientFactory, not the HttpClient instance.
+// - The HttpClientHandler instance, which is explicitly or implicitly attached to a HttpClient instance,
+//   is shared by different HttpClient instances across all threads.
+// - It is OK to change properties on the HttpClient instance (e.g. AddDefaultHeaders)
+//   as long as you make sure that the instance is short-lived and not mutated on another thread.
+// - It is OK to create a HttpClientHandler, but it *MUST NOT* hold any instance data. This includes
+//   cookies in a CookieContainer. Therefore, avoid using Cookies. If you need cookies, set the headers
+//   manually.
+// - Use HandlerLifetime to control how long connections are pooled.
+// - As long as a connection is pooled, no DNS updates will be visible on that connection.
 //
 
 //
