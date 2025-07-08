@@ -85,22 +85,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         PrepareEnvironment(_config);
         AssertValidRenewalConfiguration(_config.CertificateRenewal);
 
-        //
-        // We are using DynamicHttpClientFactory because we have to be able to create shared HttpClientHandlers
-        // on the fly. This is not possible with the baked in HttpClientFactory.
-        //
-        // IDynamicHttpClientFactory rules when creating a HttpClient:
-        // - It is HttpClientHandler instance that is managed by HttpClientFactory, not the HttpClient instance.
-        // - The HttpClientHandler instance, which is explicitly or implicitly attached to a HttpClient instance,
-        //   is shared by different HttpClient instances across all threads.
-        // - It is OK to change properties on the HttpClient instance (e.g. AddDefaultHeaders)
-        //   as long as you make sure that the instance is short-lived and not mutated on another thread.
-        // - It is OK to create a HttpClientHandler, but it *MUST NOT* hold any instance data. This includes
-        //   cookies in a CookieContainer. Therefore, avoid using Cookies. If you need cookies, set the headers
-        //   manually.
-        // - Use HandlerLifetime to control how long connections are pooled.
-        // - As long as a connection is pooled, no DNS updates will be visible on that connection.
-        //
         services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
         services.AddSingleton<FileReaderWriter>();
