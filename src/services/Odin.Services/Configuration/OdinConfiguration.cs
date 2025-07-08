@@ -200,7 +200,7 @@ namespace Odin.Services.Configuration
                 SystemDataRootPath =                 
                     Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:SystemDataRootPath"));
 
-                DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "tmp", "data-protection-keys");
+                DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "asp-data-protection-keys");
 
                 Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
