@@ -113,9 +113,9 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableSettingsCRUD
     {
-        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableSettingsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        protected TableSettingsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

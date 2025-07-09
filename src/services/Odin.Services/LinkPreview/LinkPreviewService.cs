@@ -56,22 +56,14 @@ public class LinkPreviewService(
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
     {
-        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+        try
         {
-            try
-            {
-                await WriteEnhancedIndexAsync(indexFilePath, odinContext);
-            }
-            catch (OperationCanceledException ex)
-            {
-                logger.LogError(ex, "Timeout of 2 seconds; falling back - Writing plain index");
-                await WriteFallbackIndex(indexFilePath);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Total Failure creating link-preview.  Writing plain index");
-                await WriteFallbackIndex(indexFilePath);
-            }
+            await WriteEnhancedIndexAsync(indexFilePath, odinContext);
+        }
+        catch(Exception e)
+        {
+            logger.LogDebug("Total Failure creating link-preview.  Writing plain index: {message}", e.Message);
+            await WriteFallbackIndex(indexFilePath);
         }
     }
 
@@ -526,7 +518,7 @@ public class LinkPreviewService(
         return data.Substring(0, 160);
     }
 
-    
+
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
         PersonSchema person, string siteType, string robotsTag, CancellationToken cancellationToken)
     {

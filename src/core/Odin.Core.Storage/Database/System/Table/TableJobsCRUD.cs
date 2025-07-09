@@ -322,9 +322,9 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableJobsCRUD
     {
-        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
-        protected TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        protected TableJobsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
