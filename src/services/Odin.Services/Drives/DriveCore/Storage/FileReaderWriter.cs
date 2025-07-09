@@ -14,7 +14,6 @@ public sealed class FileReaderWriter(
     OdinConfiguration odinConfiguration,
     ILogger<FileReaderWriter> logger)
 {
-
     //
 
     public async Task WriteStringAsync(string filePath, string data)
@@ -110,9 +109,11 @@ public sealed class FileReaderWriter(
     }
 
     //
-
+    
     public async Task<byte[]> GetAllFileBytesAsync(string filePath)
     {
+        AssertFileExists(filePath);
+        
         byte[] bytes = null;
 
         await TryRetry.Create()
@@ -138,6 +139,9 @@ public sealed class FileReaderWriter(
 
     public async Task<byte[]> GetFileBytesAsync(string filePath, long offset, long length, CancellationToken cancellationToken = default)
     {
+        
+        AssertFileExists(filePath);
+
         byte[] bytes = null;
 
         await TryRetry.Create()
@@ -168,6 +172,8 @@ public sealed class FileReaderWriter(
 
     public void MoveFile(string sourceFilePath, string destinationFilePath)
     {
+        AssertFileExists(sourceFilePath);
+
         try
         {
             TryRetry.Create()
@@ -196,11 +202,11 @@ public sealed class FileReaderWriter(
             throw new OdinSystemException(
                 $"Error during file move operation.  FileMove reported success but destination file does not exist. [source file: {sourceFilePath}] [destination: {destinationFilePath}]");
         }
-        
+
         if (File.Exists(sourceFilePath))
         {
             DeleteFile(sourceFilePath);
-            
+
             if (File.Exists(sourceFilePath))
             {
                 throw new OdinSystemException(
@@ -215,18 +221,18 @@ public sealed class FileReaderWriter(
     public void CopyPayloadFile(string sourcePath, string targetPath)
     {
         // Ensure the source file exists
-        FileInfo sourceInfo = new FileInfo(sourcePath); 
+        FileInfo sourceInfo = new FileInfo(sourcePath);
         if (!sourceInfo.Exists)
         {
-            throw new OdinSystemException($"CopyPayloadFile: Source file '{sourcePath}' does not exist.");   
+            throw new OdinSystemException($"CopyPayloadFile: Source file '{sourcePath}' does not exist.");
         }
-        
+
         // Check if the target file exists. If it does it is either already live
         // due to a bug, or a previous copy attempt copied some files but not all
         // let's not copy them again, the disk/network is likely slow then
         FileInfo targetInfo = new FileInfo(targetPath);
         if (targetInfo.Exists)
-        {        
+        {
             // If sizes match, assume it�s valid and skip the copy
             if (targetInfo.Length == sourceInfo.Length)
             {
@@ -237,36 +243,36 @@ public sealed class FileReaderWriter(
             {
                 // If sizes don�t match, it�s corrupt�delete it
                 logger.LogDebug($"CopyPayloadFile: Target file '{targetPath}' is corrupt. Deleting it.");
-                File.Delete(targetPath);        
-            }    
+                File.Delete(targetPath);
+            }
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(targetPath) ?? throw new InvalidOperationException());
 
         try
         {
-
             TryRetry.Create()
                 .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
                 .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
                 .Execute(() =>
-            {
-                try
                 {
-                    File.Copy(sourcePath, targetPath, overwrite: false);
-                }
-                catch (IOException ex) when (ex.Message.Contains("already exists"))
-                {
-                    // If the copy fails because the file now exists, assume a competing thread created it
-                    throw new OdinSystemException($"CopyPayloadFile: Target file '{targetPath}' was created by another thread during the operation.");
-                }
-                catch (Exception ex)
-                {
-                    // Handle other potential errors (e.g., permissions or disk issues)
-                    logger.LogDebug(ex, "CopyPayloadFile: (TryRetry) {message}", ex.Message);
-                    throw new OdinSystemException($"Failed to copy file: {ex.Message}", ex);
-                }
-            });
+                    try
+                    {
+                        File.Copy(sourcePath, targetPath, overwrite: false);
+                    }
+                    catch (IOException ex) when (ex.Message.Contains("already exists"))
+                    {
+                        // If the copy fails because the file now exists, assume a competing thread created it
+                        throw new OdinSystemException(
+                            $"CopyPayloadFile: Target file '{targetPath}' was created by another thread during the operation.");
+                    }
+                    catch (Exception ex)
+                    {
+                        // Handle other potential errors (e.g., permissions or disk issues)
+                        logger.LogDebug(ex, "CopyPayloadFile: (TryRetry) {message}", ex.Message);
+                        throw new OdinSystemException($"Failed to copy file: {ex.Message}", ex);
+                    }
+                });
 
             // This seems unnecessary
             targetInfo = new FileInfo(targetPath);
@@ -296,6 +302,8 @@ public sealed class FileReaderWriter(
     /// </summary>
     public Stream OpenStreamForReading(string filePath)
     {
+        AssertFileExists(filePath);
+
         Stream fileStream = Stream.Null;
 
         try
@@ -390,10 +398,19 @@ public sealed class FileReaderWriter(
     {
         return Directory.Exists(dir);
     }
-    
+
     public void CreateDirectory(string dir)
     {
         Directory.CreateDirectory(dir);
         logger.LogDebug("Created Directory [{dir}]", dir);
     }
+    
+    public void AssertFileExists(string filePath)
+    {
+        if (!DirectoryExists(Path.GetDirectoryName(filePath)) && !FileExists(filePath))
+        {
+            throw new OdinSystemException($"File or directory does not exist {filePath}");
+        }
+    }
+
 }
