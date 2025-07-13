@@ -241,7 +241,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
         private readonly CacheHelper _cache;
         private readonly ScopedNotaryConnectionFactory _scopedConnectionFactory;
 
-        protected TableNotaryChainCRUD(CacheHelper cache, ScopedNotaryConnectionFactory scopedConnectionFactory)
+        public TableNotaryChainCRUD(CacheHelper cache, ScopedNotaryConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;

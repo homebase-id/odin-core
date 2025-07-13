@@ -196,7 +196,7 @@ namespace Odin.Core.Storage.Database.System.Table
     {
         private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
 
-        protected TableCertificatesCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        public TableCertificatesCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
@@ -283,13 +283,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -347,13 +342,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return true;
                 }
@@ -412,13 +402,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -476,13 +461,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }

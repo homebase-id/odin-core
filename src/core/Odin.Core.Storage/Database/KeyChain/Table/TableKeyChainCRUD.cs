@@ -214,7 +214,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
         private readonly CacheHelper _cache;
         private readonly ScopedKeyChainConnectionFactory _scopedConnectionFactory;
 
-        protected TableKeyChainCRUD(CacheHelper cache, ScopedKeyChainConnectionFactory scopedConnectionFactory)
+        public TableKeyChainCRUD(CacheHelper cache, ScopedKeyChainConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
