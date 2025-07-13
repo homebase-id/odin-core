@@ -423,6 +423,34 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
+        protected virtual async Task<NonceRecord> PopAsync(Guid id)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Nonce " +
+                                             "WHERE id = @id" + 
+                                             "RETURNING rowId,identity,expiration,data,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@id";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = id.ToByteArray();
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,id);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         protected NonceRecord ReadRecordFromReader0(DbDataReader rdr,Guid id)
         {
             var result = new List<NonceRecord>();

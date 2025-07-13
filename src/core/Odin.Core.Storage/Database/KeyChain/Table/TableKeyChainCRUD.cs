@@ -558,6 +558,45 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
             }
         }
 
+        public virtual async Task<KeyChainRecord> PopAsync(string identity,string publicKeyJwkBase64Url)
+        {
+            if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
+            if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 256) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 256)");
+            if (publicKeyJwkBase64Url == null) throw new OdinDatabaseValidationException("Cannot be null publicKeyJwkBase64Url");
+            if (publicKeyJwkBase64Url?.Length < 16) throw new OdinDatabaseValidationException($"Too short publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (min 16)");
+            if (publicKeyJwkBase64Url?.Length > 600) throw new OdinDatabaseValidationException($"Too long publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (max 600)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM KeyChain " +
+                                             "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url" + 
+                                             "RETURNING rowId,previousHash,timestamp,signedPreviousHash,algorithm,recordHash";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.String;
+                deleteParam1.ParameterName = "@identity";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.String;
+                deleteParam2.ParameterName = "@publicKeyJwkBase64Url";
+                deleteCommand.Parameters.Add(deleteParam2);
+
+                deleteParam1.Value = identity;
+                deleteParam2.Value = publicKeyJwkBase64Url;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,identity,publicKeyJwkBase64Url);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public KeyChainRecord ReadRecordFromReader0(DbDataReader rdr,string identity,string publicKeyJwkBase64Url)
         {
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");

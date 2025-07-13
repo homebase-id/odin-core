@@ -601,6 +601,37 @@ namespace Odin.Core.Storage.Database.Notary.Table
             }
         }
 
+        public virtual async Task<NotaryChainRecord> PopAsync(byte[] notarySignature)
+        {
+            if (notarySignature == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
+            if (notarySignature?.Length < 16) throw new OdinDatabaseValidationException($"Too short notarySignature, was {notarySignature.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new OdinDatabaseValidationException($"Too long notarySignature, was {notarySignature.Length} (max 200)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM NotaryChain " +
+                                             "WHERE notarySignature = @notarySignature" + 
+                                             "RETURNING rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@notarySignature";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = notarySignature;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,notarySignature);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr,byte[] notarySignature)
         {
             if (notarySignature == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");

@@ -341,6 +341,37 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             }
         }
 
+        public virtual async Task<AttestationStatusRecord> PopAsync(byte[] attestationId)
+        {
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 16)");
+            if (attestationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 64)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM AttestationStatus " +
+                                             "WHERE attestationId = @attestationId" + 
+                                             "RETURNING rowId,status,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@attestationId";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = attestationId;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,attestationId);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public AttestationStatusRecord ReadRecordFromReader0(DbDataReader rdr,byte[] attestationId)
         {
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");

@@ -906,6 +906,34 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
+        public virtual async Task<JobsRecord> PopAsync(Guid id)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Jobs " +
+                                             "WHERE id = @id" + 
+                                             "RETURNING rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@id";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = id.ToByteArray();
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,id);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public JobsRecord ReadRecordFromReader0(DbDataReader rdr,Guid id)
         {
             var result = new List<JobsRecord>();

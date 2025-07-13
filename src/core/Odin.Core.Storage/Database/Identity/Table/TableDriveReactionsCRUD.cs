@@ -470,6 +470,57 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
+        protected virtual async Task<DriveReactionsRecord> PopAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
+        {
+            if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
+            if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
+            if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM DriveReactions " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND postId = @postId AND identity = @identity AND singleReaction = @singleReaction" + 
+                                             "RETURNING rowId";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@driveId";
+                deleteCommand.Parameters.Add(deleteParam2);
+                var deleteParam3 = deleteCommand.CreateParameter();
+                deleteParam3.DbType = DbType.Binary;
+                deleteParam3.ParameterName = "@postId";
+                deleteCommand.Parameters.Add(deleteParam3);
+                var deleteParam4 = deleteCommand.CreateParameter();
+                deleteParam4.DbType = DbType.String;
+                deleteParam4.ParameterName = "@identity";
+                deleteCommand.Parameters.Add(deleteParam4);
+                var deleteParam5 = deleteCommand.CreateParameter();
+                deleteParam5.DbType = DbType.String;
+                deleteParam5.ParameterName = "@singleReaction";
+                deleteCommand.Parameters.Add(deleteParam5);
+
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = driveId.ToByteArray();
+                deleteParam3.Value = postId.ToByteArray();
+                deleteParam4.Value = identity.DomainName;
+                deleteParam5.Value = singleReaction;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,identityId,driveId,postId,identity,singleReaction);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");

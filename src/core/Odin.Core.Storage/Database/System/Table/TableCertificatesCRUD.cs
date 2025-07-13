@@ -541,6 +541,34 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
+        public virtual async Task<CertificatesRecord> PopAsync(OdinId domain)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Certificates " +
+                                             "WHERE domain = @domain" + 
+                                             "RETURNING rowId,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.String;
+                deleteParam1.ParameterName = "@domain";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = domain.DomainName;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,domain);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public CertificatesRecord ReadRecordFromReader0(DbDataReader rdr,OdinId domain)
         {
             var result = new List<CertificatesRecord>();

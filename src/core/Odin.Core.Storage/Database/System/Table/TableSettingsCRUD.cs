@@ -348,6 +348,37 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
+        public virtual async Task<SettingsRecord> PopAsync(string key)
+        {
+            if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
+            if (key?.Length < 0) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 0)");
+            if (key?.Length > 65535) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 65535)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Settings " +
+                                             "WHERE key = @key" + 
+                                             "RETURNING rowId,value,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.String;
+                deleteParam1.ParameterName = "@key";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = key;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,key);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public SettingsRecord ReadRecordFromReader0(DbDataReader rdr,string key)
         {
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");

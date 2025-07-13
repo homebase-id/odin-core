@@ -404,71 +404,43 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key2)
+        protected virtual async Task<KeyTwoValueRecord> PopAsync(Guid identityId,byte[] key1)
         {
-            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
-            if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
-            var result = new List<KeyTwoValueRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new KeyTwoValueRecord();
-            item.identityId = identityId;
-            item.key2 = key2;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
-            if (item.key1?.Length < 16)
-                throw new Exception("Too little data in key1...");
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
-            if (item.data?.Length < 0)
-                throw new Exception("Too little data in data...");
-            return item;
-       }
-
-        protected virtual async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
-        {
-            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
-            if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var deleteCommand = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,key1,data FROM KeyTwoValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2;"+
-                                             ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.Binary;
-                get0Param2.ParameterName = "@key2";
-                get0Command.Parameters.Add(get0Param2);
+                deleteCommand.CommandText = "DELETE FROM KeyTwoValue " +
+                                             "WHERE identityId = @identityId AND key1 = @key1" + 
+                                             "RETURNING rowId,key2,data";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@key1";
+                deleteCommand.Parameters.Add(deleteParam2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = key2 ?? (object)DBNull.Value;
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = key1;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    if (await rdr.ReadAsync())
                     {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key2.ToBase64(), null);
-                            return new List<KeyTwoValueRecord>();
-                        }
-                        var result = new List<KeyTwoValueRecord>();
-                        while (true)
-                        {
-                            result.Add(ReadRecordFromReader0(rdr,identityId,key2));
-                            if (!await rdr.ReadAsync())
-                                break;
-                        }
-                        return result;
-                    } // using
-                } //
-            } // using
+                       return ReadRecordFromReader0(rdr,identityId,key1);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
         }
 
-        protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key1)
+        protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key1)
         {
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
@@ -500,10 +472,69 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (KeyTwoValueRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT rowId,key2,data FROM KeyTwoValue " +
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                                             ";";
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.Binary;
+                get0Param2.ParameterName = "@key1";
+                get0Command.Parameters.Add(get0Param2);
+
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = key1;
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), null);
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr,identityId,key1);
+                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), r);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key2)
+        {
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
+            var result = new List<KeyTwoValueRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new KeyTwoValueRecord();
+            item.identityId = identityId;
+            item.key2 = key2;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key1?.Length < 16)
+                throw new Exception("Too little data in key1...");
+            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
+        {
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,key2,data FROM KeyTwoValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                get1Command.CommandText = "SELECT rowId,key1,data FROM KeyTwoValue " +
+                                             "WHERE identityId = @identityId AND key2 = @key2;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.DbType = DbType.Binary;
@@ -511,22 +542,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Command.Parameters.Add(get1Param1);
                 var get1Param2 = get1Command.CreateParameter();
                 get1Param2.DbType = DbType.Binary;
-                get1Param2.ParameterName = "@key1";
+                get1Param2.ParameterName = "@key2";
                 get1Command.Parameters.Add(get1Param2);
 
                 get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = key1;
+                get1Param2.Value = key2 ?? (object)DBNull.Value;
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), null);
-                            return null;
+                            _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key2.ToBase64(), null);
+                            return new List<KeyTwoValueRecord>();
                         }
-                        var r = ReadRecordFromReader1(rdr,identityId,key1);
-                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", identityId.ToString()+key1.ToBase64(), r);
-                        return r;
+                        var result = new List<KeyTwoValueRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr,identityId,key2));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
                     } // using
                 } //
             } // using
