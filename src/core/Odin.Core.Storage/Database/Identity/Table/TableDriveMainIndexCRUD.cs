@@ -522,6 +522,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -690,6 +691,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(DriveMainIndexRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -859,6 +861,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(DriveMainIndexRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -1029,6 +1032,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(DriveMainIndexRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");

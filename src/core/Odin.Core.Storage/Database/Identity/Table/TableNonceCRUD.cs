@@ -184,6 +184,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(NonceRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -234,6 +235,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(NonceRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -285,6 +287,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(NonceRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -337,6 +340,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(NonceRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

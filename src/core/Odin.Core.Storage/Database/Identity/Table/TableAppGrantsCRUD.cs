@@ -144,6 +144,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(AppGrantsRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
@@ -192,6 +193,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(AppGrantsRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
@@ -241,6 +243,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(AppGrantsRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
@@ -291,6 +294,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(AppGrantsRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
             item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");

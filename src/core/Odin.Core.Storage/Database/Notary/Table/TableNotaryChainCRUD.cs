@@ -281,6 +281,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<int> InsertAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -340,6 +341,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<bool> TryInsertAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -400,6 +402,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<int> UpsertAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -461,6 +464,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<int> UpdateAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {

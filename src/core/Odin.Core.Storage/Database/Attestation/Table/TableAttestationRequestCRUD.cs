@@ -141,6 +141,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> InsertAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -175,6 +176,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<bool> TryInsertAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -210,6 +212,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> UpsertAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -246,6 +249,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> UpdateAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
