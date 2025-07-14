@@ -302,6 +302,7 @@ namespace Odin.Core.Storage.Database.System.Table
         }
         public void Validate()
         {
+            id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             if (name == null) throw new OdinDatabaseValidationException("Cannot be null name");
             if (name?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {name.Length} (min 0)");
             if (name?.Length > 64) throw new OdinDatabaseValidationException($"Too long name, was {name.Length} (max 64)");
@@ -378,7 +379,6 @@ namespace Odin.Core.Storage.Database.System.Table
         public virtual async Task<int> InsertAsync(JobsRecord item)
         {
             item.Validate();
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -488,7 +488,6 @@ namespace Odin.Core.Storage.Database.System.Table
         public virtual async Task<bool> TryInsertAsync(JobsRecord item)
         {
             item.Validate();
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -599,7 +598,6 @@ namespace Odin.Core.Storage.Database.System.Table
         public virtual async Task<int> UpsertAsync(JobsRecord item)
         {
             item.Validate();
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -711,7 +709,6 @@ namespace Odin.Core.Storage.Database.System.Table
         public virtual async Task<int> UpdateAsync(JobsRecord item)
         {
             item.Validate();
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
