@@ -254,6 +254,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 
         public virtual async Task<int> InsertAsync(KeyChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -308,6 +309,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 
         public virtual async Task<bool> TryInsertAsync(KeyChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -363,6 +365,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 
         public virtual async Task<int> UpsertAsync(KeyChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -419,6 +422,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 
         public virtual async Task<int> UpdateAsync(KeyChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -570,7 +574,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
             await using var deleteCommand = cn.CreateCommand();
             {
                 deleteCommand.CommandText = "DELETE FROM KeyChain " +
-                                             "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url" + 
+                                             "WHERE identity = @identity AND publicKeyJwkBase64Url = @publicKeyJwkBase64Url " + 
                                              "RETURNING rowId,previousHash,timestamp,signedPreviousHash,algorithm,recordHash";
                 var deleteParam1 = deleteCommand.CreateParameter();
                 deleteParam1.DbType = DbType.String;

@@ -133,6 +133,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(CircleMemberRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             item.memberId.AssertGuidNotEmpty("Guid parameter memberId cannot be set to Empty GUID.");
@@ -175,6 +176,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(CircleMemberRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             item.memberId.AssertGuidNotEmpty("Guid parameter memberId cannot be set to Empty GUID.");
@@ -218,6 +220,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(CircleMemberRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             item.memberId.AssertGuidNotEmpty("Guid parameter memberId cannot be set to Empty GUID.");
@@ -262,6 +265,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(CircleMemberRecord item)
         {
+            item.Validate();
             item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             item.memberId.AssertGuidNotEmpty("Guid parameter memberId cannot be set to Empty GUID.");
@@ -384,7 +388,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var deleteCommand = cn.CreateCommand();
             {
                 deleteCommand.CommandText = "DELETE FROM CircleMember " +
-                                             "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId" + 
+                                             "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId " + 
                                              "RETURNING rowId,data";
                 var deleteParam1 = deleteCommand.CreateParameter();
                 deleteParam1.DbType = DbType.Binary;
