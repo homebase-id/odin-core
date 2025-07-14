@@ -1,11 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Runtime.Caching;
-using System.Threading.Tasks;
-using Odin.Core.Identity;
+﻿using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Runtime.Caching;
+using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -72,4 +73,28 @@ public class TableNonce(
         r.identityId = odinIdentity;
         return await base.InsertAsync(r);
     }
+
+
+    /// <summary>
+    /// Will delete all stale Nonce, system-wide job that can run every 24 hours per database
+    /// </summary>
+    /// <returns>The number of rows cleaned up</returns>
+    protected virtual async Task<int> CleanupAsync()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var delete0Command = cn.CreateCommand();
+        {
+            delete0Command.CommandText = "DELETE FROM Nonce " +
+                                         "WHERE expiration < @expiration";
+            var delete0Param1 = delete0Command.CreateParameter();
+            delete0Param1.DbType = DbType.Binary;
+            delete0Param1.ParameterName = "@expiration";
+            delete0Command.Parameters.Add(delete0Param1);
+
+            delete0Param1.Value = UnixTimeUtc.Now().milliseconds;
+            var count = await delete0Command.ExecuteNonQueryAsync();
+            return count;
+        }
+    }
+
 }
