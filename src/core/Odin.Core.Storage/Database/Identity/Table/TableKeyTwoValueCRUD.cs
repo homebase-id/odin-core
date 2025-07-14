@@ -39,6 +39,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identityId;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _identityId = value;
                }
         }
@@ -112,6 +113,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
             if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
@@ -166,7 +168,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> InsertAsync(KeyTwoValueRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -207,7 +208,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<bool> TryInsertAsync(KeyTwoValueRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -249,7 +249,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpsertAsync(KeyTwoValueRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -292,7 +291,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpdateAsync(KeyTwoValueRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -382,6 +380,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key1)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
             if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
@@ -410,6 +409,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<KeyTwoValueRecord> PopAsync(Guid identityId,byte[] key1)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
             if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
@@ -446,6 +446,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyTwoValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key1)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
             if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
@@ -469,6 +470,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<KeyTwoValueRecord> GetAsync(Guid identityId,byte[] key1)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
             if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
@@ -510,6 +512,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyTwoValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,byte[] key2)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
             if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
             var result = new List<KeyTwoValueRecord>();
@@ -532,6 +535,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
             if (key2?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 128)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

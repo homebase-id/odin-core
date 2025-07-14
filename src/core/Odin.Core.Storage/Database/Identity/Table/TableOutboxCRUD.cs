@@ -39,6 +39,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identityId;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _identityId = value;
                }
         }
@@ -49,6 +50,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _driveId;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _driveId = value;
                }
         }
@@ -59,6 +61,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _fileId;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _fileId = value;
                }
         }
@@ -212,6 +215,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
             if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
@@ -274,11 +280,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> InsertAsync(OutboxRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -363,11 +364,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<bool> TryInsertAsync(OutboxRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -453,11 +449,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpsertAsync(OutboxRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -544,11 +535,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpdateAsync(OutboxRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -698,6 +684,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
             if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
@@ -734,6 +723,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<OutboxRecord> PopAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
             if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
@@ -780,6 +772,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
             if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
@@ -811,6 +806,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<OutboxRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
             if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
@@ -857,6 +855,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var result = new List<OutboxRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -885,6 +886,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<OutboxRecord>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {

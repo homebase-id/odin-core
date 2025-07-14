@@ -39,6 +39,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identityId;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _identityId = value;
                }
         }
@@ -49,6 +50,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _DriveId;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _DriveId = value;
                }
         }
@@ -59,6 +61,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _DriveAlias;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _DriveAlias = value;
                }
         }
@@ -69,6 +72,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _TempOriginalDriveId;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _TempOriginalDriveId = value;
                }
         }
@@ -79,6 +83,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _DriveType;
                }
            set {
+                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _DriveType = value;
                }
         }
@@ -224,6 +229,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveAlias.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            TempOriginalDriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveType.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (DriveName == null) throw new OdinDatabaseValidationException("Cannot be null DriveName");
             if (DriveName?.Length < 0) throw new OdinDatabaseValidationException($"Too short DriveName, was {DriveName.Length} (min 0)");
             if (DriveName?.Length > 1024) throw new OdinDatabaseValidationException($"Too long DriveName, was {DriveName.Length} (max 1024)");
@@ -292,11 +302,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> InsertAsync(DrivesRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
-            item.TempOriginalDriveId.AssertGuidNotEmpty("Guid parameter TempOriginalDriveId cannot be set to Empty GUID.");
-            item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -371,11 +376,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<bool> TryInsertAsync(DrivesRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
-            item.TempOriginalDriveId.AssertGuidNotEmpty("Guid parameter TempOriginalDriveId cannot be set to Empty GUID.");
-            item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -451,11 +451,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpsertAsync(DrivesRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
-            item.TempOriginalDriveId.AssertGuidNotEmpty("Guid parameter TempOriginalDriveId cannot be set to Empty GUID.");
-            item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -532,11 +527,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> UpdateAsync(DrivesRecord item)
         {
             item.Validate();
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.DriveId.AssertGuidNotEmpty("Guid parameter DriveId cannot be set to Empty GUID.");
-            item.DriveAlias.AssertGuidNotEmpty("Guid parameter DriveAlias cannot be set to Empty GUID.");
-            item.TempOriginalDriveId.AssertGuidNotEmpty("Guid parameter TempOriginalDriveId cannot be set to Empty GUID.");
-            item.DriveType.AssertGuidNotEmpty("Guid parameter DriveType cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -670,6 +660,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid DriveId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -693,6 +685,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<DrivesRecord> PopAsync(Guid identityId,Guid DriveId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var deleteCommand = cn.CreateCommand();
             {
@@ -726,6 +720,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected DrivesRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid DriveId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -750,6 +746,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<DrivesRecord> GetAsync(Guid identityId,Guid DriveId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -783,6 +781,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected DrivesRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid DriveId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -807,6 +807,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<DrivesRecord> GetByDriveIdAsync(Guid identityId,Guid DriveId)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
@@ -840,6 +842,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected DrivesRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,Guid DriveType)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveType.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -864,6 +868,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<DrivesRecord>> GetByDriveTypeAsync(Guid identityId,Guid DriveType)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveType.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
@@ -903,6 +909,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected DrivesRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Guid DriveAlias,Guid DriveType)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveAlias.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveType.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var result = new List<DrivesRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -927,6 +936,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<DrivesRecord> GetByTargetDriveAsync(Guid identityId,Guid DriveAlias,Guid DriveType)
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveAlias.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            DriveType.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
