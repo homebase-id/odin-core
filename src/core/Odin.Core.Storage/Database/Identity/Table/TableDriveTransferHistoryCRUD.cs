@@ -162,7 +162,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(DriveTransferHistoryRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -221,7 +223,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(DriveTransferHistoryRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -281,7 +285,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(DriveTransferHistoryRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -342,7 +348,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(DriveTransferHistoryRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {

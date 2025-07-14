@@ -192,7 +192,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(AppNotificationsRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -247,7 +248,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(AppNotificationsRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -303,7 +305,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(AppNotificationsRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -360,7 +363,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(AppNotificationsRecord item)
         {
-            item.Validate();
+        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+        notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
