@@ -131,8 +131,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(ImFollowingRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -172,8 +171,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(ImFollowingRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -214,8 +212,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(ImFollowingRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -257,8 +254,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(ImFollowingRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {

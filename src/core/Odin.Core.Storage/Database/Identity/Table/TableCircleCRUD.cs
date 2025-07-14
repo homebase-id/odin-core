@@ -150,8 +150,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(CircleRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -191,8 +191,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(CircleRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -233,8 +233,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(CircleRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -276,8 +276,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(CircleRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {

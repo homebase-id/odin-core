@@ -144,10 +144,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(AppGrantsRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
-        appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
+            item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -192,10 +192,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(AppGrantsRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
-        appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
+            item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -241,10 +241,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(AppGrantsRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
-        appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
+            item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -291,10 +291,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(AppGrantsRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
-        appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
-        circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.odinHashId.AssertGuidNotEmpty("Guid parameter odinHashId cannot be set to Empty GUID.");
+            item.appId.AssertGuidNotEmpty("Guid parameter appId cannot be set to Empty GUID.");
+            item.circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {

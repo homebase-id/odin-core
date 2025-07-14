@@ -117,10 +117,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(DriveAclIndexRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -159,10 +159,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(DriveAclIndexRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -202,10 +202,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(DriveAclIndexRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -246,10 +246,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(DriveAclIndexRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.aclMemberId.AssertGuidNotEmpty("Guid parameter aclMemberId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {

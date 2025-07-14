@@ -214,9 +214,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(InboxRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -280,9 +281,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(InboxRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -347,9 +349,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(InboxRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -415,9 +418,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(InboxRecord item)
         {
-        identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-        fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-        boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
+            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
