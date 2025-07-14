@@ -50,7 +50,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _circleId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+                    value.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
                   _circleId = value;
                }
         }
@@ -103,7 +103,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            circleId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             if (circleName == null) throw new OdinDatabaseValidationException("Cannot be null circleName");
             if (circleName?.Length < 2) throw new OdinDatabaseValidationException($"Too short circleName, was {circleName.Length} (min 2)");
             if (circleName?.Length > 80) throw new OdinDatabaseValidationException($"Too long circleName, was {circleName.Length} (max 80)");
@@ -364,7 +364,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid circleId)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            circleId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -391,7 +391,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<CircleRecord> PopAsync(Guid identityId,Guid circleId)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            circleId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var deleteCommand = cn.CreateCommand();
             {
@@ -426,7 +426,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected CircleRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid circleId)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            circleId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             var result = new List<CircleRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -446,7 +446,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<CircleRecord> GetAsync(Guid identityId,Guid circleId)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            circleId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            circleId.AssertGuidNotEmpty("Guid parameter circleId cannot be set to Empty GUID.");
             var (hit, cacheObject) = _cache.Get("TableCircleCRUD", identityId.ToString()+circleId.ToString());
             if (hit)
                 return (CircleRecord)cacheObject;

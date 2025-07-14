@@ -50,7 +50,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _driveId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+                    value.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
                   _driveId = value;
                }
         }
@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _postId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+                    value.AssertGuidNotEmpty("Guid parameter postId cannot be set to Empty GUID.");
                   _postId = value;
                }
         }
@@ -102,8 +102,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            postId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            postId.AssertGuidNotEmpty("Guid parameter postId cannot be set to Empty GUID.");
             if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
             if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
             if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
@@ -397,8 +397,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> DeleteAllReactionsAsync(Guid identityId,Guid driveId,OdinId identity,Guid postId)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            postId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            postId.AssertGuidNotEmpty("Guid parameter postId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -433,8 +433,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<int> DeleteAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            postId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            postId.AssertGuidNotEmpty("Guid parameter postId cannot be set to Empty GUID.");
             if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
             if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
             if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
@@ -477,8 +477,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<DriveReactionsRecord> PopAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            postId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            postId.AssertGuidNotEmpty("Guid parameter postId cannot be set to Empty GUID.");
             if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
             if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
             if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
@@ -531,8 +531,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected DriveReactionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            postId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            postId.AssertGuidNotEmpty("Guid parameter postId cannot be set to Empty GUID.");
             if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
             if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
             if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
@@ -554,8 +554,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         protected virtual async Task<DriveReactionsRecord> GetAsync(Guid identityId,Guid driveId,Guid postId,OdinId identity,string singleReaction)
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            postId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            postId.AssertGuidNotEmpty("Guid parameter postId cannot be set to Empty GUID.");
             if (singleReaction == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
             if (singleReaction?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {singleReaction.Length} (min 3)");
             if (singleReaction?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {singleReaction.Length} (max 80)");
