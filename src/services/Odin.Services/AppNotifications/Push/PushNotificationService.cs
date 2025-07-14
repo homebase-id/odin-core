@@ -55,7 +55,10 @@ public class PushNotificationService(
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
-    private static readonly TwoKeyValueStorage DeviceSubscriptionStorage = TenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
+
+    private static readonly TwoKeyValueStorage DeviceSubscriptionStorage =
+        TenantSystemStorage.CreateTwoKeyValueStorage(Guid.Parse(DeviceStorageContextKey));
+
     private static readonly byte[] DeviceStorageDataType = Guid.Parse(DeviceStorageDataTypeKey).ToByteArray();
 
     /// <summary>
@@ -118,7 +121,8 @@ public class PushNotificationService(
     public async Task<List<PushNotificationSubscription>> GetAllSubscriptionsAsync(IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-        var subscriptions = await DeviceSubscriptionStorage.GetByDataTypeAsync<PushNotificationSubscription>(twoKeyValue, DeviceStorageDataType);
+        var subscriptions =
+            await DeviceSubscriptionStorage.GetByDataTypeAsync<PushNotificationSubscription>(twoKeyValue, DeviceStorageDataType);
         return subscriptions?.ToList() ?? new List<PushNotificationSubscription>();
     }
 
@@ -177,7 +181,7 @@ public class PushNotificationService(
 
     private async Task WebPushAsync(PushNotificationSubscription subscription, NotificationEccKeys keys, PushNotificationContent content,
         IOdinContext odinContext,
-         CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         logger.LogDebug("Attempting WebPush Notification - start");
 
@@ -213,6 +217,14 @@ public class PushNotificationService(
                 return;
             }
 
+            if (exception.HttpResponseMessage.StatusCode == HttpStatusCode.BadRequest)
+            {
+                logger.LogInformation(
+                    "Received BadRequest WebPushException with message [{message}] removing subscription for device with accessRegistrationId: {device}",
+                    exception.Message, subscription.AccessRegistrationId);
+
+                await RemoveDeviceAsync(subscription.AccessRegistrationId, odinContext);
+            }
 
             logger.LogError(exception, "Failed sending web push notification {exception}.  remote status code: {code}. content: {content}",
                 exception,
@@ -287,34 +299,34 @@ public class PushNotificationService(
                 .WithAttempts(5)
                 .WithExponentialBackoff(TimeSpan.FromSeconds(1))
                 .ExecuteAsync(async () =>
-            {
-                try
                 {
-                    await push.PostMessage(request);
-                }
-                catch (ApiException apiEx)
-                {
-                    var problem = await apiEx.TryGetContentAsAsync<ProblemDetails>();
-                    if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
+                    try
                     {
-                        logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
-                        // PushAsync can call DevicePushAsync multiple times in parallel,
-                        // so we need to make separate scopes to call the database
-                        await using var dbScope = scope.BeginLifetimeScope();
-                        var tkv = dbScope.Resolve<TableKeyTwoValue>();
-                        await RemoveDeviceAsync(tkv, subscription.AccessRegistrationId, odinContext);
+                        await push.PostMessage(request);
                     }
-                    else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
+                    catch (ApiException apiEx)
                     {
-                        logger.LogError("Failed sending device push notification: {status} - {error}",
-                            apiEx.StatusCode, apiEx.Content);
+                        var problem = await apiEx.TryGetContentAsAsync<ProblemDetails>();
+                        if (problem is { Status: (int)HttpStatusCode.BadGateway, Type: "NotFound" })
+                        {
+                            logger.LogDebug("Removing subscription {subscription}", subscription.AccessRegistrationId);
+                            // PushAsync can call DevicePushAsync multiple times in parallel,
+                            // so we need to make separate scopes to call the database
+                            await using var dbScope = scope.BeginLifetimeScope();
+                            var tkv = dbScope.Resolve<TableKeyTwoValue>();
+                            await RemoveDeviceAsync(tkv, subscription.AccessRegistrationId, odinContext);
+                        }
+                        else if (apiEx.StatusCode == HttpStatusCode.BadRequest)
+                        {
+                            logger.LogError("Failed sending device push notification: {status} - {error}",
+                                apiEx.StatusCode, apiEx.Content);
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
-                    else
-                    {
-                        throw;
-                    }
-                }
-            });
+                });
         }
         catch (Exception e)
         {
