@@ -39,7 +39,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identityId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _identityId = value;
                }
         }
@@ -60,7 +59,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _driveId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
                   _driveId = value;
                }
         }
@@ -86,8 +84,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
         public void Validate()
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
         }
     } // End of record ImFollowingRecord
 
@@ -344,8 +340,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -376,8 +370,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<ImFollowingRecord> PopAsync(Guid identityId,OdinId identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var deleteCommand = cn.CreateCommand();
             {
@@ -416,8 +408,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected ImFollowingRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             var result = new List<ImFollowingRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -435,8 +425,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<ImFollowingRecord> GetAsync(Guid identityId,OdinId identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             var (hit, cacheObject) = _cache.Get("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString());
             if (hit)
                 return (ImFollowingRecord)cacheObject;
@@ -480,7 +468,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected ImFollowingRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,OdinId identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var result = new List<ImFollowingRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -498,7 +485,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<ImFollowingRecord>> GetAsync(Guid identityId,OdinId identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {

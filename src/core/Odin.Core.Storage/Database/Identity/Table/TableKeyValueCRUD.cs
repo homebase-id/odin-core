@@ -42,7 +42,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identityId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _identityId = value;
                }
         }
@@ -94,7 +93,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
         public void Validate()
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
             if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
             if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
@@ -333,7 +331,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,byte[] key)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
             if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
             if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
@@ -362,7 +359,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<KeyValueRecord> PopAsync(Guid identityId,byte[] key)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
             if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
             if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
@@ -399,7 +395,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
             if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
             if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
@@ -420,7 +415,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<KeyValueRecord> GetAsync(Guid identityId,byte[] key)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
             if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
             if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");

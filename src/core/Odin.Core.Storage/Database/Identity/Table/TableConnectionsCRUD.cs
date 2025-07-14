@@ -39,7 +39,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identityId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _identityId = value;
                }
         }
@@ -141,7 +140,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
         public void Validate()
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (displayName == null) throw new OdinDatabaseValidationException("Cannot be null displayName");
             if (displayName?.Length < 0) throw new OdinDatabaseValidationException($"Too short displayName, was {displayName.Length} (min 0)");
             if (displayName?.Length > 80) throw new OdinDatabaseValidationException($"Too long displayName, was {displayName.Length} (max 80)");
@@ -474,7 +472,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -500,7 +497,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<ConnectionsRecord> PopAsync(Guid identityId,OdinId identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var deleteCommand = cn.CreateCommand();
             {
@@ -534,7 +530,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected ConnectionsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var result = new List<ConnectionsRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -557,7 +552,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<ConnectionsRecord> GetAsync(Guid identityId,OdinId identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identityId.ToString()+identity.DomainName);
             if (hit)
                 return (ConnectionsRecord)cacheObject;

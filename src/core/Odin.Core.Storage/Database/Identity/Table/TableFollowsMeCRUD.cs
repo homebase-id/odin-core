@@ -41,7 +41,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _identityId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
                   _identityId = value;
                }
         }
@@ -76,7 +75,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    return _driveId;
                }
            set {
-                    value.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
                   _driveId = value;
                }
         }
@@ -102,11 +100,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
         public void Validate()
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
         }
     } // End of record FollowsMeRecord
 
@@ -363,11 +359,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> DeleteAsync(Guid identityId,string identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
@@ -398,11 +392,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<FollowsMeRecord> PopAsync(Guid identityId,string identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var deleteCommand = cn.CreateCommand();
             {
@@ -441,11 +433,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,string identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             var result = new List<FollowsMeRecord>();
 #pragma warning disable CS0168
             long bytesRead;
@@ -463,11 +453,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<FollowsMeRecord> GetAsync(Guid identityId,string identity,Guid driveId)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
             var (hit, cacheObject) = _cache.Get("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
             if (hit)
                 return (FollowsMeRecord)cacheObject;
@@ -511,7 +499,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,string identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
@@ -532,7 +519,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<List<FollowsMeRecord>> GetAsync(Guid identityId,string identity)
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
