@@ -2,12 +2,12 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authorization.Permissions;
@@ -195,7 +195,7 @@ public class HomebaseSsrController(
                     contentBuilder.AppendLine($"</div>");
                 }
             }
-            catch (JsonReaderException) // this fallback is for older bios that have not been touched.  they are not json by default
+            catch (JsonException) // this fallback is for older bios that have not been touched.  they are not json by default
             {
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bio);
