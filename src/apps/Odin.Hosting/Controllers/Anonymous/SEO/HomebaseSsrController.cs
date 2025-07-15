@@ -195,7 +195,7 @@ public class HomebaseSsrController(
                     contentBuilder.AppendLine($"</div>");
                 }
             }
-            catch (JsonException) // this fallback is for older bios that have not been touched.  they are not json by default
+            catch (JsonException) // this fallback is for older bios that have not been changed to json format.
             {
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bio);
