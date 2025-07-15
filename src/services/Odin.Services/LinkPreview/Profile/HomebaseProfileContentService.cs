@@ -12,6 +12,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
@@ -26,6 +27,7 @@ public class HomebaseProfileContentService(
     StaticFileContentService staticFileContentService,
     StandardFileSystem fileSystem,
     IHttpContextAccessor httpContextAccessor,
+    IDriveManager driveManager,
     ILogger<HomebaseProfileContentService> logger)
 {
     public const int AttributeFileType = 77;
@@ -123,6 +125,12 @@ public class HomebaseProfileContentService(
 
     public async Task<AboutSection> LoadAboutSection(IOdinContext odinContext)
     {
+        var theDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ProfileDrive.Alias);
+        if (null == theDrive)
+        {
+            return null;
+        }
+        
         var qp = new FileQueryParams
         {
             TargetDrive = SystemDriveConstants.ProfileDrive,
@@ -153,6 +161,11 @@ public class HomebaseProfileContentService(
         {
             try
             {
+                if (string.IsNullOrEmpty(s.FileMetadata.AppData.Content))
+                {
+                    continue;
+                }
+                
                 var attribute = OdinSystemSerializer.Deserialize<ProfileBlock>(s.FileMetadata.AppData.Content);
                 if (attribute.Type.ToLower() == shortBioType)
                 {

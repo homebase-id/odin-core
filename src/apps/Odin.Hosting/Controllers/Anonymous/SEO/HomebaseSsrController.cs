@@ -7,8 +7,8 @@ using System.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Odin.Core.Exceptions;
-using Odin.Core.Serialization;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.DataSubscription.Follower;
@@ -75,7 +75,7 @@ public class HomebaseSsrController(
         }
 
         var count = Int32.MaxValue;
-        if (WebOdinContext.PermissionsContext.HasPermission(PermissionKeys.ReadConnections))
+        if (WebOdinContext.PermissionsContext?.HasPermission(PermissionKeys.ReadConnections) ?? false)
         {
             var result = await cn.GetConnectedIdentitiesAsync(count, null, WebOdinContext);
             var connections = result.Results.Select(p => p.Redacted()).ToList();
@@ -98,7 +98,7 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine("</ul>");
         }
 
-        if (WebOdinContext.PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow))
+        if (WebOdinContext.PermissionsContext?.HasPermission(PermissionKeys.ReadWhoIFollow) ?? false)
         {
             var peopleIFollow = await followerService.GetIdentitiesIFollowAsync(count, null, WebOdinContext);
             contentBuilder.AppendLine("<h3>Who I follow</h3>");
@@ -165,6 +165,13 @@ public class HomebaseSsrController(
         contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
 
         var aboutSection = await profileContentService.LoadAboutSection(WebOdinContext);
+        if (null == aboutSection)
+        {
+            CreateMenu(contentBuilder);
+            await WriteContent(head, contentBuilder.ToString());
+            return;
+        }
+
         contentBuilder.AppendLine("<br/><hr/><br/>");
 
         contentBuilder.AppendLine("<h2>Status</h2>");
@@ -187,6 +194,12 @@ public class HomebaseSsrController(
                     contentBuilder.Append(bodyHtml);
                     contentBuilder.AppendLine($"</div>");
                 }
+            }
+            catch (JsonReaderException) // this fallback is for older bios that have not been touched.  they are not json by default
+            {
+                contentBuilder.AppendLine($"<div>");
+                contentBuilder.Append(bio);
+                contentBuilder.AppendLine($"</div>");
             }
             catch (Exception e)
             {
