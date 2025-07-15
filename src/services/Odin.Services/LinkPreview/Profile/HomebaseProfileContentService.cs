@@ -153,6 +153,11 @@ public class HomebaseProfileContentService(
         {
             try
             {
+                if (string.IsNullOrEmpty(s.FileMetadata.AppData.Content))
+                {
+                    continue;
+                }
+                
                 var attribute = OdinSystemSerializer.Deserialize<ProfileBlock>(s.FileMetadata.AppData.Content);
                 if (attribute.Type.ToLower() == shortBioType)
                 {
@@ -218,7 +223,7 @@ public class HomebaseProfileContentService(
             }
             catch (Exception e)
             {
-                logger.LogError(e, "could not deserialize ssr about section profile attribute");
+                logger.LogDebug(e, "could not deserialize ssr about section profile attribute");
             }
         }
 
