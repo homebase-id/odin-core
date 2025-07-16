@@ -60,7 +60,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     }
 
     public class PeerInboxProcessor(
-        TenantPathManager pathManager,
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
         CircleNetworkService circleNetworkService,
