@@ -245,7 +245,7 @@ public class HomebaseSsrController(
             contentBuilder.AppendLine($"<a href='{exp.Link}'>{exp.Link}</a>");
             contentBuilder.AppendLine("<br/><hr/><br/>");
         }
-
+        
         CreateMenu(contentBuilder);
         await WriteContent(head, contentBuilder.ToString());
     }
