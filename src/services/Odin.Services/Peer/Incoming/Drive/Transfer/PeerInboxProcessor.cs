@@ -15,6 +15,7 @@ using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.EncryptionKeyService;
@@ -59,6 +60,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
     }
 
     public class PeerInboxProcessor(
+        TenantPathManager pathManager,
         TransitInboxBoxStorage transitInboxBoxStorage,
         FileSystemResolver fileSystemResolver,
         CircleNetworkService circleNetworkService,
@@ -135,10 +137,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         int n = await transitInboxBoxStorage.MarkCompleteAsync(tempFile.File,
                             inboxItem.Marker); // markComplete removes in from the Inbox
-                        if (n != 1)
+
+                        if (n == 1)
+                        {
+                            var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
+                            await fs.Storage.CleanupInboxTemporaryFiles(tempFile, payloads, odinContext);
+                        }
+                        else
+                        {
                             logger.LogError("Inbox: Unable to MarkComplete for DeleteFromInbox.");
+                        }
                     }
-                    // else it was marked as complete and we're done.
+                    else if (success == InboxReturnTypes.HasBeenMarkedComplete)
+                    {
+                        var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
+                        await fs.Storage.CleanupInboxTemporaryFiles(tempFile, payloads, odinContext);
+                    }
                 }
             }
 
