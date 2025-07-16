@@ -16,7 +16,6 @@ using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
-using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
 
 namespace Odin.Services.LinkPreview.Profile;
