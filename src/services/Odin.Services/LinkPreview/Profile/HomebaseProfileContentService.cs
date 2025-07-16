@@ -232,12 +232,9 @@ public class HomebaseProfileContentService(
                 }
                 else
                 {
-                    if(s.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous)
-                    {
-                        // dump raw
-                        logger.LogDebug("Could not deserialize ssr about section profile attribute.  content:[{content}]",
-                            s.FileMetadata.AppData.Content);
-                    }
+                    // dump raw
+                    logger.LogDebug("Could not deserialize ssr about section profile attribute.  content:[{content}]",
+                        s.FileMetadata.AppData.Content);
                 }
             }
             catch (Exception e)
