@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -15,7 +16,6 @@ using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
-using Odin.Services.LinkPreview.Posts;
 using Odin.Services.Optimization.Cdn;
 
 namespace Odin.Services.LinkPreview.Profile;
@@ -130,7 +130,7 @@ public class HomebaseProfileContentService(
         {
             return null;
         }
-        
+
         var qp = new FileQueryParams
         {
             TargetDrive = SystemDriveConstants.ProfileDrive,
@@ -165,67 +165,78 @@ public class HomebaseProfileContentService(
                 {
                     continue;
                 }
-                
-                var attribute = OdinSystemSerializer.Deserialize<ProfileBlock>(s.FileMetadata.AppData.Content);
-                if (attribute.Type.ToLower() == shortBioType)
-                {
-                    if (attribute.Data.TryGetValue("short_bio", out var data))
-                    {
-                        section.ShortBio.Add(Convert.ToString(data));
-                    }
-                }
 
-                if (attribute.Type.ToLower() == statusType)
+                if (TryDeserialize(s.FileMetadata.AppData.Content, out var attribute))
                 {
-                    if (attribute.Data.TryGetValue("status", out var data))
+                    if (attribute.Type.ToLower() == shortBioType)
                     {
-                        section.Status.Add(Convert.ToString(data));
-                    }
-                }
-
-                if (attribute.Type.ToLower() == experienceType)
-                {
-                    var exp = new ExperienceAttribute();
-                    if (attribute.Data.TryGetValue("full_bio", out var fullBio) &&
-                        attribute.Data.TryGetValue("short_bio", out var shortBio) &&
-                        attribute.Data.TryGetValue("experience_link", out var experienceLink))
-                    {
-                        exp.Title = Convert.ToString(shortBio);
-                        exp.Link = Convert.ToString(experienceLink);
-
-                        if (attribute.Data.TryGetValue("experience_image", out var imageKey))
+                        if (attribute.Data.TryGetValue("short_bio", out var data))
                         {
-                            // logger.LogDebug("Post has usable thumbnail");
-
-                            StringBuilder b = new StringBuilder();
-                            b.Append($"&alias={targetDrive.Alias}");
-                            b.Append($"&type={targetDrive.Type}");
-                            b.Append($"&fileId={s.FileId}");
-                            b.Append($"&key={imageKey}");
-                            b.Append($"&width={400}&height={400}");
-                            b.Append($"&lastModified={s.FileMetadata.Updated.milliseconds}");
-                            b.Append($"&xfst=Standard"); // note: No comment support
-                            b.Append($"&iac=true");
-                            
-                            var builder = new UriBuilder("https", odinContext.Tenant)
-                            {
-                                Path = $"api/guest/v1/drive/files/payload",
-                                Query = b.ToString()
-                            };
-
-                            exp.ImageUrl = builder.ToString();
+                            section.ShortBio.Add(Convert.ToString(data));
                         }
+                    }
 
-                        exp.Description = Convert.ToString(fullBio);
-                        section.Experience.Add(exp);
+                    if (attribute.Type.ToLower() == statusType)
+                    {
+                        if (attribute.Data.TryGetValue("status", out var data))
+                        {
+                            section.Status.Add(Convert.ToString(data));
+                        }
+                    }
+
+                    if (attribute.Type.ToLower() == experienceType)
+                    {
+                        var exp = new ExperienceAttribute();
+                        if (attribute.Data.TryGetValue("full_bio", out var fullBio) &&
+                            attribute.Data.TryGetValue("short_bio", out var shortBio) &&
+                            attribute.Data.TryGetValue("experience_link", out var experienceLink))
+                        {
+                            exp.Title = Convert.ToString(shortBio);
+                            exp.Link = Convert.ToString(experienceLink);
+
+                            if (attribute.Data.TryGetValue("experience_image", out var imageKey))
+                            {
+                                // logger.LogDebug("Post has usable thumbnail");
+
+                                StringBuilder b = new StringBuilder();
+                                b.Append($"&alias={targetDrive.Alias}");
+                                b.Append($"&type={targetDrive.Type}");
+                                b.Append($"&fileId={s.FileId}");
+                                b.Append($"&key={imageKey}");
+                                b.Append($"&width={400}&height={400}");
+                                b.Append($"&lastModified={s.FileMetadata.Updated.milliseconds}");
+                                b.Append($"&xfst=Standard"); // note: No comment support
+                                b.Append($"&iac=true");
+
+                                var builder = new UriBuilder("https", odinContext.Tenant)
+                                {
+                                    Path = $"api/guest/v1/drive/files/payload",
+                                    Query = b.ToString()
+                                };
+
+                                exp.ImageUrl = builder.ToString();
+                            }
+
+                            exp.Description = Convert.ToString(fullBio);
+                            section.Experience.Add(exp);
+                        }
+                    }
+
+                    if (attribute.Type.ToLower() == bioType)
+                    {
+                        if (attribute.Data.TryGetValue("short_bio", out var data))
+                        {
+                            section.Bio.Add(Convert.ToString(data));
+                        }
                     }
                 }
-
-                if (attribute.Type.ToLower() == bioType)
+                else
                 {
-                    if (attribute.Data.TryGetValue("short_bio", out var data))
+                    if(s.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous)
                     {
-                        section.Bio.Add(Convert.ToString(data));
+                        // dump raw
+                        logger.LogDebug("Could not deserialize ssr about section profile attribute.  content:[{content}]",
+                            s.FileMetadata.AppData.Content);
                     }
                 }
             }
@@ -236,5 +247,19 @@ public class HomebaseProfileContentService(
         }
 
         return section;
+    }
+
+    private bool TryDeserialize(string content, out ProfileBlock profile)
+    {
+        try
+        {
+            profile = OdinSystemSerializer.Deserialize<ProfileBlock>(content);
+        }
+        catch (Exception)
+        {
+            profile = null;
+        }
+
+        return false;
     }
 }
