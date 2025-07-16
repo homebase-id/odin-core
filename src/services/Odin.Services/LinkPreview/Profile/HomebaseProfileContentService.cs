@@ -256,7 +256,7 @@ public class HomebaseProfileContentService(
         {
             profile = OdinSystemSerializer.Deserialize<ProfileBlock>(content);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             profile = null;
         }
