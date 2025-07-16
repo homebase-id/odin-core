@@ -230,12 +230,12 @@ public class HomebaseProfileContentService(
                         }
                     }
                 }
-                else
-                {
-                    // dump raw
-                    logger.LogDebug("Could not deserialize ssr about section profile attribute.  content:[{content}]",
-                        s.FileMetadata.AppData.Content);
-                }
+                // else
+                // {
+                //     // dump raw
+                //     logger.LogDebug("Could not deserialize ssr about section profile attribute.  content:[{content}]",
+                //         s.FileMetadata.AppData.Content);
+                // }
             }
             catch (Exception e)
             {
@@ -252,8 +252,9 @@ public class HomebaseProfileContentService(
         {
             profile = OdinSystemSerializer.Deserialize<ProfileBlock>(content);
         }
-        catch (Exception)
+        catch (Exception e)
         {
+            logger.LogError(e, "Failed to deserialize profile block");
             profile = null;
         }
 
